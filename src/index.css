@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+
+body {
+  font-family: "Comfortaa", sans-serif;
+    font-style: normal;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+   */
+  /* Hide scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; 
+  scrollbar-width: none;
+}
+
+.input {
+  @apply w-full p-2 border rounded;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
