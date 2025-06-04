@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useSpeechSynthesis } from "react-speech-kit";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
@@ -28,7 +27,7 @@ const SmartBot = () => {
   const botRef = useRef(null);
   const navigate = useNavigate();
 
-  const { speak, speaking, cancel } = useSpeechSynthesis();
+  // const { speak, speaking, cancel } = useSpeechSynthesis();
   const {
     transcript,
     listening,
@@ -72,14 +71,14 @@ const SmartBot = () => {
   const addBotMessage = (text, options = {}) => {
     const message = { role: "bot", text, ...options };
     setMessages((prev) => [...prev, message]);
-    if (options.silent !== true)
-      speak({
-        text: message.text,
-        rate: 1.6, // 🚀 Faster speed (1.0 is normal, 1.5 is faster)
-        pitch: 1.6, // Normal pitch
-        volume: 1, // Full volume
-        lang: "en-US",
-      });
+    // if (options.silent !== true)
+    //   speak({
+    //     text: message.text,
+    //     rate: 1.6, // 🚀 Faster speed (1.0 is normal, 1.5 is faster)
+    //     pitch: 1.6, // Normal pitch
+    //     volume: 1, // Full volume
+    //     lang: "en-US",
+    //   });
   };
 
   const handleSend = async () => {
@@ -282,14 +281,14 @@ const SmartBot = () => {
               </p>
             )}
 
-            {speaking && (
+            {/* {speaking && (
               <button
                 onClick={cancel}
                 className="mt-2 w-full text-sm text-white bg-red-500 hover:bg-red-600 py-1.5 rounded-xl"
               >
                 🔇 Stop Speaking
               </button>
-            )}
+            )} */}
           </motion.div>
         )}
       </AnimatePresence>
