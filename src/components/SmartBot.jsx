@@ -12,7 +12,7 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
-import contactDetails from "../../../backend/data/contactDetails.js";
+import contactDetails from "../data/contactDetails.js";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axiosInstance from "../axiosInstance";

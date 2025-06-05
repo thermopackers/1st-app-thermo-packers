@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { categories } from "../../../backend/data/products.js";
+import { categories } from "../data/products.js";
 import ProductCard from "../components/ProductCard";
 import FloatingWhatsApp from "../components/FloatingWhatsapp";
 import { Helmet } from "react-helmet";
