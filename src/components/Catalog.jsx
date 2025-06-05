@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { categories } from "../../../backend/data/products.js";
+import { categories } from "../data/products.js";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // ✅ Function to normalize known compound terms like "EPS Thermocol"
