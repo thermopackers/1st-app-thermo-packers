@@ -398,6 +398,7 @@ const fetchOrders = async (page = 1) => {
       });
       setOrders(orders.filter((o) => o._id !== id));
       toast.success("Order deleted");
+      fetchOrders()
     } catch (err) {
       console.error("Error deleting:", err);
     }
@@ -417,6 +418,7 @@ const fetchOrders = async (page = 1) => {
         o._id === id ? { ...o, ...updatedData } : o
       );
       setOrders(updated);
+      fetchOrders();
     } catch (err) {
       console.error("Failed to update order:", err);
     }
@@ -915,11 +917,11 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Packaging Status
                       </th>
-                      {role !== "dispatch" && (
+                      {/* {role !== "dispatch" && ( */}
                         <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                           Dispatch Status
                         </th>
-                      )}
+                      {/* )} */}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
@@ -985,7 +987,7 @@ const productKey = order.product.toLowerCase();
                             ₹{order.price}
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
-                            {order.density}kg/m<sup>2</sup>
+                            {order.density}kg/m<sup>3</sup>
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
                             ₹{order.packagingCharge}
@@ -1375,10 +1377,7 @@ const productKey = order.product.toLowerCase();
                                     : "bg-gray-400"
                                 }`}
                               ></span>
-                                   {" "}
-                              {/* <span className="capitalize">
-                                  {order.packagingStatus || "unpackaged"}
-                                </span> */}
+                                
                               <span className="capitalize">
                                 {(order.dispatchStatus === "dispatched" ||
                                   order.dispatchStatus ===
@@ -1391,7 +1390,6 @@ const productKey = order.product.toLowerCase();
                             </div>
                              {" "}
                           </td>
-                          {role !== "dispatch" && (
                             <td className="px-4 py-2 whitespace-nowrap">
                                  {" "}
                               <div className="flex items-center gap-2">
@@ -1418,7 +1416,6 @@ const productKey = order.product.toLowerCase();
                               </div>
                                {" "}
                             </td>
-                          )}
                         </tr>
       );
     })}

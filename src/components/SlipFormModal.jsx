@@ -158,7 +158,7 @@ useEffect(() => {
                 onChange={(e) => handleShapeChange("productName", e.target.value)}
                 className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
               />
-              <label>{showAsDanaSlip ? "Density (Kg/m³)" : "Dry Weight / Density"}</label>
+              <label>{showAsDanaSlip ? "Density(Kg/m³)" : "Dry Weight / Density"}</label>
               <input
                 type="text"
                 placeholder={showAsDanaSlip ? "Density" : "Dry Weight / Density"}
@@ -239,7 +239,7 @@ useEffect(() => {
                 required
                 className="w-full border border-gray-300 rounded-md px-4 py-3"
               />
-              <label>Density:</label>
+              <label>Density(kg/m³):</label>
               <input
                 type="text"
                 placeholder="Density (e.g., 12 Kg/m³)"
