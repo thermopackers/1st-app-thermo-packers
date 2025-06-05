@@ -13,6 +13,7 @@ const DispatchDashboard = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+                       const baseUrl = process.env.VITE_REACT_APP_API_URL;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 const [totalPages, setTotalPages] = useState(1);
@@ -286,7 +287,7 @@ const currentOrders = filteredOrders; // Already paginated from backend
                             <td className="px-4 py-3">
                               {order.cuttingSlip?.url && (
                                 <a
-                                  href={`http://localhost:3001${order.cuttingSlip.url}`}
+                                        href={`${baseUrl}${order.cuttingSlip.url}`}
                                   download
                                   className="text-blue-600 underline"
                                 >

@@ -12,7 +12,7 @@ const ITEMS_PER_PAGE = 15;
 
 const ProductionDashboard = () => {
   const { user, loading: userLoading } = useUserContext();
-
+                     const baseUrl = process.env.VITE_REACT_APP_API_URL;
   const [orders, setOrders] = useState([]);
 const [searchParams, setSearchParams] = useSearchParams();
 const currentPage = parseInt(searchParams.get("page")) || 1;
@@ -307,25 +307,27 @@ const onEndDateChange = (e) => {
                     <td className="px-6 py-4">{order.product}</td>
                     <td className="px-6 py-4">{order.quantity}</td>
                     <td className="px-6 py-4">
-                      {order.requiredSections?.shapeMoulding
-                        ? order.shapeSlip?.url && (
-                            <a
-                              href={`http://localhost:3001${order.shapeSlip.url}`}
-                              download
-                              className="text-green-600 underline"
-                            >
-                              🏭 Shape Slip
-                            </a>
-                          )
-                        : order.danaSlip?.url && (
-                            <a
-                              href={`http://localhost:3001${order.danaSlip.url}`}
-                              download
-                              className="text-green-600 underline"
-                            >
-                              🧪 Dana Slip
-                            </a>
-                          )}
+
+{order.requiredSections?.shapeMoulding
+  ? order.shapeSlip?.url && (
+      <a
+        href={`${baseUrl}${order.shapeSlip.url}`}
+        download
+        className="text-green-600 underline"
+      >
+        🏭 Shape Slip
+      </a>
+    )
+  : order.danaSlip?.url && (
+      <a
+        href={`${baseUrl}${order.danaSlip.url}`}
+        download
+        className="text-green-600 underline"
+      >
+        🧪 Dana Slip
+      </a>
+    )}
+
                     </td>
 
                     <td className="px-6 py-4">

@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 
 const PackagingDashboard = () => {
   const [orders, setOrders] = useState([]);
+                       const baseUrl = process.env.VITE_REACT_APP_API_URL;
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -303,7 +304,7 @@ const handlePageChange = (page) => {
                         <td className="px-4 py-3">
                           {order.packagingSlip?.url && (
                             <a
-                              href={`http://localhost:3001${order.packagingSlip.url}`}
+                                    href={`${baseUrl}${order.packagingSlip.url}`}
                               download
                               className="text-purple-600 underline"
                             >
