@@ -12,7 +12,7 @@ const ITEMS_PER_PAGE = 15;
 
 const ProductionDashboard = () => {
   const { user, loading: userLoading } = useUserContext();
-                     const baseUrl = process.env.VITE_REACT_APP_API_URL;
+                     const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
   const [orders, setOrders] = useState([]);
 const [searchParams, setSearchParams] = useSearchParams();
 const currentPage = parseInt(searchParams.get("page")) || 1;

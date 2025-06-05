@@ -13,7 +13,7 @@ const DispatchDashboard = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-                       const baseUrl = process.env.VITE_REACT_APP_API_URL;
+                       const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 const [totalPages, setTotalPages] = useState(1);

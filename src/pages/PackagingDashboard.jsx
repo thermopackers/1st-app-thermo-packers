@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 const PackagingDashboard = () => {
   const [orders, setOrders] = useState([]);
-                       const baseUrl = process.env.VITE_REACT_APP_API_URL;
+                       const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
