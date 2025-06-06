@@ -120,7 +120,7 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
 >
 
                   {/* Show delete button only for DONE tasks */}
-{task.status === 'DONE' && (
+{task.status === 'DONE' && task.repeat === 'ONE_TIME' && (
   <button
     onClick={() => confirmDeleteTask(task._id)}
     className="absolute top-2 right-2 text-red-500 hover:text-red-700"
@@ -130,8 +130,16 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
   </button>
 )}
 
+
                   <div className="flex-1">
-                    <h2 className="text-lg font-bold">{task.title}</h2>
+<h2 className="text-lg font-bold flex items-center">
+  {task.title}
+  {task.repeat !== 'ONE_TIME' && (
+    <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
+    ⟳ {task.repeat === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+    </span>
+  )}
+</h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
                     <p className="text-sm text-gray-500 mt-2">
   Assigned by: {task.assignedBy?.name || 'N/A'}
@@ -141,8 +149,17 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
 </p>
 
                     <p className="text-sm text-gray-500">
-                      Due: {task.dueDate?.slice(0, 10) || 'N/A'}
-                    </p>
+  Due: {task.dueDate?.slice(0, 10) || 'N/A'}
+</p>
+<p className="text-sm text-gray-500">
+  Repeat: {task.repeat === 'ONE_TIME' ? 'One time' : task.repeat === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+</p>
+{task.repeat !== 'ONE_TIME' && task.nextRepeatDate && (
+  <p className="text-sm text-gray-500">
+    Next Repeat On: {new Date(task.nextRepeatDate).toLocaleDateString()}
+  </p>
+)}
+
                     <p className="mt-2 font-medium">
                       Status:{' '}
                       <span
@@ -170,7 +187,7 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
                   </div>
 
                  {/* Show Mark as Done button if status is NOT DONE OR if edited after done */}
-{(task.status !== 'DONE' || task.editedAfterDone) && (
+{task.status !== 'DONE' && (
   <button
     onClick={() => confirmMarkDone(task._id)}
     className="mt-4 sm:mt-0 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700

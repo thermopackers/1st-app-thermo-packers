@@ -27,6 +27,7 @@ const AdminDashboard = () => {
   const filterStatus = searchParams.get('status') || '';
   const selectedUser = searchParams.get('assignedTo') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
+const repeatFilter = searchParams.get('repeat') || '';
 
   // Fetch users once on mount
   useEffect(() => {
@@ -38,22 +39,27 @@ const AdminDashboard = () => {
   // Fetch tasks whenever filters or page changes
   useEffect(() => {
     const params = {
-      page,
-      limit: 9,
-      status: filterStatus || undefined,
-      assignedTo: selectedUser || undefined,
-    };
+  page,
+  limit: 9,
+  status: filterStatus || undefined,
+  assignedTo: selectedUser || undefined,
+  repeat: repeatFilter || undefined,
+};
+
     fetchAllTasks(params);
     setCurrentPage(page);
   }, [filterStatus, selectedUser, page]);
 
   // Update URL params when filters change
-  const updateFilters = (newFilters) => {
-    const updated = {
-      status: newFilters.status ?? filterStatus,
-      assignedTo: newFilters.assignedTo ?? selectedUser,
-      page: newFilters.page ?? 1, // reset page on filter change by default
-    };
+const updateFilters = (newFilters) => {
+  const repeatFilter = searchParams.get('repeat') || '';
+  const updated = {
+    status: newFilters.status ?? filterStatus,
+    assignedTo: newFilters.assignedTo ?? selectedUser,
+    repeat: newFilters.repeat ?? repeatFilter,
+    page: newFilters.page ?? 1,
+  };
+
 
     // Remove empty keys to keep URL clean
     Object.keys(updated).forEach(key => {
@@ -105,18 +111,17 @@ const AdminDashboard = () => {
 
         {/* Filters and Assign Task Button */}
         <div className="flex flex-wrap items-center gap-4">
-          <select
-            className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            onChange={(e) => updateFilters({ assignedTo: e.target.value, page: 1 })}
-            value={selectedUser}
-          >
-            <option value="">All Users</option>
-            {users.map(user => (
-              <option key={user._id} value={user._id}>
-                {user.name} ({user.role})
-              </option>
-            ))}
-          </select>
+         <select
+  className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+  onChange={(e) => updateFilters({ repeat: e.target.value, page: 1 })}
+  value={searchParams.get("repeat") || ""}
+>
+  <option value="">All Repeat Types</option>
+  <option value="One time">One time</option>
+  <option value="Repeat every month">Repeat every month</option>
+  <option value="Repeat every year">Repeat every year</option>
+</select>
+
 
           <select
             className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -198,9 +203,16 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-500 mt-2">
                     Assigned by: {task.assignedBy?.name || 'N/A'}
                   </p>
-                  <p className="text-sm text-gray-500">
-                    Assigned on: {task.assignedOn ? new Date(task.assignedOn).toLocaleDateString() : 'N/A'}
-                  </p>
+                <p className="text-sm text-gray-500">
+  Assigned on: {task.assignedOn ? new Date(task.assignedOn).toLocaleDateString() : 'N/A'}
+</p>
+
+{task.repeat && (
+  <p className="text-sm text-gray-500 mt-1">
+    Repeat: {task.repeat}
+  </p>
+)}
+
 
                   <p className={`text-sm font-semibold mt-1 ${task.status === 'DONE' ? 'text-green-600' : 'text-red-600'}`}>
                     Status: {task.status}

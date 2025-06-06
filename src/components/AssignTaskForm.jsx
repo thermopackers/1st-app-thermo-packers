@@ -7,8 +7,25 @@ const AssignTaskForm = ({ users, onTaskCreated,task = null, onCancelEdit = () =>
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [repeat, setRepeat] = useState('ONE_TIME');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+  if (task) {
+    setTitle(task.title || '');
+    setDescription(task.description || '');
+    setAssignedTo(task.assignedTo?._id || task.assignedTo || '');
+    setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : '');
+    setRepeat(task.repeat || 'ONE_TIME'); // <-- Add this
+  } else {
+    setTitle('');
+    setDescription('');
+    setAssignedTo('');
+    setDueDate('');
+    setRepeat('ONE_TIME'); // <-- Add this
+  }
+}, [task]);
 
    useEffect(() => {
     if (task) {
@@ -42,6 +59,7 @@ const AssignTaskForm = ({ users, onTaskCreated,task = null, onCancelEdit = () =>
           description,
           assignedTo,
           dueDate: dueDate || null,
+            repeat, // <-- Add this
         });
         toast.success('Task updated successfully!');
       } else {
@@ -50,6 +68,8 @@ const AssignTaskForm = ({ users, onTaskCreated,task = null, onCancelEdit = () =>
           description,
           assignedTo,
           dueDate: dueDate || null,
+            repeat, // <-- Add this
+
         });
         toast.success('Task assigned successfully!');
       }
@@ -59,6 +79,8 @@ const AssignTaskForm = ({ users, onTaskCreated,task = null, onCancelEdit = () =>
       setAssignedTo('');
       setDueDate('');
       onTaskCreated();
+      setRepeat('ONE_TIME');
+
     } catch (err) {
       setError('Failed to save task.');
       toast.error('Failed to save task. Please try again.');
@@ -153,6 +175,24 @@ const AssignTaskForm = ({ users, onTaskCreated,task = null, onCancelEdit = () =>
           onChange={(e) => setDueDate(e.target.value)}
         />
       </div>
+      <div>
+  <label htmlFor="repeat" className="block text-gray-700 font-semibold mb-2">
+    Repeat
+  </label>
+  <select
+    id="repeat"
+    className="w-full border border-gray-300 rounded-md p-3
+               focus:outline-none focus:ring-2 focus:ring-indigo-400
+               transition duration-200"
+    value={repeat}
+    onChange={(e) => setRepeat(e.target.value)}
+  >
+    <option value="ONE_TIME">One time</option>
+    <option value="MONTHLY">Repeat every month</option>
+    <option value="YEARLY">Repeat every year</option>
+  </select>
+</div>
+
 
       <button
         type="submit"

@@ -303,60 +303,6 @@ const fetchOrders = async (page = 1) => {
       return;
     }
 
-//     const fetchOrders = async () => {
-//   setLoading(true); // ✅ START loading
-
-//   try {
-//     const decoded = JSON.parse(atob(token.split(".")[1]));
-//     setRole(decoded.role);
-
-//     // ✅ Include pagination params
-//     const params = {
-//       page: currentPage,
-//       limit: ordersPerPage,
-//     };
-
-//     // ✅ Include date filters
-//     if (filters.startDate && filters.endDate) {
-//       params.startDate = filters.startDate;
-//       params.endDate = filters.endDate;
-//     }
-
-//     let url = "/orders";
-
-//     // ✅ Determine endpoint based on role
-//     if (decoded.role === "admin" || decoded.role === "accounts") {
-//       if (filters.employeeId) params.employeeId = filters.employeeId;
-//     } else if (decoded.role === "production") {
-//       url = "/orders/production-dashboard";
-//     } else if (decoded.role === "dispatch") {
-//       url = "/orders/dispatch-dashboard";
-//     } else {
-//       params.employeeId = decoded.employeeId || decoded.role;
-//     }
-
-//     const res = await axiosInstance.get(url, {
-//       headers: { Authorization: `Bearer ${token}` },
-//       params,
-//     });
-
-//     // ✅ Expecting res.data.orders, res.data.totalPages
-//     setOrders(res.data.orders.reverse());
-//     setFilteredOrders(res.data.orders.reverse()); // Optional: keep this if you're using `filteredOrders`
-//     setTotalPages(res.data.totalPages); // ✅ Set total pages
-//     setOrdersFetched(true);
-//   } catch (err) {
-//     console.error("Error fetching orders:", err);
-//     toast.error("Failed to fetch orders");
-//   } finally {
-//     setLoading(false);
-//   }
-// };
-
-
-
-
-
 
     fetchOrders(currentPage);
   }, [filters, token,location,currentPage,searchTerm]);
