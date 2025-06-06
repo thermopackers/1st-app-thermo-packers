@@ -114,7 +114,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
   return (
     <>
       <InternalNavbar />
-      <div className="max-w-6xl mx-auto px-4 mt-8 mb-12">
+<div className="w-screen px-4 mt-8 mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Block Moulding Report</h2>
  {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -167,6 +167,22 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
           >
             Reset Filters
           </button>
+          {/* Actions */}
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={handleAddRow}
+            className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+          >
+            Add Row
+          </button>
+
+          <button
+            onClick={handleSave}
+            className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+          >
+            Save
+          </button>
+        </div>
         </div>
 
         {/* Table */}
@@ -174,7 +190,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
           <table className="w-full table-auto divide-y divide-gray-200">
             <thead className="bg-blue-600">
               <tr>
-                {['Sr No', 'Date', 'Mould Name', 'Weight of Block', 'No of Blocks', 'Total Weight'].map((head) => (
+                {['Sr No', 'Date', 'Mould Density/Specification', 'Weight of Block(in kgs)', 'No of Blocks', 'Total Weight(in kgs)'].map((head) => (
                   <th key={head} className="px-3 py-2 text-white text-sm font-semibold text-center whitespace-nowrap">
                     {head}
                   </th>
@@ -205,11 +221,13 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                         <td className="px-3 py-2 text-center text-gray-700">{row.srNo}</td>
                         <td className="px-2 py-1">
                           <input
-                            type="date"
-                            value={row.date}
-                            onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-                            className="w-full border border-gray-300 rounded px-2 py-1"
-                          />
+  type="date"
+  value={row.date}
+  max={new Date().toISOString().split('T')[0]} // 👈 restricts to today
+  onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+  className="w-full border border-gray-300 rounded px-2 py-1"
+/>
+
                         </td>
                         <td className="px-2 py-1">
                           <input
@@ -217,10 +235,11 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                             value={row.mouldName}
                             onChange={(e) => handleInputChange(date, idx, 'mouldName', e.target.value)}
                             className="w-full border border-gray-300 rounded px-2 py-1"
-                            placeholder="Mould Name"
+                            placeholder="Mould Density"
                           />
                         </td>
                         <td className="px-2 py-1">
+                          <div className="flex items-center">
                           <input
                             type="number"
                             min="0"
@@ -229,6 +248,8 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                             className="w-full border border-gray-300 rounded px-2 py-1"
                             placeholder="Weight"
                           />
+                           <span className="ml-1 text-gray-600 text-sm">kgs</span>
+</div>
                         </td>
                         <td className="px-2 py-1">
                           <input
@@ -243,7 +264,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                         <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
                           {row.weightOfBlock && row.noOfBlocks
                             ? (parseFloat(row.weightOfBlock) * parseInt(row.noOfBlocks)).toFixed(2)
-                            : ''}
+                            : ''} kgs
                         </td>
                       </tr>
                     ))}
@@ -253,7 +274,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                         Total for {date}
                       </td>
                       <td className="text-center">{totalBlocks}</td>
-                      <td className="text-center">{totalWeight.toFixed(2)}</td>
+                      <td className="text-center">{totalWeight.toFixed(2)} kgs</td>
                     </tr>
                   </React.Fragment>
                 );
@@ -293,22 +314,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
           </button>
         </div>
 
-        {/* Actions */}
-        <div className="mt-6 flex gap-4">
-          <button
-            onClick={handleAddRow}
-            className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-          >
-            Add Row
-          </button>
-
-          <button
-            onClick={handleSave}
-            className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-          >
-            Save
-          </button>
-        </div>
+        
                 </>
 )}
       </div>

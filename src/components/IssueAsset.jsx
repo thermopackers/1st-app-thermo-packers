@@ -10,7 +10,6 @@ const IssueAsset = () => {
 
   // Form state with employee info + dynamic assets array
   const [formData, setFormData] = useState({
-    mobileNumber: '',
     issuedTo: '',
     assets: [
       { assetName: '', assetDescription: '', images: [], } // start with one empty asset input
@@ -81,7 +80,6 @@ const IssueAsset = () => {
   // Basic validation before submit
   const validateForm = () => {
     if (
-      !formData.mobileNumber.trim() ||
       !formData.issuedTo
     ) {
       setFormError('Please fill all required fields');
@@ -106,7 +104,6 @@ const IssueAsset = () => {
 
     const form = new FormData();
 
-    form.append('mobileNumber', formData.mobileNumber);
     form.append('issuedTo', formData.issuedTo);
 
     const assetsToSend = formData.assets.map((asset, index) => {
@@ -160,18 +157,6 @@ const IssueAsset = () => {
           noValidate
         >
           {/* Employee Details */}
-          <div>
-            <label className="block mb-1 font-medium">Mobile Number *</label>
-            <input
-              type="tel"
-              name="mobileNumber"
-              value={formData.mobileNumber}
-              onChange={handleInputChange}
-              placeholder="Enter mobile number"
-              className="w-full p-3 border border-gray-400 rounded"
-              required
-            />
-          </div>
 
           <div>
             <label className="block mb-1 font-medium">Assign to User *</label>

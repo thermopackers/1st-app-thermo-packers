@@ -9,7 +9,6 @@ export default function AddProduct() {
     name: "",
     unit: "",
     sizes: "",
-    quantity: 0,
   });
   const [images, setImages] = useState([]); // Array for multiple images
   const navigate = useNavigate();
@@ -113,18 +112,7 @@ export default function AddProduct() {
             onChange={handleChange}
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
-          <label className="block text-gray-700 font-semibold mb-2">
-            Quantity
-          </label>
-          <input
-            name="quantity"
-            type="number"
-            placeholder="Quantity"
-            value={formData.quantity}
-            onChange={handleChange}
-            min={0}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          />
+         
 
           <label className="block text-gray-700 font-semibold mb-2">
             Upload Images (max 5)

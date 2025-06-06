@@ -10,12 +10,32 @@ const ROWS_PER_PAGE = 5; // 5 dates per page
 const ShapeMouldingReport = () => {
   const { user } = useUserContext();
   const [loading, setLoading] = useState(true);
+  const [allProducts, setAllProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
 const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [groupedData, setGroupedData] = useState({});
   const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/products/all-backend-products", {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      console.log("ddadat",res.data);
+      
+      setAllProducts(res.data); // assuming array of products
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      toast.error("Failed to load product list");
+    }
+  };
+
+    fetchProducts();
+}, []);
+
 
   useEffect(() => {
   const debounced = debounce(() => {
@@ -44,7 +64,6 @@ const [searchTerm, setSearchTerm] = useState('');
           },
           headers: { Authorization: `Bearer ${user.token}` },
         });
-console.log("alladtata",res.data);
 
         if (res.data?.data) {
           setGroupedData(res.data.data); // Object of { date: [...rows] }
@@ -114,7 +133,7 @@ const paginatedDates = Object.keys(groupedData);
   return (
     <>
       <InternalNavbar />
-      <div className="max-w-6xl mx-auto px-4 mt-8 mb-12">
+<div className="w-screen px-4 mt-8 mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Shape Moulding Report</h2>
 
         {loading ? (
@@ -167,6 +186,22 @@ const paginatedDates = Object.keys(groupedData);
               >
                 Reset Filters
               </button>
+               {/* Actions */}
+            <div className="mt-6 flex gap-4">
+              <button
+                onClick={handleAddRow}
+                className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+              >
+                Add Row
+              </button>
+
+              <button
+                onClick={handleSave}
+                className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Save
+              </button>
+            </div>
             </div>
 
             {/* Table */}
@@ -182,9 +217,9 @@ const paginatedDates = Object.keys(groupedData);
                       'Cycle',
                       'Pcs',
                       'Total Qty',
-                      'Dry Wt',
-                      'Total Wt',
-                      'Rejects',
+                      'Dry Wt(in gms)',
+                      'Total Wt(in kgs)',
+                      'Rejection(in No of Pcs)',
                     ].map((head) => (
                       <th
                         key={head}
@@ -231,21 +266,29 @@ const paginatedDates = Object.keys(groupedData);
                             <tr key={`${date}-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                               <td className="px-3 py-2 text-center text-gray-700">{row.srNo}</td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="date"
-                                  value={row.date}
-                                  onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                />
+                               <input
+  type="date"
+  value={row.date}
+  max={new Date().toISOString().split('T')[0]} // 👈 restricts to today
+  onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+  className="w-full border border-gray-300 rounded px-2 py-1"
+/>
+
                               </td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.product}
-                                  onChange={(e) => handleInputChange(date, idx, 'product', e.target.value)}
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Product"
-                                />
+                               <select
+  value={row.product}
+  onChange={(e) => handleInputChange(date, idx, 'product', e.target.value)}
+  className="w-full border border-gray-300 rounded px-2 py-1"
+>
+  <option value="">Select Product</option>
+  {allProducts.map((product) => (
+    <option key={product._id} value={product.name}>
+      {product.name}
+    </option>
+  ))}
+</select>
+
                               </td>
                               <td className="px-2 py-1">
                                 <input
@@ -280,18 +323,22 @@ const paginatedDates = Object.keys(groupedData);
                                 {totalQtyRow}
                               </td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="any"
-                                  value={row.dryWt}
-                                  onChange={(e) => handleInputChange(date, idx, 'dryWt', e.target.value)}
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Dry Wt"
-                                />
+                                <div className="flex items-center">
+  <input
+    type="number"
+    min="0"
+    step="any"
+    value={row.dryWt}
+    onChange={(e) => handleInputChange(date, idx, 'dryWt', e.target.value)}
+    className="w-full border border-gray-300 rounded px-2 py-1"
+    placeholder="Dry Wt"
+  />
+  <span className="ml-1 text-gray-600 text-sm">gms</span>
+</div>
+
                               </td>
                               <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
-                                {totalWtRow.toFixed(2)}
+{(totalWtRow / 1000).toFixed(2)} kg
                               </td>
                               <td className="px-2 py-1">
                                 <input
@@ -356,22 +403,7 @@ const paginatedDates = Object.keys(groupedData);
               </button>
             </div>
 
-            {/* Actions */}
-            <div className="mt-6 flex gap-4">
-              <button
-                onClick={handleAddRow}
-                className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-              >
-                Add Row
-              </button>
-
-              <button
-                onClick={handleSave}
-                className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-              >
-                Save
-              </button>
-            </div>
+           
           </>
         )}
       </div>

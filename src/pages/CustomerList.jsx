@@ -67,7 +67,7 @@ export default function CustomerList() {
             <thead className="bg-gray-100 text-gray-800 font-semibold">
               <tr>
                 <th className="p-3 border">Name</th>
-                <th className="p-3 border">Company</th>
+                <th className="p-3 border">GST No.</th>
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>

@@ -31,7 +31,6 @@ const AssetManagement = ({ hideNavbar }) => {
   const [editAsset, setEditAsset] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    mobileNumber: "",
     issuedTo: "",
     assets: [{ assetName: "", assetDescription: "" }],
     images: [],
@@ -79,7 +78,6 @@ const AssetManagement = ({ hideNavbar }) => {
 
     try {
       const form = new FormData();
-      form.append("mobileNumber", formData.mobileNumber);
       form.append("issuedTo", editAsset.issuedTo._id || editAsset.issuedTo);
 
       const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => a);
@@ -107,7 +105,6 @@ const AssetManagement = ({ hideNavbar }) => {
       setIsEdit(false);
       setEditAsset(null);
       setFormData({
-        mobileNumber: "",
         issuedTo: "",
         assets: [{ assetName: "", assetDescription: "", images: [] }],
       });
@@ -126,7 +123,6 @@ const AssetManagement = ({ hideNavbar }) => {
     setIsEdit(true);
     setEditAsset(asset);
     setFormData({
-      mobileNumber: asset.mobileNumber,
       issuedTo: asset.issuedTo,
       assets: asset.assets || [],
       images: [],
@@ -169,15 +165,6 @@ useEffect(()=>{
             <h2 className="text-3xl font-bold text-center mb-6 text-blue-700">Edit Asset</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="Mobile Number"
-                className="p-3 border rounded-md"
-                value={formData.mobileNumber}
-                onChange={(e) =>
-                  setFormData({ ...formData, mobileNumber: e.target.value })
-                }
-              />
 
               {formData.assets.map((asset, index) => (
                 <div key={index} className="flex flex-col gap-2 border p-3 rounded-md mb-4">
@@ -216,44 +203,76 @@ useEffect(()=>{
                     </button>
                   </div>
 
-                  {/* Image thumbnails */}
-                  <div className="flex gap-2 flex-wrap mt-2">
-                    {asset.images?.length ? (
-                      asset.images.map((imgUrl, imgIndex) => (
-                        <div key={imgIndex} className="relative inline-block">
-                          <AssetImage imgUrl={imgUrl} onClick={() => setModalImage(imgUrl)} />
-                          <button
-                            type="button"
-                            className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
-                            onClick={() => {
-                              const updated = [...formData.assets];
-                              updated[index].images = updated[index].images.filter(
-                                (_, i) => i !== imgIndex
-                              );
-                              setFormData({ ...formData, assets: updated });
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">No images</p>
-                    )}
-                  </div>
+                 {/* Image thumbnails */}
+<div className="flex gap-2 flex-wrap mt-2">
+  {/* Existing images */}
+  {asset.images?.length > 0 &&
+    asset.images.map((imgUrl, imgIndex) => (
+      <div key={"existing-" + imgIndex} className="relative inline-block">
+        <AssetImage imgUrl={imgUrl} onClick={() => setModalImage(imgUrl)} />
+        <button
+          type="button"
+          className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
+          onClick={() => {
+            const updated = [...formData.assets];
+            updated[index].images = updated[index].images.filter((_, i) => i !== imgIndex);
+            setFormData({ ...formData, assets: updated });
+          }}
+        >
+          ×
+        </button>
+      </div>
+    ))}
+
+  {/* New uploaded images preview */}
+  {asset.newFiles?.length > 0 &&
+    asset.newFiles.map((file, fileIndex) => {
+      const previewUrl = URL.createObjectURL(file);
+      return (
+        <div key={"new-" + fileIndex} className="relative inline-block">
+          <img
+            src={previewUrl}
+            alt="New Upload Preview"
+            className="h-12 w-12 object-cover rounded border cursor-pointer"
+            onClick={() => setModalImage(previewUrl)}
+          />
+          <button
+            type="button"
+            className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
+            onClick={() => {
+              const updated = [...formData.assets];
+              updated[index].newFiles = updated[index].newFiles.filter((_, i) => i !== fileIndex);
+              setFormData({ ...formData, assets: updated });
+            }}
+          >
+            ×
+          </button>
+        </div>
+      );
+    })}
+
+  {/* Show fallback if no images at all */}
+  {!asset.images?.length && !asset.newFiles?.length && (
+    <p className="text-sm text-gray-500">No images</p>
+  )}
+</div>
+
 
                   <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="mt-2 bg-[#fe0] p-1"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files);
-                      const updated = [...formData.assets];
-                      updated[index].newFiles = files;
-                      setFormData({ ...formData, assets: updated });
-                    }}
-                  />
+  type="file"
+  multiple
+  accept="image/*"
+  className="mt-2 bg-[#fe0] p-1"
+  onChange={(e) => {
+    const files = Array.from(e.target.files);
+    const updated = [...formData.assets];
+    // Append new files to any existing newFiles array
+    updated[index].newFiles = updated[index].newFiles ? [...updated[index].newFiles, ...files] : files;
+    setFormData({ ...formData, assets: updated });
+    e.target.value = null; // reset input so same files can be reselected if needed
+  }}
+/>
+
                 </div>
               ))}
 
@@ -289,7 +308,6 @@ useEffect(()=>{
                 <th className="py-3 px-4 text-left text-sm font-semibold">Employee Name</th>
                 <th className="py-3 px-4 text-left text-sm font-semibold">Designation</th>
                 <th className="py-3 px-4 text-center text-sm font-semibold">Assets</th>
-                <th className="py-3 px-4 text-center text-sm font-semibold">Mobile</th>
                 <th className="py-3 px-4 text-left text-sm font-semibold">Email</th>
                 <th className="py-3 px-4 text-left text-sm font-semibold">Assigned</th>
                 <th className="py-3 px-4 text-left text-sm font-semibold">Updated</th>
@@ -317,7 +335,6 @@ useEffect(()=>{
                       </div>
                     ))}
                   </td>
-                  <td className="py-3 px-4 text-sm">{asset.mobileNumber}</td>
                   <td className="py-3 px-4 text-sm">{asset.issuedTo?.email}</td>
                   <td className="py-3 px-4 text-sm">{new Date(asset.createdAt).toLocaleString()}</td>
                   <td className="py-3 px-4 text-sm">{new Date(asset.updatedAt).toLocaleString()}</td>

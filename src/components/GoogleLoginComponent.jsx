@@ -20,10 +20,8 @@ const GoogleLoginComponent = () => {
       case 'accounts':
       case 'dispatch':
       case 'packaging':
-        navigate('/dashboard');
-        break;
       case 'production':
-        navigate('/production-dashboard');
+        navigate('/dashboard');
         break;
       default:
         toast.error('You do not have permission to access this application.');
