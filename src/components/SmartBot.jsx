@@ -3,8 +3,8 @@ import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
 import {
-  Mic,
-  MicOff,
+  // Mic,
+  // MicOff,
   SendHorizonal,
   LoaderCircle,
   X,
@@ -29,9 +29,9 @@ const SmartBot = () => {
 
   // const { speak, speaking, cancel } = useSpeechSynthesis();
   const {
-    transcript,
-    listening,
-    resetTranscript,
+    // transcript,
+    // listening,
+    // resetTranscript,
     browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
 
@@ -134,10 +134,10 @@ const SmartBot = () => {
     }
   };
 
-  const useTranscript = () => {
-    setInput(transcript);
-    SpeechRecognition.stopListening();
-  };
+  // const useTranscript = () => {
+  //   setInput(transcript);
+  //   SpeechRecognition.stopListening();
+  // };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") handleSend();
@@ -255,7 +255,7 @@ const SmartBot = () => {
               </button>
             </div>
 
-            <div className="flex justify-between items-center mt-3 text-xs text-gray-500">
+            {/* <div className="flex justify-between items-center mt-3 text-xs text-gray-500">
               <button
                 onClick={() => {
                   resetTranscript();
@@ -273,7 +273,7 @@ const SmartBot = () => {
               <button onClick={useTranscript} className="text-blue-600">
                 ↳ Use Transcript
               </button>
-            </div>
+            </div> */}
 
             {!browserSupportsSpeechRecognition && (
               <p className="mt-2 text-red-500 text-xs text-center">
