@@ -6,7 +6,7 @@ import GoogleLoginComponent from "../components/GoogleLoginComponent";
 export default function LoginPage() {
   const navigate = useNavigate();
   const formRef = useRef(null);
-  const [loading, setLoading] = useState(false); // loading state
+  const [loading, setLoading] = useState(false); // controls overlay
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -25,7 +25,9 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 px-4">
+
+      {/* LOGIN FORM */}
       <div
         ref={formRef}
         className="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-lg w-full max-w-md transition-all"
@@ -35,35 +37,7 @@ export default function LoginPage() {
         </h2>
 
         <div className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-3">
-              <svg
-                className="animate-spin h-6 w-6 text-blue-500"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              <span className="ml-2 text-blue-600 font-semibold">
-                Logging in...
-              </span>
-            </div>
-          ) : (
-            ""
-          )}
-          <GoogleLoginComponent />
+          <GoogleLoginComponent setLoading={setLoading} />
 
           <button
             onClick={() => navigate("/")}
@@ -73,6 +47,33 @@ export default function LoginPage() {
           </button>
         </div>
       </div>
+
+      {/* FULLSCREEN LOADING OVERLAY */}
+      {loading && (
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000094] bg-opacity-40 backdrop-blur-sm">
+          <div className="flex flex-col items-center space-y-2">
+            <svg className="animate-spin h-8 w-8 text-white" viewBox="0 0 24 24">
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span className="text-white font-semibold text-lg">
+              Logging in...
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
