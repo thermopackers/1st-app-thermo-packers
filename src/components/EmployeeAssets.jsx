@@ -13,7 +13,6 @@ const EmployeeAssets = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  console.log("assets", assets);
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -83,8 +82,10 @@ const EmployeeAssets = () => {
               <h2 className="text-4xl font-extrabold text-center text-gray-800 mb-10">
                 💼 My Issued Assets
               </h2>
-              <div className="overflow-x-auto bg-white shadow-lg rounded-2xl border border-gray-200">
-                <table className="min-w-full table-auto text-sm md:text-base border-collapse">
+
+              {/* Wrap table in a div that allows horizontal scroll */}
+              <div className="overflow-x-auto w-full max-w-full bg-white shadow-lg rounded-2xl border border-gray-200">
+                <table className="w-full table-auto bg-white rounded-lg shadow-md">
                   <thead className="bg-blue-600 text-white">
                     <tr>
                       <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
@@ -93,7 +94,6 @@ const EmployeeAssets = () => {
                       <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
                         Designation
                       </th>
-                    
                       <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
                         Assets
                       </th>
@@ -112,14 +112,14 @@ const EmployeeAssets = () => {
                           key={i}
                           className="even:bg-gray-50 hover:bg-blue-50 transition duration-150"
                         >
-                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap max-w-[150px] truncate">
+                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap">
                             {asset.issuedTo.name}
                           </td>
-                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap max-w-[120px] truncate">
+                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap">
                             {asset.issuedTo.role}
                           </td>
 
-                          <td className="px-3 sm:px-6 py-2 max-w-[250px]">
+                          <td className="px-3 sm:px-6 py-2">
                             <ul className="space-y-4 list-none">
                               {asset.assets.map((e, index) => (
                                 <li key={index} className="capitalize">
@@ -158,10 +158,10 @@ const EmployeeAssets = () => {
                             </ul>
                           </td>
 
-                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap max-w-[180px] truncate">
+                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap">
                             {asset.issuedTo.email}
                           </td>
-                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap max-w-[120px] truncate">
+                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap">
                             {new Date(asset.createdAt).toLocaleDateString()}
                           </td>
                         </tr>
