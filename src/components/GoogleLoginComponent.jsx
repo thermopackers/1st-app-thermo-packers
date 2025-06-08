@@ -53,8 +53,6 @@ const GoogleLoginComponent = ({ setLoading }) => {
           const userRes = await axiosInstance.get('/users/me', {
             headers: { Authorization: `Bearer ${token}` },
           });
-await new Promise((res) => setTimeout(res, 3000)); // simulate 3s loading
-
           setUser(userRes.data);
           toast.success('Google Login Success!');
           redirectToDashboard(userRes.data.role);
