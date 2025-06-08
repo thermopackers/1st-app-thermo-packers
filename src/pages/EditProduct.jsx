@@ -15,11 +15,20 @@ export default function EditProduct() {
     sizes: [],
     quantity: 0,
   });
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [previewUrls, setPreviewUrls] = useState([]);
+useEffect(() => {
+  // cleanup function to revoke URLs
+  return () => {
+    previewUrls.forEach((url) => {
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    });
+  };
+}, [previewUrls]);
 
   // Newly selected image files (File objects)
   const [images, setImages] = useState([]);
   // Preview URLs for existing images + newly selected images
-  const [previewUrls, setPreviewUrls] = useState([]);
 
   // Store relative paths of existing images that user removed
   const [removedImages, setRemovedImages] = useState([]);
@@ -96,6 +105,7 @@ export default function EditProduct() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+  setIsSubmitting(true);
 
     try {
       const data = new FormData();
@@ -123,7 +133,9 @@ export default function EditProduct() {
     } catch (err) {
       console.error(err);
       setError("Failed to update product");
-    }
+    } finally {
+    setIsSubmitting(false);
+  }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -221,12 +233,16 @@ export default function EditProduct() {
             />
           </div>
 
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Update Product
-          </button>
+         <button
+  type="submit"
+  disabled={isSubmitting}
+  className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${
+    isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  {isSubmitting ? "Updating..." : "Update Product"}
+</button>
+
         </form>
       </div>
     </>

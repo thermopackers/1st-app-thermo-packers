@@ -5,6 +5,8 @@ import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 
 export default function AddProduct() {
+    const [isLoading, setIsLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     unit: "",
@@ -37,6 +39,7 @@ export default function AddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true); // Start loader
 
     const data = new FormData();
 
@@ -63,6 +66,8 @@ export default function AddProduct() {
     } catch (err) {
       console.error("Product addition failed", err);
       alert("Failed to add product");
+    } finally {
+      setIsLoading(false); // Stop loader
     }
   };
 
@@ -149,12 +154,18 @@ export default function AddProduct() {
             ))}
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg transition-colors"
-          >
-            Add Product
-          </button>
+         <button
+  type="submit"
+  disabled={isLoading}
+  className={`w-full font-bold py-3 rounded-lg shadow-lg transition-colors
+    ${isLoading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+>
+  {isLoading ? "Adding Product..." : "Add Product"}
+</button>
+{isLoading && (
+  <p className="text-center text-blue-600 mt-2">Please wait, uploading product...</p>
+)}
+
         </form>
       </div>
     </>

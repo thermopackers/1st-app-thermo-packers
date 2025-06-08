@@ -12,6 +12,7 @@ export default function AddCustomer() {
     email: "",
     address: "",
   });
+const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -22,6 +23,8 @@ export default function AddCustomer() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+      setSubmitting(true);
+
     try {
       await axiosInstance.post("/customers", formData);
       toast.success("Customer added successfully!");
@@ -29,7 +32,9 @@ export default function AddCustomer() {
     } catch (err) {
       console.error("Customer addition failed", err);
       alert("Failed to add customer");
-    }
+    } finally {
+    setSubmitting(false);
+  }
   };
 
   return (
@@ -108,12 +113,16 @@ export default function AddCustomer() {
               />
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-md shadow-md transition-all duration-200"
-            >
-              ✅ Add Customer
-            </button>
+           <button
+  type="submit"
+  disabled={submitting}
+  className={`w-full font-semibold py-2 rounded-md shadow-md transition-all duration-200 ${
+    submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 text-white"
+  }`}
+>
+  {submitting ? "Adding..." : "✅ Add Customer"}
+</button>
+
           </form>
         </div>
       </div>

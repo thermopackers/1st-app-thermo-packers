@@ -11,6 +11,8 @@ export default function EditCustomer() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+const [submitting, setSubmitting] = useState(false);
+const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchCustomer() {
@@ -35,6 +37,7 @@ export default function EditCustomer() {
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this customer?")) return;
+  setDeleting(true);
 
     try {
       await axiosInstance.delete(`/customers/${id}`);
@@ -42,7 +45,9 @@ export default function EditCustomer() {
       navigate("/customers");
     } catch (err) {
       toast.error("Failed to delete customer");
-    }
+    } finally {
+    setDeleting(false);
+  }
   };
 
   const handleChange = (e) => {
@@ -52,6 +57,8 @@ export default function EditCustomer() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+      setSubmitting(true);
+
     try {
       await axiosInstance.put(`/customers/${id}`, customer);
       toast.success("Customer updated successfully!");
@@ -59,7 +66,9 @@ export default function EditCustomer() {
 
     } catch (err) {
       toast.error("Failed to update customer");
-    }
+    } finally {
+    setSubmitting(false);
+  }
   };
 
   if (loading) return <p>Loading customer...</p>;
@@ -130,20 +139,22 @@ export default function EditCustomer() {
           </div>
 
           <div className="flex justify-between items-center space-x-4">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Save Changes
-            </button>
+          <button
+  type="submit"
+  disabled={submitting || deleting}
+  className={`bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ${submitting || deleting ? "opacity-50 cursor-not-allowed" : ""}`}
+>
+  {submitting ? "Saving..." : "Save Changes"}
+</button>
 
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              Delete Customer
-            </button>
+           <button
+  type="button"
+  onClick={handleDelete}
+  disabled={submitting || deleting}
+  className={`bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 ${submitting || deleting ? "opacity-50 cursor-not-allowed" : ""}`}
+>
+  {deleting ? "Deleting..." : "Delete Customer"}
+</button>
           </div>
         </form>
       </div>
