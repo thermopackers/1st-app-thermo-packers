@@ -13,7 +13,7 @@ const EmployeeAssets = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-console.log("assets",assets);
+  console.log("assets", assets);
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -43,29 +43,28 @@ console.log("assets",assets);
     );
   }
 
-
   return (
     <>
-    {selectedImage && (
-  <div
-    className="fixed inset-0 bg-[#000000de] bg-opacity-70 flex items-center justify-center z-50"
-    onClick={() => setSelectedImage(null)}
-  >
-    <div className="relative max-w-3xl w-full p-4">
-      <img
-        src={selectedImage}
-        alt="Preview"
-        className="w-full h-auto rounded-xl shadow-lg"
-      />
-      <button
-        className="absolute top-2 right-2 text-white text-3xl font-bold"
-        onClick={() => setSelectedImage(null)}
-      >
-        &times;
-      </button>
-    </div>
-  </div>
-)}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-[#000000de] bg-opacity-70 flex items-center justify-center z-50"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-3xl w-full p-4">
+            <img
+              src={selectedImage}
+              alt="Preview"
+              className="w-full h-auto rounded-xl shadow-lg"
+            />
+            <button
+              className="absolute top-2 right-2 text-white text-3xl font-bold"
+              onClick={() => setSelectedImage(null)}
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
       <InternalNavbar />
 
       <div className="p-4 w-full mx-auto mt-6">
@@ -85,15 +84,25 @@ console.log("assets",assets);
                 💼 My Issued Assets
               </h2>
               <div className="overflow-x-auto bg-white shadow-lg rounded-2xl border border-gray-200">
-                <table className="min-w-full table-auto text-sm md:text-base">
+                <table className="min-w-full table-auto text-sm md:text-base border-collapse">
                   <thead className="bg-blue-600 text-white">
                     <tr>
-                      <th className="px-6 py-4 text-left font-semibold">Employee Name</th>
-                      <th className="px-6 py-4 text-left font-semibold">Designation</th>
-                      <th className="px-6 py-4 text-left font-semibold">Mobile No.</th>
-                      <th className="px-6 py-4 text-left font-semibold">Assets</th>
-                      <th className="px-6 py-4 text-left font-semibold">User Email ID</th>
-                      <th className="px-6 py-4 text-left font-semibold">Issued Date</th>
+                      <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
+                        Employee Name
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
+                        Designation
+                      </th>
+                    
+                      <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
+                        Assets
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
+                        User Email ID
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-left font-semibold whitespace-nowrap">
+                        Issued Date
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="text-gray-700">
@@ -103,47 +112,56 @@ console.log("assets",assets);
                           key={i}
                           className="even:bg-gray-50 hover:bg-blue-50 transition duration-150"
                         >
-                          <td className="px-6 py-4 capitalize">{asset.issuedTo.name}</td>
-                          <td className="px-6 py-4 capitalize">{asset.issuedTo.role}</td>
-                          <td className="px-6 py-4">{asset.mobileNumber}</td>
-                          <td className="px-6 py-4">
-  <ul className="space-y-4 list-none">
-    {asset.assets.map((e, index) => (
-      <li key={index} className="capitalize">
-        <div>
-          <span className="font-semibold">{e.assetName}</span> - {e.assetDescription}
-        </div>
+                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap max-w-[150px] truncate">
+                            {asset.issuedTo.name}
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap max-w-[120px] truncate">
+                            {asset.issuedTo.role}
+                          </td>
 
-        {/* Render images */}
-        {e.images && e.images.length > 0 && (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
-    {e.images.map((img, imgIndex) => {
-      // Apply Cloudinary optimization: resize, auto quality & format
-      const optimizedImg = img.replace("/upload/", "/upload/w_300,q_auto,f_auto/");
-      return (
-        <img
-          key={imgIndex}
-          src={optimizedImg}
-          alt={`asset-img-${imgIndex}`}
-          className="w-full h-28 object-cover rounded shadow cursor-pointer transition-transform hover:scale-105"
-          loading="lazy"
-          onClick={() => setSelectedImage(img)} // original full-res for preview
-          onError={(e) => {
-            e.target.style.display = "none";
-          }}
-        />
-      );
-    })}
-  </div>
-)}
+                          <td className="px-3 sm:px-6 py-2 max-w-[250px]">
+                            <ul className="space-y-4 list-none">
+                              {asset.assets.map((e, index) => (
+                                <li key={index} className="capitalize">
+                                  <div>
+                                    <span className="font-semibold">{e.assetName}</span> -{" "}
+                                    {e.assetDescription}
+                                  </div>
 
-      </li>
-    ))}
-  </ul>
-</td>
+                                  {/* Render images */}
+                                  {e.images && e.images.length > 0 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                                      {e.images.map((img, imgIndex) => {
+                                        // Cloudinary optimization
+                                        const optimizedImg = img.replace(
+                                          "/upload/",
+                                          "/upload/w_300,q_auto,f_auto/"
+                                        );
+                                        return (
+                                          <img
+                                            key={imgIndex}
+                                            src={optimizedImg}
+                                            alt={`asset-img-${imgIndex}`}
+                                            className="w-full h-auto object-cover rounded shadow cursor-pointer transition-transform hover:scale-105"
+                                            loading="lazy"
+                                            onClick={() => setSelectedImage(img)} // original full-res
+                                            onError={(e) => {
+                                              e.target.style.display = "none";
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
 
-                          <td className="px-6 py-4">{asset.issuedTo.email}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap max-w-[180px] truncate">
+                            {asset.issuedTo.email}
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 whitespace-nowrap max-w-[120px] truncate">
                             {new Date(asset.createdAt).toLocaleDateString()}
                           </td>
                         </tr>
