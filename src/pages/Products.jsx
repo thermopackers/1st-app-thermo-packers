@@ -218,24 +218,25 @@ useEffect(() => {
 
             return (
               <div key={cat} className="relative group">
-                <button
-                  onClick={() => {
-                    if (isMobile) {
-                      setOpenDropdown((prev) => (prev === cat ? null : cat));
-                    } else {
-                      setSelectedCat(cat);
-                      setPage(1);
-                      navigate(`/products/${slugify(cat)}`);
-                    }
-                  }}
-                  className={`px-4 py-2 capitalize rounded-full font-medium transition ${
-                    selectedCat === cat
-                      ? "bg-[#B0BC27] text-white"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
-                  }`}
-                >
-                  {cat}
-                </button>
+               <button
+  onClick={() => {
+    setSelectedCat(cat);
+    setPage(1);
+    navigate(`/products/${slugify(cat)}`);
+    if (isMobile) {
+      const isOpen = openDropdown === cat;
+      setOpenDropdown(isOpen ? null : cat);
+    }
+  }}
+  className={`px-4 py-2 capitalize rounded-full font-medium transition ${
+    selectedCat === cat
+      ? "bg-[#B0BC27] text-white"
+      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+  }`}
+>
+  {cat}
+</button>
+
 
                 {productsInCat.length > 0 && (
                   <div
