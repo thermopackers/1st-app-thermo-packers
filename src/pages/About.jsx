@@ -22,7 +22,7 @@ const About = () => {
               ease: "power3.out",
               scrollTrigger: {
                 trigger: el,
-                start: "top 85%",
+                start: "top 95%", // changed from 85% for better mobile support
                 toggleActions: "play reverse play reverse",
                 markers: false,
                 immediateRender: false,
@@ -33,7 +33,10 @@ const About = () => {
         }
       });
 
-      setTimeout(() => ScrollTrigger.refresh(), 300);
+      // Refresh ScrollTrigger after DOM changes
+      setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 300);
     };
 
     if (document.readyState === "complete") {
@@ -42,8 +45,12 @@ const About = () => {
       window.addEventListener("load", handleReady);
     }
 
+    // Refresh ScrollTrigger on window resize (especially for mobile orientation changes)
+    window.addEventListener("resize", ScrollTrigger.refresh);
+
     return () => {
       window.removeEventListener("load", handleReady);
+      window.removeEventListener("resize", ScrollTrigger.refresh);
     };
   }, []);
 
