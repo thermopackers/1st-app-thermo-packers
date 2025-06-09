@@ -2,35 +2,35 @@
 export const categories = {
   "ice gel pack": {
     description: "Reusable cold packs used for temperature-sensitive packaging.",
-    image: "/images/blue4.png"
+    image: "blue4_agi5n5"
   },
   "lost foam casting": {
     description: "Reusable cold packs used for temperature-sensitive packaging.",
-    image: "/images/lostt.png"
+    image: "lostt_t563l4"
   },
   "EPS/Thermocol machinery": {
     description: "Machines used to manufacture EPS thermocol products.",
-    image: "/images/thermo-machine.avif"
+    image: "thermo-machine_vn9hjv"
   },
   "EPS/Thermocol sheets for thermal insulation": {
     description: "Thermocol sheets ideal for thermal insulation in cold storage, construction, and more.",
-    image: "/images/blue1.png"
+    image: "blue1_tpm3op"
   },
   "EPS/Thermocol packaging": {
     description: "Durable and lightweight EPS packaging for electronic, industrial, and medical goods.",
-    image: "/images/thermo-pack.jpg"
+    image: "thermo-pack_lfi1ps"
   },
   "molded pulp packaging": {
     description: "Eco-friendly and biodegradable molded pulp packaging for consumer goods and appliances.",
-    image: "/images/blue2.png"
+    image: "blue2_yevf4d"
   },
   "EPS/Thermocol geofoam": {
     description: "Lightweight geofoam blocks used in construction and landscaping.",
-    image: "/images/geofoam.avif"
+    image: "geofoam_k0knyo"
   },
   "EPS/thermocol jumbo dana for garment washing": {
     description: "EPS beads used in the garment industry for stone washing and other washing processes.",
-    image: "/images/jumbo-dana.jpg"
+    image: "jumbo-dana_m6eife"
   }
 };
 

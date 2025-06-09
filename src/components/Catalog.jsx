@@ -3,6 +3,28 @@ import { Link } from "react-router-dom";
 import { categories } from "../data/products.js";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+// Replace with your Cloudinary cloud name here
+const CLOUDINARY_CLOUD_NAME = "dcr8k5amk";
+
+// Component for optimized Cloudinary image loading
+const CloudinaryImage = ({ publicId, alt = "", width = 320, height = 208, className = "" }) => {
+  // Cloudinary URL with auto format, quality, width and optional height
+  const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto,w_${width},h_${height},c_fill/${publicId}.jpg`;
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      style={{ objectFit: "contain" }}
+    />
+  );
+};
+
 // ✅ Function to normalize known compound terms like "EPS Thermocol"
 const normalizeCompoundWords = (str) => {
   return str
@@ -57,10 +79,13 @@ const Catalog = () => {
                 <div className="bg-white rounded-3xl shadow-lg hover:shadow-2xl border border-gray-200 overflow-hidden transform transition duration-500 hover:scale-105">
                   <div className="w-full h-52 flex items-center justify-center bg-[#f1f5f9]">
                     {image ? (
-                      <img
-                        src={image}
+                      // Assuming your "image" value is the publicId of the Cloudinary image without extension
+                      <CloudinaryImage
+                        publicId={image}
                         alt={label}
-                        className="object-contain h-full w-full scale-100 hover:scale-105 transition-transform duration-300"
+                        width={320}
+                        height={208}
+                        className="scale-100 hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
                       <span className="text-gray-400">Image Placeholder</span>

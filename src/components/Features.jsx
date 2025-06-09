@@ -1,27 +1,43 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
+
+const CLOUDINARY_CLOUD_NAME = "dcr8k5amk"; // <-- Replace this with your Cloudinary cloud name
 
 const features = [
   {
     text: "High-quality EPS and pulp materials",
-    image: "/images/a.jpg",
+    image: "a_yrmeqk", // Cloudinary public ID
     slug: "eps-and-pulp-materials",
   },
   {
     text: "Fast & reliable delivery",
-    image: "/images/b.jpg",
+    image: "b_opz1vm",
     slug: "fast-delivery",
   },
   {
     text: "Custom packaging solutions",
-    image: "/images/c.jpg",
+    image: "c_imjpec",
     slug: "custom-packaging",
   },
   {
     text: "Eco-friendly & sustainable packaging",
-    image: "/images/dd.jpg",
+    image: "dd_ow1ny6",
     slug: "eco-packaging",
   },
 ];
+
+// Cloudinary Image component for optimized images
+const CloudinaryImage = ({ publicId, alt }) => {
+  const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto,w_400,c_fill/${publicId}.jpg`;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 rounded-xl"
+      loading="lazy"
+      decoding="async"
+    />
+  );
+};
 
 const Features = () => {
   return (
@@ -42,11 +58,7 @@ const Features = () => {
               className="bg-white/80 backdrop-blur-md border border-gray-200 rounded-3xl shadow-lg p-5 flex flex-col items-center justify-between transition-all duration-500 hover:scale-105 hover:shadow-2xl cursor-pointer h-[38vh] animate-fade-in"
             >
               <div className="flex-1 w-full relative overflow-hidden rounded-xl mb-4 group">
-                <img
-                  src={item.image}
-                  alt={item.text}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 rounded-xl"
-                />
+                <CloudinaryImage publicId={item.image} alt={item.text} />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
               </div>
               <p className="text-lg font-semibold text-gray-800 leading-tight animate-slide-up-delayed">
