@@ -97,9 +97,11 @@ onChange={handleSearchChange}
                         p.images.map((img, i) => (
                           <img
                             key={i}
-                            src={`${BASE_URL}${img}`}
+src={img}
                             alt={`${p.name} ${i}`}
-                            onClick={() => setPreviewImage(`${BASE_URL}${img}`)}
+onClick={() =>
+  setPreviewImage(img.startsWith("http") ? img : `${BASE_URL}${img}`)
+}
                             className="w-14 h-14 object-cover rounded-md cursor-pointer hover:scale-105 transition-transform duration-200"
                           />
                         ))
@@ -107,7 +109,9 @@ onChange={handleSearchChange}
                         <img
                           src={`${BASE_URL}${p.image}`}
                           alt={p.name}
-                          onClick={() => setPreviewImage(`${BASE_URL}${p.image}`)}
+onClick={() =>
+  setPreviewImage(p.image.startsWith("http") ? p.image : `${BASE_URL}${p.image}`)
+}
                           className="w-16 h-16 object-cover rounded-md cursor-pointer hover:scale-105 transition-transform duration-200"
                         />
                       ) : (

@@ -31,9 +31,12 @@ export default function AddOrder() {
       packagingCharge: "",
       freight: "",
       freightAmount: "",
+          productImages: [], // ✅ ensure this is initialized
+
     },
   ]);
   const [allProducts, setAllProducts] = useState([]);
+  const [modalImage, setModalImage] = useState(null);
   const [allCustomers, setAllCustomers] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
@@ -42,6 +45,8 @@ export default function AddOrder() {
     const fetchProductSizes = async () => {
       try {
         const response = await axiosInstance.get("/products/all-backend-products");
+              console.log("Fetched products:", response.data); // 🔍 log here
+
         setAllProducts(response.data);
       } catch (error) {
         console.error("Error fetching product sizes:", error);
@@ -128,35 +133,65 @@ const options = useMemo(() => {
     }
   };
 
-  const handleProductChange = (index, field, value) => {
-    const updated = [...productList];
-    updated[index][field] = value;
+const handleProductChange = (index, field, value) => {
+  const updated = [...productList]; // make shallow copy
 
-    if (field === "product") {
-      const product = allProducts.find((p) => p.name === value);
-      const sizes = product?.sizes || [];
+  const product = allProducts.find((p) => p.name === value);
 
-      updated[index]["size"] = "";
-      updated[index]["customSize"] = "";
-      updated[index]["customProduct"] = "";
+  if (field === "product" && product) {
+    const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
+    const imageList = Array.isArray(product.images)
+      ? product.images.map((img) =>
+          img.startsWith("http") ? img : `${BASE_URL}${img}`
+        )
+      : [];
 
-      const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
-      updated[index]["productImages"] =
-        product?.images?.map((img) => `${BASE_URL}${img}`) || [];
+    updated[index] = {
+      ...updated[index],
+      product: product.name,
+      customProduct: "",
+      size: "",
+      customSize: "",
+      productImages: imageList,
+    };
 
-      const updatedSizesList = [...availableSizesList];
-      updatedSizesList[index] = sizes;
-      setAvailableSizesList(updatedSizesList);
+    const updatedSizesList = [...availableSizesList];
+    updatedSizesList[index] = product.sizes || [];
+    setAvailableSizesList(updatedSizesList);
+  }
+
+  else if (field === "customProduct") {
+    updated[index] = {
+      ...updated[index],
+      product: "",
+      customProduct: value,
+      productImages: [],
+    };
+  }
+
+  else {
+    updated[index] = {
+      ...updated[index],
+      [field]: value,
+    };
+
+    if (
+      field === "freight" &&
+      value !== "To pay" &&
+      value !== "Billed in Invoice"
+    ) {
+      updated[index]["freightAmount"] = "";
     }
+  }
 
-    if (field === "freight") {
-      if (value !== "To pay" && value !== "Billed in Invoice") {
-        updated[index]["freightAmount"] = "";
-      }
-    }
+  console.log("✅ Final updated productList:", updated);
+  setProductList(updated); // ✅ properly trigger re-render
+};
 
-    setProductList(updated);
-  };
+
+
+
+
 
   const addAnotherProduct = () => {
     setProductList([
@@ -172,6 +207,8 @@ const options = useMemo(() => {
         packagingCharge: "",
         freight: "",
         freightAmount: "",
+              productImages: [], // ✅ here also
+
       },
     ]);
   };
@@ -254,6 +291,7 @@ const options = useMemo(() => {
   const handleCancel = () => {
     navigate("/orders");
   };
+console.log("productList rendering:", productList);
 
   return (
     <>
@@ -355,11 +393,13 @@ const options = useMemo(() => {
   }
   onChange={(selectedOption) => {
     if (selectedOption.value === 'custom') {
-      handleProductChange(index, 'product', '');
+      // handleProductChange(index, 'product', '');
+      console.log("🟢 Product selected:", selectedOption.value);
+
       handleProductChange(index, 'customProduct', '');
     } else {
       handleProductChange(index, 'product', selectedOption.value);
-      handleProductChange(index, 'customProduct', '');
+      // handleProductChange(index, 'customProduct', '');
     }
   }}
   className="w-full"
@@ -491,15 +531,30 @@ const options = useMemo(() => {
               </div>
               
             )}
-          {prod.productImages?.map((img, i) => (
-  <div key={i} className="md:col-span-2">
-    <img
-      src={img}
-      alt={`${prod.product} ${i + 1}`}
-      className="max-h-40 object-contain border border-gray-300 rounded-md p-2"
-    />
+        {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (
+  <div className="col-span-2">
+    <p className="text-sm text-gray-500 mb-2">
+      Previewing {prod.productImages.length} image(s)
+    </p>
+    <div className="flex flex-wrap gap-4">
+      {prod.productImages.map((img, i) => (
+        <img
+          key={i}
+          src={img}
+          alt={`${prod.product} ${i + 1}`}
+          onClick={() =>
+            setModalImage((prev) => (prev === img ? null : img))
+          }
+          className="w-32 h-32 object-cover border rounded cursor-pointer hover:scale-105 transition"
+        />
+      ))}
+    </div>
   </div>
-))}
+)}
+
+
+
+
 
 
 
@@ -550,6 +605,20 @@ const options = useMemo(() => {
           </div>
         </form>
       </div>
+   {modalImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+    onClick={() => setModalImage(null)}
+  >
+    <img
+      src={modalImage}
+      alt="Full view"
+      className="max-w-full max-h-full rounded shadow-lg"
+    />
+  </div>
+)}
+
+
     </>
   );
 }

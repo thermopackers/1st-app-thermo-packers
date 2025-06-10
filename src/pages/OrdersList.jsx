@@ -896,20 +896,30 @@ const productKey = order.product.toLowerCase();
                           </td>
                           
                           
-                         <td
-  className="px-4 py-2 text-blue-600 underline cursor-pointer"
-  onClick={() => {
-    const product = products.find((p) => p.name === order.product);
-    if (product?.images?.length > 0) {
-      setActiveProductImage({
-        name: product.name,
-        images: product.images,
-      });
-    }
-  }}
->
-  {order.product}
+  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+  <button
+    onClick={() => {
+      const product = products.find((p) => p.name === order.product);
+      if (product?.images?.length > 0) {
+        setActiveProductImage({
+          name: product.name,
+          images: product.images,
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "No Image",
+          text: "No images available for this product.",
+        });
+      }
+    }}
+  >
+    {order.product}
+  </button>
 </td>
+
+
+
 
 
                           <td className="px-4 py-2 whitespace-nowrap">
@@ -1370,7 +1380,7 @@ const productKey = order.product.toLowerCase();
 
                   </tbody>
                 </table>
-                {activeProductImage && (
+              {activeProductImage && (
   <div
     className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
     onClick={() => setActiveProductImage(null)}
@@ -1388,19 +1398,29 @@ const productKey = order.product.toLowerCase();
       <h2 className="text-lg font-semibold mb-4">
         {activeProductImage.name} - Images
       </h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {activeProductImage.images.map((img, i) => (
-          <img
-            key={i}
-            src={`${import.meta.env.VITE_REACT_APP_API_URL}${img}`}
-            alt={`Image ${i + 1}`}
-            className="w-full h-48 object-cover rounded border"
-          />
-        ))}
-      </div>
+      {activeProductImage.images.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {activeProductImage.images.map((img, i) => (
+            <img
+              key={i}
+              src={
+                img.startsWith("http")
+                  ? img
+                  : `${import.meta.env.VITE_REACT_APP_API_URL}${img}`
+              }
+              alt={`Image ${i + 1}`}
+              className="w-full h-48 object-cover rounded border"
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No images available.</p>
+      )}
     </div>
   </div>
 )}
+
+
 
               </div>
             </div>
