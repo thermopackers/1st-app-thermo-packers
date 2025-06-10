@@ -32,7 +32,7 @@ const Hero = () => {
 
   return (
     <header
-      className={`relative mt-[10vh] w-full overflow-hidden animate-fade-in transition-all duration-1000 ${
+      className={`relative mt-[8vh] w-full overflow-hidden animate-fade-in transition-all duration-1000 ${
         menuOpen ? "bg-gray-100" : "bg-white"
       }`}
     >
@@ -41,7 +41,7 @@ const Hero = () => {
         <img
           src={images[currentIndex]}
           alt={`Slide ${currentIndex + 1}`}
-          className="w-full h-full object-cover transition duration-700 ease-in-out"
+          className="w-full h-full object-cover object-top transition duration-700 ease-in-out"
           width="1920"
           height="1080"
           loading="eager" // force eager load for LCP image
