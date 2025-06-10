@@ -335,7 +335,7 @@ const flatData = Object.values(groupedData).flat().map((row) => ({
 
     <input
       type="text"
-      value={row.customProduct || row.product || ''}
+value={row.customProduct || ''}
       onChange={(e) =>
         handleInputChange(date, idx, 'customProduct', e.target.value)
       }
@@ -346,21 +346,24 @@ const flatData = Object.values(groupedData).flat().map((row) => ({
     <select
       value={row.product}
       onChange={(e) => {
-        const value = e.target.value;
-        handleInputChange(date, idx, 'product', value);
-        if (value !== '__other__') {
-          handleInputChange(date, idx, 'customProduct', '');
-        }
-      }}
+  const value = e.target.value;
+  handleInputChange(date, idx, 'product', value);
+  if (value === '__other__') {
+    handleInputChange(date, idx, 'customProduct', '');
+  } else {
+    handleInputChange(date, idx, 'customProduct', '');
+  }
+}}
+
       className="w-full border border-gray-300 rounded px-2 py-1"
     >
+      <option value="__other__">Other</option>
       <option value="">Select Product</option>
       {allProducts.map((product) => (
         <option key={product._id} value={product.name}>
           {product.name}
         </option>
       ))}
-      <option value="__other__">Other</option>
     </select>
   )}
 </td>
