@@ -32,7 +32,7 @@ const Hero = () => {
 
   return (
     <header
-      className={`relative mt-[8vh] w-full overflow-hidden animate-fade-in transition-all duration-1000 ${
+      className={`relative mt-[10vh] w-full overflow-hidden animate-fade-in transition-all duration-1000 ${
         menuOpen ? "bg-gray-100" : "bg-white"
       }`}
     >
