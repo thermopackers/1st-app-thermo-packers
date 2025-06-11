@@ -507,11 +507,15 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
   const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
 
   // ✅ Construct danaSlip from shapeRowData
-  const danaSlip = {
+ const danaRows = [
+  {
+    productName: shapeRowData.productName || freshOrder.product,
     rawMaterial: shapeRowData.dryWeight,
     quantity: shapeRowData.quantity,
     remarks: shapeRowData.remarks,
-  };
+  },
+];
+
 
   // ✅ Construct dispatchSlip from cuttingFormData
   const dispatchSlip = {
@@ -530,7 +534,7 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
         shapeRows: shapeRowData ? [shapeRowData] : [],
         cuttingRows: cuttingFormData ? [cuttingFormData] : [],
         packagingSlip: packagingFormData || null,
-        danaSlip,
+danaRows,
         dispatchSlip,
       }
     );
