@@ -311,7 +311,7 @@ const onEndDateChange = (e) => {
 {order.requiredSections?.shapeMoulding
   ? order.shapeSlip?.url && (
       <a
-        href={`${baseUrl}${order.shapeSlip.url}`}
+  href={order.shapeSlip.url} // ✅ Correct: no prefix
         download
         className="text-green-600 underline"
       >
@@ -320,7 +320,7 @@ const onEndDateChange = (e) => {
     )
   : order.danaSlip?.url && (
       <a
-        href={`${baseUrl}${order.danaSlip.url}`}
+href={order.danaSlip.url}
         download
         className="text-green-600 underline"
       >
