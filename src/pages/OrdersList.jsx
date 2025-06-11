@@ -544,6 +544,8 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
     }
   } catch (error) {
     console.error("❌ Error sending to Production:", error);
+      alert(`Error submitting slip: ${error?.response?.data?.message || error.message}`);
+
   }
 };
 
