@@ -515,7 +515,7 @@ const actuallySendToProduction = async (
       rawMaterial: shapeRowData.dryWeight,
       quantity: shapeRowData.quantity,
       remarks: shapeRowData.remarks,
-      productName: shapeRowData.productName, // Optional: if available
+productName: freshOrder.product, // ✅ Always fallback to order product
     },
   ];
 
