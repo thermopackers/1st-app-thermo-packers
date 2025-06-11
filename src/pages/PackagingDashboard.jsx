@@ -304,7 +304,7 @@ const handlePageChange = (page) => {
                         <td className="px-4 py-3">
                           {order.packagingSlip?.url && (
                             <a
-                                    href={order.packagingSlip.url}
+                                    href={`${baseUrl}${order.packagingSlip.url}`}
                               download
                               className="text-purple-600 underline"
                             >
