@@ -492,12 +492,9 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
 
   // Send selected orders to Production
 
-const actuallySendToProduction = async (
-  orderId,
-  shapeRowData,
-  packagingFormData,
-  cuttingFormData
-) => {
+ const actuallySendToProduction = async (orderId, shapeRowData,packagingFormData, cuttingFormData) => {
+ console.log("cuttocut😍",cuttingFormData);
+ 
   const freshOrder = orders.find((o) => o._id === orderId);
   if (!freshOrder) return;
 
@@ -509,25 +506,20 @@ const actuallySendToProduction = async (
   const stock = product ? product.quantity : 0;
   const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
 
-  // ✅ Construct danaRows (array of 1 row)
-  const danaRows = [
-    {
-      rawMaterial: shapeRowData.dryWeight,
-      quantity: shapeRowData.quantity,
-      remarks: shapeRowData.remarks,
-productName: freshOrder.product, // ✅ Always fallback to order product
-    },
-  ];
+  // ✅ Construct danaSlip from shapeRowData
+  const danaSlip = {
+    rawMaterial: shapeRowData.dryWeight,
+    quantity: shapeRowData.quantity,
+    remarks: shapeRowData.remarks,
+  };
 
-  // ✅ Construct cuttingRows (array of 1 row)
-  const cuttingRows = [
-    {
-      size: cuttingFormData.size,
-      density: cuttingFormData.density,
-      quantity: cuttingFormData.quantity,
-      remarks: cuttingFormData.remarks,
-    },
-  ];
+  // ✅ Construct dispatchSlip from cuttingFormData
+  const dispatchSlip = {
+    size: cuttingFormData.size,
+    density: cuttingFormData.density,
+    quantity: cuttingFormData.quantity,
+    remarks: cuttingFormData.remarks,
+  };
 
   try {
     const res = await axiosInstance.put(
@@ -536,9 +528,10 @@ productName: freshOrder.product, // ✅ Always fallback to order product
         sections: selectedSections,
         remainingToProduce: remainingQuantity,
         shapeRows: shapeRowData ? [shapeRowData] : [],
-        cuttingRows: cuttingFormData ? cuttingRows : [],
-        danaRows: selectedSections.includes("blockMoulding") ? danaRows : [],
-        packagingSlip: packagingFormData || null, // (Not used currently in backend, can remove if unused)
+        cuttingRows: cuttingFormData ? [cuttingFormData] : [],
+        packagingSlip: packagingFormData || null,
+        danaSlip,
+        dispatchSlip,
       }
     );
 
