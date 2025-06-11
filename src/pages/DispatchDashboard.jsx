@@ -287,7 +287,7 @@ const currentOrders = filteredOrders; // Already paginated from backend
                             <td className="px-4 py-3">
                               {order.cuttingSlip?.url && (
                                 <a
-                                        href={`${baseUrl}${order.cuttingSlip.url}`}
+                                        href={order.cuttingSlip.url}
                                   download
                                   className="text-blue-600 underline"
                                 >
