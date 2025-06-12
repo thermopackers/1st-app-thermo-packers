@@ -109,29 +109,51 @@ const options = useMemo(() => {
 }, [allProducts, loadingProducts]);
 
   const handleClientChange = (e) => {
-    const { name, value, type, files } = e.target;
-    if (type === "file") {
-      setClientDetails({ ...clientDetails, [name]: files[0] });
-    } else if (name === "deliveryRange") {
-      const days =
-        value === "1week"
-          ? 7
-          : value === "2weeks"
-          ? 14
-          : value === "20days"
-          ? 20
-          : 0;
-      const today = new Date();
-      today.setDate(today.getDate() + days);
-      setClientDetails({
-        ...clientDetails,
-        deliveryRange: value,
-        date: today.toISOString().split("T")[0],
-      });
-    } else {
-      setClientDetails({ ...clientDetails, [name]: value });
-    }
-  };
+  const { name, value, type, files } = e.target;
+
+  if (type === "file") {
+  const file = files[0];
+  const acceptedTypes = [
+    "application/pdf",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+  ];
+
+  if (!acceptedTypes.includes(file.type)) {
+    toast.error("Only PDF or image files (JPG, PNG) are allowed.");
+    return;
+  }
+
+  if (file.size === 0 || file.size < 1000) {
+    toast.error("File is empty or corrupted. Please upload a valid file.");
+    return;
+  }
+
+  console.log("✅ File accepted:", file.name, file.type, file.size);
+  setClientDetails({ ...clientDetails, [name]: file });
+}
+ else if (name === "deliveryRange") {
+    const days =
+      value === "1week"
+        ? 7
+        : value === "2weeks"
+        ? 14
+        : value === "20days"
+        ? 20
+        : 0;
+    const today = new Date();
+    today.setDate(today.getDate() + days);
+    setClientDetails({
+      ...clientDetails,
+      deliveryRange: value,
+      date: today.toISOString().split("T")[0],
+    });
+  } else {
+    setClientDetails({ ...clientDetails, [name]: value });
+  }
+};
+
 
 const handleProductChange = (index, field, value) => {
   const updated = [...productList]; // make shallow copy
@@ -218,75 +240,99 @@ const handleProductChange = (index, field, value) => {
     setProductList(updated);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
 
-    if (
-      productList.length === 0 ||
-      productList.some((prod) => {
-        const missingProduct = !(prod.product || prod.customProduct);
-        const missingQuantity = !prod.quantity;
-        const missingPrice = !prod.price;
-        const missingFreight = !prod.freight;
-        const needsFreightAmount =
-          prod.freight === "To pay" || prod.freight === "Billed in Invoice";
-        const missingFreightAmount = needsFreightAmount && !prod.freightAmount;
-        return (
-          missingProduct ||
-          missingQuantity ||
-          missingPrice ||
-          missingFreight ||
-          missingFreightAmount
-        );
-      })
-    ) {
-      toast.error(
-        "Please fill at least one complete product entry including freight and amount if applicable."
+  // ✅ Validate product list
+  if (
+    productList.length === 0 ||
+    productList.some((prod) => {
+      const missingProduct = !(prod.product || prod.customProduct);
+      const missingQuantity = !prod.quantity;
+      const missingPrice = !prod.price;
+      const missingFreight = !prod.freight;
+      const needsFreightAmount =
+        prod.freight === "To pay" || prod.freight === "Billed in Invoice";
+      const missingFreightAmount = needsFreightAmount && !prod.freightAmount;
+      return (
+        missingProduct ||
+        missingQuantity ||
+        missingPrice ||
+        missingFreight ||
+        missingFreightAmount
       );
-      setIsSubmitting(false);
-      return;
-    }
+    })
+  ) {
+    toast.error(
+      "Please fill at least one complete product entry including freight and amount if applicable."
+    );
+    setIsSubmitting(false);
+    return;
+  }
 
-    try {
-      const modifiedProductList = productList.map((prod) => ({
-        ...prod,
-        product: prod.product === "" ? prod.customProduct : prod.product,
-        size: prod.size === "" ? prod.customSize : prod.size,
-        freightAmount:
-          prod.freight === "To pay" || prod.freight === "Billed in Invoice"
-            ? prod.freightAmount
-            : 0,
-      }));
+  try {
+    // ✅ Prepare product data
+    const modifiedProductList = productList.map((prod) => ({
+      ...prod,
+      product: prod.product === "" ? prod.customProduct : prod.product,
+      size: prod.size === "" ? prod.customSize : prod.size,
+      freightAmount:
+        prod.freight === "To pay" || prod.freight === "Billed in Invoice"
+          ? prod.freightAmount
+          : 0,
+    }));
 
-      const formData = new FormData();
-      formData.append("customerName", clientDetails.customerName);
-      formData.append("po", clientDetails.po);
-      formData.append("poCopy", clientDetails.poCopy);
-      formData.append("date", clientDetails.date);
-      formData.append("remarks", clientDetails.remarks);
-      formData.append("products", JSON.stringify(modifiedProductList));
+    // ✅ Submit order first (without file)
+    const formData = new FormData();
+    formData.append("customerName", clientDetails.customerName);
+    formData.append("po", clientDetails.po);
+    formData.append("date", clientDetails.date);
+    formData.append("remarks", clientDetails.remarks);
+    formData.append("products", JSON.stringify(modifiedProductList));
 
-      await axiosInstance.post("/orders/multi", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
+    const response = await axiosInstance.post("/orders/multi", formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-      toast.success("Orders submitted!");
-      navigate("/dashboard");
-    } catch (err) {
-      console.error(err);
-      if (err.response?.data?.message === "PO number already exists") {
-        toast.error("This P/O Number already exists. Please use a different one.");
+    const createdOrder = response.data.orders[0];
+    console.log("🧾 New Order:", createdOrder);
+
+    // ✅ Upload PO file to Cloudinary only if present
+    if (clientDetails.poCopy) {
+      if (clientDetails.poCopy.size === 0) {
+        toast.error("PO file is empty. Please select a valid PDF.");
       } else {
-        toast.error("Failed to submit orders");
+        const poForm = new FormData();
+        poForm.append("poCopy", clientDetails.poCopy);
+
+        const poUploadRes = await axiosInstance.post(
+          `/files/upload/po-copy/${createdOrder._id}`,
+          poForm
+        );
+
+        console.log("✅ PO Copy uploaded to Cloudinary:", poUploadRes.data);
+
       }
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+
+    toast.success("Order submitted!");
+        navigate("/dashboard", { replace: true });
+
+  } catch (err) {
+    console.error("Order submission error:", err);
+    if (err.response?.data?.message === "PO number already exists") {
+      toast.error("This P/O Number already exists. Please use a different one.");
+    } else {
+      toast.error("Failed to submit order");
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleCancel = () => {
     navigate("/orders");

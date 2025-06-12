@@ -886,6 +886,8 @@ danaRows,
     </tr>
 
     {poOrders.map((order) => {
+console.log("📎 PO COPY URL:", order.poCopy);
+
       const isSent =
         order.packagingSlip || order.cuttingSlip || order.shapeSlip || order.danaSlip;
 const productKey = order.product.toLowerCase();
@@ -992,24 +994,30 @@ const productKey = order.product.toLowerCase();
                           </td>
 
                           {/* ✅ PO Copy */}
-                          <td className="px-4 py-2 whitespace-nowrap max-w-[120px]">
-                            {order.poCopy ? (
-                              <a
-                                href={`${
-                                  process.env.NODE_ENV === "production"
-                                    ? `${window.location.origin}/api/files/download/${order._id}`
-                                    : `http://localhost:3001/api/files/download/${order._id}`
-                                }`}
-                                className="text-blue-600 underline hover:text-blue-800 block truncate"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                📥 Save
-                              </a>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
+                     <td className="px-4 py-2 whitespace-nowrap max-w-[120px]">
+  {order.poCopy ? (
+    <a
+      href={
+        order.poCopy.includes("/upload/")
+          ? order.poCopy.replace("/upload/", "/upload/fl_attachment/")
+          : order.poCopy
+      }
+      download={order.poOriginalName || "po-copy"}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-600 underline hover:text-blue-800 block truncate"
+    >
+      📥 {order.poOriginalName?.toLowerCase().endsWith(".pdf") ? "Download" : "View"}
+    </a>
+  ) : (
+    "-"
+  )}
+</td>
+
+
+
+
+
 
                           {/* ✅ Action Buttons */}
                           {role !== "production" &&

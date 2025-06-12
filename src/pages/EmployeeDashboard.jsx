@@ -206,34 +206,8 @@ Swal.fire({
   }
 };
 
-  // if (!user) return <div className="p-4">Loading user data...</div>;
-
 
   if (loading) return <div className="p-4">Loading tasks...</div>;
-const confirmDeleteTask = async (taskId) => {
-  const result = await Swal.fire({
-    title: 'Delete Completed Task?',
-    text: 'Are you sure you want to delete this completed task?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, delete it!',
-    cancelButtonText: 'Cancel',
-  });
-
-  if (result.isConfirmed) {
-    try {
-      console.log('Sending PATCH to hide task:', taskId);
-await axiosInstance.patch(`/todos/${taskId}/hide`);
-  console.log('Patch success');
-
-      Swal.fire('Deleted!', 'Task has been deleted.', 'success');
-      fetchTasks(); // Refresh the task list
-    } catch (error) {
-      console.error('Delete error:', error);
-      Swal.fire('Error', 'Failed to delete the task.', 'error');
-    }
-  }
-};
 
 
   return (
@@ -262,17 +236,7 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
     sm:flex sm:justify-between sm:items-center sm:space-x-4 relative"
 >
 
-                  {/* Show delete button only for DONE tasks */}
-{task.status === 'DONE' && task.repeat === 'ONE_TIME' && (
-  <button
-    onClick={() => confirmDeleteTask(task._id)}
-    className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-    title="Delete Task"
-  >
-    🗑️
-  </button>
-)}
-
+              
 
                   <div className="flex-1">
 <h2 className="text-lg font-bold flex items-center">
