@@ -8,9 +8,24 @@ import axiosInstance from '../axiosInstance';
 const ITEMS_PER_PAGE = 5;
 
 const EmployeeDashboard = () => {
-  const { tasks, loading, markTaskDone, fetchTasks } = useToDo();
+  const { tasks, loading, markTaskDone, fetchTasks,user } = useToDo();
   const [currentPage, setCurrentPage] = useState(1);
   const navigate=useNavigate();
+  const [notifications, setNotifications] = useState([]);
+useEffect(() => {
+    if (!user?._id) return; // 💡 Prevent running if user is not loaded
+  axiosInstance
+  .patch(`/notifications/mark-read/${user._id}`)
+  .then(() => {
+    console.log('Marked notifications as read');
+    return axiosInstance.get(`/notifications/${user._id}`); // ✅ fetch again
+  })
+  .then((res) => setNotifications(res.data))
+  .catch((err) =>
+    console.error('Failed to mark notifications as read:', err)
+  );
+
+}, [user]);
 useEffect(() => {
   const token = localStorage.getItem('token');
   if (!token) return; // ✅ prevent loop on login or unauthenticated pages
@@ -35,35 +50,163 @@ const paginatedTasks = employeeVisibleTasks.slice(
 
   // New function with confirmation
 const confirmMarkDone = async (taskId) => {
-  const { value: remarks } = await Swal.fire({
+  const previewContainerId = 'preview-container-' + Date.now(); // Unique ID
+
+  const { value: formValues } = await Swal.fire({
     title: 'Mark Task as Done',
-    input: 'textarea',
-    inputLabel: 'Remarks',
-    inputPlaceholder: 'Enter remarks here...',
-    inputAttributes: {
-      'aria-label': 'Enter remarks here',
-    },
+    html: `
+      <label for="remarks">Remarks:</label>
+      <textarea id="remarks" class="swal2-textarea" placeholder="Enter remarks here..."></textarea>
+
+      <label for="doneImages" style="margin-top: 10px;">Upload Images:</label>
+      <input type="file" id="doneImages" multiple accept="image/*,application/pdf" class="swal2-file">
+
+      <div id="${previewContainerId}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;"></div>
+    `,
+    focusConfirm: false,
     showCancelButton: true,
     confirmButtonText: 'Mark as Done',
     cancelButtonText: 'Cancel',
-    inputValidator: (value) => {
-      if (!value || value.trim() === '') {
-        return 'Remarks are required before marking as done';
+    didOpen: () => {
+      const fileInput = document.getElementById('doneImages');
+      const previewContainer = document.getElementById(previewContainerId);
+      let selectedFiles = [];
+
+      fileInput.addEventListener('change', (e) => {
+        const newFiles = Array.from(e.target.files);
+
+        newFiles.forEach(file => {
+          // Avoid duplicates
+          if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+            selectedFiles.push(file);
+          }
+        });
+
+        // Clear preview container
+        previewContainer.innerHTML = '';
+
+        selectedFiles.forEach((file, index) => {
+          const isPDF = file.type === "application/pdf";
+
+if (isPDF) {
+  // Show PDF icon
+  const previewDiv = document.createElement('div');
+  previewDiv.style.position = 'relative';
+
+  const img = document.createElement('img');
+              img.src="./images/pdf.png"
+  img.style.width = '80px';
+  img.style.height = '80px';
+  img.style.objectFit = 'contain';
+  img.style.borderRadius = '4px';
+  img.style.border = '1px solid #ccc';
+  img.style.cursor = 'pointer';
+  img.title = file.name;
+
+  img.onclick = () => {
+    const blobUrl = URL.createObjectURL(file);
+    window.open(blobUrl, '_blank');
+  };
+
+  const removeBtn = document.createElement('span');
+  // ... same remove button logic
+
+  previewDiv.appendChild(img);
+  previewDiv.appendChild(removeBtn);
+  previewContainer.appendChild(previewDiv);
+} else {
+  // Existing FileReader logic for images
+  const reader = new FileReader();
+  reader.onload = () => {
+    const previewDiv = document.createElement('div');
+    previewDiv.style.position = 'relative';
+
+    const img = document.createElement('img');
+    img.src = reader.result;
+    img.style.width = '80px';
+    img.style.height = '80px';
+    img.style.cursor = "zoom-in";
+    img.setAttribute("data-full", reader.result);
+    img.style.objectFit = 'cover';
+    img.style.borderRadius = '4px';
+    img.style.border = '1px solid #ccc';
+
+    img.onclick = () => {
+      Swal.fire({
+        imageUrl: img.getAttribute("data-full"),
+        imageAlt: "Preview",
+        showConfirmButton: false,
+        showCloseButton: true,
+        width: 'auto',
+        padding: '1em',
+      });
+    };
+
+    const removeBtn = document.createElement('span');
+    // ... same remove button logic
+
+    previewDiv.appendChild(img);
+    previewDiv.appendChild(removeBtn);
+    previewContainer.appendChild(previewDiv);
+  };
+  reader.readAsDataURL(file);
+}
+
+        });
+
+        // Replace the input files manually since Swal does not retain custom file selections
+        fileInput._selectedFiles = selectedFiles;
+      });
+    },
+    preConfirm: () => {
+      const remarks = document.getElementById('remarks').value.trim();
+      const fileInput = document.getElementById('doneImages');
+
+      const files = fileInput._selectedFiles || [];
+
+      if (!remarks) {
+        Swal.showValidationMessage('Remarks are required before marking as done');
+        return;
       }
-      return null;
+
+      return { remarks, files };
     }
   });
 
-  if (remarks !== undefined) {  // If user did not cancel
+  if (formValues) {
+    const { remarks, files } = formValues;
+
     try {
-      await markTaskDone(taskId, remarks);  // Pass remarks to your API call
+      const formData = new FormData();
+      formData.append('doneRemarks', remarks);
+      files.forEach(file => {
+        formData.append('doneFiles', file); // ✅ Matches backend
+      });
+Swal.fire({
+  title: 'Uploading...',
+  html: 'Please wait while we upload the images.',
+  allowOutsideClick: false,
+  didOpen: () => {
+    Swal.showLoading();
+  }
+});
+
+      await axiosInstance.patch(`/todos/complete/${taskId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       Swal.fire('Done!', 'Task has been marked as completed.', 'success');
-      fetchTasks(); // Refresh tasks after marking done
+      fetchTasks(); // Refresh task list
     } catch (error) {
+      console.error(error);
       Swal.fire('Error', 'Failed to mark the task as done.', 'error');
     }
   }
 };
+
+  // if (!user) return <div className="p-4">Loading user data...</div>;
 
 
   if (loading) return <div className="p-4">Loading tasks...</div>;
@@ -196,6 +339,110 @@ await axiosInstance.patch(`/todos/${taskId}/hide`);
     Mark as Done
   </button>
 )}
+{/* Show assigned images */}
+{task.images && task.images.length > 0 && (
+  <div className="mt-4">
+    <p className="font-medium mb-1">Assigned Files:</p>
+    <div className="flex flex-wrap gap-2">
+      {task.images.map((url, idx) => {
+        const isPDF = url.toLowerCase().endsWith('.pdf');
+        return isPDF ? (
+          <a
+            key={idx}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`PDF File ${idx + 1}`}
+          >
+            <img
+              src="./images/pdf.png"
+              alt={`PDF File ${idx + 1}`}
+              className="w-24 h-24 object-contain border rounded cursor-pointer"
+            />
+          </a>
+        ) : (
+          <img
+            key={idx}
+            src={url}
+            alt={`Assigned ${idx + 1}`}
+            className="w-24 h-24 object-cover border rounded cursor-pointer"
+            onClick={() => {
+              Swal.fire({
+                imageUrl: url,
+                imageAlt: `Assigned Image ${idx + 1}`,
+                showConfirmButton: false,
+                showCloseButton: true,
+                width: 'auto',
+                padding: '1em',
+              });
+            }}
+          />
+        );
+      })}
+    </div>
+  </div>
+)}
+
+{task.doneFiles?.length > 0 && (
+  <div>
+    <h4 className="font-semibold text-gray-700 mb-2">Uploaded Files:</h4>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+      {task.doneFiles.map((url, i) => {
+        const isPDF = url.toLowerCase().endsWith('.pdf');
+        return isPDF ? (
+          <a
+            key={i}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`View PDF File ${i + 1}`}
+          >
+            <img
+              src="./images/pdf.png"
+              alt={`PDF File ${i + 1}`}
+              style={{
+                width: '100px',
+                height: '100px',
+                objectFit: 'contain',
+                cursor: 'pointer',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+              }}
+            />
+          </a>
+        ) : (
+          <img
+            key={i}
+            src={url}
+            alt={`Done File ${i + 1}`}
+            style={{
+              width: '100px',
+              height: '100px',
+              objectFit: 'cover',
+              cursor: 'pointer',
+              borderRadius: '6px',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+            }}
+            onClick={() =>
+              Swal.fire({
+                imageUrl: url,
+                imageAlt: `Done File ${i + 1}`,
+                showConfirmButton: false,
+                showCloseButton: true,
+                width: '50vw',
+                padding: '1em',
+              })
+            }
+          />
+        );
+      })}
+    </div>
+  </div>
+)}
+
+
+
+
 
                 </div>
               ))}

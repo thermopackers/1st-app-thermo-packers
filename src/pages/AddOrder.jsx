@@ -507,6 +507,7 @@ console.log("productList rendering:", productList);
                 <option value="">Select Freight</option>
                 <option value="To pay">To pay</option>
                 <option value="Self Dispatch">Self Pickup</option>
+                <option value="Freight Paid">Freight Paid</option>
                 <option value="Billed in Invoice">Billed in Invoice</option>
               </select>
               {/* Freight amount conditional input */}

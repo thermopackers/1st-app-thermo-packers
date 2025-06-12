@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useToDo } from '../context/ToDoContext';
 import axiosInstance from '../axiosInstance';
+import Swal from 'sweetalert2';  // Make sure you have installed sweetalert2 via npm/yarn
 import InternalNavbar from '../components/InternalNavbar';
 import AssignTaskForm from '../components/AssignTaskForm';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -197,6 +198,47 @@ const updateFilters = (newFilters) => {
                 >
                   <h2 className="text-xl font-semibold text-indigo-800 mb-2">{task.title}</h2>
                   <p className="text-gray-700 mb-3">{task.description}</p>
+             {task.images && task.images.length > 0 && (
+  <div className="mt-2 flex flex-wrap gap-2">
+    {task.images.map((url, idx) => {
+      const isPdf = url.endsWith('.pdf');
+
+      return isPdf ? (
+        <div
+          key={idx}
+          className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
+          onClick={() => window.open(url, '_blank')}
+        >
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
+            alt={`PDF File ${idx + 1}`}
+            className="w-10 h-10"
+          />
+          <span className="text-xs text-center mt-1">PDF {idx + 1}</span>
+        </div>
+      ) : (
+        <img
+          key={idx}
+          src={url}
+          alt={`Assigned Image ${idx + 1}`}
+          className="w-20 h-20 object-cover rounded shadow cursor-pointer"
+          onClick={() => {
+            Swal.fire({
+              imageUrl: url,
+              imageAlt: 'Assigned Image',
+              showConfirmButton: false,
+              showCloseButton: true,
+              width: '50vw',
+              padding: '1em',
+            });
+          }}
+        />
+      );
+    })}
+  </div>
+)}
+
+
                   <p className="text-sm text-gray-500">
                     Assigned To: <span className="font-medium">{task.assignedTo?.name || 'N/A'}</span>
                   </p>
@@ -223,6 +265,47 @@ const updateFilters = (newFilters) => {
                       <strong>Remarks:</strong> {task.doneRemarks}
                     </p>
                   )}
+               {task.status === 'DONE' && task.doneFiles && task.doneFiles.length > 0 && (
+  <div className="mt-2 flex flex-wrap gap-2">
+    {task.doneFiles.map((url, idx) => {
+      const isPdf = url.endsWith('.pdf');
+
+      return isPdf ? (
+        <div
+          key={idx}
+          className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
+          onClick={() => window.open(url, '_blank')}
+        >
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
+            alt={`PDF File ${idx + 1}`}
+            className="w-10 h-10"
+          />
+          <span className="text-xs text-center mt-1">PDF {idx + 1}</span>
+        </div>
+      ) : (
+        <img
+          key={idx}
+          src={url}
+          alt={`Done Image ${idx + 1}`}
+          className="w-20 h-20 object-cover rounded shadow cursor-pointer"
+          onClick={() => {
+            Swal.fire({
+              imageUrl: url,
+              imageAlt: 'Done Image',
+              showConfirmButton: false,
+              showCloseButton: true,
+              width: '50vw',
+              padding: '1em',
+            });
+          }}
+        />
+      );
+    })}
+  </div>
+)}
+
+
 
                   {task.status === 'DONE' && task.doneOn && (
                     <p className="text-sm text-gray-500 mt-1">

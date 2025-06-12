@@ -7,8 +7,20 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-
+useEffect(() => {
+  if (!user) return;
+  const fetchNotifications = async () => {
+    try {
+      const res = await axiosInstance.get(`/notifications/${user._id}`);
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+  fetchNotifications();
+}, [user]);
   useEffect(() => {
     console.log("🚩 Navigated to:", location.pathname);
   }, [location]);
@@ -53,6 +65,15 @@ export default function Dashboard() {
       </div>
     );
   }
+const handleViewTasks = async () => {
+  try {
+    await axiosInstance.patch(`/notifications/mark-read/${user._id}`);
+    navigate('/my-tasks');
+  } catch (err) {
+    console.error("Failed to mark notifications as read", err);
+    navigate('/my-tasks'); // still navigate even if it fails
+  }
+};
 
   return (
     <>
@@ -93,11 +114,24 @@ export default function Dashboard() {
                 <p className="text-sm text-indigo-700 mt-2">
                   View and complete your assigned personal tasks.
                 </p>
-                <NavLink to="/my-tasks">
-                  <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                    View My Assigned ToDos
-                  </button>
-                </NavLink>
+               <div className="relative inline-block mt-4">
+  <NavLink to="/my-tasks">
+   <button
+  onClick={handleViewTasks}
+  className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded"
+>
+  View My Assigned ToDos
+</button>
+
+  </NavLink>
+  {notifications.filter(n => !n.read).length > 0 && (
+    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+      {notifications.filter(n => !n.read).length}
+    </span>
+  )}
+</div>
+
+
               </div>}
 
               {(user.role === "sales" || user.role === "admin" || user.role === "accounts") && (
