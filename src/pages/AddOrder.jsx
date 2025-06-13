@@ -508,7 +508,7 @@ console.log("productList rendering:", productList);
                 min={1}
               />
               <input
-                type="number"
+                type="text"
                 value={prod.price}
                 placeholder="Price"
                 onChange={(e) =>
@@ -565,7 +565,7 @@ console.log("productList rendering:", productList);
                     : "Amount billed in invoice"}
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   value={prod.freightAmount}
                   onChange={(e) =>
                     handleProductChange(index, "freightAmount", e.target.value)
