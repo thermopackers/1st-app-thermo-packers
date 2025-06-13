@@ -3,8 +3,11 @@ import axiosInstance from "../axiosInstance";
 import { useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 export default function AddCustomer() {
+    const { user } = useUserContext();
+  
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -28,7 +31,11 @@ const [submitting, setSubmitting] = useState(false);
     try {
       await axiosInstance.post("/customers", formData);
       toast.success("Customer added successfully!");
-      navigate("/customers");
+      if(user.role === "sales"){
+        navigate('/dashboard')
+      }else{
+        navigate("/customers");
+      }
     } catch (err) {
       console.error("Customer addition failed", err);
       alert("Failed to add customer");

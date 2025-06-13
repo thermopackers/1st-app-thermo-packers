@@ -71,7 +71,9 @@ export default function AdminPanel() {
 
           <div className="bg-white shadow-md p-6 rounded-lg">
             <h3 className="text-lg font-bold text-gray-700">💵 Total Revenue</h3>
-            <p className="text-2xl mt-2">₹{stats.totalRevenue.toFixed(2)}</p>
+<p className="text-2xl mt-2">
+  ₹{typeof stats.totalRevenue === 'number' ? stats.totalRevenue.toFixed(2) : '0.00'}
+</p>
           </div>
         </div>
 

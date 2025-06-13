@@ -508,7 +508,7 @@ console.log("productList rendering:", productList);
                 min={1}
               />
               <input
-                type="text"
+                type="number"
                 value={prod.price}
                 placeholder="Price"
                 onChange={(e) =>
