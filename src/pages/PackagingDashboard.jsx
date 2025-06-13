@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../axiosInstance";
 import gsap from "gsap";
+import Swal from "sweetalert2";
 import { useSearchParams } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,9 @@ const PackagingDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [totalPages, setTotalPages] = useState(1);
+    const [products, setProducts] = useState([]);
+      const [activeProductImage, setActiveProductImage] = useState(null);
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 const [searchParams, setSearchParams] = useSearchParams();
@@ -39,6 +43,15 @@ useEffect(() => {
    
   });
 }, [searchTerm, statusFilter, startDate, endDate]);
+
+
+ useEffect(() => {
+    axiosInstance
+      .get("/products/all-backend-products")
+      .then((res) => setProducts(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
+  }, []);
+
 
 
  useEffect(() => {
@@ -295,8 +308,27 @@ const handlePageChange = (page) => {
                         <td className="px-4 py-3 font-medium">{order.shortId}</td>
                         <td className="px-4 py-3 capitalize">{order.customerName}</td>
                         <td className="px-4 py-3 capitalize">{order.po}</td>
-                        <td className="px-4 py-3">{order.product}</td>
-                        <td className="px-4 py-3">{order.size}</td>
+ <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+  <button
+    onClick={() => {
+      const product = products.find((p) => p.name === order.product);
+      if (product?.images?.length > 0) {
+        setActiveProductImage({
+          name: product.name,
+          images: product.images,
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "No Image",
+          text: "No images available for this product.",
+        });
+      }
+    }}
+  >
+    {order.product}
+  </button>
+</td>                         <td className="px-4 py-3">{order.size}</td>
                         <td className="px-4 py-3">{order.quantity}</td>
                         <td className="px-4 py-3">₹{order.price}</td>
                         <td className="px-4 py-3">{`${order.freight}: ₹${order.freightAmount}`}</td>
@@ -379,6 +411,46 @@ const handlePageChange = (page) => {
 
                   </tbody>
                 </table>
+                
+{activeProductImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
+    onClick={() => setActiveProductImage(null)}
+  >
+    <div
+      className="bg-white rounded-lg p-4 max-w-4xl w-full overflow-y-auto max-h-[90vh] relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => setActiveProductImage(null)}
+        className="absolute top-2 right-3 text-2xl font-bold text-red-500 hover:text-red-700"
+      >
+        ✖
+      </button>
+      <h2 className="text-lg font-semibold mb-4">
+        {activeProductImage.name} - Images
+      </h2>
+      {activeProductImage.images.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {activeProductImage.images.map((img, i) => (
+            <img
+              key={i}
+              src={
+                img.startsWith("http")
+                  ? img
+                  : `${import.meta.env.VITE_REACT_APP_API_URL}${img}`
+              }
+              alt={`Image ${i + 1}`}
+              className="w-full h-48 object-cover rounded border"
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No images available.</p>
+      )}
+    </div>
+  </div>
+)}
               </div>
             </div>
 

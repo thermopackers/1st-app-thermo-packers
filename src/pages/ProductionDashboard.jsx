@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import InternalNavbar from "../components/InternalNavbar";
 import { useSearchParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { gsap } from "gsap";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
@@ -20,6 +21,9 @@ const currentPage = parseInt(searchParams.get("page")) || 1;
   const [searchTerm, setSearchTerm] = useState("");
   const [dispatchedOrders, setDispatchedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
+    const [activeProductImage, setActiveProductImage] = useState(null);
+
   const [totalPages, setTotalPages] = useState(1);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -33,6 +37,13 @@ const groupOrdersByPO = (orders) => {
     return groups;
   }, {});
 };
+
+ useEffect(() => {
+    axiosInstance
+      .get("/products/all-backend-products")
+      .then((res) => setProducts(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
+  }, []);
 
   const navigate = useNavigate();
 const handlePageChange = (newPage) => {
@@ -304,8 +315,28 @@ const onEndDateChange = (e) => {
                     <td className="px-6 py-4">{order.shortId}</td>
                     <td className="px-6 py-4">{order.customerName}</td>
                     <td className="px-6 py-4">{order.po}</td>
-                    <td className="px-6 py-4">{order.product}</td>
-                    <td className="px-6 py-4">{order.quantity}</td>
+ <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+  <button
+    onClick={() => {
+      const product = products.find((p) => p.name === order.product);
+      if (product?.images?.length > 0) {
+        setActiveProductImage({
+          name: product.name,
+          images: product.images,
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "No Image",
+          text: "No images available for this product.",
+        });
+      }
+    }}
+  >
+    {order.product}
+  </button>
+</td>                    
+<td className="px-6 py-4">{order.quantity}</td>
                     <td className="px-6 py-4">
 
 {order.requiredSections?.shapeMoulding
@@ -374,6 +405,46 @@ href={order.danaSlip.url}
 
               </tbody>
             </table>
+            {activeProductImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
+    onClick={() => setActiveProductImage(null)}
+  >
+    <div
+      className="bg-white rounded-lg p-4 max-w-4xl w-full overflow-y-auto max-h-[90vh] relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => setActiveProductImage(null)}
+        className="absolute top-2 right-3 text-2xl font-bold text-red-500 hover:text-red-700"
+      >
+        ✖
+      </button>
+      <h2 className="text-lg font-semibold mb-4">
+        {activeProductImage.name} - Images
+      </h2>
+      {activeProductImage.images.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {activeProductImage.images.map((img, i) => (
+            <img
+              key={i}
+              src={
+                img.startsWith("http")
+                  ? img
+                  : `${import.meta.env.VITE_REACT_APP_API_URL}${img}`
+              }
+              alt={`Image ${i + 1}`}
+              className="w-full h-48 object-cover rounded border"
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No images available.</p>
+      )}
+    </div>
+  </div>
+)}
+
           </div>
         )}
 
