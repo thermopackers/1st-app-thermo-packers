@@ -10,6 +10,8 @@ const ITEMS_PER_PAGE = 5;
 const EmployeeDashboard = () => {
   const { tasks, loading, markTaskDone, fetchTasks,user } = useToDo();
   const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | DONE | NOT_DONE
+
   const navigate=useNavigate();
   const [notifications, setNotifications] = useState([]);
 useEffect(() => {
@@ -35,13 +37,34 @@ useEffect(() => {
 
 
  // Only show tasks not soft-deleted by the employee
-const employeeVisibleTasks = tasks.filter(task => !task.isDeletedByEmployee);
+const employeeVisibleTasks = tasks
+  .filter(task => !task.isDeletedByEmployee);
 
-const totalPages = Math.ceil(employeeVisibleTasks.length / ITEMS_PER_PAGE);
-const paginatedTasks = employeeVisibleTasks.slice(
+// Counters
+const totalTasks = employeeVisibleTasks.length;
+const doneCount = employeeVisibleTasks.filter(task => task.status === 'DONE').length;
+const notDoneCount = totalTasks - doneCount;
+
+// Apply status filter
+const filteredTasks = employeeVisibleTasks.filter(task => {
+  if (statusFilter === 'DONE') return task.status === 'DONE';
+  if (statusFilter === 'NOT_DONE') return task.status !== 'DONE';
+  return true; // ALL
+});
+
+// Sort: Not Done on top
+const sortedTasks = [...filteredTasks].sort((a, b) => {
+  if (a.status === 'DONE' && b.status !== 'DONE') return 1;
+  if (a.status !== 'DONE' && b.status === 'DONE') return -1;
+  return 0;
+});
+
+const totalPages = Math.ceil(sortedTasks.length / ITEMS_PER_PAGE);
+const paginatedTasks = sortedTasks.slice(
   (currentPage - 1) * ITEMS_PER_PAGE,
   currentPage * ITEMS_PER_PAGE
 );
+
 
 
   const goToPage = (page) => {
@@ -220,9 +243,40 @@ Swal.fire({
         >
           ↩️ Back
         </button>
-        <h1 className="text-2xl font-semibold mb-6 text-center md:text-left">
-          My ToDos
-        </h1>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+  <h1 className="text-2xl font-semibold text-center md:text-left">
+    My ToDos
+  </h1>
+
+  <div className="flex flex-wrap gap-3 items-center justify-center md:justify-end">
+    <span className="text-gray-700">Filter:</span>
+    <button
+      className={`px-3 py-1 rounded ${
+        statusFilter === 'ALL' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+      }`}
+      onClick={() => setStatusFilter('ALL')}
+    >
+      All ({totalTasks})
+    </button>
+    <button
+      className={`px-3 py-1 rounded ${
+        statusFilter === 'NOT_DONE' ? 'bg-yellow-500 text-white' : 'bg-gray-200'
+      }`}
+      onClick={() => setStatusFilter('NOT_DONE')}
+    >
+      Not Done ({notDoneCount})
+    </button>
+    <button
+      className={`px-3 py-1 rounded ${
+        statusFilter === 'DONE' ? 'bg-green-600 text-white' : 'bg-gray-200'
+      }`}
+      onClick={() => setStatusFilter('DONE')}
+    >
+      Done ({doneCount})
+    </button>
+  </div>
+</div>
+
 
         {tasks.length === 0 ? (
           <p className="text-center text-gray-600">No tasks assigned.</p>

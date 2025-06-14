@@ -223,15 +223,20 @@ const updateFilters = (newFilters) => {
           alt={`Assigned Image ${idx + 1}`}
           className="w-20 h-20 object-cover rounded shadow cursor-pointer"
           onClick={() => {
-            Swal.fire({
-              imageUrl: url,
-              imageAlt: 'Assigned Image',
-              showConfirmButton: false,
-              showCloseButton: true,
-              width: '50vw',
-              padding: '1em',
-            });
-          }}
+  Swal.fire({
+    imageUrl: url,
+    imageAlt: 'Assigned Image',
+    showConfirmButton: false,
+    showCloseButton: true,
+    padding: '1em',
+    width: 'auto',
+    customClass: {
+      popup: 'max-w-[90vw] w-auto',
+      image: 'w-full h-auto max-h-[80vh] object-contain',
+    },
+  });
+}}
+
         />
       );
     })}
