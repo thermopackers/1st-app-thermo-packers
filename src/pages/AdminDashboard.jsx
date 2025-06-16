@@ -117,7 +117,7 @@ const updateFilters = (newFilters) => {
   onChange={(e) => updateFilters({ repeat: e.target.value, page: 1 })}
   value={searchParams.get("repeat") || ""}
 >
-  <option value="">All Repeat Types</option>
+  <option value="">All Type of Tasks</option>
   <option value="One time">One time</option>
   <option value="Repeat every month">Repeat every month</option>
   <option value="Repeat every year">Repeat every year</option>

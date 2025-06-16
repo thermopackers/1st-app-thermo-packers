@@ -386,11 +386,18 @@ const confirmEditSubmission = async (taskId) => {
                   <div className="flex-1">
                     <h2 className="text-lg font-bold flex items-center">
                       {task.title}
-                      {task.repeat !== "ONE_TIME" && (
-                        <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
-                          ⟳ {task.repeat === "MONTHLY" ? "Monthly" : "Yearly"}
-                        </span>
-                      )}
+                     {task.repeat !== "ONE_TIME" && (
+  <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
+    ⟳ {
+      task.repeat === "DAILY"
+        ? "Daily"
+        : task.repeat === "MONTHLY"
+        ? "Monthly"
+        : "Yearly"
+    }
+  </span>
+)}
+
                     </h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
                     <p className="text-sm text-gray-500 mt-2">
@@ -406,14 +413,17 @@ const confirmEditSubmission = async (taskId) => {
                     <p className="text-sm text-gray-500">
                       Due: {task.dueDate?.slice(0, 10) || "N/A"}
                     </p>
-                    <p className="text-sm text-gray-500">
-                      Repeat:{" "}
-                      {task.repeat === "ONE_TIME"
-                        ? "One time"
-                        : task.repeat === "MONTHLY"
-                        ? "Monthly"
-                        : "Yearly"}
-                    </p>
+                   <p className="text-sm text-gray-500">
+  Repeat:{" "}
+  {task.repeat === "ONE_TIME"
+    ? "One time"
+    : task.repeat === "DAILY"
+    ? "Daily"
+    : task.repeat === "MONTHLY"
+    ? "Monthly"
+    : "Yearly"}
+</p>
+
                     {task.repeat !== "ONE_TIME" && task.nextRepeatDate && (
                       <p className="text-sm text-gray-500">
                         Next Repeat On:{" "}

@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from "react";
+import React, { useEffect, useState, memo } from "react";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "./InternalNavbar";
@@ -78,7 +78,14 @@ const AssetManagement = ({ hideNavbar }) => {
 
     try {
       const form = new FormData();
-      form.append("issuedTo", editAsset.issuedTo._id || editAsset.issuedTo);
+form.append(
+  "issuedTo",
+  typeof editAsset.issuedTo === "object" ? editAsset.issuedTo._id : ""
+);
+form.append(
+  "manualUser",
+  typeof editAsset.issuedTo === "string" ? editAsset.issuedTo : ""
+);
 
       const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => a);
       form.append("assets", JSON.stringify(cleanedAssets));
@@ -314,49 +321,81 @@ useEffect(()=>{
                 <th className="py-3 px-4 text-left text-sm font-semibold">Action</th>
               </tr>
             </thead>
-            <tbody>
-              {assets.map((asset) => (
-                <tr key={asset._id} className="hover:bg-gray-50 transition">
-                  <td className="py-3 px-4 text-sm capitalize">{asset.issuedTo?.name}</td>
-                  <td className="py-3 px-4 text-sm capitalize">{asset.issuedTo?.role}</td>
-                  <td className="py-3 px-4 text-sm">
-                    {asset.assets?.map((a, i) => (
-                      <div key={i} className="mb-1">
-                        <strong>{a.assetName}:</strong> {a.assetDescription}
-                        <div className="flex gap-2 mt-1 flex-wrap">
-                          {a.images?.map((imgUrl, idx) => (
-                            <AssetImage
-                              key={idx}
-                              imgUrl={imgUrl}
-                              onClick={() => setModalImage(imgUrl)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </td>
-                  <td className="py-3 px-4 text-sm">{asset.issuedTo?.email}</td>
-                  <td className="py-3 px-4 text-sm">{new Date(asset.createdAt).toLocaleString()}</td>
-                  <td className="py-3 px-4 text-sm">{new Date(asset.updatedAt).toLocaleString()}</td>
-                  <td className="py-3 px-4 text-sm">
-                    <div className="flex flex-col md:flex-row gap-2">
-                      <button
-                        onClick={() => handleEdit(asset)}
-                        className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteAsset(asset._id)}
-                        className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+           <tbody>
+  {assets.map((asset) => (
+    <React.Fragment key={asset._id}>
+      <tr className="hover:bg-gray-50 transition">
+        {/* Employee Name */}
+        <td className="py-3 px-4 text-sm text-gray-800 capitalize">
+          {typeof asset.issuedTo === 'object' ? (
+            asset.issuedTo.name
+          ) : (
+            <div className="inline-flex flex-col sm:flex-row sm:items-center gap-1">
+              <span className="font-medium text-gray-900">{asset.manualUser || asset.issuedTo}</span>
+              <span className="text-xs text-gray-600 bg-gray-200 px-2 py-0.5 rounded-full font-semibold tracking-wide">
+                Manual
+              </span>
+            </div>
+          )}
+        </td>
+
+        <td className="py-3 px-4 text-sm capitalize">
+          {typeof asset.issuedTo === 'object' ? asset.issuedTo.role : '—'}
+        </td>
+
+        <td className="py-3 px-4 text-sm">
+          {asset.assets?.map((a, i) => (
+            <div key={i} className="mb-1">
+              <strong>{a.assetName}:</strong> {a.assetDescription}
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {a.images?.map((imgUrl, idx) => (
+                  <AssetImage key={idx} imgUrl={imgUrl} onClick={() => setModalImage(imgUrl)} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </td>
+
+        <td className="py-3 px-4 text-sm">
+          {typeof asset.issuedTo === 'object' ? asset.issuedTo.email : '—'}
+        </td>
+
+        <td className="py-3 px-4 text-sm">
+          {new Date(asset.createdAt).toLocaleString()}
+        </td>
+
+        <td className="py-3 px-4 text-sm">
+          {new Date(asset.updatedAt).toLocaleString()}
+        </td>
+
+        <td className="py-3 px-4 text-sm">
+          <div className="flex flex-col md:flex-row gap-2">
+            <button
+              onClick={() => handleEdit(asset)}
+              className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => deleteAsset(asset._id)}
+              className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+
+      {/* 🔽 Divider Row */}
+      <tr>
+        <td colSpan="7">
+          <hr className="border-t border-dashed border-gray-300 my-1" />
+        </td>
+      </tr>
+    </React.Fragment>
+  ))}
+</tbody>
+
           </table>
         </div>
 

@@ -104,32 +104,37 @@ const handleSlipSubmit = async (payload) => {
     await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
 
   } else {
+    console.log("📦 Submitting Dana Slip:", {
+  orderId: selectedOrder._id,
+  ...payload.danaFormData,
+});
+
     // ✅ BLOCK MOULDING FLOW
-    await axiosInstance.post("/slips/dana", {
-      orderId: selectedOrder._id,
-      productName: payload.shapeFormData.productName,
-      rawMaterial: payload.shapeFormData.dryWeight,
-      quantity: payload.shapeFormData.quantity,
-      remarks: payload.shapeFormData.remarks,
-    });
+await axiosInstance.post("/slips/dana", {
+  orderId: selectedOrder._id,
+  ...payload.danaFormData,
+});
+
 
     await axiosInstance.post("/slips/dispatch", {
       orderId: selectedOrder._id,
       row: [payload.cuttingFormData],
     });
 
-    await actuallySendToProduction(
-      selectedOrder._id,
-      {
-        productName: payload.shapeFormData.productName,
-        dryWeight: payload.shapeFormData.dryWeight,
-        quantity: payload.shapeFormData.quantity,
-        remarks: payload.shapeFormData.remarks,
-      },
-      null,
-      payload.cuttingFormData,
-      payload.shapeFormData
-    );
+  await axiosInstance.put(`/orders/send-to-production/${selectedOrder._id}`, {
+  sections: ["blockMoulding"],
+  remainingToProduce: 0,
+  cuttingRows: [payload.cuttingFormData],
+    danaRows: [payload.danaFormData], // ✅ Add this
+
+});
+
+// ✅ Set Dispatch Status & Rows
+await axiosInstance.post(`/orders/send-to-dispatch`, {
+  orderIds: [selectedOrder._id],
+  sections: ["blockMoulding"], // or other applicable section
+  cuttingRows: [payload.cuttingFormData],
+});
 
     // ✅ Send to Dispatch Automatically
     await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
@@ -513,6 +518,10 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
     rawMaterial: shapeRowData.dryWeight,
     quantity: shapeRowData.quantity,
     remarks: shapeRowData.remarks,
+     density: shapeRowData.density || "",             // Add actual value
+    recycledDana: shapeRowData.recycledDana || "",   // Add actual value
+    weight: shapeRowData.weight || "",               // Add actual value
+    grade: shapeRowData.grade || "",                 // Add actual value
   },
 ];
 

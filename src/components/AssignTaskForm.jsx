@@ -275,6 +275,7 @@ const AssignTaskForm = ({
           onChange={(e) => setRepeat(e.target.value)}
         >
           <option value="ONE_TIME">One time</option>
+            <option value="DAILY">Repeat every day</option> {/* ✅ Add this */}
           <option value="MONTHLY">Repeat every month</option>
           <option value="YEARLY">Repeat every year</option>
         </select>

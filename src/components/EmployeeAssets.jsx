@@ -113,10 +113,10 @@ const EmployeeAssets = () => {
                           className="even:bg-gray-50 hover:bg-blue-50 transition duration-150"
                         >
                           <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap">
-                            {asset.issuedTo.name}
+{typeof asset.issuedTo === "object" ? asset.issuedTo.name : asset.issuedTo}
                           </td>
                           <td className="px-3 sm:px-6 py-2 capitalize whitespace-nowrap">
-                            {asset.issuedTo.role}
+{typeof asset.issuedTo === "object" ? asset.issuedTo.role : "—"}
                           </td>
 
                           <td className="px-3 sm:px-6 py-2">
@@ -159,7 +159,7 @@ const EmployeeAssets = () => {
                           </td>
 
                           <td className="px-3 sm:px-6 py-2 whitespace-nowrap">
-                            {asset.issuedTo.email}
+{typeof asset.issuedTo === "object" ? asset.issuedTo.email : "—"}
                           </td>
                           <td className="px-3 sm:px-6 py-2 whitespace-nowrap">
                             {new Date(asset.createdAt).toLocaleDateString()}

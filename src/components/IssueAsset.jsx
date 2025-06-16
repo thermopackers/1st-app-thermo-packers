@@ -9,12 +9,14 @@ const IssueAsset = () => {
   const navigate = useNavigate();
 
   // Form state with employee info + dynamic assets array
-  const [formData, setFormData] = useState({
-    issuedTo: '',
-    assets: [
-      { assetName: '', assetDescription: '', images: [], } // start with one empty asset input
-    ],
-  });
+const [formData, setFormData] = useState({
+  issuedTo: '',
+  manualUser: '',
+  assets: [
+    { assetName: '', assetDescription: '', images: [] }
+  ],
+});
+
 
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -104,7 +106,9 @@ const IssueAsset = () => {
 
     const form = new FormData();
 
-    form.append('issuedTo', formData.issuedTo);
+   form.append('issuedTo', formData.issuedTo || '');
+form.append('manualUser', formData.manualUser || '');
+
 
     const assetsToSend = formData.assets.map((asset, index) => {
       asset.images.forEach((file, fileIdx) => {
@@ -159,23 +163,45 @@ const IssueAsset = () => {
           {/* Employee Details */}
 
           <div>
-            <label className="block mb-1 font-medium">Assign to User *</label>
-            <select
-              name="issuedTo"
-              value={formData.issuedTo}
-              onChange={handleInputChange}
-              className="w-full p-3 border border-gray-400 rounded"
-              required
-              disabled={loadingUsers}
-            >
-              <option value="">-- Select User --</option>
-              {users.map(user => (
-                <option key={user._id} value={user._id}>
-                  {user.name} ({user.email})
-                </option>
-              ))}
-            </select>
-          </div>
+  <label className="block mb-1 font-medium">Assign to User *</label>
+  <select
+    name="issuedTo"
+    value={formData.issuedTo}
+    onChange={(e) => {
+      setFormData(prev => ({
+        ...prev,
+        issuedTo: e.target.value,
+        manualUser: e.target.value === 'manual' ? '' : prev.manualUser
+      }));
+    }}
+    className="w-full p-3 border border-gray-400 rounded"
+    required
+  >
+    <option value="">-- Select User --</option>
+    {users.map(user => (
+      <option key={user._id} value={user._id}>
+        {user.name} ({user.email})
+      </option>
+    ))}
+    <option value="manual">Other (Not in List)</option>
+  </select>
+
+  {formData.issuedTo === 'manual' && (
+    <div className="mt-3">
+      <label className="block mb-1 font-medium">Enter Name or Email of User *</label>
+      <input
+        type="text"
+        name="manualUser"
+        value={formData.manualUser}
+        onChange={handleInputChange}
+        className="w-full p-3 border border-gray-400 rounded"
+        placeholder="Enter name/email"
+        required
+      />
+    </div>
+  )}
+</div>
+
 
           {/* Dynamic Asset List */}
           <div>

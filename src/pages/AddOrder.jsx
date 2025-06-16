@@ -154,7 +154,6 @@ const options = useMemo(() => {
   }
 };
 
-
 const handleProductChange = (index, field, value) => {
   const updated = [...productList]; // make shallow copy
 
@@ -209,11 +208,6 @@ const handleProductChange = (index, field, value) => {
   console.log("✅ Final updated productList:", updated);
   setProductList(updated); // ✅ properly trigger re-render
 };
-
-
-
-
-
 
   const addAnotherProduct = () => {
     setProductList([
