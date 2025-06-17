@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
+import toast from "react-hot-toast";
 
 const vehicleOptions = [
   "PB08 EL 9364",
@@ -16,6 +17,7 @@ const vehicleOptions = [
 
 export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     vehicleNumber: "",
     driverEmail: "",
@@ -90,6 +92,7 @@ const handleDelete = async (planId) => {
     e.preventDefault();
     const vehicle = manualVehicle || formData.vehicleNumber;
     if (!vehicle) return alert("Please select or enter a vehicle number.");
+  setSubmitting(true); // Show loader
 
     try {
       await axiosInstance.post(
@@ -99,7 +102,7 @@ const handleDelete = async (planId) => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      alert("Plan assigned successfully");
+      toast.success("Plan assigned successfully");
       setFormData({
         vehicleNumber: "",
         driverEmail: "",
@@ -111,9 +114,11 @@ const handleDelete = async (planId) => {
       setManualVehicle("");
       fetchPlans();
     } catch (err) {
-      alert("Error assigning plan");
+      toast.error("Error assigning plan");
       console.error(err);
-    }
+    } finally {
+    setSubmitting(false); // Hide loader
+  }
   };
 
   if (loading) return <div className="p-6 text-center">Loading...</div>;
@@ -122,13 +127,19 @@ const handleDelete = async (planId) => {
 
   return (
     <>
+    {submitting && (
+  <div className="fixed inset-0 bg-[#000000b6] bg-opacity-30 z-50 flex items-center justify-center">
+    <div className="w-16 h-16 border-4 border-white border-t-blue-600 rounded-full animate-spin"></div>
+  </div>
+)}
+
       <InternalNavbar />
 
       {/* Assign Plan Form */}
       {user.role !== "dispatch" && user.role !== "packaging" && (
         <form
           onSubmit={handleSubmit}
-          className="max-w-3xl mx-auto bg-white p-6 mt-6 rounded-xl shadow space-y-4"
+  className={`max-w-3xl mx-auto bg-white p-6 mt-6 rounded-xl shadow space-y-4 transition duration-200 ${submitting ? "blur-sm pointer-events-none" : ""}`}
         >
           <h2 className="text-2xl font-bold text-blue-800">
             Assign Dispatch Plan
