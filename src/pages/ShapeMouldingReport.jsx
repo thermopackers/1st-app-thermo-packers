@@ -153,7 +153,7 @@ const flatData = Object.values(groupedData).flat().map((row) => ({
       <InternalNavbar />
       <div className="w-screen px-4 mt-8 mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">
-          Shape Moulding Report
+          Daily Shape Moulding Production Report
         </h2>
 
         {loading ? (

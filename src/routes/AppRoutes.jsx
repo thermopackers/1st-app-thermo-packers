@@ -14,6 +14,8 @@ import EditProduct from "../pages/EditProduct";
 import EditCustomer from "../pages/EditCustomer";
 import ShapeMouldingReport from "../pages/ShapeMouldingReport";
 import BlockMouldingReport from "../pages/BlockMouldingReport";
+import AssignDispatchPlanForm from "../pages/AssignDispatchPlanForm";
+import DriverDispatchDashboard from "../pages/DriverDispatchDashboard";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -81,7 +83,7 @@ export default function AppRoutes() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging"]}>
+                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
                   <PageWrapper><Dashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -181,7 +183,7 @@ export default function AppRoutes() {
             <Route
               path="/my-assets"
               element={
-                <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
                   <PageWrapper><EmployeeAssets /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -199,7 +201,7 @@ export default function AppRoutes() {
             <Route
               path="/my-tasks"
               element={
-                <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging","driver"]}>
                   <PageWrapper><EmployeeDashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -261,6 +263,24 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+<Route
+  path="/assign-dispatch"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts","dispatch","packaging"]}>
+      <PageWrapper><AssignDispatchPlanForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/my-plans"
+  element={
+    <ProtectedRoute allowedRoles={["driver","accounts"]}>
+      <PageWrapper><DriverDispatchDashboard /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 
           </Routes>
         </Suspense>

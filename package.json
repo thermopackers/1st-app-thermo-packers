@@ -41,6 +41,7 @@
     "react-spinners": "^0.17.0",
     "react-toastify": "^11.0.5",
     "sweetalert2": "^11.21.0",
+    "sweetalert2-react-content": "^5.1.0",
     "swiper": "^11.2.6",
     "tailwindcss": "^4.1.4",
     "xlsx": "^0.18.5"

@@ -98,21 +98,35 @@ const AssignTaskForm = ({
     return uploaded;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
 
-    if (!title.trim() || assignedToList.some((id) => !id)) {
-      setError("Please fill title and assign all users.");
-      return;
-    }
+  if (!title.trim() || assignedToList.some((id) => !id)) {
+    setError("Please fill title and assign all users.");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const uploadedImageUrls = await uploadImagesToCloudinary();
-      const allImages = [...existingImages, ...uploadedImageUrls];
+  try {
+    const uploadedImageUrls = await uploadImagesToCloudinary();
+    const allImages = [...existingImages, ...uploadedImageUrls];
 
+    if (task?._id) {
+      // ✅ Update the existing task (only 1 user can be updated)
+      const payload = {
+        title,
+        description,
+        assignedTo: assignedToList[0],
+        dueDate: dueDate || null,
+        repeat,
+        images: allImages,
+      };
+      await axiosInstance.put(`/todos/${task._id}`, payload);
+      toast.success("Task updated successfully!");
+    } else {
+      // ✅ Create tasks for each user
       await Promise.all(
         assignedToList.map(async (userId) => {
           const payload = {
@@ -126,24 +140,26 @@ const AssignTaskForm = ({
           await axiosInstance.post("/todos/create", payload);
         })
       );
-
       toast.success("Tasks assigned successfully!");
-
-      setTitle("");
-      setDescription("");
-      setAssignedToList([""]);
-      setDueDate("");
-      setRepeat("ONE_TIME");
-      setExistingImages([]);
-      setNewImages([]);
-      onTaskCreated();
-    } catch (err) {
-      setError("Failed to save task.");
-      toast.error("Failed to save task. Please try again.");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Clear form
+    setTitle("");
+    setDescription("");
+    setAssignedToList([""]);
+    setDueDate("");
+    setRepeat("ONE_TIME");
+    setExistingImages([]);
+    setNewImages([]);
+    onTaskCreated();
+  } catch (err) {
+    setError("Failed to save task.");
+    toast.error("Failed to save task. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <form

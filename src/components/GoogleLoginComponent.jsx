@@ -19,6 +19,7 @@ const GoogleLoginComponent = ({ setLoading }) => {
       case 'dispatch':
       case 'packaging':
       case 'production':
+        case 'driver':
         navigate('/dashboard');
         break;
       default:
@@ -45,7 +46,7 @@ const GoogleLoginComponent = ({ setLoading }) => {
           localStorage.setItem('token', token);
 
           const decoded = jwtDecode(token);
-          const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging'];
+          const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging','driver'];
           if (!validRoles.includes(decoded.role)) {
             throw new Error('Unauthorized user role');
           }

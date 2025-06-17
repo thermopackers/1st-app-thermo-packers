@@ -108,9 +108,11 @@ export default function InternalNavbar() {
                 isActive ? "text-yellow-300" : "hover:text-yellow-300"
               }`
             }
-          >
-            🖥️ Manage Orders
+          > {role !== "driver" ?
+            "🖥️ Manage Orders" :
+            "🖥️ Dashboard"}
           </NavLink>
+ {role !== "driver" && (
 
           <NavLink
             to="/orders"
@@ -121,7 +123,7 @@ export default function InternalNavbar() {
             }
           >
             📄 Orders
-          </NavLink>
+          </NavLink>)}
 
           <button
             onClick={handleLogout}
@@ -154,13 +156,18 @@ export default function InternalNavbar() {
                 📦 Manage Inventory
               </NavLink>
             )}
+<>
+
             <NavLink
               to="/dashboard"
               onClick={closeMenu}
               className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
             >
-              🖥️ Manage Orders
+               {role !== "driver" ?
+              "🖥️ Manage Orders" : "🖥️ Dashboard"}
             </NavLink>
+                         {role !== "driver" && (
+
             <NavLink
               to="/orders"
               onClick={closeMenu}
@@ -168,6 +175,8 @@ export default function InternalNavbar() {
             >
               📄 Orders
             </NavLink>
+          )}
+</>
             {role === "accounts" && (
               <>
                 <NavLink

@@ -46,6 +46,8 @@ const AssetManagement = ({ hideNavbar }) => {
         const res = await axiosInstance.get("/assets/all-assets", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
+              console.log("🔍 Asset data:", res.data); // <-- Add this
+
         setAssets(res.data);
       } catch (err) {
         console.error("Error fetching assets:", err);
@@ -328,7 +330,7 @@ useEffect(()=>{
         {/* Employee Name */}
         <td className="py-3 px-4 text-sm text-gray-800 capitalize">
           {typeof asset.issuedTo === 'object' ? (
-            asset.issuedTo.name
+            asset.issuedTo?.name
           ) : (
             <div className="inline-flex flex-col sm:flex-row sm:items-center gap-1">
               <span className="font-medium text-gray-900">{asset.manualUser || asset.issuedTo}</span>
@@ -340,7 +342,7 @@ useEffect(()=>{
         </td>
 
         <td className="py-3 px-4 text-sm capitalize">
-          {typeof asset.issuedTo === 'object' ? asset.issuedTo.role : '—'}
+          {typeof asset.issuedTo === 'object' ? asset.issuedTo?.role : '—'}
         </td>
 
         <td className="py-3 px-4 text-sm">
@@ -357,7 +359,7 @@ useEffect(()=>{
         </td>
 
         <td className="py-3 px-4 text-sm">
-          {typeof asset.issuedTo === 'object' ? asset.issuedTo.email : '—'}
+          {typeof asset.issuedTo === 'object' ? asset.issuedTo?.email : '—'}
         </td>
 
         <td className="py-3 px-4 text-sm">

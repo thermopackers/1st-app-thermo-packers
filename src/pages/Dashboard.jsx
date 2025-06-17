@@ -94,7 +94,23 @@ const handleViewTasks = async () => {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              {user.role === "driver" && (
+  <div className="bg-teal-100 p-4 rounded-lg">
+    <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
+    <p className="text-sm text-teal-700 mt-2">
+      View your assigned daily dispatch plans.
+    </p>
+    <NavLink to="/my-plans">
+      <button className="mt-4 cursor-pointer bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded">
+        Go to My Plans
+      </button>
+    </NavLink>
+  </div>
+)}
+
               {/* Your Orders */}
+                            {user.role !== "driver" &&
+
               <div className="bg-blue-100 p-4 rounded-lg">
                 <h3 className="text-lg font-bold text-blue-800">Your Orders</h3>
                 <p className="text-sm text-blue-700 mt-2">
@@ -105,7 +121,8 @@ const handleViewTasks = async () => {
                     View Orders
                   </button>
                 </NavLink>
-              </div>
+              </div>}
+
 
               {/* My Tasks */}
               {user.role !== "admin" &&
@@ -180,13 +197,14 @@ const handleViewTasks = async () => {
 
                 {(user.role === "packaging" || user.role === "accounts") && (
                   <div className="bg-pink-100 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-pink-800">Packaging & Dispatch Dashboard for Shape Moulds</h3>
+                    <h3 className="text-lg font-bold text-pink-800">Packaging & Dispatch Thermocol Shape Moulding Section
+                      </h3>
                     <p className="text-sm text-pink-700 mt-2">
                       Handle packaging tasks and update packaging status.
                     </p>
                     <NavLink to="/packaging-dashboard">
                       <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded">
-                        Go to Packaging & Dispatch(Shape Moulds)
+                        Go to Packaging & Dispatch Thermocol Shape Moulding Section
                       </button>
                     </NavLink>
                   </div>
@@ -194,13 +212,13 @@ const handleViewTasks = async () => {
 
                 {(user.role === "dispatch" || user.role === "accounts") && (
                   <div className="bg-red-100 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-red-800">Packaging & Dispatch Dashboard for Block Moulds</h3>
+                    <h3 className="text-lg font-bold text-red-800">Packaging & Dispatch Thermocol Sheet Cutting Section</h3>
                     <p className="text-sm text-red-700 mt-2">
                       View ready orders and update dispatch details.
                     </p>
                     <NavLink to="/dispatch-dashboard">
                       <button className="mt-4 cursor-pointer bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
-                        Go to Packaging & Dispatch(Block Moulds)
+                        Go to Packaging & Dispatch Thermocol Sheet Cutting Section
                       </button>
                     </NavLink>
                   </div>
@@ -221,19 +239,41 @@ const handleViewTasks = async () => {
               </div>
             )}
 
-            {["admin", "accounts"].includes(user.role) && (
-              <div className="bg-indigo-100 p-4 rounded-lg mt-6">
-                <h3 className="text-lg font-bold text-indigo-800">Task Dashboard</h3>
-                <p className="text-sm text-indigo-700 mt-2">
-                  View, complete, and manage your assigned tasks.
-                </p>
-                <NavLink to="/task-dashboard">
-                  <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
-                    Go to ToDo Dashboard
-                  </button>
-                </NavLink>
-              </div>
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+  {/* Task Dashboard — only for admin and accounts */}
+  {["admin", "accounts"].includes(user.role) && (
+    <div className="bg-indigo-100 p-4 rounded-lg">
+      <h3 className="text-lg font-bold text-indigo-800">Task Dashboard</h3>
+      <p className="text-sm text-indigo-700 mt-2">
+        View, complete, and manage your assigned tasks.
+      </p>
+      <NavLink to="/task-dashboard">
+        <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+          Go to ToDo Dashboard
+        </button>
+      </NavLink>
+    </div>
+  )}
+
+  {/* Assign Dispatch Plan — visible to dispatch, packaging, admin, accounts */}
+  {["dispatch", "packaging", "admin", "accounts"].includes(user.role) && (
+    <div className="bg-sky-100 p-4 rounded-lg">
+      <h3 className="text-lg font-bold text-sky-800">Assign Dispatch Plan</h3>
+      <p className="text-sm text-sky-700 mt-2">
+        Plan and assign dispatch tasks to specific drivers and vehicles.
+      </p>
+      <NavLink to="/assign-dispatch">
+        <button className="mt-4 cursor-pointer bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded">
+          Go to Assign Dispatch
+        </button>
+      </NavLink>
+    </div>
+  )}
+</div>
+
+
+
+
        {["admin","sales", "accounts"].includes(user.role) && (
   <>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
