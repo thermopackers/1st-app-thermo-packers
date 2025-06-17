@@ -10,6 +10,7 @@ export default function CustomerList() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
+console.log("CustomerList component rendered",customers);
 
   const fetchCustomers = async () => {
     try {
@@ -71,6 +72,7 @@ export default function CustomerList() {
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
+                <th className="p-3 border">Documents</th>
                 <th className="p-3 border text-center">Actions</th>
               </tr>
             </thead>
@@ -82,6 +84,39 @@ export default function CustomerList() {
                   <td className="p-3 border">{c.phone}</td>
                   <td className="p-3 border">{c.email}</td>
                   <td className="p-3 border whitespace-pre-line">{c.address}</td>
+                  <td className="p-3 border space-y-1 text-sm">
+                    {c.gstDocs?.length > 0 ? (
+                      <div className="flex flex-col gap-1 max-w-[180px]">
+                        {c.gstDocs.map((url, i) => {
+                          const isImage = url.match(/\.(jpeg|jpg|png|gif)$/i);
+                          const isPDF = url.endsWith(".pdf");
+                          return (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline truncate flex items-center gap-1"
+                            >
+                              {isImage ? (
+                                <>
+                                  🖼️ <span className="truncate">Image {i + 1}</span>
+                                </>
+                              ) : isPDF ? (
+                                <>
+                                  📄 <span className="truncate">PDF {i + 1}</span>
+                                </>
+                              ) : (
+                                <span>📎 File {i + 1}</span>
+                              )}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="p-3 border text-center space-x-2">
                     <Link
                       to={`/customers/edit/${c._id}`}
@@ -100,7 +135,7 @@ export default function CustomerList() {
               ))}
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center p-6 text-gray-500">
+                  <td colSpan={7} className="text-center p-6 text-gray-500">
                     No customers found.
                   </td>
                 </tr>

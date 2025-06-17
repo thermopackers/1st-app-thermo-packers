@@ -16,6 +16,7 @@ import ShapeMouldingReport from "../pages/ShapeMouldingReport";
 import BlockMouldingReport from "../pages/BlockMouldingReport";
 import AssignDispatchPlanForm from "../pages/AssignDispatchPlanForm";
 import DriverDispatchDashboard from "../pages/DriverDispatchDashboard";
+import PackagingReport from "../pages/PackagingReport";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -167,6 +168,17 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+<Route
+  path="/reports/packaging"
+  element={
+    <ProtectedRoute allowedRoles={["packaging", "accounts","dispatch"]}>
+      <PageWrapper>
+        <PackagingReport />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 
             <Route
               path="/asset-management"

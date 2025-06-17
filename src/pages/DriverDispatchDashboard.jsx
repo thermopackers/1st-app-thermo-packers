@@ -62,7 +62,7 @@ const markCompleted = async (id) => {
         }
       );
       Swal.fire("Success!", "Status updated to Completed.", "success");
-      fetchPlans();
+      fetchPlans(page);
     } catch (err) {
       Swal.fire("Error", "Failed to update status.", "error");
     }
@@ -90,6 +90,8 @@ const markCompleted = async (id) => {
         });
 
         const data = await res.json();
+          console.log("🌐 Cloudinary upload response:", data); // ✅ DEBUG
+
         if (!res.ok) throw new Error(data.error?.message || "Upload failed");
 
         uploadedUrls.push(data.secure_url);

@@ -197,7 +197,9 @@ const updateFilters = (newFilters) => {
                   className="bg-white p-5 shadow rounded-lg border-l-4 border-indigo-500 hover:shadow-lg transition relative"
                 >
                   <h2 className="text-xl font-semibold text-indigo-800 mb-2">{task.title}</h2>
-                  <p className="text-gray-700 mb-3">{task.description}</p>
+<p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">
+  {task.description}
+</p>
              {task.images && task.images.length > 0 && (
   <div className="mt-2 flex flex-wrap gap-2">
     {task.images.map((url, idx) => {

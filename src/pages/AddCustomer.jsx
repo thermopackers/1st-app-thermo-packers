@@ -7,7 +7,9 @@ import { useUserContext } from "../context/UserContext";
 
 export default function AddCustomer() {
     const { user } = useUserContext();
-  
+  const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
+const [uploadedUrls, setUploadedUrls] = useState([]);
+
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -18,6 +20,33 @@ export default function AddCustomer() {
 const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
+const handleFileChange = (e) => {
+  const files = Array.from(e.target.files);
+  setGstFiles((prev) => [...prev, ...files]);
+};
+
+const handleRemoveFile = (index) => {
+  setGstFiles((prev) => prev.filter((_, i) => i !== index));
+};
+
+const uploadToCloudinary = async (files) => {
+  const uploads = files.map(async (file) => {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "todo_uploads"); // Replace with your preset
+    data.append("cloud_name", "dcr8k5amk");
+
+    const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
+      method: "POST",
+      body: data,
+    });
+
+    const result = await res.json();
+    return result.secure_url;
+  });
+
+  return Promise.all(uploads);
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,7 +58,18 @@ const [submitting, setSubmitting] = useState(false);
       setSubmitting(true);
 
     try {
-      await axiosInstance.post("/customers", formData);
+          let uploadedUrls = [];
+  if (gstFiles.length > 0) {
+      toast.loading("Uploading documents...");
+      uploadedUrls = await uploadToCloudinary(gstFiles);
+      toast.dismiss();
+    }
+
+    const payload = {
+      ...formData,
+      gstDocs: uploadedUrls, // Send this to backend
+    };
+await axiosInstance.post("/customers", payload);
       toast.success("Customer added successfully!");
       if(user.role === "sales"){
         navigate('/dashboard')
@@ -84,6 +124,62 @@ const [submitting, setSubmitting] = useState(false);
                 placeholder="GST No."
               />
             </div>
+<div>
+  <label className="block mb-1 font-medium text-gray-700">
+    GST Documents (Images or PDFs)
+  </label>
+  <input
+    type="file"
+    multiple
+    accept="image/*,.pdf"
+    onChange={handleFileChange}
+    className="block w-full bg-amber-200 p-1"
+  />
+</div>
+{gstFiles.length > 0 && (
+  <div className="space-y-2 mt-4">
+    <p className="font-semibold">Selected GST Files:</p>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {gstFiles.map((file, index) => {
+        const isImage = file.type.startsWith("image/");
+        const isPDF = file.type === "application/pdf";
+
+        return (
+          <div
+            key={index}
+            className="relative border rounded-md p-2 bg-gray-100"
+          >
+            {isImage && (
+              <img
+                src={URL.createObjectURL(file)}
+                alt="preview"
+                className="w-full h-32 object-contain rounded"
+              />
+            )}
+
+            {isPDF && (
+              <div className="flex flex-col items-center justify-center h-32">
+                <span className="text-red-600 font-bold text-xl">📄</span>
+                <span className="text-sm mt-1 text-center break-all">
+                  {file.name}
+                </span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleRemoveFile(index)}
+              className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600"
+            >
+              ✖
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
 
             <div>
               <label className="block mb-1 font-medium text-gray-700">Phone No.</label>

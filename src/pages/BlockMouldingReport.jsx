@@ -190,7 +190,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
           <table className="w-full table-auto divide-y divide-gray-200">
             <thead className="bg-blue-600">
               <tr>
-                {['Sr No', 'Date', 'Mould Density/Specification', 'Weight of Block(in kgs)', 'No of Blocks', 'Total Weight(in kgs)'].map((head) => (
+                {['Sr No', 'Date', 'Block Mould Density/Specification', 'Weight of Block(in kgs)', 'No of Blocks', 'Total Weight(in kgs)'].map((head) => (
                   <th key={head} className="px-3 py-2 text-white text-sm font-semibold text-center whitespace-nowrap">
                     {head}
                   </th>
@@ -235,7 +235,7 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                             value={row.mouldName}
                             onChange={(e) => handleInputChange(date, idx, 'mouldName', e.target.value)}
                             className="w-full border border-gray-300 rounded px-2 py-1"
-                            placeholder="Mould Density"
+                            placeholder="Block Mould Density/Specification"
                           />
                         </td>
                         <td className="px-2 py-1">

@@ -19,6 +19,7 @@ export default function App() {
     "/my-plans",
     "/asset-management",
     "/my-assets",
+    "/reports/packaging",
     "/issue-asset",
     "/orders",
     "/add-order",

@@ -88,10 +88,17 @@ const handleViewTasks = async () => {
           </button>
 
           <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
+                          {user.role !== "driver" && (
+
             <h2 className="text-xl font-semibold mb-4">
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
               <span className="capitalize">({user.role})</span>
-            </h2>
+            </h2>)}
+                          {user.role === "driver" && (
+
+            <h2 className="text-xl font-semibold mb-4">
+              Welcome 👋 to your Dashboard!
+            </h2>)}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               {user.role === "driver" && (
@@ -239,6 +246,8 @@ const handleViewTasks = async () => {
               </div>
             )}
 
+
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
   {/* Task Dashboard — only for admin and accounts */}
   {["admin", "accounts"].includes(user.role) && (
@@ -254,7 +263,19 @@ const handleViewTasks = async () => {
       </NavLink>
     </div>
   )}
-
+{["accounts", "packaging"].includes(user.role) && (
+  <div className="bg-fuchsia-100 p-4 rounded-lg">
+    <h3 className="text-lg font-bold text-fuchsia-800">Daily Shape Moulding Section, Packaging & Dispatch Report</h3>
+    <p className="text-sm text-fuchsia-700 mt-2">
+      View daily packaging status and packed stock details.
+    </p>
+    <NavLink to="/reports/packaging">
+      <button className="mt-4 cursor-pointer bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded">
+        Go To Daily Shape Moulding Section, Packaging & Dispatch Report
+      </button>
+    </NavLink>
+  </div>
+)}
   {/* Assign Dispatch Plan — visible to dispatch, packaging, admin, accounts */}
   {["dispatch", "packaging", "admin", "accounts"].includes(user.role) && (
     <div className="bg-sky-100 p-4 rounded-lg">
