@@ -8,6 +8,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import axiosInstance from "../axiosInstance";
 import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 import "jspdf-autotable";
 import SlipFormModal from "../components/SlipFormModal.jsx";
 
@@ -311,6 +312,52 @@ const fetchOrders = async (page = 1) => {
 
     fetchOrders(currentPage);
   }, [filters, token,location,currentPage,searchTerm]);
+
+
+const MySwal = withReactContent(Swal);
+
+const handleViewPOCopy = (order) => {
+  const isPDF = order.poCopy?.toLowerCase().endsWith(".pdf");
+  const url = order.poCopy?.startsWith("http")
+    ? order.poCopy
+    : `https://res.cloudinary.com/dcr8k5amk/raw/upload/${order.poCopy}`;
+
+  MySwal.fire({
+    title: "📎 PO Copy",
+    html: isPDF
+      ? `<iframe src="${url}" width="100%" height="500px" style="border:none;"></iframe>`
+      : `<img src="${url}" style="max-height:500px; max-width:100%;" />`,
+    showCancelButton: true,
+    confirmButtonText: "🖊 Change PO Copy",
+    cancelButtonText: "Close",
+    preConfirm: () => {
+      document.getElementById(`upload-po-${order._id}`).click();
+      return false; // prevent closing
+    },
+  });
+};
+
+const handlePOCopyUpload = async (e, orderId) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const formData = new FormData();
+formData.append("poCopy", file); // ✅ must match exactly
+
+  try {
+    const res = await axiosInstance.post(
+  `/orders/upload/po-copy/${orderId}`, // ✅ matches backend
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    Swal.fire("✅ PO Copy Updated", "", "success").then(() => window.location.reload());
+  } catch (err) {
+    Swal.fire("❌ Failed to Upload", err?.response?.data?.message || "Try again", "error");
+  }
+};
+
   useEffect(() => {
     const storedDisabled = localStorage.getItem("disabledOrders");
     if (storedDisabled) {
@@ -1003,25 +1050,73 @@ const productKey = order.product.toLowerCase();
                           </td>
 
                           {/* ✅ PO Copy */}
-                     <td className="px-4 py-2 whitespace-nowrap max-w-[120px]">
+                    <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
   {order.poCopy ? (
-    <a
-      href={
-        order.poCopy.includes("/upload/")
-          ? order.poCopy.replace("/upload/", "/upload/fl_attachment/")
-          : order.poCopy
-      }
-      download={order.poOriginalName || "po-copy"}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-600 underline hover:text-blue-800 block truncate"
-    >
-      📥 {order.poOriginalName?.toLowerCase().endsWith(".pdf") ? "Download" : "View"}
-    </a>
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={() => {
+          const isPDF = order.poCopy.toLowerCase().endsWith(".pdf") || order.poCopy.includes(".pdf");
+          Swal.fire({
+            title: "PO Copy Preview",
+            html: isPDF
+              ? `<iframe src="${order.poCopy}" width="100%" height="500px" style="border:none;"></iframe>`
+              : `<img src="${order.poCopy}" style="max-width:100%; max-height:500px;" />`,
+            width: 700,
+            showCancelButton: true,
+            showConfirmButton: false,
+            cancelButtonText: "Close",
+          });
+        }}
+        className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+      >
+        📄 {order.poOriginalName || "View PO Copy"}
+      </button>
+
+      <button
+        onClick={async () => {
+          const { value: file } = await Swal.fire({
+            title: "Upload new PO Copy",
+            input: "file",
+            inputAttributes: {
+              accept: "application/pdf,image/*",
+              "aria-label": "Upload PO Copy",
+            },
+            confirmButtonText: "Upload",
+            showCancelButton: true,
+          });
+
+          if (file) {
+            const formData = new FormData();
+            formData.append("poCopy", file);
+
+            try {
+              const res = await axiosInstance.post(
+                `/api/orders/upload/po-copy/${order._id}`,
+                formData,
+                {
+                  headers: { "Content-Type": "multipart/form-data" },
+                }
+              );
+
+              Swal.fire("✅ Updated!", "PO Copy updated successfully", "success");
+              window.location.reload(); // or refetch your data
+            } catch (err) {
+              Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
+              console.error(err);
+            }
+          }
+        }}
+        className="text-sm text-gray-600 underline hover:text-red-600"
+      >
+        ✏️ Edit PO Copy
+      </button>
+    </div>
   ) : (
     "-"
   )}
 </td>
+
+ 
 
 
 
