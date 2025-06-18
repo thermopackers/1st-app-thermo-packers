@@ -337,27 +337,6 @@ const handleViewPOCopy = (order) => {
   });
 };
 
-const handlePOCopyUpload = async (e, orderId) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const formData = new FormData();
-formData.append("poCopy", file); // ✅ must match exactly
-
-  try {
-    const res = await axiosInstance.post(
-  `/orders/upload/po-copy/${orderId}`, // ✅ matches backend
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      }
-    );
-    Swal.fire("✅ PO Copy Updated", "", "success").then(() => window.location.reload());
-  } catch (err) {
-    Swal.fire("❌ Failed to Upload", err?.response?.data?.message || "Try again", "error");
-  }
-};
-
   useEffect(() => {
     const storedDisabled = localStorage.getItem("disabledOrders");
     if (storedDisabled) {
