@@ -1091,7 +1091,7 @@ const productKey = order.product.toLowerCase();
 
             try {
               const res = await axiosInstance.post(
-                `/api/orders/upload/po-copy/${order._id}`,
+                `/orders/upload/po-copy/${order._id}`,
                 formData,
                 {
                   headers: { "Content-Type": "multipart/form-data" },
