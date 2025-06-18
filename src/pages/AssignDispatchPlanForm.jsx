@@ -235,7 +235,7 @@ if (
         type="text"
         placeholder="Enter vehicle number (e.g. PB08 EL 9364)"
         className="border p-2 rounded"
-        value={newVehicle.vehicleNumber}
+        value={newVehicle.vehicleNumber.toUpperCase()}
         onChange={e => setNewVehicle(v => ({ ...v, vehicleNumber: e.target.value }))}
       />
     </div>

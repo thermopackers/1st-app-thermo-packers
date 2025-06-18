@@ -17,6 +17,8 @@ import BlockMouldingReport from "../pages/BlockMouldingReport";
 import AssignDispatchPlanForm from "../pages/AssignDispatchPlanForm";
 import DriverDispatchDashboard from "../pages/DriverDispatchDashboard";
 import PackagingReport from "../pages/PackagingReport";
+import RequisitionForm from "../components/RequisitionForm";
+import RequisitionSlips from "../pages/RequisitionSlips";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -289,6 +291,22 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["driver","accounts"]}>
       <PageWrapper><DriverDispatchDashboard /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/material-requisition"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+      <PageWrapper><RequisitionForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/requisition-slips"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+      <PageWrapper><RequisitionSlips /></PageWrapper>
     </ProtectedRoute>
   }
 />

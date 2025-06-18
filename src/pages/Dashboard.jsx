@@ -290,6 +290,38 @@ const handleViewTasks = async () => {
       </NavLink>
     </div>
   )}
+  {["admin", "accounts"].includes(user.role) && (
+  <>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Submit Material Requisition */}
+      <div className="bg-rose-100 p-4 rounded-lg">
+        <h3 className="text-lg font-bold text-rose-800">Material Requisition Form</h3>
+        <p className="text-sm text-rose-700 mt-2">
+          Fill and submit a new material requisition slip for raw materials.
+        </p>
+        <NavLink to="/material-requisition">
+          <button className="mt-4 cursor-pointer bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded">
+            Go to Requisition Form
+          </button>
+        </NavLink>
+      </div>
+
+      {/* View All Requisition Slips */}
+      <div className="bg-amber-100 p-4 rounded-lg">
+        <h3 className="text-lg font-bold text-amber-800">Requisition Slips</h3>
+        <p className="text-sm text-amber-700 mt-2">
+          View and download all submitted requisition slip PDFs.
+        </p>
+        <NavLink to="/requisition-slips">
+          <button className="mt-4 cursor-pointer bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded">
+            View Requisition Slips
+          </button>
+        </NavLink>
+      </div>
+    </div>
+  </>
+)}
+
 </div>
 
 
