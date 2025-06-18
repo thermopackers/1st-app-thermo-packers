@@ -35,8 +35,8 @@ const fetchRegisteredVehicles = async () => {
 };
 
 useEffect(() => {
-  if (token) fetchRegisteredVehicles();
-}, [token]);
+ fetchRegisteredVehicles();
+}, []);
 
   const [backendProducts, setBackendProducts] = useState([]);
 const [manualProduct, setManualProduct] = useState("");
@@ -48,14 +48,13 @@ const [searchTerm, setSearchTerm] = useState("");
   const [totalPages, setTotalPages] = useState(1);
   
 useEffect(() => {
-  if (!token) return;
   axiosInstance
     .get("/products/all-back-products", {
       headers: { Authorization: `Bearer ${token}` },
     })
     .then((res) => setBackendProducts(res.data || []))
     .catch((err) => console.error("Error fetching products:", err));
-}, [token]);
+}, []);
 const [newVehicle, setNewVehicle] = useState({
   vehicleNumber: "",
   driverEmail: "",
