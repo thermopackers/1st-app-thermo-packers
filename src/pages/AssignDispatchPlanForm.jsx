@@ -11,6 +11,7 @@ export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
   const [submitting, setSubmitting] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [audioMimeType, setAudioMimeType] = useState("audio/mp4");
 const [audioUrl, setAudioUrl] = useState(null);
 const [recording, setRecording] = useState(false);
 const [mediaRecorder, setMediaRecorder] = useState(null);
@@ -46,14 +47,18 @@ const startRecording = async () => {
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    const recorder = new MediaRecorder(stream);
+    const preferredTypes = ["audio/mp4", "audio/mpeg", "audio/webm", "audio/ogg"];
+    const supportedMimeType = preferredTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
+    setAudioMimeType(supportedMimeType); // ✅ Set it here
+console.log("supportedMimeType",supportedMimeType);
+
+    const recorder = new MediaRecorder(stream, { mimeType: supportedMimeType });
     const chunks = [];
 
     recorder.ondataavailable = (e) => chunks.push(e.data);
 
     recorder.onstop = () => {
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
-      const blob = new Blob(chunks, { type: mimeType });
+      const blob = new Blob(chunks, { type: supportedMimeType });
       setAudioBlob(blob);
       const audioURL = URL.createObjectURL(blob);
       setAudioUrl(audioURL);
@@ -67,6 +72,7 @@ const startRecording = async () => {
     toast.error("Microphone access denied.");
   }
 };
+
 
 const stopRecording = () => {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
@@ -430,7 +436,10 @@ const handleSubmit = async (e) => {
 
   {audioUrl ? (
     <div className="flex items-center gap-4">
-      <audio controls src={audioUrl} className="w-full" />
+<audio controls className="w-full">
+<source src={audioUrl} type={audioMimeType} />
+  Your browser does not support the audio element.
+</audio>
       <button
         type="button"
         onClick={clearAudio}
