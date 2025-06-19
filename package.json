@@ -40,6 +40,7 @@
     "react-speech-recognition": "^4.0.0",
     "react-spinners": "^0.17.0",
     "react-toastify": "^11.0.5",
+    "recordrtc": "^5.6.2",
     "sweetalert2": "^11.21.0",
     "sweetalert2-react-content": "^5.1.0",
     "swiper": "^11.2.6",

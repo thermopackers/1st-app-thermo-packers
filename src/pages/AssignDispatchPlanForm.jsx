@@ -1,3 +1,4 @@
+import RecordRTC from 'recordrtc'; // ✅ Add this at the top
 import Swal from "sweetalert2";
 import { useState, useEffect } from "react";
 import InternalNavbar from "../components/InternalNavbar";
@@ -11,12 +12,10 @@ export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
   const [submitting, setSubmitting] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
-  const [audioMimeType, setAudioMimeType] = useState("audio/mp4");
 const [audioUrl, setAudioUrl] = useState(null);
 const [recording, setRecording] = useState(false);
-const [mediaRecorder, setMediaRecorder] = useState(null);
   const [tableLoading, setTableLoading] = useState(false);
-  
+  const [recorder, setRecorder] = useState(null);
   const [formData, setFormData] = useState({
     vehicleNumber: "",
     customerName: "",
@@ -38,46 +37,38 @@ const fetchRegisteredVehicles = async () => {
     console.error("Failed to fetch registered vehicles:", err);
   }
 };
+
+
+
 const startRecording = async () => {
   try {
-    if (!window.MediaRecorder) {
-      toast.error("Audio recording not supported on this device.");
-      return;
-    }
-
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    const preferredTypes = ["audio/mp4", "audio/mpeg", "audio/webm", "audio/ogg"];
-    const supportedMimeType = preferredTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
-    setAudioMimeType(supportedMimeType); // ✅ Set it here
-console.log("supportedMimeType",supportedMimeType);
+    const newRecorder = new RecordRTC(stream, {
+      type: 'audio',
+      mimeType: 'audio/wav',
+      recorderType: RecordRTC.StereoAudioRecorder,
+      numberOfAudioChannels: 1,
+      desiredSampRate: 16000,
+    });
 
-    const recorder = new MediaRecorder(stream, { mimeType: supportedMimeType });
-    const chunks = [];
-
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: supportedMimeType });
-      setAudioBlob(blob);
-      const audioURL = URL.createObjectURL(blob);
-      setAudioUrl(audioURL);
-    };
-
-    recorder.start();
+    newRecorder.startRecording();
+    setRecorder(newRecorder);
     setRecording(true);
-    setMediaRecorder(recorder);
   } catch (err) {
     console.error("🎤 Microphone access denied:", err);
     toast.error("Microphone access denied.");
   }
 };
 
-
 const stopRecording = () => {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-    setRecording(false);
+  if (recorder) {
+    recorder.stopRecording(() => {
+      const blob = recorder.getBlob();
+      setAudioBlob(blob);
+      setAudioUrl(URL.createObjectURL(blob));
+      setRecording(false);
+    });
   }
 };
 
@@ -86,6 +77,7 @@ const clearAudio = () => {
   setAudioUrl(null);
   setRecording(false);
 };
+
 
 
 
@@ -437,7 +429,7 @@ const handleSubmit = async (e) => {
   {audioUrl ? (
     <div className="flex items-center gap-4">
 <audio controls className="w-full">
-<source src={audioUrl} type={audioMimeType} />
+<source src={audioUrl} type="audio/wav" />
   Your browser does not support the audio element.
 </audio>
       <button
