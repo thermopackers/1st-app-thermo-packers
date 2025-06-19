@@ -101,7 +101,7 @@ const handleViewTasks = async () => {
             </h2>)}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              {user.role === "driver" && (
+              {user.role === "driver" && (<>
   <div className="bg-teal-100 p-4 rounded-lg">
     <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
     <p className="text-sm text-teal-700 mt-2">
@@ -113,6 +113,18 @@ const handleViewTasks = async () => {
       </button>
     </NavLink>
   </div>
+  <div className="bg-pink-100 p-4 rounded-lg">
+    <h3 className="text-lg font-bold text-pink-800">My Assets</h3>
+    <p className="text-sm text-pink-700 mt-2">
+      View your assigned assets.
+    </p>
+    <NavLink to="/my-assets">
+      <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded">
+        Go to My Assets
+      </button>
+    </NavLink>
+  </div>
+  </>
 )}
 
               {/* Your Orders */}
@@ -250,7 +262,7 @@ const handleViewTasks = async () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
   {/* Task Dashboard — only for admin and accounts */}
-  {["admin", "accounts"].includes(user.role) && (
+  {["admin", "accounts","sales"].includes(user.role) && (
     <div className="bg-indigo-100 p-4 rounded-lg">
       <h3 className="text-lg font-bold text-indigo-800">Task Dashboard</h3>
       <p className="text-sm text-indigo-700 mt-2">

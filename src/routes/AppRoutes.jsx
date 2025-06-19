@@ -224,7 +224,7 @@ export default function AppRoutes() {
             <Route
               path="/task-dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin", "accounts","sales"]}>
                   <PageWrapper><AdminDashboard /></PageWrapper>
                 </ProtectedRoute>
               }

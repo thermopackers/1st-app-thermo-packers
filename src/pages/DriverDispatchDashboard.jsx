@@ -15,6 +15,7 @@ export default function DriverDispatchDashboard() {
 const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
 const limit = 6; // or any number you want per page
+console.log("plans",plans);
 
 const fetchPlans = async (currentPage = 1) => {
     setLoading(true);
@@ -139,64 +140,104 @@ const markCompleted = async (id) => {
   </div>
 ) : (
    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan, index) => (
-            <div
-              key={plan._id}
-              className="bg-white shadow-md rounded-lg p-4 border hover:shadow-lg transition"
-            >
-              <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                🚛 Vehicle: {plan.vehicleNumber}
-              </h3>
-              <p><strong>Customer:</strong> {plan.customerName}</p>
-              <p><strong>Location:</strong> {plan.location}</p>
-              <p><strong>Product:</strong> {plan.productName}</p>
-              <p><strong>Remarks:</strong> {plan.remarks || '-'}</p>
-              <p className="mt-2">
-                <strong>Status:</strong>{" "}
-                <span
-                  className={`font-medium ${
-                    plan.status === 'Completed' ? 'text-green-600' : 'text-yellow-600'
-                  }`}
-                >
-                  {plan.status}
-                </span>
-              </p>
+        {plans.map((plan) => (
+  <div
+  key={plan._id}
+  className="relative backdrop-blur-md bg-white/80 shadow-xl border border-gray-200 rounded-3xl p-6 pt-14 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl overflow-hidden"
+>
+  {/* Top Center Driver Badge */}
+<div className="absolute top-4 right-4 bg-indigo-600 text-white text-xs sm:text-sm px-4 py-1 rounded-full shadow-lg z-10">
+  👨‍✈️ For: {plan.driverName || "N/A"}
+</div>
 
-              <div className="mt-4 flex flex-col gap-2">
-                {plan.status === 'Pending' && (
-                  <button
-                    onClick={() => markCompleted(plan._id)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition"
-                  >
-                    ✅ Mark Completed
-                  </button>
-                )}
 
-                <label className="block">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, plan._id)}
-                    className="text-sm bg-amber-300 w-full p-1 text-gray-600 mt-1"
-                  />
-                </label>
+  {/* Card Body (below badge) */}
+  <div className="space-y-4 mt-2">
+    {/* Vehicle & Date */}
+    <div>
+      <h2 className="text-2xl font-extrabold text-indigo-800 tracking-wide">
+        🚛 {plan.vehicleNumber}
+      </h2>
+      <p className="text-sm text-gray-600">
+        <strong>Assigned On:</strong> {new Date(plan.assignedOn).toLocaleString()}
+      </p>
+    </div>
 
-                {uploadingPlanId === plan._id && (
-                  <p className="text-blue-500 text-sm">Uploading...</p>
-                )}
+    {/* Grid Info */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-gray-700 text-sm">
+      <p><strong>📍 Location:</strong> {plan.location}</p>
+      <p><strong>🏢 Customer:</strong> {plan.customerName}</p>
+      <p><strong>📦 Product:</strong> {plan.productName}</p>
+      <p className="break-words whitespace-pre-wrap"><strong>📝 Remarks:</strong> {plan.remarks || "—"}</p>
+      <p className="sm:col-span-2">
+        <strong>📊 Status:</strong>{" "}
+        <span className={`inline-block font-semibold px-2 py-1 rounded-full text-xs ${
+          plan.status === "Completed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+        }`}>
+          {plan.status}
+        </span>
+      </p>
+    </div>
 
-                {plan.imageUrls?.length > 0 && (
-                  <button
-                    onClick={() => showImages(plan.imageUrls)}
-                    className="text-indigo-600 hover:underline text-sm"
-                  >
-                    📷 View Images ({plan.imageUrls.length})
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+    {/* Audio Player */}
+    {plan.audioUrl && (
+      <div>
+        <label className="text-sm text-gray-500 font-medium block mb-1">🎙️ Voice Note:</label>
+        <audio
+          controls
+          className="w-full bg-white bg-opacity-80 rounded-lg shadow-md border"
+        >
+          <source src={plan.audioUrl} type="audio/mpeg" />
+        </audio>
+        <p className="text-xs text-red-500 mt-1">🎧 Play Voice Message</p>
+      </div>
+    )}
+
+    {/* Actions */}
+    <div className="flex flex-col gap-3">
+      {plan.status === "Pending" && (
+        <button
+          onClick={() => markCompleted(plan._id)}
+          className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-2 rounded-xl transition-all shadow"
+        >
+          ✅ Mark Completed
+        </button>
+      )}
+
+      <label className="block cursor-pointer">
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={(e) => handleImageUpload(e, plan._id)}
+          className="hidden"
+        />
+        <div className="bg-yellow-200 hover:bg-yellow-300 text-gray-800 px-3 py-2 text-sm rounded-lg text-center shadow-sm">
+          📤 Upload Images
+        </div>
+      </label>
+
+      {uploadingPlanId === plan._id && (
+        <p className="text-blue-500 text-sm font-medium animate-pulse">
+          Uploading...
+        </p>
+      )}
+
+      {plan.imageUrls?.length > 0 && (
+        <button
+          onClick={() => showImages(plan.imageUrls)}
+          className="text-indigo-600 hover:text-indigo-800 underline text-sm font-semibold"
+        >
+          📷 View Images ({plan.imageUrls.length})
+        </button>
+      )}
+    </div>
+  </div>
+</div>
+
+))}
+
+
         </div>
 )}
 
@@ -223,6 +264,15 @@ const markCompleted = async (id) => {
 )}
 
       </div>
+      {uploadingPlanId && (
+  <div className="fixed inset-0 bg-[#000000b7] bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="flex flex-col items-center">
+      <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-white text-lg font-semibold">Uploading images...</p>
+    </div>
+  </div>
+)}
+
     </>
   );
 }

@@ -10,6 +10,10 @@ import toast from "react-hot-toast";
 export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
   const [submitting, setSubmitting] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+const [audioUrl, setAudioUrl] = useState(null);
+const [recording, setRecording] = useState(false);
+const [mediaRecorder, setMediaRecorder] = useState(null);
   const [tableLoading, setTableLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -33,6 +37,43 @@ const fetchRegisteredVehicles = async () => {
     console.error("Failed to fetch registered vehicles:", err);
   }
 };
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' }); // Use 'audio/webm' for compatibility
+      setAudioBlob(blob);
+      const audioURL = URL.createObjectURL(blob);
+      setAudioUrl(audioURL); // So you can play it in <audio />
+    };
+
+    recorder.start();
+    setRecording(true);
+    setMediaRecorder(recorder);
+  } catch (err) {
+    console.error("🎤 Microphone access denied:", err);
+    toast.error("Microphone access denied.");
+  }
+};
+
+
+const stopRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+    setRecording(false);
+  }
+};
+const clearAudio = () => {
+  setAudioBlob(null);
+  setAudioUrl(null);
+  setRecording(false);
+};
+
 
 useEffect(() => {
  fetchRegisteredVehicles();
@@ -149,36 +190,44 @@ const handleSubmit = async (e) => {
   const vehicle = formData.vehicleNumber;
   const product = manualProduct || formData.productName;
 
-  if (!vehicle) {
-    return alert("Please select or enter a vehicle number.");
+  if (!vehicle || !formData.customerName || !formData.location || !product || !formData.driverName) {
+    toast.error("Please fill all required fields.");
+    return;
   }
-
-if (
-  !vehicle || !formData.customerName || !formData.location || !product ||
-  !formData.driverName
-) {
-  toast.error("Please fill all required fields.");
-  return;
-}
-
 
   setSubmitting(true);
 
   try {
-    await axiosInstance.post(
-      "/dispatch-plans/assign",
-      {
-        ...formData,
-        vehicleNumber: vehicle,
-        productName: product,
-        driverName: formData.driverName,
-        driverContact: formData.driverContact,
-        
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    const payload = {
+      ...formData,
+      vehicleNumber: vehicle,
+      productName: product,
+      driverName: formData.driverName,
+      driverContact: formData.driverContact,
+    };
+
+    // ✅ If audioBlob exists, upload to Cloudinary
+    if (audioBlob) {
+      const audioForm = new FormData();
+      audioForm.append("file", audioBlob);
+      audioForm.append("upload_preset", "todo_uploads");
+      audioForm.append("cloud_name", "dcr8k5amk");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload", {
+        method: "POST",
+        body: audioForm,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "Audio upload failed");
+
+      payload.audioUrl = data.secure_url; // ✅ Attach to form payload
+    }
+
+    // ✅ Now post the payload
+    await axiosInstance.post("/dispatch-plans/assign", payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     toast.success("Plan assigned successfully");
 
@@ -191,17 +240,18 @@ if (
       driverName: "",
       driverContact: "",
     });
-
     setManualProduct("");
+    setAudioBlob(null); // ✅ clear audio
+    setAudioUrl(null);       // ✅ clear preview URL if you're showing one
     fetchPlans();
   } catch (err) {
-  toast.error("Error assigning plan");
-  console.error("🔥 ASSIGN ERROR:", err?.response?.data || err);
-}
- finally {
+    toast.error("Error assigning plan");
+    console.error("🔥 ASSIGN ERROR:", err?.response?.data || err);
+  } finally {
     setSubmitting(false);
   }
 };
+
 
 
   if (loading) return <div className="p-6 text-center">Loading...</div>;
@@ -367,6 +417,39 @@ if (
       className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
     />
   </div>
+<div className="md:col-span-2">
+  <label className="block text-sm font-medium mb-1">Voice Message</label>
+
+  {audioUrl ? (
+    <div className="flex items-center gap-4">
+      <audio controls src={audioUrl} className="w-full" />
+      <button
+        type="button"
+        onClick={clearAudio}
+        className="text-red-600 font-bold text-sm hover:underline"
+      >
+        ❌ Remove
+      </button>
+    </div>
+  ) : recording ? (
+    <button
+      type="button"
+      onClick={stopRecording}
+      className="bg-red-500 text-white px-4 py-1 rounded"
+    >
+      ⏹️ Stop Recording
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={startRecording}
+      className="bg-blue-600 text-white px-4 py-1 rounded"
+    >
+      🎙️ Start Recording
+    </button>
+  )}
+</div>
+
 
   <div className="md:col-span-2 flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Remarks</label>

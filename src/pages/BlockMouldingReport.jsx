@@ -197,89 +197,94 @@ const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedDates.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-500">
-                    No data available
-                  </td>
-                </tr>
-              )}
-              {paginatedDates.map((date) => {
-                const rows = groupedData[date];
-                const totalBlocks = rows.reduce((sum, r) => sum + (parseInt(r.noOfBlocks) || 0), 0);
-                const totalWeight = rows.reduce((sum, r) => {
-                  const weight = parseFloat(r.weightOfBlock) || 0;
-                  const blocks = parseInt(r.noOfBlocks) || 0;
-                  return sum + weight * blocks;
-                }, 0);
+           <tbody className="bg-white divide-y divide-gray-200">
+  {paginatedDates.length === 0 ? (
+    <tr>
+      <td colSpan={6} className="text-center py-6 text-gray-500">
+        No data available
+      </td>
+    </tr>
+  ) : (
+    (() => {
+      let srCounter = (currentPage - 1) * ROWS_PER_PAGE + 1;
 
-                return (
-                  <React.Fragment key={date}>
-                    {rows.map((row, idx) => (
-                      <tr key={`${date}-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                        <td className="px-3 py-2 text-center text-gray-700">{row.srNo}</td>
-                        <td className="px-2 py-1">
-                          <input
-  type="date"
-  value={row.date}
-  max={new Date().toISOString().split('T')[0]} // 👈 restricts to today
-  onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-  className="w-full border border-gray-300 rounded px-2 py-1"
-/>
+      return paginatedDates.map((date) => {
+        const rows = groupedData[date];
+        const totalBlocks = rows.reduce((sum, r) => sum + (parseInt(r.noOfBlocks) || 0), 0);
+        const totalWeight = rows.reduce((sum, r) => {
+          const weight = parseFloat(r.weightOfBlock) || 0;
+          const blocks = parseInt(r.noOfBlocks) || 0;
+          return sum + weight * blocks;
+        }, 0);
 
-                        </td>
-                        <td className="px-2 py-1">
-                          <input
-                            type="text"
-                            value={row.mouldName}
-                            onChange={(e) => handleInputChange(date, idx, 'mouldName', e.target.value)}
-                            className="w-full border border-gray-300 rounded px-2 py-1"
-                            placeholder="Block Mould Density/Specification"
-                          />
-                        </td>
-                        <td className="px-2 py-1">
-                          <div className="flex items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={row.weightOfBlock}
-                            onChange={(e) => handleInputChange(date, idx, 'weightOfBlock', e.target.value)}
-                            className="w-full border border-gray-300 rounded px-2 py-1"
-                            placeholder="Weight"
-                          />
-                           <span className="ml-1 text-gray-600 text-sm">kgs</span>
-</div>
-                        </td>
-                        <td className="px-2 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            value={row.noOfBlocks}
-                            onChange={(e) => handleInputChange(date, idx, 'noOfBlocks', e.target.value)}
-                            className="w-full border border-gray-300 rounded px-2 py-1"
-                            placeholder="Blocks"
-                          />
-                        </td>
-                        <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
-                          {row.weightOfBlock && row.noOfBlocks
-                            ? (parseFloat(row.weightOfBlock) * parseInt(row.noOfBlocks)).toFixed(2)
-                            : ''} kgs
-                        </td>
-                      </tr>
-                    ))}
-                    {/* Summary Row */}
-                    <tr className="bg-yellow-100 font-semibold text-gray-900">
-                      <td colSpan={4} className="text-right px-3 py-2">
-                        Total for {date}
-                      </td>
-                      <td className="text-center">{totalBlocks}</td>
-                      <td className="text-center">{totalWeight.toFixed(2)} kgs</td>
-                    </tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
+        return (
+          <React.Fragment key={date}>
+            {rows.map((row, idx) => (
+              <tr key={`${date}-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                <td className="px-3 py-2 text-center text-gray-700">{srCounter++}</td>
+                <td className="px-2 py-1">
+                  <input
+                    type="date"
+                    value={row.date}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                  />
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="text"
+                    value={row.mouldName}
+                    onChange={(e) => handleInputChange(date, idx, 'mouldName', e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Block Mould Density/Specification"
+                  />
+                </td>
+                <td className="px-2 py-1">
+                  <div className="flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      value={row.weightOfBlock}
+                      onChange={(e) => handleInputChange(date, idx, 'weightOfBlock', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1"
+                      placeholder="Weight"
+                    />
+                    <span className="ml-1 text-gray-600 text-sm">kgs</span>
+                  </div>
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={row.noOfBlocks}
+                    onChange={(e) => handleInputChange(date, idx, 'noOfBlocks', e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Blocks"
+                  />
+                </td>
+                <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
+                  {row.weightOfBlock && row.noOfBlocks
+                    ? (parseFloat(row.weightOfBlock) * parseInt(row.noOfBlocks)).toFixed(2)
+                    : ''}{" "}
+                  kgs
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-yellow-100 font-semibold text-gray-900">
+              <td colSpan={4} className="text-right px-3 py-2">
+                Total for {date}
+              </td>
+              <td className="text-center">{totalBlocks}</td>
+              <td className="text-center">{totalWeight.toFixed(2)} kgs</td>
+            </tr>
+          </React.Fragment>
+        );
+      });
+    })()
+  )}
+</tbody>
+
           </table>
         </div>
 
