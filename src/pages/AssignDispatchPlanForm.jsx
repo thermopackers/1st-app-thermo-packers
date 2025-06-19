@@ -39,17 +39,24 @@ const fetchRegisteredVehicles = async () => {
 };
 const startRecording = async () => {
   try {
+    if (!window.MediaRecorder) {
+      toast.error("Audio recording not supported on this device.");
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
     const recorder = new MediaRecorder(stream);
     const chunks = [];
 
     recorder.ondataavailable = (e) => chunks.push(e.data);
 
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' }); // Use 'audio/webm' for compatibility
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const blob = new Blob(chunks, { type: mimeType });
       setAudioBlob(blob);
       const audioURL = URL.createObjectURL(blob);
-      setAudioUrl(audioURL); // So you can play it in <audio />
+      setAudioUrl(audioURL);
     };
 
     recorder.start();
@@ -61,18 +68,19 @@ const startRecording = async () => {
   }
 };
 
-
 const stopRecording = () => {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     mediaRecorder.stop();
     setRecording(false);
   }
 };
+
 const clearAudio = () => {
   setAudioBlob(null);
   setAudioUrl(null);
   setRecording(false);
 };
+
 
 
 useEffect(() => {
