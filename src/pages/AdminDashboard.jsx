@@ -6,8 +6,12 @@ import InternalNavbar from "../components/InternalNavbar";
 import AssignTaskForm from "../components/AssignTaskForm";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import SalesFollowUpForm from "./SalesFollowUpForm";
+import { useUserContext } from "../context/UserContext";
 
 const AdminDashboard = () => {
+  const { user } = useUserContext(); // Get logged-in user info
+
   const {
     tasks,
     fetchAllTasks,
@@ -16,7 +20,7 @@ const AdminDashboard = () => {
     currentPage,
     setCurrentPage,
   } = useToDo();
-console.log("tasks",tasks);
+  console.log("tasks", tasks);
 
   const [users, setUsers] = useState([]);
   const [showAssignForm, setShowAssignForm] = useState(false);
@@ -47,6 +51,7 @@ console.log("tasks",tasks);
       status: filterStatus || undefined,
       assignedTo: selectedUser || undefined,
       repeat: repeatFilter || undefined,
+        assignedBy: user?._id, // 👈 Add this line to fetch only tasks assigned by current user
     };
 
     fetchAllTasks(params);
@@ -113,16 +118,20 @@ console.log("tasks",tasks);
 
         {/* Filters and Assign Task Button */}
         <div className="flex flex-wrap items-center gap-4">
-          <select
-            className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            onChange={(e) => updateFilters({ repeat: e.target.value, page: 1 })}
-            value={searchParams.get("repeat") || ""}
-          >
-            <option value="">All Type of Tasks</option>
-            <option value="One time">One time</option>
-            <option value="Repeat every month">Repeat every month</option>
-            <option value="Repeat every year">Repeat every year</option>
-          </select>
+          {!searchParams.get("isOrderFollowUp") && (
+            <select
+              className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              onChange={(e) =>
+                updateFilters({ repeat: e.target.value, page: 1 })
+              }
+              value={searchParams.get("repeat") || ""}
+            >
+              <option value="">All Type of Tasks</option>
+              <option value="One time">One time</option>
+              <option value="Repeat every month">Repeat every month</option>
+              <option value="Repeat every year">Repeat every year</option>
+            </select>
+          )}
 
           <select
             className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -154,16 +163,17 @@ console.log("tasks",tasks);
         </div>
 
         {/* Assign Task Form */}
-        <div
-          className={`transition-all duration-500 ease-in-out overflow-hidden max-w-3xl mx-auto rounded-lg shadow-lg
-          bg-gradient-to-r from-indigo-50 via-white to-indigo-50 border border-indigo-300
-          ${
-            showAssignForm
-              ? "max-h-[1200px] opacity-100 p-8 mt-8"
-              : "max-h-0 opacity-0 p-0 border-0 mt-0"
-          }
-          `}
-        >
+       <div
+  className={`transition-all duration-500 ease-in-out max-w-3xl mx-auto rounded-lg shadow-lg
+  bg-gradient-to-r from-indigo-50 via-white to-indigo-50 border border-indigo-300
+  ${
+    showAssignForm
+      ? "opacity-100 p-8 mt-8"
+      : "opacity-0 p-0 mt-0 hidden"
+  }
+  `}
+>
+
           <h3 className="text-2xl font-semibold text-indigo-700 mb-6 border-b border-indigo-200 pb-3 select-none">
             {editingTask ? "Updating Existing Task" : "Assign New Task"}
           </h3>
@@ -195,173 +205,260 @@ console.log("tasks",tasks);
             <p className="text-center text-gray-500 mt-12">No tasks found!</p>
           ) : (
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {tasks.map((task) => (
-                <div
-                  key={task._id}
-                  className="bg-white p-5 shadow rounded-lg border-l-4 border-indigo-500 hover:shadow-lg transition relative"
-                >
-                  <h2 className="text-xl font-semibold text-indigo-800 mb-2">
-                    {task.title}
-                  </h2>
-                  <p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">
-                    {task.description}
-                  </p>
-                  {task.images && task.images.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {task.images.map((url, idx) => {
-                        const isPdf = url.endsWith(".pdf");
+              {tasks.map((task) => {
+                console.log(
+                  "Task:",
+                  task.title,
+                  "isOrderFollowUp:",
+                  task.isOrderFollowUp
+                );
 
-                        return isPdf ? (
-                          <div
-                            key={idx}
-                            className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
-                            onClick={() => window.open(url, "_blank")}
-                          >
-                            <img
-                              src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
-                              alt={`PDF File ${idx + 1}`}
-                              className="w-10 h-10"
-                            />
-                            <span className="text-xs text-center mt-1">
-                              PDF {idx + 1}
-                            </span>
-                          </div>
-                        ) : (
-                          <img
-                            key={idx}
-                            src={url}
-                            alt={`Assigned Image ${idx + 1}`}
-                            className="w-20 h-20 object-cover rounded shadow cursor-pointer"
-                            onClick={() => {
-                              Swal.fire({
-                                imageUrl: url,
-                                imageAlt: "Assigned Image",
-                                showConfirmButton: false,
-                                showCloseButton: true,
-                                padding: "1em",
-                                width: "auto",
-                                customClass: {
-                                  popup: "max-w-[90vw] w-auto",
-                                  image:
-                                    "w-full h-auto max-h-[80vh] object-contain",
-                                },
-                              });
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <p className="text-sm text-gray-500">
-                    Assigned To:{" "}
-                    <span className="font-medium">
-                      {task.assignedTo?.name || "N/A"}
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Assigned by: {task.assignedBy?.name || "N/A"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Assigned on:{" "}
-                    {task.assignedOn
-                      ? new Date(task.assignedOn).toLocaleDateString()
-                      : "N/A"}
-                  </p>
-
-                  {task.repeat && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Repeat: {task.repeat}
-                    </p>
-                  )}
-
-                  <p
-                    className={`text-sm font-semibold mt-1 ${
-                      task.status === "DONE" ? "text-green-600" : "text-red-600"
-                    }`}
+                return (
+                  <div
+                    key={task._id}
+                    className={`bg-white p-5 shadow rounded-lg border-l-4 ${
+                      task.isOrderFollowUp
+                        ? "border-orange-500"
+                        : "border-indigo-500"
+                    } hover:shadow-lg transition relative`}
                   >
-                    Status: {task.status}
-                  </p>
+                    {task.isOrderFollowUp && (
+                      <span className="text-orange-600 font-semibold p-1 bg-orange-200 text-sm ml-1">
+                        Follow-up Task
+                      </span>
+                    )}
 
-                  {task.status === "DONE" && task.doneRemarks && (
-                    <p className="mt-2 text-gray-700 italic">
-                      <strong>Remarks:</strong> {task.doneRemarks}
+                    <h2
+                      className={`text-xl font-semibold mb-2 ${
+                        task.isOrderFollowUp
+                          ? "text-orange-700"
+                          : "text-indigo-800"
+                      }`}
+                    >
+                      {task.title}
+                    </h2>
+
+                    <p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">
+                      {task.description}
                     </p>
-                  )}
-                  {task.status === "DONE" &&
-                    task.doneFiles &&
-                    task.doneFiles.length > 0 && (
+                    {task.images && task.images.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {task.doneFiles.map((url, idx) => {
-                          const isPdf = url.endsWith(".pdf");
+                        {task.images.map((url, idx) => {
+  const isPDF = url.toLowerCase().endsWith(".pdf");
+  const isAudio = url.includes("audio") || url.includes(".webm");
 
-                          return isPdf ? (
-                            <div
-                              key={idx}
-                              className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
-                              onClick={() => window.open(url, "_blank")}
-                            >
-                              <img
-                                src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
-                                alt={`PDF File ${idx + 1}`}
-                                className="w-10 h-10"
-                              />
-                              <span className="text-xs text-center mt-1">
-                                PDF {idx + 1}
-                              </span>
-                            </div>
-                          ) : (
-                            <img
-                              key={idx}
-                              src={url}
-                              alt={`Done Image ${idx + 1}`}
-                              className="w-20 h-20 object-cover rounded shadow cursor-pointer"
-                              onClick={() => {
-                                Swal.fire({
-                                  imageUrl: url,
-                                  imageAlt: "Done Image",
-                                  showConfirmButton: false,
-                                  showCloseButton: true,
-                                  width: "50vw",
-                                  padding: "1em",
-                                });
-                              }}
-                            />
-                          );
-                        })}
+  if (isAudio) {
+    return (
+      <div key={idx} className="w-full mt-2">
+        <p className="text-sm text-gray-600 mb-1">🎧 Voice Note:</p>
+        <audio controls className="w-full">
+          <source src={url} type="audio/webm" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+    );
+  }
+
+  if (isPDF) {
+    return (
+      <a
+        key={idx}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden"
+      >
+        <img
+          src="./images/pdf.png"
+          alt="PDF"
+          className="w-12 h-12 object-contain"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <img
+      key={idx}
+      src={url}
+      alt={`Assigned File ${idx + 1}`}
+      className="w-24 h-24 object-cover rounded cursor-pointer"
+      onClick={() =>
+        Swal.fire({
+          imageUrl: url,
+          imageAlt: `Assigned Image ${idx + 1}`,
+          showConfirmButton: false,
+          showCloseButton: true,
+          width: "auto",
+          padding: "1em",
+        })
+      }
+    />
+  );
+})}
+
                       </div>
                     )}
 
-                  {task.status === "DONE" && task.doneOn && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Done on: {new Date(task.doneOn).toLocaleDateString()}
+                    <p className="text-sm text-gray-500">
+                      Assigned To:{" "}
+                      <span className="font-medium">
+                        {task.assignedTo?.name || "N/A"}
+                      </span>
                     </p>
-                  )}
+                    <p className="text-sm text-gray-500 mt-2">
+                      Assigned by: {task.assignedBy?.name || "N/A"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Assigned on:{" "}
+                      {task.assignedOn
+                        ? new Date(task.assignedOn).toLocaleDateString()
+                        : "N/A"}
+                    </p>
 
-                  <div className="mt-4 flex gap-3">
-                   <button
-  onClick={() => {
-    setEditingTask(task);
-    setShowAssignForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 scrolls to top
-  }}
-  className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
-  aria-label={`Edit task ${task.title}`}
->
-  <span>✏️</span> Edit
-</button>
+                    {!task.isOrderFollowUp && task.repeat && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Repeat: {task.repeat}
+                      </p>
+                    )}
 
+                    {!task.isOrderFollowUp && (
+                      <p
+                        className={`text-sm font-semibold mt-1 ${
+                          task.status === "DONE"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        Status: {task.status}
+                      </p>
+                    )}
 
-                    <button
-                      onClick={() => handleDelete(task._id)}
-                      className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 transition"
-                      aria-label={`Delete task ${task.title}`}
-                    >
-                      <span>🗑️</span> Delete
-                    </button>
+                    {!task.isOrderFollowUp &&
+                      task.status === "DONE" &&
+                      task.doneRemarks && (
+                        <p className="mt-2 text-gray-700 italic">
+                          <strong>Remarks:</strong> {task.doneRemarks}
+                        </p>
+                      )}
+
+                    {!task.isOrderFollowUp &&
+                      task.status === "DONE" &&
+                      task.doneFiles &&
+                      task.doneFiles.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {task.doneFiles.map((url, idx) => {
+  const isPdf = url.toLowerCase().endsWith(".pdf");
+  const isAudio = url.includes("audio") || url.endsWith(".webm");
+
+  if (isAudio) {
+    return (
+      <div key={idx} className="w-full mt-2">
+        <p className="text-sm text-gray-600 mb-1">🎤 Uploaded Voice Note:</p>
+        <audio controls className="w-full">
+          <source src={url} type="audio/webm" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+    );
+  }
+
+  if (isPdf) {
+    return (
+      <div
+        key={idx}
+        className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
+        onClick={() => window.open(url, "_blank")}
+      >
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
+          alt={`PDF File ${idx + 1}`}
+          className="w-10 h-10"
+        />
+        <span className="text-xs text-center mt-1">PDF {idx + 1}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      key={idx}
+      src={url}
+      alt={`Done Image ${idx + 1}`}
+      className="w-20 h-20 object-cover rounded shadow cursor-pointer"
+      onClick={() => {
+        Swal.fire({
+          imageUrl: url,
+          imageAlt: "Done Image",
+          showConfirmButton: false,
+          showCloseButton: true,
+          width: "50vw",
+          padding: "1em",
+        });
+      }}
+    />
+  );
+})
+}
+                        </div>
+                      )}
+
+                    {!task.isOrderFollowUp &&
+                      task.status === "DONE" &&
+                      task.doneOn && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Done on: {new Date(task.doneOn).toLocaleDateString()}
+                        </p>
+                      )}
+
+                    {task.followUps && task.followUps.length > 0 && (
+                      <div className="mt-4 text-sm text-gray-700 bg-gray-100 p-3 rounded">
+                        <h4 className="font-semibold text-indigo-700 mb-2">
+                          Sales Follow-Up
+                        </h4>
+                        {task.followUps.map((entry, idx) => (
+                          <div key={idx} className="mb-2 border-b pb-2">
+                            <p>
+                              <strong>Status:</strong> {entry.response}
+                            </p>
+                            {entry.comments && (
+                              <p>
+                                <strong>Comment:</strong> {entry.comments}
+                              </p>
+                            )}
+                            <p className="text-gray-500">
+                              <strong>Submitted:</strong>{" "}
+                              {new Date(entry.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex gap-3">
+                      <button
+                        onClick={() => {
+                          setEditingTask(task);
+                          setShowAssignForm(true);
+                          window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 scrolls to top
+                        }}
+                        className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
+                        aria-label={`Edit task ${task.title}`}
+                      >
+                        <span>✏️</span> Edit
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(task._id)}
+                        className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 transition"
+                        aria-label={`Delete task ${task.title}`}
+                      >
+                        <span>🗑️</span> Delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

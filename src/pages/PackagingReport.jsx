@@ -94,6 +94,7 @@ useEffect(() => {
       packedQty: '',
       balanceStock: '',
       tapeUsed: '',
+        isNew: true, // ✅ mark unsaved rows
     };
 
     const updated = {
@@ -101,9 +102,48 @@ useEffect(() => {
       [today]: groupedData[today] ? [...groupedData[today], newRow] : [newRow],
     };
 
+      // ✅ Reassign srNo
+  updated[today] = updated[today].map((r, idx) => ({
+    ...r,
+    srNo: idx + 1,
+  }));
     setGroupedData(updated);
     setCurrentPage(1);
   };
+
+  const handleDeleteRow = async (date, index) => {
+  const updated = { ...groupedData };
+  const row = updated[date]?.[index];
+  if (!row) return;
+
+  // If saved (has _id), delete from DB
+  if (row._id) {
+    try {
+      await axiosInstance.delete(`/packaging-report/delete/${row._id}`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      toast.success("Row deleted from server.");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Failed to delete row from server.");
+      return;
+    }
+  }
+
+  // Remove from UI
+  updated[date].splice(index, 1);
+  if (updated[date].length === 0) {
+    delete updated[date];
+  } else {
+    updated[date] = updated[date].map((r, idx) => ({
+      ...r,
+      srNo: idx + 1,
+    }));
+  }
+
+  setGroupedData(updated);
+};
+
 
   const handleSave = async () => {
     const flatData = Object.values(groupedData).flat();
@@ -111,6 +151,14 @@ useEffect(() => {
       await axiosInstance.post('/packaging-report/packaging-report-update', flatData, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
+
+       // ✅ Remove isNew after saving
+    const cleaned = {};
+    for (const date in groupedData) {
+      cleaned[date] = groupedData[date].map(({ isNew, ...rest }) => rest);
+    }
+
+    setGroupedData(cleaned);
       toast.success('Data saved successfully!');
     } catch (err) {
       toast.error('Failed to save data');
@@ -121,6 +169,11 @@ useEffect(() => {
   const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a));
 
   if (!(user.role === 'accounts' || user.role === 'packaging')) return null;
+const flatRows = Object.entries(groupedData)
+  .flatMap(([date, rows]) =>
+    rows.map((row) => ({ ...row, __date: date }))
+  );
+const paginatedRows = flatRows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
 
   return (
     <>
@@ -181,132 +234,157 @@ placeholder="Search Lady or Product"
                   {[
                     'Sr No.', 'Date', 'Lady Name', 'Product in Production', 'Wet Weight (g)',
                     'Dry Weight (g)', 'Polythene Size', 'Packed Qty(material should be packed Dry)',
-                    'Balance Stock in Factory(Old Stock + New Packed Material)', 'No. of Tape Used'
+                    'Balance Stock in Factory(Old Stock + New Packed Material)', 'No. of Tape Used','Actions'
                   ].map((head) => (
                     <th key={head} className="px-3 py-2 text-center">{head}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {paginatedDates.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="text-center py-4 text-gray-500">No data available</td>
-                  </tr>
-                )}
-               {paginatedDates.map((date) => {
-  const rows = groupedData[date];
-  const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
+            <tbody>
+  {paginatedDates.length === 0 ? (
+    <tr>
+      <td colSpan={11} className="text-center py-4 text-gray-500">No data available</td>
+    </tr>
+  ) : (
+    (() => {
+      let serialNo = (currentPage - 1) * ROWS_PER_PAGE;
 
-  return (
-    <React.Fragment key={date}>
-      {rows.map((row, idx) => (
-        <tr key={`${date}-${idx}`} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
-          <td className="px-2 py-1 text-center">{row.srNo}</td>
-          <td className="px-2 py-1 text-center">
-            <input
-  type="date"
-  value={row.date}
-  max={new Date().toISOString().split('T')[0]} // restrict to today
-  onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-/>
+      return paginatedDates.map((date) => {
+        const rows = groupedData[date];
+        const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
 
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="text"
-              value={row.ladyName}
-              onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Name"
-            />
-          </td>
-          <td className="px-2 py-1">
-          <input
-  list={`product-options-${date}-${idx}`}
-  value={row.productionProduct}
-  onChange={(e) => handleInputChange(date, idx, 'productionProduct', e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  placeholder="Type or select product"
-/>
+        return (
+          <React.Fragment key={date}>
+            {rows.map((row, idx) => {
+              serialNo += 1;
 
-<datalist id={`product-options-${date}-${idx}`}>
-  {productOptions.map((prod, i) => (
-    <option key={i} value={prod.productName || prod.name} />
-  ))}
-</datalist>
+              return (
+                <tr
+                  key={`${date}-${idx}`}
+                  className={
+                    row.isNew
+                      ? 'bg-green-200 border-green-500'
+                      : idx % 2 === 0
+                      ? 'bg-gray-50'
+                      : ''
+                  }
+                >
+                  <td className="px-2 py-1 text-center">{serialNo}</td>
+                  <td className="px-2 py-1 text-center">
+                    <input
+                      type="date"
+                      value={row.date}
+                      max={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="text"
+                      value={row.ladyName}
+                      onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Name"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      list={`product-options-${date}-${idx}`}
+                      value={row.productionProduct}
+                      onChange={(e) => handleInputChange(date, idx, 'productionProduct', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Type or select product"
+                    />
+                    <datalist id={`product-options-${date}-${idx}`}>
+                      {productOptions.map((prod, i) => (
+                        <option key={i} value={prod.productName || prod.name} />
+                      ))}
+                    </datalist>
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      value={row.productWeight}
+                      onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Grams"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      value={row.dryWeight}
+                      onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Dry (grams)"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="text"
+                      value={row.polytheneSize}
+                      onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Size"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      value={row.packedQty}
+                      onChange={(e) => handleInputChange(date, idx, 'packedQty', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Qty"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      value={row.balanceStock}
+                      onChange={(e) => handleInputChange(date, idx, 'balanceStock', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Balance"
+                    />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      value={row.tapeUsed}
+                      onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                      placeholder="Tapes"
+                    />
+                  </td>
+                  <td className="px-2 py-1 text-center">
+                    {!row._id && !row.ladyName && !row.productionProduct && !row.packedQty ? (
+                      <button
+                        onClick={() => handleDeleteRow(date, idx)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
 
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="number"
-              value={row.productWeight}
-              onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-placeholder="Grams"
-            />
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="number"
-              value={row.dryWeight}
-              onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Dry (grams)"
-            />
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="text"
-              value={row.polytheneSize}
-              onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Size"
-            />
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="number"
-              value={row.packedQty}
-              onChange={(e) => handleInputChange(date, idx, 'packedQty', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Qty"
-            />
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="number"
-              value={row.balanceStock}
-              onChange={(e) => handleInputChange(date, idx, 'balanceStock', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Balance"
-            />
-          </td>
-          <td className="px-2 py-1">
-            <input
-              type="number"
-              value={row.tapeUsed}
-              onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-              placeholder="Tapes"
-            />
-          </td>
-        </tr>
-      ))}
+            {/* Total Row for each date */}
+            <tr className="bg-yellow-100 font-semibold text-gray-900">
+              <td colSpan={7} className="text-right px-3 py-2">
+                Total Packed Qty for {date}
+              </td>
+              <td className="text-center">{totalPackedQty}</td>
+              <td colSpan={3}></td>
+            </tr>
+          </React.Fragment>
+        );
+      });
+    })()
+  )}
+</tbody>
 
-      {/* ✅ Total Row */}
-      <tr className="bg-yellow-100 font-semibold text-gray-900">
-        <td colSpan={7} className="text-right px-3 py-2">
-          Total Packed Qty for {date}
-        </td>
-        <td className="text-center">{totalPackedQty}</td>
-        <td colSpan={2}></td>
-      </tr>
-    </React.Fragment>
-  );
-})}
-
-              </tbody>
             </table>
           </div>
         )}

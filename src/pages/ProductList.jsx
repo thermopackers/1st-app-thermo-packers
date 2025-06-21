@@ -7,11 +7,11 @@ import toast from "react-hot-toast";
 export default function ProductList() {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [previewImage, setPreviewImage] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
 
   // Get page from URL, default to 1
@@ -19,6 +19,7 @@ export default function ProductList() {
   const [page, setPage] = useState(pageFromUrl);
 
   const fetchProducts = useCallback(async () => {
+      setLoading(true);
     try {
       const res = await axiosInstance.get("/products-multer", {
         params: { search, page, limit: 10 },
@@ -27,7 +28,9 @@ export default function ProductList() {
       setTotalPages(res.data.pages);
     } catch (err) {
       console.error("Failed to fetch products", err);
-    }
+    } finally {
+    setLoading(false);
+  }
   }, [search, page]);
 
   useEffect(() => {
@@ -55,6 +58,10 @@ export default function ProductList() {
 const handleSearchChange = (e) => {
   setSearch(e.target.value);
   setPage(1); // resets to page 1 when search changes
+};
+const handlePageChange = (newPage) => {
+  setLoading(true);
+  setPage(newPage);
 };
 
   return (
@@ -152,23 +159,24 @@ onClick={() =>
         </div>
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
-          >
-            ⬅️ Prev
-          </button>
+         <button
+  disabled={page === 1}
+  onClick={() => handlePageChange(page - 1)}
+  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 transition"
+>
+  ⬅️ Prev
+</button>
           <span className="text-gray-700">
             Page <strong>{page}</strong> of <strong>{totalPages}</strong>
           </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
-          >
-            Next ➡️
-          </button>
+        
+<button
+  disabled={page === totalPages}
+  onClick={() => handlePageChange(page + 1)}
+  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 transition"
+>
+  Next ➡️
+</button>
         </div>
       </div>
 
@@ -185,6 +193,16 @@ onClick={() =>
           />
         </div>
       )}
+     {loading && (
+  <div className="fixed inset-0 z-50 bg-[#000000c0] bg-opacity-40 flex items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-white text-lg font-medium">Loading...</p>
+    </div>
+  </div>
+)}
+
+
     </>
   );
 }

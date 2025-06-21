@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Select from "react-select";
 import { debounce } from "lodash";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
@@ -17,8 +18,14 @@ const ShapeMouldingReport = () => {
   const [filterDate, setFilterDate] = useState("");
   const [groupedData, setGroupedData] = useState({});
   const [totalPages, setTotalPages] = useState(1);
-const isKnownProduct = (name) =>
-  allProducts.some((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+const isKnownProduct = (name) => {
+  if (!name || typeof name !== "string") return false;
+  return allProducts.some(
+    (p) =>
+      p?.name &&
+      p.name.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+};
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -112,6 +119,7 @@ const isKnownProduct = (name) =>
       pcs: "",
       dryWt: "",
       rejects: "",
+          isNew: true, // 👈 mark new row
     };
 
     const updatedGrouped = {
@@ -122,30 +130,78 @@ const isKnownProduct = (name) =>
     setGroupedData(updatedGrouped);
     setCurrentPage(1); // Optional: Reset to first page
   };
+const handleDeleteRow = async (date, index) => {
+  const updatedGrouped = { ...groupedData };
+  const rowToDelete = updatedGrouped[date]?.[index];
 
-  const handleSave = async () => {
-const flatData = Object.values(groupedData).flat().map((row) => ({
-  ...row,
-  product:
-    !isKnownProduct(row.product) || row.product === '__other__'
-      ? row.customProduct
-      : row.product,
-}));
+  if (!rowToDelete) return;
 
+  // If it's a saved row with _id, delete from backend
+  if (rowToDelete._id) {
     try {
-      await axiosInstance.post(
-        "/production-reports/shape-moulding-update",
-        flatData,
-        {
-          headers: { Authorization: `Bearer ${user.token}` },
-        }
-      );
-      toast.success("Data saved successfully!");
+      await axiosInstance.delete(`/production-reports/delete/${rowToDelete._id}`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      toast.success("Row deleted successfully!");
     } catch (err) {
-      console.error("Error saving shape moulding report:", err);
-      toast.error("Failed to save data");
+      console.error("Error deleting row:", err);
+      toast.error("Failed to delete row.");
+      return;
     }
-  };
+  }
+
+  // Remove from local state
+  updatedGrouped[date].splice(index, 1);
+
+  // Cleanup empty dates or update srNo
+  if (updatedGrouped[date].length === 0) {
+    delete updatedGrouped[date];
+  } else {
+    updatedGrouped[date] = updatedGrouped[date].map((r, idx) => ({
+      ...r,
+      srNo: idx + 1,
+    }));
+  }
+
+  setGroupedData(updatedGrouped);
+};
+
+
+const handleSave = async () => {
+  const flatData = Object.values(groupedData).flat().map((row) => ({
+    ...row,
+    product:
+      (!row.product || row.product === '__other__' || !isKnownProduct(row.product))
+        ? row.customProduct || ""
+        : row.product,
+  }));
+
+  try {
+    await axiosInstance.post(
+      "/production-reports/shape-moulding-update",
+      flatData,
+      {
+        headers: { Authorization: `Bearer ${user.token}` },
+      }
+    );
+
+    // ✅ Remove isNew after successful save
+    const cleanedGrouped = {};
+    for (const date in groupedData) {
+      cleanedGrouped[date] = groupedData[date].map((row) => {
+        const { isNew, ...rest } = row; // remove isNew
+        return rest;
+      });
+    }
+    setGroupedData(cleanedGrouped);
+
+    toast.success("Data saved successfully!");
+  } catch (err) {
+    console.error("Error saving shape moulding report:", err);
+    toast.error("Failed to save data");
+  }
+};
+
   const paginatedDates = Object.keys(groupedData);
 
   return (
@@ -241,6 +297,7 @@ const flatData = Object.values(groupedData).flat().map((row) => ({
                       "Dry Wt(in gms)",
                       "Total Wt(in kgs)",
                       "Rejection(in No of Pcs)",
+                      "Actions",
                     ].map((head) => (
                       <th
                         key={head}
@@ -251,243 +308,177 @@ const flatData = Object.values(groupedData).flat().map((row) => ({
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedDates.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={10}
-                        className="text-center py-6 text-gray-500"
-                      >
-                        No data available
-                      </td>
-                    </tr>
-                  )}
-                  {paginatedDates.map((date) => {
-                    const rows = groupedData[date];
-                    // Calculate totals
-                    const totalCycle = rows.reduce(
-                      (sum, r) => sum + (parseInt(r.cycle) || 0),
-                      0
-                    );
-                    const totalPcs = rows.reduce(
-                      (sum, r) => sum + (parseInt(r.pcs) || 0),
-                      0
-                    );
-                    const totalQty = rows.reduce(
-                      (sum, r) =>
-                        sum + (parseInt(r.cycle) || 0) * (parseInt(r.pcs) || 0),
-                      0
-                    );
-                    const totalDryWt = rows.reduce(
-                      (sum, r) => sum + (parseFloat(r.dryWt) || 0),
-                      0
-                    );
-                    const totalWt = rows.reduce(
-                      (sum, r) =>
-                        sum +
-                        (parseInt(r.cycle) || 0) *
-                          (parseInt(r.pcs) || 0) *
-                          (parseFloat(r.dryWt) || 0),
-                      0
-                    );
-                    const totalRejects = rows.reduce(
-                      (sum, r) => sum + (parseInt(r.rejects) || 0),
-                      0
-                    );
+               <tbody className="bg-white divide-y divide-gray-200">
+  {paginatedDates.length === 0 && (
+    <tr>
+      <td colSpan={11} className="text-center py-6 text-gray-500">
+        No data available
+      </td>
+    </tr>
+  )}
 
-                    return (
-                      <React.Fragment key={date}>
-                        {rows.map((row, idx) => {
-                          const totalQtyRow =
-                            (parseInt(row.cycle) || 0) *
-                            (parseInt(row.pcs) || 0);
-                          const totalWtRow =
-                            totalQtyRow * (parseFloat(row.dryWt) || 0);
+  {(() => {
+    let srNo = 1; // ✅ Start Sr No from 1 for the current page
 
-                          return (
-                            <tr
-                              key={`${date}-${idx}`}
-                              className={
-                                idx % 2 === 0 ? "bg-gray-50" : "bg-white"
-                              }
-                            >
-                              <td className="px-3 py-2 text-center text-gray-700">
-                                {row.srNo}
-                              </td>
-                              <td className="px-2 py-1">
-                                <input
-                                  type="date"
-                                  value={row.date}
-                                  max={new Date().toISOString().split("T")[0]} // 👈 restricts to today
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      date,
-                                      idx,
-                                      "date",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                />
-                              </td>
-                             <td className="px-2 py-1">
-  {row.product === '__other__' ? (
+    return paginatedDates.map((date) => {
+      const rows = groupedData[date];
 
+      const totalCycle = rows.reduce((sum, r) => sum + (parseInt(r.cycle) || 0), 0);
+      const totalPcs = rows.reduce((sum, r) => sum + (parseInt(r.pcs) || 0), 0);
+      const totalQty = rows.reduce((sum, r) => sum + (parseInt(r.cycle) || 0) * (parseInt(r.pcs) || 0), 0);
+      const totalDryWt = rows.reduce((sum, r) => sum + (parseFloat(r.dryWt) || 0), 0);
+      const totalWt = rows.reduce((sum, r) =>
+        sum + (parseInt(r.cycle) || 0) * (parseInt(r.pcs) || 0) * (parseFloat(r.dryWt) || 0), 0);
+      const totalRejects = rows.reduce((sum, r) => sum + (parseInt(r.rejects) || 0), 0);
+
+      return (
+        <React.Fragment key={date}>
+          {rows.map((row, idx) => {
+            const totalQtyRow = (parseInt(row.cycle) || 0) * (parseInt(row.pcs) || 0);
+            const totalWtRow = totalQtyRow * (parseFloat(row.dryWt) || 0);
+
+            return (
+              <tr key={`${date}-${idx}`}  className={`${
+    row.isNew ? "bg-green-200 border-green-500" : idx % 2 === 0 ? "bg-gray-50" : "bg-white"
+  }`}>
+                <td className="px-3 py-2 text-center text-gray-700">{srNo++}</td>
+                <td className="px-2 py-1">
+                  <input
+                    type="date"
+                    value={row.date}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => handleInputChange(date, idx, "date", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                  />
+                </td>
+              <td className="px-2 py-1">
+  {row.product === "__other__" ? (
     <input
       type="text"
-value={row.customProduct || ''}
+      value={row.customProduct || ""}
       onChange={(e) =>
-        handleInputChange(date, idx, 'customProduct', e.target.value)
+        handleInputChange(date, idx, "customProduct", e.target.value)
       }
       placeholder="Enter custom product"
       className="w-full border border-gray-300 rounded px-2 py-1"
     />
   ) : (
-    <select
-      value={row.product}
-      onChange={(e) => {
-  const value = e.target.value;
-  handleInputChange(date, idx, 'product', value);
-  if (value === '__other__') {
-    handleInputChange(date, idx, 'customProduct', '');
-  } else {
-    handleInputChange(date, idx, 'customProduct', '');
-  }
-}}
-
-      className="w-full border border-gray-300 rounded px-2 py-1"
-    >
-      <option value="__other__">Other</option>
-      <option value="">Select Product</option>
-      {allProducts.map((product) => (
-        <option key={product._id} value={product.name}>
-          {product.name}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={
+        row.product
+          ? { value: row.product, label: row.product }
+          : null
+      }
+      onChange={(selected) => {
+        handleInputChange(date, idx, "product", selected?.value || "");
+        handleInputChange(date, idx, "customProduct", "");
+      }}
+      options={[
+        { value: "", label: "Select Product" },
+        ...allProducts.map((product) => ({
+          value: product.name,
+          label: product.name,
+        })),
+        { value: "__other__", label: "Other" },
+      ]}
+      className="text-sm"
+      isSearchable
+    />
   )}
 </td>
-<td className="px-3 py-2 text-center text-gray-700">
-                                {row.product}
-                              </td>
 
-                              <td className="px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.operator}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      date,
-                                      idx,
-                                      "operator",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Operator"
-                                />
-                              </td>
-                              <td className="px-2 py-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={row.cycle}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      date,
-                                      idx,
-                                      "cycle",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Cycle"
-                                />
-                              </td>
-                              <td className="px-2 py-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={row.pcs}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      date,
-                                      idx,
-                                      "pcs",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Pcs"
-                                />
-                              </td>
-                              <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
-                                {totalQtyRow}
-                              </td>
-                              <td className="px-2 py-1">
-                                <div className="flex items-center">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    value={row.dryWt}
-                                    onChange={(e) =>
-                                      handleInputChange(
-                                        date,
-                                        idx,
-                                        "dryWt",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full border border-gray-300 rounded px-2 py-1"
-                                    placeholder="Dry Wt"
-                                  />
-                                  <span className="ml-1 text-gray-600 text-sm">
-                                    gms
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
-                                {(totalWtRow / 1000).toFixed(2)} kg
-                              </td>
-                              <td className="px-2 py-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={row.rejects}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      date,
-                                      idx,
-                                      "rejects",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full border border-gray-300 rounded px-2 py-1"
-                                  placeholder="Rejects"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {/* Summary Row */}
-                        <tr className="bg-yellow-100 font-semibold text-gray-900">
-                          <td colSpan={5} className="text-right px-3 py-2">
-                            Total for {date}
-                          </td>
-                          <td className="text-center">{totalCycle}</td>
-                          <td className="text-center">{totalPcs}</td>
-                          <td className="text-center">{totalQty}</td>
-                          <td className="text-center">
-                            {totalDryWt.toFixed(2)} gms
-                          </td>
-<td className="text-center">{(totalWt / 1000).toFixed(2)} kg</td>
-                          <td className="text-center">{totalRejects}</td>
-                        </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
+                <td className="px-3 py-2 text-center text-gray-700">
+                  {row.product === "__other__" ? row.customProduct : row.product}
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="text"
+                    value={row.operator}
+                    onChange={(e) => handleInputChange(date, idx, "operator", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Operator"
+                  />
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={row.cycle}
+                    onChange={(e) => handleInputChange(date, idx, "cycle", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Cycle"
+                  />
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={row.pcs}
+                    onChange={(e) => handleInputChange(date, idx, "pcs", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Pcs"
+                  />
+                </td>
+                <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
+                  {totalQtyRow}
+                </td>
+                <td className="px-2 py-1">
+                  <div className="flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={row.dryWt}
+                      onChange={(e) => handleInputChange(date, idx, "dryWt", e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1"
+                      placeholder="Dry Wt"
+                    />
+                    <span className="ml-1 text-gray-600 text-sm">gms</span>
+                  </div>
+                </td>
+                <td className="px-2 py-1 text-center text-gray-700 bg-gray-100">
+                  {(totalWtRow / 1000).toFixed(2)} kg
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={row.rejects}
+                    onChange={(e) => handleInputChange(date, idx, "rejects", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    placeholder="Rejects"
+                  />
+                </td>
+                <td className="px-2 py-1 text-center">
+  {(!row.product && !row.operator && !row.cycle && !row.pcs && !row.dryWt && !row.rejects) && (
+    <button
+      onClick={() => handleDeleteRow(date, idx)}
+      className="text-red-600 hover:text-red-800 font-medium text-sm"
+    >
+      Delete
+    </button>
+  )}
+</td>
+
+              </tr>
+              
+            );
+          })}
+          <tr className="bg-yellow-100 font-semibold text-gray-900">
+            <td colSpan={5} className="text-right px-3 py-2">Total for {date}</td>
+            <td className="text-center">{totalCycle}</td>
+            <td className="text-center">{totalPcs}</td>
+            <td className="text-center">{totalQty}</td>
+            <td className="text-center">{totalDryWt.toFixed(2)} gms</td>
+            <td className="text-center">{(totalWt / 1000).toFixed(2)} kg</td>
+            <td className="text-center">{totalRejects}</td>
+          </tr>
+        </React.Fragment>
+      );
+    });
+  })()}
+</tbody>
+
               </table>
             </div>
 

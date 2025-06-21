@@ -4,13 +4,18 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2"; // Make sure you have installed sweetalert2 via npm/yarn
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
+import SalesFollowUpForm from "./SalesFollowUpForm";
+import { useUserContext } from "../context/UserContext";
 
 const ITEMS_PER_PAGE = 5;
 
 const EmployeeDashboard = () => {
-  const { tasks, loading, markTaskDone, fetchTasks, user } = useToDo();
+  const { tasks, loading, markTaskDone, fetchTasks } = useToDo();
+  const { user } = useUserContext();
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
+  console.log("task", tasks);
+  console.log("usssr", user);
 
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -69,12 +74,12 @@ const EmployeeDashboard = () => {
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
-const confirmEditSubmission = async (taskId) => {
-  const previewContainerId = 'preview-container-' + Date.now();
+  const confirmEditSubmission = async (taskId) => {
+    const previewContainerId = "preview-container-" + Date.now();
 
-  const { value: formValues } = await Swal.fire({
-    title: 'Edit Task Submission',
-    html: `
+    const { value: formValues } = await Swal.fire({
+      title: "Edit Task Submission",
+      html: `
       <label for="remarks">Updated Remarks:</label>
       <textarea id="remarks" class="swal2-textarea" placeholder="Enter updated remarks..."></textarea>
 
@@ -83,79 +88,83 @@ const confirmEditSubmission = async (taskId) => {
 
       <div id="${previewContainerId}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;"></div>
     `,
-    focusConfirm: false,
-    showCancelButton: true,
-    confirmButtonText: 'Update Task',
-    cancelButtonText: 'Cancel',
-    didOpen: () => {
-      const fileInput = document.getElementById('doneImages');
-      const previewContainer = document.getElementById(previewContainerId);
-      let selectedFiles = [];
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Update Task",
+      cancelButtonText: "Cancel",
+      didOpen: () => {
+        const fileInput = document.getElementById("doneImages");
+        const previewContainer = document.getElementById(previewContainerId);
+        let selectedFiles = [];
 
-      fileInput.addEventListener('change', (e) => {
-        const newFiles = Array.from(e.target.files);
-        newFiles.forEach(file => {
-          if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
-            selectedFiles.push(file);
-          }
+        fileInput.addEventListener("change", (e) => {
+          const newFiles = Array.from(e.target.files);
+          newFiles.forEach((file) => {
+            if (
+              !selectedFiles.some(
+                (f) => f.name === file.name && f.size === file.size
+              )
+            ) {
+              selectedFiles.push(file);
+            }
+          });
+
+          previewContainer.innerHTML = "";
+          selectedFiles.forEach((file) => {
+            const isPDF = file.type === "application/pdf";
+            const img = document.createElement("img");
+            img.src = isPDF ? "./images/pdf.png" : URL.createObjectURL(file);
+            img.style.width = "80px";
+            img.style.height = "80px";
+            img.style.objectFit = "contain";
+            img.style.border = "1px solid #ccc";
+            previewContainer.appendChild(img);
+          });
+
+          fileInput._selectedFiles = selectedFiles;
+        });
+      },
+      preConfirm: () => {
+        const remarks = document.getElementById("remarks").value.trim();
+        const fileInput = document.getElementById("doneImages");
+        const files = fileInput._selectedFiles || [];
+
+        if (!remarks) {
+          Swal.showValidationMessage("Remarks are required.");
+          return;
+        }
+
+        return { remarks, files };
+      },
+    });
+
+    if (formValues) {
+      const { remarks, files } = formValues;
+
+      try {
+        const formData = new FormData();
+        formData.append("doneRemarks", remarks);
+        files.forEach((file) => {
+          formData.append("doneFiles", file);
         });
 
-        previewContainer.innerHTML = '';
-        selectedFiles.forEach(file => {
-          const isPDF = file.type === "application/pdf";
-          const img = document.createElement('img');
-          img.src = isPDF ? "./images/pdf.png" : URL.createObjectURL(file);
-          img.style.width = '80px';
-          img.style.height = '80px';
-          img.style.objectFit = 'contain';
-          img.style.border = '1px solid #ccc';
-          previewContainer.appendChild(img);
+        Swal.fire({ title: "Updating...", allowOutsideClick: false });
+        Swal.showLoading();
+
+        await axiosInstance.patch(`/todos/employee-edit/${taskId}`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         });
 
-        fileInput._selectedFiles = selectedFiles;
-      });
-    },
-    preConfirm: () => {
-      const remarks = document.getElementById('remarks').value.trim();
-      const fileInput = document.getElementById('doneImages');
-      const files = fileInput._selectedFiles || [];
-
-      if (!remarks) {
-        Swal.showValidationMessage('Remarks are required.');
-        return;
+        Swal.fire("Updated!", "Task updated successfully.", "success");
+        fetchTasks();
+      } catch (error) {
+        console.error(error);
+        Swal.fire("Error", "Failed to update task.", "error");
       }
-
-      return { remarks, files };
     }
-  });
-
-  if (formValues) {
-    const { remarks, files } = formValues;
-
-    try {
-      const formData = new FormData();
-      formData.append('doneRemarks', remarks);
-      files.forEach(file => {
-        formData.append('doneFiles', file);
-      });
-
-      Swal.fire({ title: 'Updating...', allowOutsideClick: false });
-      Swal.showLoading();
-
-      await axiosInstance.patch(`/todos/employee-edit/${taskId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      Swal.fire('Updated!', 'Task updated successfully.', 'success');
-      fetchTasks();
-    } catch (error) {
-      console.error(error);
-      Swal.fire('Error', 'Failed to update task.', 'error');
-    }
-  }
-};
+  };
 
   // New function with confirmation
   const confirmMarkDone = async (taskId) => {
@@ -380,24 +389,36 @@ const confirmEditSubmission = async (taskId) => {
               {paginatedTasks.map((task) => (
                 <div
                   key={task._id}
-                  className="bg-white shadow-md rounded-xl p-4 border-l-4 border-blue-500
-    sm:flex sm:justify-between sm:items-center sm:space-x-4 relative"
+                  className={`bg-white shadow-md rounded-xl p-4 border-l-4 ${
+                    task.isOrderFollowUp
+                      ? "border-orange-500"
+                      : "border-blue-500"
+                  } sm:flex sm:justify-between sm:items-center sm:space-x-4 relative`}
                 >
                   <div className="flex-1">
-                    <h2 className="text-lg font-bold flex items-center">
+                    {task.isOrderFollowUp && (
+                      <span className="text-orange-600 font-semibold p-1 bg-orange-200 text-sm ml-1">
+                        Follow-up Task
+                      </span>
+                    )}
+                    <h2
+                      className={`text-lg font-bold flex items-center ${
+                        task.isOrderFollowUp
+                          ? "text-orange-700"
+                          : "text-blue-700"
+                      }`}
+                    >
                       {task.title}
-                     {task.repeat !== "ONE_TIME" && (
-  <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
-    ⟳ {
-      task.repeat === "DAILY"
-        ? "Daily"
-        : task.repeat === "MONTHLY"
-        ? "Monthly"
-        : "Yearly"
-    }
-  </span>
-)}
-
+                      {!task.isOrderFollowUp && task.repeat !== "ONE_TIME" && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
+                          ⟳{" "}
+                          {task.repeat === "DAILY"
+                            ? "Daily"
+                            : task.repeat === "MONTHLY"
+                            ? "Monthly"
+                            : "Yearly"}
+                        </span>
+                      )}
                     </h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
                     <p className="text-sm text-gray-500 mt-2">
@@ -410,39 +431,53 @@ const confirmEditSubmission = async (taskId) => {
                         : "N/A"}
                     </p>
 
-                    <p className="text-sm text-gray-500">
-                      Due: {task.dueDate?.slice(0, 10) || "N/A"}
-                    </p>
-                   <p className="text-sm text-gray-500">
-  Repeat:{" "}
-  {task.repeat === "ONE_TIME"
-    ? "One time"
-    : task.repeat === "DAILY"
-    ? "Daily"
-    : task.repeat === "MONTHLY"
-    ? "Monthly"
-    : "Yearly"}
-</p>
+                    {!task.isOrderFollowUp && (
+                      <>
+                        <p className="text-sm text-gray-500">
+                          Due: {task.dueDate?.slice(0, 10) || "N/A"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Repeat:{" "}
+                          {task.repeat === "ONE_TIME"
+                            ? "One time"
+                            : task.repeat === "DAILY"
+                            ? "Daily"
+                            : task.repeat === "MONTHLY"
+                            ? "Monthly"
+                            : "Yearly"}
+                        </p>
+                        {task.repeat !== "ONE_TIME" && task.nextRepeatDate && (
+                          <p className="text-sm text-gray-500">
+                            Next Repeat On:{" "}
+                            {new Date(task.nextRepeatDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </>
+                    )}
 
-                    {task.repeat !== "ONE_TIME" && task.nextRepeatDate && (
-                      <p className="text-sm text-gray-500">
-                        Next Repeat On:{" "}
-                        {new Date(task.nextRepeatDate).toLocaleDateString()}
+                    {!task.isOrderFollowUp && (
+                      <p className="mt-2 font-medium">
+                        Status:{" "}
+                        <span
+                          className={
+                            task.status === "DONE"
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }
+                        >
+                          {task.status}
+                        </span>
                       </p>
                     )}
 
-                    <p className="mt-2 font-medium">
-                      Status:{" "}
-                      <span
-                        className={
-                          task.status === "DONE"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {task.status}
-                      </span>
-                    </p>
+                    {task.assignedBy?.role === "accounts" &&
+                      user.role === "sales" &&
+                      task.isOrderFollowUp === true && (
+                        <SalesFollowUpForm
+                          taskId={task._id}
+                          onFollowUpSubmitted={fetchTasks}
+                        />
+                      )}
                     {/* Show done remarks if task is DONE and remarks exist */}
                     {task.status === "DONE" && task.doneRemarks && (
                       <p className="mt-2 text-gray-700 italic">
@@ -459,68 +494,85 @@ const confirmEditSubmission = async (taskId) => {
                   </div>
 
                   {/* Show Mark as Done button if status is NOT DONE OR if edited after done */}
-                  {task.status !== "DONE" && (
-                    
+                  {!task.isOrderFollowUp && task.status !== "DONE" && (
                     <button
                       onClick={() => confirmMarkDone(task._id)}
-                      className="mt-4 sm:mt-0 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700
-      transition-colors duration-200"
+                      className="mt-4 sm:mt-0 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200"
                     >
                       Mark as Done
                     </button>
                   )}
+
                   {task.status === "DONE" && (
-  <button
-    onClick={() => confirmEditSubmission(task._id)}
-    className="mt-4 sm:mt-0 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors duration-200"
-  >
-    Edit Submission
-  </button>
-)}
+                    <button
+                      onClick={() => confirmEditSubmission(task._id)}
+                      className="mt-4 sm:mt-0 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors duration-200"
+                    >
+                      Edit Submission
+                    </button>
+                  )}
 
                   {/* Show assigned images */}
-                  {task.images && task.images.length > 0 && (
-                    <div className="mt-4">
-                      <p className="font-medium mb-1">Assigned Files:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {task.images.map((url, idx) => {
-                          const isPDF = url.toLowerCase().endsWith(".pdf");
-                          return isPDF ? (
-                            <a
-                              key={idx}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`PDF File ${idx + 1}`}
-                            >
-                              <img
-                                src="./images/pdf.png"
-                                alt={`PDF File ${idx + 1}`}
-                                className="w-24 h-24 object-contain border rounded cursor-pointer"
-                              />
-                            </a>
-                          ) : (
-                            <img
-                              key={idx}
-                              src={url}
-                              alt={`Assigned ${idx + 1}`}
-                              className="w-24 h-24 object-cover border rounded cursor-pointer"
-                              onClick={() => {
-                                Swal.fire({
-                                  imageUrl: url,
-                                  imageAlt: `Assigned Image ${idx + 1}`,
-                                  showConfirmButton: false,
-                                  showCloseButton: true,
-                                  width: "auto",
-                                  padding: "1em",
-                                });
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+          {/* Assigned Media Section */}
+{task.images?.length > 0 && (
+  <div className="mt-4">
+    <h4 className="text-sm font-semibold text-gray-700 mb-2">📎 Assigned Media</h4>
+    <div className="flex flex-wrap gap-3">
+      {task.images
+        .filter((url) => !url.endsWith(".webm"))
+        .map((url, idx) => {
+          const isPDF = url.toLowerCase().endsWith(".pdf");
+          return isPDF ? (
+            <a
+              key={idx}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block w-24 h-24"
+            >
+              <img
+                src="/images/pdf.png"
+                alt="PDF"
+                className="w-full h-full object-contain border rounded shadow"
+              />
+            </a>
+          ) : (
+            <img
+              key={idx}
+              src={url}
+              alt={`Image ${idx + 1}`}
+              className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
+              onClick={() =>
+                Swal.fire({
+                  imageUrl: url,
+                  imageAlt: "Assigned Image",
+                  showConfirmButton: false,
+                  showCloseButton: true,
+                  width: "auto",
+                })
+              }
+            />
+          );
+        })}
+    </div>
+
+    {/* Voice Notes */}
+    {task.images.some((url) => url.endsWith(".webm")) && (
+      <div className="mt-4 bg-gray-100 p-3 rounded shadow">
+        <p className="text-sm font-semibold text-indigo-700 mb-2">🎧 Voice Note</p>
+        {task.images
+          .filter((url) => url.endsWith(".webm"))
+          .map((url, i) => (
+            <audio key={i} controls className="w-full rounded">
+              <source src={url} type="audio/webm" />
+            </audio>
+          ))}
+      </div>
+    )}
+  </div>
+)}
+
+
 
                   {task.doneFiles?.length > 0 && (
                     <div>
@@ -534,55 +586,67 @@ const confirmEditSubmission = async (taskId) => {
                           gap: "10px",
                         }}
                       >
-                        {task.doneFiles.map((url, i) => {
-                          const isPDF = url.toLowerCase().endsWith(".pdf");
-                          return isPDF ? (
-                            <a
-                              key={i}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`View PDF File ${i + 1}`}
-                            >
-                              <img
-                                src="./images/pdf.png"
-                                alt={`PDF File ${i + 1}`}
-                                style={{
-                                  width: "100px",
-                                  height: "100px",
-                                  objectFit: "contain",
-                                  cursor: "pointer",
-                                  borderRadius: "6px",
-                                  border: "1px solid #ccc",
-                                }}
-                              />
-                            </a>
-                          ) : (
-                            <img
-                              key={i}
-                              src={url}
-                              alt={`Done File ${i + 1}`}
-                              style={{
-                                width: "100px",
-                                height: "100px",
-                                objectFit: "cover",
-                                cursor: "pointer",
-                                borderRadius: "6px",
-                                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
-                              }}
-                              onClick={() =>
-                                Swal.fire({
-                                  imageUrl: url,
-                                  imageAlt: `Done File ${i + 1}`,
-                                  showConfirmButton: false,
-                                  showCloseButton: true,
-                                  width: "50vw",
-                                  padding: "1em",
-                                })
-                              }
-                            />
-                          );
-                        })}
+
+                    {/* Uploaded Media Section */}
+{task.doneFiles?.length > 0 && (
+  <div className="mt-6">
+    <h4 className="text-sm font-semibold text-gray-700 mb-2">✅ Uploaded Media</h4>
+    <div className="flex flex-wrap gap-3">
+      {task.doneFiles
+        .filter((url) => !url.endsWith(".webm"))
+        .map((url, i) => {
+          const isPDF = url.toLowerCase().endsWith(".pdf");
+          return isPDF ? (
+            <a
+              key={i}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block w-24 h-24"
+            >
+              <img
+                src="/images/pdf.png"
+                alt={`PDF ${i + 1}`}
+                className="w-full h-full object-contain border rounded shadow"
+              />
+            </a>
+          ) : (
+            <img
+              key={i}
+              src={url}
+              alt={`Done Image ${i + 1}`}
+              className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
+              onClick={() =>
+                Swal.fire({
+                  imageUrl: url,
+                  imageAlt: "Done Image",
+                  showConfirmButton: false,
+                  showCloseButton: true,
+                  width: "50vw",
+                })
+              }
+            />
+          );
+        })}
+    </div>
+
+    {/* Uploaded Voice Note */}
+    {task.doneFiles.some((url) => url.endsWith(".webm")) && (
+      <div className="mt-4 bg-gray-100 p-3 rounded shadow">
+        <p className="text-sm font-semibold text-green-700 mb-2">🎤 Uploaded Voice Note</p>
+        {task.doneFiles
+          .filter((url) => url.endsWith(".webm"))
+          .map((url, i) => (
+            <audio key={i} controls className="w-full rounded">
+              <source src={url} type="audio/webm" />
+            </audio>
+          ))}
+      </div>
+    )}
+  </div>
+)}
+
+
                       </div>
                     </div>
                   )}

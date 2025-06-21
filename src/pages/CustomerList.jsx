@@ -8,11 +8,13 @@ export default function CustomerList() {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 console.log("CustomerList component rendered",customers);
 
   const fetchCustomers = async () => {
+      setLoading(true);
     try {
       const res = await axiosInstance.get("/customers", {
         params: { search, page, limit: 10 },
@@ -21,7 +23,9 @@ console.log("CustomerList component rendered",customers);
       setTotalPages(res.data.pages);
     } catch (err) {
       console.error("Failed to fetch customers", err);
-    }
+    }  finally {
+    setLoading(false);
+  }
   };
 
   useEffect(() => {
@@ -38,6 +42,10 @@ console.log("CustomerList component rendered",customers);
       toast.error("Failed to delete customer");
     }
   };
+const handlePageChange = (newPage) => {
+  setLoading(true);
+  setPage(newPage);
+};
 
   return (
     <>
@@ -145,25 +153,33 @@ console.log("CustomerList component rendered",customers);
         </div>
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
-          >
-            ⬅️ Prev
-          </button>
+        <button
+  disabled={page === 1}
+  onClick={() => handlePageChange(page - 1)}
+  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+>
+  ⬅️ Prev
+</button>
+
           <span className="text-gray-700 font-medium">
             Page {page} of {totalPages}
           </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
-          >
-            Next ➡️
-          </button>
+        <button
+  disabled={page === totalPages}
+  onClick={() => handlePageChange(page + 1)}
+  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+>
+  Next ➡️
+</button>
+
         </div>
       </div>
+      {loading && (
+  <div className="fixed inset-0 bg-[#000000bb] bg-opacity-40 z-50 flex items-center justify-center">
+    <div className="w-16 h-16 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+  </div>
+)}
+
     </>
   );
 }

@@ -17,6 +17,7 @@ export default function App() {
     "/login",
     "/assign-dispatch",
     "/my-plans",
+    "/follow-up",
     "/requisition-slips",
     "/material-requisition",
     "/asset-management",

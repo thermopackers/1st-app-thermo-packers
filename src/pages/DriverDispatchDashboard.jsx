@@ -24,7 +24,8 @@ const fetchPlans = async (currentPage = 1) => {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    setPlans(res.data.data); // response has data, totalPages, etc.
+const activePlans = res.data.data.filter(plan => plan.status !== "Completed");
+setPlans(activePlans);
     setTotalPages(res.data.totalPages);
     setPage(currentPage);
   } catch (err) {
@@ -41,34 +42,114 @@ useEffect(() => {
 
 
 
-const markCompleted = async (id) => {
-  const result = await Swal.fire({
-    title: "Mark as Completed?",
-    text: "Are you sure this dispatch is completed?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "Yes, mark as completed",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: "#28a745",
-    cancelButtonColor: "#d33",
-  });
+const markCompleted = async (planId) => {
+  return new Promise((resolve) => {
+    let selectedFiles = [];
 
-  if (result.isConfirmed) {
-    try {
-      await axiosInstance.patch(
-        `/dispatch-plans/${id}/status`,
-        { status: "Completed" },
-        {
-          headers: { Authorization: `Bearer ${token}` },
+    const renderImagePreview = () => {
+      const previewContainer = document.getElementById("image-preview");
+      if (!previewContainer) return;
+      previewContainer.innerHTML = "";
+
+      selectedFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "relative inline-block m-2";
+
+          const img = document.createElement("img");
+          img.src = reader.result;
+          img.alt = `Image ${index + 1}`;
+          img.className = "w-24 h-24 object-cover rounded border";
+
+          const removeBtn = document.createElement("button");
+          removeBtn.textContent = "🗙";
+removeBtn.className = "absolute top-[-8px] right-[-8px] bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700 transition";
+          removeBtn.onclick = () => {
+            selectedFiles.splice(index, 1);
+            renderImagePreview();
+          };
+
+          wrapper.appendChild(img);
+          wrapper.appendChild(removeBtn);
+          previewContainer.appendChild(wrapper);
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    Swal.fire({
+      title: "Upload Images Before Completion",
+      html: `
+<input type="file" id="image-upload" multiple accept="image/*" class="swal2-file" style="background-color: #e0f2fe; padding: 10px; border-radius: 8px;" />
+        <div id="image-preview" class="flex flex-wrap mt-3 gap-2"></div>
+        <p class="text-sm text-gray-500 mt-2">Upload images as proof before marking complete.</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Submit",
+      cancelButtonText: "Cancel",
+      didOpen: () => {
+        const fileInput = Swal.getPopup().querySelector("#image-upload");
+        fileInput.addEventListener("change", (e) => {
+selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
+          renderImagePreview();
+        });
+      },
+      preConfirm: async () => {
+        if (selectedFiles.length === 0) {
+          Swal.showValidationMessage("Please upload at least one image");
+          return false;
         }
-      );
-      Swal.fire("Success!", "Status updated to Completed.", "success");
-      fetchPlans(page);
-    } catch (err) {
-      Swal.fire("Error", "Failed to update status.", "error");
-    }
-  }
+
+        try {
+          setUploadingPlanId(planId);
+
+          const uploadedUrls = [];
+          for (let file of selectedFiles) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", "todo_uploads");
+            formData.append("cloud_name", "dcr8k5amk");
+
+            const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error?.message || "Upload failed");
+
+            uploadedUrls.push(data.secure_url);
+          }
+
+          // Save uploaded URLs
+          await axiosInstance.patch(
+            `/dispatch-plans/${planId}/images`,
+            { imageUrls: uploadedUrls },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          // Then update status
+          await axiosInstance.patch(
+            `/dispatch-plans/${planId}/status`,
+            { status: "Completed" },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          Swal.fire("✅ Completed!", "Plan marked as completed and images saved.", "success");
+          fetchPlans(page);
+        } catch (err) {
+          console.error("Upload/Completion Error:", err);
+          Swal.showValidationMessage("Something went wrong during upload. Try again.");
+        } finally {
+          setUploadingPlanId(null);
+        }
+      },
+    });
+  });
 };
+
+
 
 
   const handleImageUpload = async (e, planId) => {
@@ -166,8 +247,12 @@ const markCompleted = async (id) => {
     {/* Grid Info */}
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-gray-700 text-sm">
       <p><strong>📍 Location:</strong> {plan.location}</p>
-      <p><strong>🏢 Customer:</strong> {plan.customerName}</p>
-      <p><strong>📦 Product:</strong> {plan.productName}</p>
+<p>
+  <strong>🏢 Customers:</strong>{" "}
+  {Array.isArray(plan.customerNames) && plan.customerNames.length > 0
+    ? plan.customerNames.join(", ")
+    : "—"}
+</p>
       <p className="break-words whitespace-pre-wrap"><strong>📝 Remarks:</strong> {plan.remarks || "—"}</p>
       <p className="sm:col-span-2">
         <strong>📊 Status:</strong>{" "}
@@ -204,24 +289,7 @@ const markCompleted = async (id) => {
         </button>
       )}
 
-      <label className="block cursor-pointer">
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => handleImageUpload(e, plan._id)}
-          className="hidden"
-        />
-        <div className="bg-yellow-200 hover:bg-yellow-300 text-gray-800 px-3 py-2 text-sm rounded-lg text-center shadow-sm">
-          📤 Upload Images
-        </div>
-      </label>
-
-      {uploadingPlanId === plan._id && (
-        <p className="text-blue-500 text-sm font-medium animate-pulse">
-          Uploading...
-        </p>
-      )}
+     
 
       {plan.imageUrls?.length > 0 && (
         <button
@@ -265,7 +333,7 @@ const markCompleted = async (id) => {
 
       </div>
       {uploadingPlanId && (
-  <div className="fixed inset-0 bg-[#000000b7] bg-opacity-50 z-50 flex items-center justify-center">
+  <div className="fixed inset-0 bg-[#000000b7] bg-opacity-50 z-[2147483647] flex items-center justify-center">
     <div className="flex flex-col items-center">
       <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-white text-lg font-semibold">Uploading images...</p>

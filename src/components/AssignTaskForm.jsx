@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
+import RecordRTC from 'recordrtc';
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import axios from "axios";
@@ -12,9 +13,13 @@ const AssignTaskForm = ({
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [isOrderFollowUp, setIsOrderFollowUp] = useState(false);
   const [assignedToList, setAssignedToList] = useState([""]);
   const [dueDate, setDueDate] = useState("");
   const [repeat, setRepeat] = useState("ONE_TIME");
+  const [recordedBlob, setRecordedBlob] = useState(null);
+const [recording, setRecording] = useState(false);
+const [recorder, setRecorder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [existingImages, setExistingImages] = useState([]);
@@ -28,6 +33,7 @@ const AssignTaskForm = ({
       setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : "");
       setRepeat(task.repeat || "ONE_TIME");
       setExistingImages(task.images || []);
+      setIsOrderFollowUp(task?.isOrderFollowUp || false);
     } else {
       setTitle("");
       setDescription("");
@@ -36,8 +42,28 @@ const AssignTaskForm = ({
       setRepeat("ONE_TIME");
       setExistingImages([]);
       setNewImages([]);
+          setIsOrderFollowUp(false); // ✅ Reset when creating new task
     }
   }, [task]);
+const startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const newRecorder = new RecordRTC(stream, {
+    type: 'audio',
+    mimeType: 'audio/webm',
+  });
+  newRecorder.startRecording();
+  setRecorder(newRecorder);
+  setRecording(true);
+};
+
+const stopRecording = () => {
+  recorder.stopRecording(() => {
+    const blob = recorder.getBlob();
+    setRecordedBlob(blob);
+    setRecorder(null);
+    setRecording(false);
+  });
+};
 
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
@@ -70,33 +96,50 @@ const AssignTaskForm = ({
     setExistingImages(updated);
   };
 
-  const uploadImagesToCloudinary = async () => {
-    const uploaded = [];
-    try {
-      for (const image of newImages) {
-        const formData = new FormData();
-        formData.append("file", image);
-        formData.append("upload_preset", "todo_uploads");
-        formData.append("folder", "todos");
+const uploadFilesToCloudinary = async () => {
+  const uploaded = [];
 
-        const resourceType = image.type === "application/pdf" ? "raw" : "image";
+  try {
+    // Upload new images or PDFs
+    for (const image of newImages) {
+      const formData = new FormData();
+      formData.append("file", image);
+      formData.append("upload_preset", "todo_uploads");
+      formData.append("folder", "todos");
 
-        const res = await axios.post(
-          `https://api.cloudinary.com/v1_1/dcr8k5amk/${resourceType}/upload`,
-          formData
-        );
+      const resourceType = image.type === "application/pdf" ? "raw" : "image";
 
-        uploaded.push(res.data.secure_url);
-      }
-    } catch (err) {
-      console.error(
-        "Cloudinary Upload Error:",
-        err.response?.data || err.message
+      const res = await axios.post(
+        `https://api.cloudinary.com/v1_1/dcr8k5amk/${resourceType}/upload`,
+        formData
       );
-      throw err;
+
+      uploaded.push(res.data.secure_url);
     }
-    return uploaded;
-  };
+
+    // Upload recorded audio if exists
+    if (recordedBlob) {
+      const audioData = new FormData();
+      audioData.append("file", recordedBlob);
+      audioData.append("upload_preset", "todo_uploads");
+      audioData.append("folder", "todos");
+
+      const audioRes = await axios.post(
+        `https://api.cloudinary.com/v1_1/dcr8k5amk/video/upload`, // 📌 use `video` for audio/webm
+        audioData
+      );
+
+      uploaded.push(audioRes.data.secure_url);
+    }
+
+  } catch (err) {
+    console.error("Cloudinary Upload Error:", err.response?.data || err.message);
+    throw err;
+  }
+
+  return uploaded;
+};
+
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -110,7 +153,7 @@ const handleSubmit = async (e) => {
   setLoading(true);
 
   try {
-    const uploadedImageUrls = await uploadImagesToCloudinary();
+const uploadedImageUrls = await uploadFilesToCloudinary();
     const allImages = [...existingImages, ...uploadedImageUrls];
 
     if (task?._id) {
@@ -122,6 +165,7 @@ const handleSubmit = async (e) => {
         dueDate: dueDate || null,
         repeat,
         images: allImages,
+        isOrderFollowUp,
       };
       await axiosInstance.put(`/todos/${task._id}`, payload);
       toast.success("Task updated successfully!");
@@ -136,6 +180,7 @@ const handleSubmit = async (e) => {
             dueDate: dueDate || null,
             repeat,
             images: allImages,
+            isOrderFollowUp,
           };
           await axiosInstance.post("/todos/create", payload);
         })
@@ -261,41 +306,60 @@ const handleSubmit = async (e) => {
         </button>
       </div>
 
-      <div>
-        <label
-          htmlFor="dueDate"
-          className="block text-gray-700 font-semibold mb-2"
-        >
-          Due Date
-        </label>
-        <input
-          id="dueDate"
-          type="date"
-          className="w-full border border-gray-300 rounded-md p-3"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-        />
-      </div>
+     {!isOrderFollowUp && (
+  <div>
+    <label
+      htmlFor="dueDate"
+      className="block text-gray-700 font-semibold mb-2"
+    >
+      Due Date
+    </label>
+    <input
+      id="dueDate"
+      type="date"
+      className="w-full border border-gray-300 rounded-md p-3"
+      value={dueDate}
+      onChange={(e) => setDueDate(e.target.value)}
+    />
+  </div>
+)}
 
-      <div>
-        <label
-          htmlFor="repeat"
-          className="block text-gray-700 font-semibold mb-2"
-        >
-          Repeat
-        </label>
-        <select
-          id="repeat"
-          className="w-full border border-gray-300 rounded-md p-3"
-          value={repeat}
-          onChange={(e) => setRepeat(e.target.value)}
-        >
-          <option value="ONE_TIME">One time</option>
-            <option value="DAILY">Repeat every day</option> {/* ✅ Add this */}
-          <option value="MONTHLY">Repeat every month</option>
-          <option value="YEARLY">Repeat every year</option>
-        </select>
-      </div>
+
+  {!isOrderFollowUp && (
+  <div>
+    <label
+      htmlFor="repeat"
+      className="block text-gray-700 font-semibold mb-2"
+    >
+      Repeat
+    </label>
+    <select
+      id="repeat"
+      className="w-full border border-gray-300 rounded-md p-3"
+      value={repeat}
+      onChange={(e) => setRepeat(e.target.value)}
+    >
+      <option value="ONE_TIME">One time</option>
+      <option value="DAILY">Repeat every day</option>
+      <option value="MONTHLY">Repeat every month</option>
+      <option value="YEARLY">Repeat every year</option>
+    </select>
+  </div>
+)}
+
+      <div className="flex items-center mt-2">
+  <input
+    type="checkbox"
+    id="followUp"
+    checked={isOrderFollowUp}
+    onChange={(e) => setIsOrderFollowUp(e.target.checked)}
+    className="mr-2"
+  />
+  <label htmlFor="followUp" className="text-gray-700 font-medium">
+    This task requires daily sales follow-up
+  </label>
+</div>
+
 
       <div className="space-y-2">
         <label className="block text-gray-700 font-semibold mb-2">Images</label>
@@ -355,6 +419,31 @@ const handleSubmit = async (e) => {
           className="mt-2"
         />
       </div>
+<div className="mt-4 space-y-2">
+  <label className="block text-gray-700 font-semibold mb-2">Voice Note</label>
+  {recording ? (
+    <button
+      type="button"
+      onClick={stopRecording}
+      className="bg-red-500 text-white px-4 py-2 rounded"
+    >
+      ⏹ Stop Recording
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={startRecording}
+      className="bg-green-600 text-white px-4 py-2 rounded"
+    >
+      🎙 Start Recording
+    </button>
+  )}
+  {recordedBlob && (
+    <audio controls className="mt-2">
+      <source src={URL.createObjectURL(recordedBlob)} type="audio/webm" />
+    </audio>
+  )}
+</div>
 
       <button
         type="submit"

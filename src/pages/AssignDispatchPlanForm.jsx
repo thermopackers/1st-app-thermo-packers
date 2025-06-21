@@ -16,15 +16,14 @@ const [audioUrl, setAudioUrl] = useState(null);
 const [recording, setRecording] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [recorder, setRecorder] = useState(null);
+  const [customerNames, setCustomerNames] = useState([""]);
+const [customerList, setCustomerList] = useState([]);
   const [formData, setFormData] = useState({
-    vehicleNumber: "",
-    customerName: "",
-    location: "",
-    productName: "",
-    remarks: "",
-      driverName: "", // ✅ add this
-  driverContact: "", // ✅ add this
-  });
+  vehicleNumber: "",
+  location: "",
+  remarks: "",
+  driverName: "",
+});
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
 
 const fetchRegisteredVehicles = async () => {
@@ -85,8 +84,7 @@ useEffect(() => {
  fetchRegisteredVehicles();
 }, []);
 
-  const [backendProducts, setBackendProducts] = useState([]);
-const [manualProduct, setManualProduct] = useState("");
+
   const [drivers, setDrivers] = useState([]);
   const [plans, setPlans] = useState([]);
 const [searchTerm, setSearchTerm] = useState("");
@@ -96,12 +94,11 @@ const [searchTerm, setSearchTerm] = useState("");
   
 useEffect(() => {
   axiosInstance
-    .get("/products/all-back-products", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    .then((res) => setBackendProducts(res.data || []))
-    .catch((err) => console.error("Error fetching products:", err));
+    .get("/customers/all/dropdown", { headers: { Authorization: `Bearer ${token}` } })
+    .then((res) => setCustomerList(res.data))
+    .catch((err) => console.error("Error fetching customers:", err));
 }, []);
+
 const [newVehicle, setNewVehicle] = useState({
   vehicleNumber: "",
   driverEmail: "",
@@ -193,10 +190,16 @@ const handleVehicleRegister = async () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
 
-  const vehicle = formData.vehicleNumber;
-  const product = manualProduct || formData.productName;
+  const { vehicleNumber, driverName, location, remarks } = formData;
 
-  if (!vehicle || !formData.customerName || !formData.location || !product || !formData.driverName) {
+  // Validate required fields
+  if (
+    !vehicleNumber ||
+    !driverName ||
+    !location ||
+    customerNames.length === 0 ||
+    customerNames.some((name) => !name.trim())
+  ) {
     toast.error("Please fill all required fields.");
     return;
   }
@@ -205,14 +208,14 @@ const handleSubmit = async (e) => {
 
   try {
     const payload = {
-      ...formData,
-      vehicleNumber: vehicle,
-      productName: product,
-      driverName: formData.driverName,
-      driverContact: formData.driverContact,
+      vehicleNumber,
+      driverName,
+      location,
+      remarks,
+      customerNames,
     };
 
-    // ✅ If audioBlob exists, upload to Cloudinary
+    // ✅ Upload audio if available
     if (audioBlob) {
       const audioForm = new FormData();
       audioForm.append("file", audioBlob);
@@ -227,28 +230,25 @@ const handleSubmit = async (e) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || "Audio upload failed");
 
-      payload.audioUrl = data.secure_url; // ✅ Attach to form payload
+      payload.audioUrl = data.secure_url;
     }
 
-    // ✅ Now post the payload
     await axiosInstance.post("/dispatch-plans/assign", payload, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     toast.success("Plan assigned successfully");
 
+    // Reset form
     setFormData({
       vehicleNumber: "",
-      customerName: "",
-      location: "",
-      productName: "",
-      remarks: "",
       driverName: "",
-      driverContact: "",
+      location: "",
+      remarks: "",
     });
-    setManualProduct("");
-    setAudioBlob(null); // ✅ clear audio
-    setAudioUrl(null);       // ✅ clear preview URL if you're showing one
+    setCustomerNames([""]);
+    setAudioBlob(null);
+    setAudioUrl(null);
     fetchPlans();
   } catch (err) {
     toast.error("Error assigning plan");
@@ -257,6 +257,7 @@ const handleSubmit = async (e) => {
     setSubmitting(false);
   }
 };
+
 
 
 
@@ -280,7 +281,7 @@ const handleSubmit = async (e) => {
   <h3 className="font-bold text-lg mb-2">Register New Vehicle</h3>
 
   <p className="text-sm text-gray-600 mb-4">
-    <span className="font-medium text-gray-700">Format (eg.):</span>{" "}
+    <span className="font-medium text-gray-700">Format (eg.):</span>
     <code className="bg-gray-100 p-1 rounded text-sm">PB08 EL 9364 : pb08el9364thermopackers@gmail.com</code>
   </p>
 
@@ -360,31 +361,49 @@ const handleSubmit = async (e) => {
     />
   </div>
 
-  <div className="flex flex-col">
-    <label className="mb-1 font-medium text-sm text-gray-700">Driver Contact</label>
-    <input
-      type="text"
-      name="driverContact"
-      value={formData.driverContact || ""}
-      onChange={(e) =>
-        setFormData((prev) => ({ ...prev, driverContact: e.target.value }))
-      }
-      placeholder="Enter Driver Contact"
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    />
-  </div>
+<div className="md:col-span-2">
+  <label className="font-medium text-sm text-gray-700 mb-2 block">Customer Names</label>
+  {customerNames.map((name, index) => (
+    <div key={index} className="flex gap-2 mb-2">
+      <select
+        value={name}
+        onChange={(e) => {
+          const updated = [...customerNames];
+          updated[index] = e.target.value;
+          setCustomerNames(updated);
+        }}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Select Customer</option>
+       {customerList.map((c) => (
+  <option key={c._id} value={c.name}>{c.name}</option>
+))}
 
-  <div className="flex flex-col">
-    <label className="mb-1 font-medium text-sm text-gray-700">Customer Name</label>
-    <input
-      name="customerName"
-      value={formData.customerName}
-      onChange={handleChange}
-      required
-      placeholder="Customer Name"
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    />
-  </div>
+      </select>
+      {index > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            const updated = [...customerNames];
+            updated.splice(index, 1);
+            setCustomerNames(updated);
+          }}
+          className="text-red-500 font-bold"
+        >
+          ❌
+        </button>
+      )}
+    </div>
+  ))}
+  <button
+    type="button"
+    onClick={() => setCustomerNames([...customerNames, ""])}
+    className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm"
+  >
+    ➕ Add Customer
+  </button>
+</div>
+
 
   <div className="flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Location</label>
@@ -398,31 +417,6 @@ const handleSubmit = async (e) => {
     />
   </div>
 
-  <div className="flex flex-col">
-    <label className="mb-1 font-medium text-sm text-gray-700">Product Name</label>
-    <select
-      name="productName"
-      value={formData.productName}
-      onChange={handleChange}
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    >
-      <option value="">Select Product</option>
-      {backendProducts.map((p, i) => (
-        <option key={i} value={p.name}>{p.name}</option>
-      ))}
-    </select>
-  </div>
-
-  <div className="flex flex-col">
-    <label className="mb-1 font-medium text-sm text-gray-700">Manual Product Entry (Optional)</label>
-    <input
-      type="text"
-      placeholder="Or manually enter product name"
-      value={manualProduct}
-      onChange={(e) => setManualProduct(e.target.value)}
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    />
-  </div>
 <div className="md:col-span-2">
   <label className="block text-sm font-medium mb-1">Voice Message</label>
 
@@ -533,10 +527,8 @@ setSearchTerm("");
                     <th className="p-3 font-medium border">Sr No</th>
                     <th className="p-3 font-medium border">Vehicle</th>
                     <th className="p-3 font-medium border">Driver</th>
-                          <th className="p-3 font-medium border">Contact</th> {/* ✅ New */}
-                    <th className="p-3 font-medium border">Customer</th>
+                          <th className="p-3 font-medium border">Customers</th>
                     <th className="p-3 font-medium border">Location</th>
-                    <th className="p-3 font-medium border">Product</th>
                           <th className="p-3 font-medium border">Remarks</th> {/* ✅ New */}
                     <th className="p-3 font-medium border">Status</th>
                     <th className="p-3 font-medium border">Images</th>
@@ -553,10 +545,13 @@ setSearchTerm("");
                       <td className="p-3 border">
                         {plan.driverName || plan.assignedTo?.name || "-"}
                       </td>
-                              <td className="p-3 border">{plan.driverContact || "-"}</td> {/* ✅ New */}
-                      <td className="p-3 border">{plan.customerName}</td>
+                             <td className="p-3 border">
+  {Array.isArray(plan.customerNames) && plan.customerNames.length > 0
+    ? plan.customerNames.join(", ")
+    : "-"}
+</td>
+
                       <td className="p-3 border">{plan.location}</td>
-                      <td className="p-3 border">{plan.productName}</td>
                               <td className="p-3 border">{plan.remarks || "-"}</td> {/* ✅ New */}
                       <td className="p-3 border">
                         <span
@@ -569,8 +564,9 @@ setSearchTerm("");
                           {plan.status}
                         </span>
                       </td>
-                     <td className="p-3 border align-top">
-  <div className="flex gap-2 overflow-x-auto max-w-[200px] rounded-md py-1">
+                    <td className="p-3 border align-top min-w-[300px]">
+  <div className="flex gap-2 overflow-x-auto max-w-[400px] rounded-md py-1">
+
     {plan.imageUrls?.map((url, i) => (
       <img
         key={i}
