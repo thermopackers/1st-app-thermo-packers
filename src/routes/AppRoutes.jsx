@@ -220,6 +220,15 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+<Route
+  path="/my-tasks/:taskId?"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging", "driver"]}>
+      <PageWrapper><EmployeeDashboard /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 
             <Route
               path="/task-dashboard"

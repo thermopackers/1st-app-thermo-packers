@@ -410,6 +410,12 @@ const AdminDashboard = () => {
                           Done on: {new Date(task.doneOn).toLocaleDateString()}
                         </p>
                       )}
+                      {task.isOrderFollowUp && task.status === "DONE" && (
+  <p className="text-sm text-green-700 mt-1 italic">
+    ✅ This order follow-up was completed based on the last response.
+  </p>
+)}
+
 
                     {task.followUps && task.followUps.length > 0 && (
                       <div className="mt-4 text-sm text-gray-700 bg-gray-100 p-3 rounded">
@@ -436,6 +442,7 @@ const AdminDashboard = () => {
                     )}
 
                     <div className="mt-4 flex gap-3">
+                       {!task.isOrderFollowUp && (
                       <button
                         onClick={() => {
                           setEditingTask(task);
@@ -446,7 +453,7 @@ const AdminDashboard = () => {
                         aria-label={`Edit task ${task.title}`}
                       >
                         <span>✏️</span> Edit
-                      </button>
+                      </button>)}
 
                       <button
                         onClick={() => handleDelete(task._id)}

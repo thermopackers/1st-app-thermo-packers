@@ -7,20 +7,24 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+const [notifications, setNotifications] = useState([]);
+const [page, setPage] = useState(1);
+const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 useEffect(() => {
   if (!user) return;
   const fetchNotifications = async () => {
     try {
-      const res = await axiosInstance.get(`/notifications/${user._id}`);
-      setNotifications(res.data);
+      const res = await axiosInstance.get(`/notifications/${user._id}?page=${page}&limit=5`);
+      setNotifications(res.data.notifications); // assuming backend sends { notifications, totalPages }
+      setTotalPages(res.data.totalPages);
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }
   };
   fetchNotifications();
-}, [user]);
+}, [user, page]);
+
   useEffect(() => {
     console.log("🚩 Navigated to:", location.pathname);
   }, [location]);
@@ -66,13 +70,8 @@ useEffect(() => {
     );
   }
 const handleViewTasks = async () => {
-  try {
-    await axiosInstance.patch(`/notifications/mark-read/${user._id}`);
-    navigate('/my-tasks');
-  } catch (err) {
-    console.error("Failed to mark notifications as read", err);
-    navigate('/my-tasks'); // still navigate even if it fails
-  }
+   navigate('/my-tasks');
+
 };
 
   return (
@@ -94,6 +93,51 @@ const handleViewTasks = async () => {
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
               <span className="capitalize">({user.role})</span>
             </h2>)}
+            {user.role === "sales" && notifications.length > 0 && (
+  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
+    <h3 className="text-md font-bold text-yellow-800 mb-2">🔔 Follow-Up Reminders</h3>
+    <ul className="space-y-1">
+      {notifications
+.filter((n) => n.message?.toLowerCase()?.includes("follow-up"))
+        .map((note, idx) => (
+          <li key={idx} className="text-sm text-gray-800">
+            • {note.message}{" "}
+            {note.link && (
+              <NavLink
+                to={note.link}
+                className="text-indigo-600 hover:underline ml-1"
+              >
+                View
+              </NavLink>
+            )}
+          </li>
+        ))}
+    </ul>
+    {totalPages > 1 && (
+  <div className="flex justify-end gap-2 mt-2">
+    <button
+      onClick={() => setPage((p) => Math.max(p - 1, 1))}
+      disabled={page === 1}
+      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+    >
+      Prev
+    </button>
+    <span className="px-3 py-1 text-sm text-gray-700">
+      Page {page} of {totalPages}
+    </span>
+    <button
+      onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+      disabled={page === totalPages}
+      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+    >
+      Next
+    </button>
+  </div>
+)}
+
+  </div>
+)}
+
                           {user.role === "driver" && (
 
             <h2 className="text-xl font-semibold mb-4">

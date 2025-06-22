@@ -196,6 +196,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
     setRepeat("ONE_TIME");
     setExistingImages([]);
     setNewImages([]);
+      setRecordedBlob(null); // ✅ This clears the audio recording
     onTaskCreated();
   } catch (err) {
     setError("Failed to save task.");

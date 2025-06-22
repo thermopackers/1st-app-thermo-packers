@@ -5,6 +5,7 @@ import Swal from "sweetalert2"; // Make sure you have installed sweetalert2 via 
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import SalesFollowUpForm from "./SalesFollowUpForm";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useUserContext } from "../context/UserContext";
 
 const ITEMS_PER_PAGE = 5;
@@ -16,6 +17,7 @@ const EmployeeDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
   console.log("task", tasks);
   console.log("usssr", user);
+  const { taskId } = useParams();
 
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -38,6 +40,44 @@ const EmployeeDashboard = () => {
 
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+  if (taskId) {
+    // Delay to ensure tasks are rendered
+    setTimeout(() => {
+      const taskElement = document.getElementById(`task-${taskId}`);
+      if (taskElement) {
+        taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        taskElement.classList.add("ring-4", "ring-yellow-400");
+        setTimeout(() => {
+          taskElement.classList.remove("ring-4", "ring-yellow-400");
+        }, 3000); // remove highlight after 3s
+      }
+    }, 500);
+  }
+}, [tasks, taskId]);
+useEffect(() => {
+  if (taskId && tasks.length > 0) {
+    const index = tasks.findIndex(t => t._id === taskId);
+    if (index !== -1) {
+      const pageOfTask = Math.floor(index / ITEMS_PER_PAGE) + 1;
+      setCurrentPage(pageOfTask);
+
+      // Scroll after page has been changed
+      setTimeout(() => {
+        const el = document.getElementById(`task-${taskId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-4", "ring-yellow-400");
+          setTimeout(() => {
+            el.classList.remove("ring-4", "ring-yellow-400");
+          }, 3000);
+        }
+      }, 800); // allow render delay
+    }
+  }
+}, [taskId, tasks]);
+
 
   // Only show tasks not soft-deleted by the employee
   const employeeVisibleTasks = tasks.filter(
@@ -387,8 +427,9 @@ const EmployeeDashboard = () => {
           <>
             <div className="space-y-6">
               {paginatedTasks.map((task) => (
-                <div
+                <div 
                   key={task._id}
+                      id={`task-${task._id}`} // 👈 Add this line
                   className={`bg-white shadow-md rounded-xl p-4 border-l-4 ${
                     task.isOrderFollowUp
                       ? "border-orange-500"
@@ -470,14 +511,34 @@ const EmployeeDashboard = () => {
                       </p>
                     )}
 
-                    {task.assignedBy?.role === "accounts" &&
-                      user.role === "sales" &&
-                      task.isOrderFollowUp === true && (
-                        <SalesFollowUpForm
-                          taskId={task._id}
-                          onFollowUpSubmitted={fetchTasks}
-                        />
-                      )}
+                   {task.isOrderFollowUp &&
+  task.assignedBy?.role === "accounts" &&
+  user.role === "sales" && (() => {
+    const followUps = task.followUps || [];
+    const lastFollowUp = followUps[followUps.length - 1];
+    const continueStatuses = [
+      "No Response / Call Not Answered",
+      "Number Unreachable / Switched Off",
+      "Follow-up Requested – Call Scheduled for Later"
+    ];
+
+    // If no follow-up yet, or the last one requires continuation
+    if (!lastFollowUp || continueStatuses.includes(lastFollowUp.response)) {
+      return (
+        <SalesFollowUpForm
+          taskId={task._id}
+          onFollowUpSubmitted={fetchTasks}
+        />
+      );
+    }
+
+    return (
+      <p className="text-sm text-green-700 mt-2 italic">
+        ✅ This order follow-up was completed based on the last response.
+      </p>
+    );
+  })()}
+
                     {/* Show done remarks if task is DONE and remarks exist */}
                     {task.status === "DONE" && task.doneRemarks && (
                       <p className="mt-2 text-gray-700 italic">
@@ -503,7 +564,7 @@ const EmployeeDashboard = () => {
                     </button>
                   )}
 
-                  {task.status === "DONE" && (
+                  {!task.isOrderFollowUp && task.status === "DONE" && (
                     <button
                       onClick={() => confirmEditSubmission(task._id)}
                       className="mt-4 sm:mt-0 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors duration-200"
