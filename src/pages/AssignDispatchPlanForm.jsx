@@ -576,35 +576,53 @@ setSearchTerm("");
                       <td className="p-3 border">
                         {plan.driverName || plan.assignedTo?.name || "-"}
                       </td>
-                             <td className="p-3 border">
+                             {/* <td className="p-3 border">
   {Array.isArray(plan.customerNames) && plan.customerNames.length > 0
     ? plan.customerNames.join(", ")
     : "-"}
+</td> */}
+
+<td className="p-3 border space-y-2">
+  {/* If plan.customerNames (array) exists and has values */}
+  {Array.isArray(plan.customerNames) && plan.customerNames.length > 0 ? (
+    plan.customerNames.map((name, i) => {
+      if (!customerDetails || customerDetails.length === 0) return null;
+      const customer = customerDetails.find(c => c.name === name);
+      return (
+        <div key={i} className="text-xs leading-snug">
+          <p className="font-medium text-gray-700">{name}</p>
+          {customer?.address && (
+            <p className="text-gray-500">🏠 {customer.address}</p>
+          )}
+          {customer?.locationLink && (
+            <a
+              href={customer.locationLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              📍 Google Maps
+            </a>
+          )}
+        </div>
+      );
+    })
+  ) : (
+    // Else show plan.customerName if it exists
+    plan.customerName && (
+      <div className="text-xs leading-snug">
+        <p className="font-semibold text-gray-800">{plan.customerName}</p>
+      </div>
+    )
+  )}
 </td>
 
 <td className="p-3 border space-y-2">
-  {plan.customerNames?.map((name, i) => {
-    if (!customerDetails || customerDetails.length === 0) return null;
-    const customer = customerDetails.find(c => c.name === name);
-    return (
-      <div key={i} className="text-xs leading-snug">
-        <p className="font-medium text-gray-700">{name}</p>
-        {customer?.address && (
-          <p className="text-gray-500">🏠 {customer.address}</p>
-        )}
-        {customer?.locationLink && (
-          <a
-            href={customer.locationLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            📍 Google Maps
-          </a>
-        )}
+{plan.location && (
+  <div className="text-xs leading-snug">
+        <p className="font-semibold text-gray-800">{plan.location}</p>
       </div>
-    );
-  })}
+)}
 </td>
                               <td className="p-3 border">{plan.remarks || "-"}</td> {/* ✅ New */}
                       <td className="p-3 border">
