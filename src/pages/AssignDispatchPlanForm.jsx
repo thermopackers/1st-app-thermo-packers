@@ -559,7 +559,6 @@ setSearchTerm("");
                     <th className="p-3 font-medium border">Vehicle</th>
                     <th className="p-3 font-medium border">Driver</th>
                           <th className="p-3 font-medium border">Customers</th>
-                    <th className="p-3 font-medium border">Location</th>
                           <th className="p-3 font-medium border">Remarks</th> {/* ✅ New */}
                     <th className="p-3 font-medium border">Status</th>
                     <th className="p-3 font-medium border">Images</th>
@@ -576,11 +575,6 @@ setSearchTerm("");
                       <td className="p-3 border">
                         {plan.driverName || plan.assignedTo?.name || "-"}
                       </td>
-                             {/* <td className="p-3 border">
-  {Array.isArray(plan.customerNames) && plan.customerNames.length > 0
-    ? plan.customerNames.join(", ")
-    : "-"}
-</td> */}
 
 <td className="p-3 border space-y-2">
   {/* If plan.customerNames (array) exists and has values */}
@@ -615,14 +609,6 @@ setSearchTerm("");
       </div>
     )
   )}
-</td>
-
-<td className="p-3 border space-y-2">
-{plan.location && (
-  <div className="text-xs leading-snug">
-        <p className="font-semibold text-gray-800">{plan.location}</p>
-      </div>
-)}
 </td>
                               <td className="p-3 border">{plan.remarks || "-"}</td> {/* ✅ New */}
                       <td className="p-3 border">
