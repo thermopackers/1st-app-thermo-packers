@@ -80,6 +80,7 @@ const handlePageChange = (newPage) => {
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
+                <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
                 <th className="p-3 border text-center">Actions</th>
               </tr>
@@ -92,34 +93,59 @@ const handlePageChange = (newPage) => {
                   <td className="p-3 border">{c.phone}</td>
                   <td className="p-3 border">{c.email}</td>
                   <td className="p-3 border whitespace-pre-line">{c.address}</td>
+                  <td className="p-3 border">
+  {c.locationLink ? (
+    <a
+      href={c.locationLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-600 hover:underline"
+    >
+      📍 View Map
+    </a>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+
                   <td className="p-3 border space-y-1 text-sm">
                     {c.gstDocs?.length > 0 ? (
                       <div className="flex flex-col gap-1 max-w-[180px]">
-                        {c.gstDocs.map((url, i) => {
-                          const isImage = url.match(/\.(jpeg|jpg|png|gif)$/i);
-                          const isPDF = url.endsWith(".pdf");
-                          return (
-                            <a
-                              key={i}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline truncate flex items-center gap-1"
-                            >
-                              {isImage ? (
-                                <>
-                                  🖼️ <span className="truncate">Image {i + 1}</span>
-                                </>
-                              ) : isPDF ? (
-                                <>
-                                  📄 <span className="truncate">PDF {i + 1}</span>
-                                </>
-                              ) : (
-                                <span>📎 File {i + 1}</span>
-                              )}
-                            </a>
-                          );
-                        })}
+                       {c.gstDocs?.length > 0 ? (
+  <div className="flex flex-col gap-1 max-w-[180px]">
+    {c.gstDocs.map((url, i) => {
+      if (!url || typeof url !== "string") return null; // ✅ Skip null/invalid entries
+
+      const isImage = url.match(/\.(jpeg|jpg|png|gif)$/i);
+      const isPDF = url.endsWith(".pdf");
+
+      return (
+        <a
+          key={i}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline truncate flex items-center gap-1"
+        >
+          {isImage ? (
+            <>
+              🖼️ <span className="truncate">Image {i + 1}</span>
+            </>
+          ) : isPDF ? (
+            <>
+              📄 <span className="truncate">PDF {i + 1}</span>
+            </>
+          ) : (
+            <span>📎 File {i + 1}</span>
+          )}
+        </a>
+      );
+    })}
+  </div>
+) : (
+  <span className="text-gray-400">—</span>
+)}
+
                       </div>
                     ) : (
                       <span className="text-gray-400">—</span>

@@ -8,7 +8,6 @@ import { useUserContext } from "../context/UserContext";
 export default function AddCustomer() {
     const { user } = useUserContext();
   const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
-const [uploadedUrls, setUploadedUrls] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -16,6 +15,7 @@ const [uploadedUrls, setUploadedUrls] = useState([]);
     phone: "",
     email: "",
     address: "",
+      locationLink: "", // ✅ New field
   });
 const [submitting, setSubmitting] = useState(false);
 
@@ -215,6 +215,19 @@ await axiosInstance.post("/customers", payload);
                 rows={3}
               />
             </div>
+            <div>
+  <label className="block mb-1 font-medium text-gray-700">
+    Google Maps Location Link
+  </label>
+  <input
+    name="locationLink"
+    value={formData.locationLink}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+    placeholder="https://maps.google.com/..."
+  />
+</div>
+
 
            <button
   type="submit"

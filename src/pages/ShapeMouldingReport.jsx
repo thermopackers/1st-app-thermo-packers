@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Select from "react-select";
 import { debounce } from "lodash";
 import axiosInstance from "../axiosInstance";
@@ -15,6 +15,7 @@ const ShapeMouldingReport = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rawSearchTerm, setRawSearchTerm] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const bottomRef = useRef(null);
   const [filterDate, setFilterDate] = useState("");
   const [groupedData, setGroupedData] = useState({});
   const [totalPages, setTotalPages] = useState(1);
@@ -129,6 +130,11 @@ const isKnownProduct = (name) => {
 
     setGroupedData(updatedGrouped);
     setCurrentPage(1); // Optional: Reset to first page
+
+     // 👇 Scroll to bottom after a delay to allow DOM to update
+  setTimeout(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, 100);
   };
 const handleDeleteRow = async (date, index) => {
   const updatedGrouped = { ...groupedData };
@@ -478,6 +484,12 @@ const handleSave = async () => {
     });
   })()}
 </tbody>
+<tr>
+  <td colSpan="12">
+    <div ref={bottomRef}></div>
+  </td>
+</tr>
+
 
               </table>
             </div>

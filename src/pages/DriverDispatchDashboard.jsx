@@ -10,12 +10,13 @@ const MySwal = withReactContent(Swal);
 export default function DriverDispatchDashboard() {
   const { user, token } = useUserContext();
   const [plans, setPlans] = useState([]);
+  const [customerDetails, setCustomerDetails] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploadingPlanId, setUploadingPlanId] = useState(null);
 const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
 const limit = 6; // or any number you want per page
-console.log("plans",plans);
+console.log("customerDetails",customerDetails);
 
 const fetchPlans = async (currentPage = 1) => {
     setLoading(true);
@@ -35,10 +36,21 @@ setPlans(activePlans);
   }
 };
 
-
 useEffect(() => {
-  if (token) fetchPlans(1);
-}, [token]);
+
+  fetchPlans(1);
+
+  // Fetch customer details once
+  axiosInstance
+    .get("/customers/all/dropdown", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    .then((res) => {
+      setCustomerDetails(res.data);
+    })
+    .catch((err) => console.error("Failed to fetch customer details:", err));
+}, []);
+
 
 
 
@@ -105,22 +117,59 @@ selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
           setUploadingPlanId(planId);
 
           const uploadedUrls = [];
-          for (let file of selectedFiles) {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("upload_preset", "todo_uploads");
-            formData.append("cloud_name", "dcr8k5amk");
+        const compressImage = (file, maxSize = 1024) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const reader = new FileReader();
 
-            const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
-              method: "POST",
-              body: formData,
-            });
+    reader.onload = (e) => {
+      img.src = e.target.result;
+    };
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error?.message || "Upload failed");
+    img.onload = () => {
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      const width = img.width * scale;
+      const height = img.height * scale;
 
-            uploadedUrls.push(data.secure_url);
-          }
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob);
+        },
+        "image/jpeg",
+        0.7 // quality (0.1 – 1.0)
+      );
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+
+for (let file of selectedFiles) {
+  const compressedBlob = await compressImage(file);
+
+  const formData = new FormData();
+  formData.append("file", compressedBlob);
+  formData.append("upload_preset", "todo_uploads");
+  formData.append("cloud_name", "dcr8k5amk");
+
+  const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || "Upload failed");
+
+  uploadedUrls.push(data.secure_url);
+}
+
 
           // Save uploaded URLs
           await axiosInstance.patch(
@@ -148,50 +197,6 @@ selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
     });
   });
 };
-
-
-
-
-  const handleImageUpload = async (e, planId) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    setUploadingPlanId(planId);
-
-    try {
-      const uploadedUrls = [];
-
-      for (let file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "todo_uploads");
-        formData.append("cloud_name", "dcr8k5amk");
-
-        const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await res.json();
-          console.log("🌐 Cloudinary upload response:", data); // ✅ DEBUG
-
-        if (!res.ok) throw new Error(data.error?.message || "Upload failed");
-
-        uploadedUrls.push(data.secure_url);
-      }
-
-      await axiosInstance.patch(
-        `/dispatch-plans/${planId}/images`,
-        { imageUrls: uploadedUrls },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchPlans();
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Image upload failed. Please try again.");
-    } finally {
-      setUploadingPlanId(null);
-    }
-  };
 
   const showImages = (urls) => {
     MySwal.fire({
@@ -245,24 +250,58 @@ selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
     </div>
 
     {/* Grid Info */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-gray-700 text-sm">
-      <p><strong>📍 Location:</strong> {plan.location}</p>
-<p>
-  <strong>🏢 Customers:</strong>{" "}
-  {Array.isArray(plan.customerNames) && plan.customerNames.length > 0
-    ? plan.customerNames.join(", ")
-    : "—"}
-</p>
-      <p className="break-words whitespace-pre-wrap"><strong>📝 Remarks:</strong> {plan.remarks || "—"}</p>
-      <p className="sm:col-span-2">
-        <strong>📊 Status:</strong>{" "}
-        <span className={`inline-block font-semibold px-2 py-1 rounded-full text-xs ${
-          plan.status === "Completed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-        }`}>
-          {plan.status}
-        </span>
-      </p>
-    </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-gray-700 text-sm">
+  {/* Customer Info Block - Full width */}
+  <div className="sm:col-span-2 space-y-1">
+    <strong className="text-gray-700">🏢 Customers:</strong>
+    {plan.customerNames?.map((customerName, i) => {
+      const detail = customerDetails.find((c) => c.name === customerName);
+      return (
+        <div
+          key={i}
+          className="ml-2 mt-1 p-2 bg-blue-50 rounded-lg border border-blue-100 shadow-sm"
+        >
+          <p className="text-sm font-medium text-indigo-800">{customerName}</p>
+
+          {detail?.address && (
+            <p className="text-xs text-gray-600">🏠 {detail.address}</p>
+          )}
+
+          {detail?.locationLink && (
+            <a
+              href={detail.locationLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 underline hover:text-blue-800"
+            >
+              📍 View on Google Maps
+            </a>
+          )}
+        </div>
+      );
+    })}
+
+    {/* ✅ Remarks directly below customers */}
+    <p className="mt-3 break-words whitespace-pre-wrap">
+      <strong>📝 Remarks:</strong> {plan.remarks || "—"}
+    </p>
+  </div>
+
+  {/* Status */}
+  <p className="sm:col-span-2">
+    <strong>📊 Status:</strong>{" "}
+    <span
+      className={`inline-block font-semibold px-2 py-1 rounded-full text-xs ${
+        plan.status === "Completed"
+          ? "bg-green-100 text-green-700"
+          : "bg-yellow-100 text-yellow-700"
+      }`}
+    >
+      {plan.status}
+    </span>
+  </p>
+</div>
+
 
     {/* Audio Player */}
     {plan.audioUrl && (

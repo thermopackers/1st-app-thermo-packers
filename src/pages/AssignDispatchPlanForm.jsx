@@ -13,6 +13,7 @@ export default function AssignDispatchPlanForm() {
   const [submitting, setSubmitting] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
 const [audioUrl, setAudioUrl] = useState(null);
+const [customerDetails, setCustomerDetails] = useState([]);
 const [recording, setRecording] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [recorder, setRecorder] = useState(null);
@@ -20,11 +21,24 @@ const [recording, setRecording] = useState(false);
 const [customerList, setCustomerList] = useState([]);
   const [formData, setFormData] = useState({
   vehicleNumber: "",
-  location: "",
   remarks: "",
   driverName: "",
 });
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
+useEffect(() => {
+  const fetchCustomerDetails = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/all/dropdown", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCustomerDetails(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch customer details", err);
+    }
+  };
+
+  if (token) fetchCustomerDetails();
+}, [token]);
 
 const fetchRegisteredVehicles = async () => {
   try {
@@ -103,7 +117,6 @@ const [newVehicle, setNewVehicle] = useState({
   vehicleNumber: "",
   driverEmail: "",
   driverName: "",
-  driverPhone: "",
 });
 
 const handleVehicleRegister = async () => {
@@ -112,7 +125,7 @@ const handleVehicleRegister = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Vehicle registered");
-    setNewVehicle({ vehicleNumber: "", driverEmail: "", driverName: "", driverPhone: "" });
+    setNewVehicle({ vehicleNumber: "", driverEmail: "", driverName: "" });
     fetchRegisteredVehicles(); // Refresh dropdown
   } catch (err) {
     toast.error(err.response?.data?.message || "Registration failed");
@@ -190,13 +203,12 @@ const handleVehicleRegister = async () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
 
-  const { vehicleNumber, driverName, location, remarks } = formData;
+  const { vehicleNumber, driverName, remarks } = formData;
 
   // Validate required fields
   if (
     !vehicleNumber ||
     !driverName ||
-    !location ||
     customerNames.length === 0 ||
     customerNames.some((name) => !name.trim())
   ) {
@@ -210,7 +222,6 @@ const handleSubmit = async (e) => {
     const payload = {
       vehicleNumber,
       driverName,
-      location,
       remarks,
       customerNames,
     };
@@ -363,38 +374,71 @@ const handleSubmit = async (e) => {
 
 <div className="md:col-span-2">
   <label className="font-medium text-sm text-gray-700 mb-2 block">Customer Names</label>
-  {customerNames.map((name, index) => (
-    <div key={index} className="flex gap-2 mb-2">
-      <select
-        value={name}
-        onChange={(e) => {
-          const updated = [...customerNames];
-          updated[index] = e.target.value;
-          setCustomerNames(updated);
-        }}
-        className="w-full p-2 border rounded"
-      >
-        <option value="">Select Customer</option>
-       {customerList.map((c) => (
-  <option key={c._id} value={c.name}>{c.name}</option>
-))}
 
-      </select>
-      {index > 0 && (
-        <button
-          type="button"
-          onClick={() => {
+{customerNames.map((name, index) => {
+  const customer = customerList.find(c => c.name === name);
+
+  return (
+    <div key={index} className="flex flex-col gap-1 mb-3">
+      <div className="flex gap-2">
+        <select
+          value={name}
+          onChange={(e) => {
             const updated = [...customerNames];
-            updated.splice(index, 1);
+            updated[index] = e.target.value;
             setCustomerNames(updated);
           }}
-          className="text-red-500 font-bold"
+          className="w-full p-2 border rounded"
         >
-          ❌
-        </button>
+          <option value="">Select Customer</option>
+          {customerList.map((c) => (
+            <option key={c._id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+
+        {index > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const updated = [...customerNames];
+              updated.splice(index, 1);
+              setCustomerNames(updated);
+            }}
+            className="text-red-500 font-bold"
+          >
+            ❌
+          </button>
+        )}
+      </div>
+
+      {/* ✅ Address if exists */}
+      {customer?.address && (
+         <div className='flex items-center text-sm text-gray-600'>
+        
+        <span>address:</span>
+        <p className="text-sm text-gray-600 ml-1">🏠 {customer.address}</p></div>
+      )}
+
+      {/* ✅ Google Maps link if exists */}
+      {customer?.locationLink && (
+        <div className='flex items-center text-sm text-gray-600'>
+        
+        <span>location:</span>
+        <a
+          href={customer.locationLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 underline ml-1"
+        >
+          📍 View Location on Google Maps
+        </a>
+        </div>
       )}
     </div>
-  ))}
+  );
+})}
+
+
   <button
     type="button"
     onClick={() => setCustomerNames([...customerNames, ""])}
@@ -403,19 +447,6 @@ const handleSubmit = async (e) => {
     ➕ Add Customer
   </button>
 </div>
-
-
-  <div className="flex flex-col">
-    <label className="mb-1 font-medium text-sm text-gray-700">Location</label>
-    <input
-      name="location"
-      value={formData.location}
-      onChange={handleChange}
-      required
-      placeholder="Location"
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    />
-  </div>
 
 <div className="md:col-span-2">
   <label className="block text-sm font-medium mb-1">Voice Message</label>
@@ -551,7 +582,30 @@ setSearchTerm("");
     : "-"}
 </td>
 
-                      <td className="p-3 border">{plan.location}</td>
+<td className="p-3 border space-y-2">
+  {plan.customerNames?.map((name, i) => {
+    if (!customerDetails || customerDetails.length === 0) return null;
+    const customer = customerDetails.find(c => c.name === name);
+    return (
+      <div key={i} className="text-xs leading-snug">
+        <p className="font-medium text-gray-700">{name}</p>
+        {customer?.address && (
+          <p className="text-gray-500">🏠 {customer.address}</p>
+        )}
+        {customer?.locationLink && (
+          <a
+            href={customer.locationLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-800"
+          >
+            📍 Google Maps
+          </a>
+        )}
+      </div>
+    );
+  })}
+</td>
                               <td className="p-3 border">{plan.remarks || "-"}</td> {/* ✅ New */}
                       <td className="p-3 border">
                         <span
@@ -564,33 +618,36 @@ setSearchTerm("");
                           {plan.status}
                         </span>
                       </td>
-                    <td className="p-3 border align-top min-w-[300px]">
-  <div className="flex gap-2 overflow-x-auto max-w-[400px] rounded-md py-1">
-
+                  <td className="p-3 border align-top min-w-[300px] max-w-[400px]">
+  <div className="flex gap-2 overflow-x-auto rounded-md py-1">
     {plan.imageUrls?.map((url, i) => (
       <img
         key={i}
         src={url}
         alt={`Uploaded ${i + 1}`}
-        className="w-12 h-12 object-cover rounded-lg border border-gray-300 shadow-sm hover:scale-105 hover:shadow-lg transition-transform duration-200 cursor-pointer"
-onClick={() => {
-  Swal.fire({
-    imageUrl: url,
-    imageAlt: `Uploaded ${i + 1}`,
-    showCloseButton: true,
-    showConfirmButton: false,
-    width: '90%',
-    background: '#f9fafb',
-    customClass: {
-      popup: 'rounded-xl',
-    },
-  });
-}}
+        loading="lazy"
+        width={48}
+        height={48}
+        className="w-14 h-14 object-cover rounded-lg border border-gray-300 shadow-sm hover:scale-105 hover:shadow-lg transition-transform duration-200 cursor-pointer"
         title={`Click to view image ${i + 1}`}
+        onClick={() => {
+          Swal.fire({
+            imageUrl: url,
+            imageAlt: `Uploaded ${i + 1}`,
+            showCloseButton: true,
+            showConfirmButton: false,
+            width: '90%',
+            background: '#f9fafb',
+            customClass: {
+              popup: 'rounded-xl',
+            },
+          });
+        }}
       />
     ))}
   </div>
 </td>
+
 
                       <td className="p-3 border">
                         <button

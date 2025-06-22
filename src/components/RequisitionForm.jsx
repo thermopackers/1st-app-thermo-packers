@@ -1,12 +1,16 @@
 import React, { useState } from "react";
+import imageCompression from "browser-image-compression";
 import toast from "react-hot-toast";
 import InternalNavbar from "./InternalNavbar";
 import axiosInstance from "../axiosInstance";
 
 export default function RequisitionForm() {
   const [assignedTo, setAssignedTo] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [items, setItems] = useState([{ name: "", quantity: 1, requiredBy: "", remarks: "" }]);
+  const [items, setItems] = useState([
+    { name: "", quantity: 1, requiredBy: "", remarks: "" },
+  ]);
+  const [files, setFiles] = useState([]);
+  const [previews, setPreviews] = useState([]);
 
   const handleItemChange = (i, field, value) => {
     const updated = [...items];
@@ -14,43 +18,103 @@ export default function RequisitionForm() {
     setItems(updated);
   };
 
-  const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, requiredBy: "", remarks: "" }]);
-  };
+  const addItem = () =>
+    setItems([
+      ...items,
+      { name: "", quantity: 1, requiredBy: "", remarks: "" },
+    ]);
 
   const removeItem = (index) => {
-    if (items.length === 1) {
-      toast.error("At least one item is required.");
-      return;
-    }
+    if (items.length === 1)
+      return toast.error("At least one item is required.");
     const updated = [...items];
     updated.splice(index, 1);
     setItems(updated);
   };
 
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    const newFiles = [...files, ...selectedFiles];
+
+    const newPreviews = selectedFiles.map((file) =>
+      file.type.startsWith("image/")
+        ? { name: file.name, url: URL.createObjectURL(file), type: "image" }
+        : { name: file.name, url: "", type: "pdf" }
+    );
+
+    setFiles(newFiles);
+    setPreviews([...previews, ...newPreviews]);
+  };
+
+  const removeFile = (index) => {
+    const updatedFiles = [...files];
+    const updatedPreviews = [...previews];
+    updatedFiles.splice(index, 1);
+    updatedPreviews.splice(index, 1);
+    setFiles(updatedFiles);
+    setPreviews(updatedPreviews);
+  };
+
+  const uploadFilesToCloudinary = async () => {
+    const uploadPromises = files.map(async (file) => {
+      const isImage = file.type.startsWith("image/");
+      const uploadFile = isImage
+        ? await imageCompression(file, {
+            maxSizeMB: 0.3,
+            maxWidthOrHeight: 1024,
+            useWebWorker: true,
+          })
+        : file;
+
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("upload_preset", "todo_uploads");
+      formData.append("cloud_name", "dcr8k5amk");
+
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dcr8k5amk/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+      return data.secure_url;
+    });
+
+    const uploadedUrls = await Promise.all(uploadPromises);
+    return uploadedUrls.filter(Boolean);
+  };
+
   const resetForm = () => {
     setAssignedTo("");
-    setDate(new Date().toISOString().slice(0, 10));
     setItems([{ name: "", quantity: 1, requiredBy: "", remarks: "" }]);
+    setFiles([]);
+    setPreviews([]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    toast.dismiss();
+    toast.loading("Uploading...");
+
     try {
-      toast.dismiss();
-      toast.loading("Uploading...");
+      const attachments = await uploadFilesToCloudinary();
+
       const res = await axiosInstance.post("/requisitions/create", {
         createdBy: assignedTo,
-        date,
         items: JSON.stringify(items),
+        attachments,
       });
+
       toast.dismiss();
       toast.success("Requisition uploaded!");
       console.log(res.data);
       resetForm();
     } catch (err) {
       toast.dismiss();
-      toast.error("Failed to upload");
+      toast.error("Failed to upload requisition.");
       console.error(err);
     }
   };
@@ -59,83 +123,128 @@ export default function RequisitionForm() {
     <>
       <InternalNavbar />
       <div className="max-w-5xl mx-auto p-6 mt-6 bg-white shadow-xl rounded-xl">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">📋 Material Requisition Slip</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          📋 Material Requisition Slip
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <input
-              type="text"
-              placeholder="Assigned To"
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-           <input
-  type="date"
-  value={date}
-  max={new Date().toISOString().slice(0, 10)} // ✅ today's date as max
-  onChange={(e) => setDate(e.target.value)}
-  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-  required
-/>
+          <input
+            type="text"
+            placeholder="Material required for which Department/Area/Machine"
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
+            required
+          />
 
-          </div>
+          {items.map((item, i) => (
+           <div key={i} className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-start">
+  <div className="flex flex-col">
+    <label className="text-sm font-medium mb-1">Item Name(Mention specifications like Gauge/quality etc)</label>
+    <input
+      placeholder="Item Name"
+      value={item.name}
+      onChange={(e) => handleItemChange(i, "name", e.target.value)}
+      className="p-3 border border-gray-300 rounded-lg"
+      required
+    />
+  </div>
 
-          <div className="space-y-4">
-            {items.map((item, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-center">
-                <input
-                  placeholder="Item Name"
-                  value={item.name}
-                  onChange={(e) => handleItemChange(i, "name", e.target.value)}
-                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Qty"
-                  value={item.quantity}
-                  onChange={(e) => handleItemChange(i, "quantity", e.target.value)}
-                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  required
-                />
-                <input
-                  placeholder="Required By"
-                  value={item.requiredBy}
-                  onChange={(e) => handleItemChange(i, "requiredBy", e.target.value)}
-                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <input
-                  placeholder="Remarks"
-                  value={item.remarks}
-                  onChange={(e) => handleItemChange(i, "remarks", e.target.value)}
-                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeItem(i)}
-                  title="Remove Item"
-                  className="text-red-600 text-lg hover:text-red-800 transition transform hover:scale-110"
+  <div className="flex flex-col">
+    <label className="text-sm font-medium mb-1">Quantity</label>
+    <input
+      type="number"
+      placeholder="Qty"
+      value={item.quantity}
+      onChange={(e) => handleItemChange(i, "quantity", e.target.value)}
+      className="p-3 border border-gray-300 rounded-lg"
+      required
+    />
+  </div>
+
+  <div className="flex flex-col">
+    <label className="text-sm font-medium mb-1">Required By Date</label>
+    <input
+      type="date"
+      value={item.requiredBy}
+      onChange={(e) => handleItemChange(i, "requiredBy", e.target.value)}
+      className="p-3 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+  <div className="flex flex-col">
+    <label className="text-sm font-medium mb-1">Remarks</label>
+    <input
+      placeholder="Remarks"
+      value={item.remarks}
+      onChange={(e) => handleItemChange(i, "remarks", e.target.value)}
+      className="p-3 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+  <div className="flex items-end">
+    <button
+      type="button"
+      onClick={() => removeItem(i)}
+      title="Remove Item"
+      className="text-red-600 text-lg hover:text-red-800 transition"
+    >
+      ❌
+    </button>
+  </div>
+</div>
+
+          ))}
+
+          <input
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            accept="image/*,.pdf"
+            className="w-full border border-dashed border-gray-400 p-4 rounded-lg"
+          />
+
+          {previews.length > 0 && (
+            <div className="flex flex-wrap gap-4 mt-4">
+              {previews.map((file, i) => (
+                <div
+                  key={i}
+                  className="relative border rounded-lg p-2 bg-gray-50 shadow"
                 >
-                  ❌
-                </button>
-              </div>
-            ))}
-          </div>
+                  {file.type === "image" ? (
+                    <img
+                      src={file.url}
+                      alt={file.name}
+                      className="h-24 w-24 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="h-24 w-24 flex items-center justify-center bg-gray-200 text-sm text-gray-600 rounded">
+                      📄 PDF
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hover:bg-red-700"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-between">
             <button
               type="button"
               onClick={addItem}
-              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               + Add Item
             </button>
 
             <button
               type="submit"
-              className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
               ✅ Submit
             </button>
