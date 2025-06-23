@@ -78,15 +78,16 @@ const handleViewTasks = async () => {
     <>
       <InternalNavbar />
       <div className="min-h-screen bg-gray-100 flex flex-col">
-        <main className="flex-1 p-6 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-          <button
-            className="absolute hidden md:block left-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 back-button"
-            onClick={() => navigate(-1)}
-          >
-            ↩️ Back
-          </button>
+<main className="flex-1 p-6 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+  <div className="max-w-screen-xl mx-auto">
+    <button
+      className="sticky top-4 z-5 hidden md:inline-block bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 mb-4"
+      onClick={() => navigate(-1)}
+    >
+      ↩️ Back
+    </button>
 
-          <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
+    <div className="bg-white shadow-md rounded-lg p-6">
                           {user.role !== "driver" && (
 
             <h2 className="text-xl font-semibold mb-4">
@@ -144,7 +145,7 @@ const handleViewTasks = async () => {
               Welcome 👋 to your Dashboard!
             </h2>)}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 gap-y-12 mt-6">
               {user.role === "driver" && (<>
   <div className="bg-teal-100 p-4 rounded-lg">
     <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
@@ -447,6 +448,7 @@ const handleViewTasks = async () => {
 )}
 
 
+          </div>
           </div>
         </main>
       </div>
