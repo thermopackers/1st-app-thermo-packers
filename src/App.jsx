@@ -8,6 +8,7 @@ import { Toaster } from "react-hot-toast";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import Swal from "sweetalert2";
 import { useEffect } from "react";
+import './index.css';
 
 export default function App() {
   const location = useLocation();
