@@ -3,21 +3,38 @@ import axiosInstance from "../axiosInstance";
 import { Link, useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 export default function CustomerList() {
+    const { user } = useUserContext();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [addedBySearch, setAddedBySearch] = useState("");
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
-console.log("CustomerList component rendered",customers);
+  const [salesUsers, setSalesUsers] = useState([]);
+const [selectedSalesId, setSelectedSalesId] = useState("");
+useEffect(() => {
+  const fetchSalesUsers = async () => {
+    try {
+      const res = await axiosInstance.get("/users/sales");
+      setSalesUsers(res.data);
+    } catch (err) {
+      console.error("Failed to fetch sales users", err);
+    }
+  };
+
+  fetchSalesUsers();
+}, []);
+
 
   const fetchCustomers = async () => {
       setLoading(true);
     try {
       const res = await axiosInstance.get("/customers", {
-        params: { search, page, limit: 10 },
+        params: { search, addedBy: addedBySearch,createdBy: selectedSalesId,page, limit: 10 },
       });
       setCustomers(res.data.customers);
       setTotalPages(res.data.pages);
@@ -30,7 +47,7 @@ console.log("CustomerList component rendered",customers);
 
   useEffect(() => {
     fetchCustomers();
-  }, [search, page]);
+  }, [search,addedBySearch,selectedSalesId, page]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this customer?")) return;
@@ -63,15 +80,50 @@ const handlePageChange = (newPage) => {
           Customers
         </h2>
 
-        <input
-          type="text"
-          placeholder="Search customers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-6 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
+       <input
+  type="text"
+  placeholder="Search customer name..."
+  value={search}
+  onChange={(e) => {
+    setSearch(e.target.value);
+    setPage(1);
+  }}
+  className="mb-4 w-full px-4 py-2 border border-gray-300 rounded-md"
+/>
+{user.role !== "sales" && (
+<input
+  type="text"
+  placeholder="Search by Sales Name or Email"
+  value={addedBySearch}
+  onChange={(e) => {
+    setAddedBySearch(e.target.value);
+    setPage(1);
+  }}
+  className="mb-6 w-full px-4 py-2 border border-gray-300 rounded-md"
+/>
+)}
+
 
         <div className="overflow-x-auto w-full rounded-lg shadow">
+          {user.role !== "sales" && (
+
+          <select
+  value={selectedSalesId}
+  onChange={(e) => {
+    setSelectedSalesId(e.target.value);
+    setPage(1);
+  }}
+  className="mb-4 w-full px-4 py-2 border border-gray-300 rounded-md"
+>
+  <option value="">Filter by Sales (Dropdown)</option>
+  {salesUsers.map((user) => (
+    <option key={user._id} value={user._id}>
+      {user.name} ({user.email})
+    </option>
+  ))}
+</select>
+)}
+
           <table className="min-w-full text-sm sm:text-base bg-white border border-gray-200">
             <thead className="bg-gray-100 text-gray-800 font-semibold">
               <tr>
@@ -82,6 +134,7 @@ const handlePageChange = (newPage) => {
                 <th className="p-3 border">Address</th>
                 <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
+                <th className="p-3 border">Added By</th>
                 <th className="p-3 border text-center">Actions</th>
               </tr>
             </thead>
@@ -151,6 +204,17 @@ const handlePageChange = (newPage) => {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
+                  <td className="p-3 border text-sm text-gray-700">
+  {c.createdBy ? (
+    <>
+      <div>{c.createdBy.name}</div>
+      <div className="text-xs text-gray-500">{c.createdBy.email}</div>
+    </>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+
                   <td className="p-3 border text-center space-x-2">
                     <Link
                       to={`/customers/edit/${c._id}`}

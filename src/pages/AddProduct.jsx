@@ -1,3 +1,4 @@
+import imageCompression from 'browser-image-compression';
 import { useState } from "react";
 import axiosInstance from "../axiosInstance";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,8 @@ export default function AddProduct() {
     name: "",
     unit: "",
     sizes: "",
+      hsnCode: "",
+  gstPercent: "",
   });
   const [images, setImages] = useState([]); // Array for multiple images
   const navigate = useNavigate();
@@ -20,17 +23,20 @@ export default function AddProduct() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e) => {
-    const newFiles = Array.from(e.target.files);
-    console.log("Selected files:", newFiles);
 
-    // Append new images but limit total to 5
-    setImages((prev) => {
-      // Combine previous and new, then slice max 5
-      const combined = [...prev, ...newFiles].slice(0, 5);
-      return combined;
-    });
-  };
+const handleImageChange = async (e) => {
+  const files = Array.from(e.target.files);
+  const compressed = [];
+
+  for (const file of files) {
+    const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+    const compressedFile = await imageCompression(file, options);
+    compressed.push(compressedFile);
+  }
+
+  setImages((prev) => [...prev, ...compressed].slice(0, 5));
+};
+
 
   // Optionally: Remove image by index
   const handleRemoveImage = (idx) => {
@@ -117,6 +123,27 @@ export default function AddProduct() {
             onChange={handleChange}
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
+
+         <input
+  name="hsnCode"
+  placeholder="HSN Code"
+  value={formData.hsnCode}
+  onChange={handleChange}
+  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+/>
+
+
+<input
+  name="gstPercent"
+  placeholder="GST % (e.g. 18)"
+  type="number"
+  min="0"
+  max="100"
+  value={formData.gstPercent}
+  onChange={handleChange}
+  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+/>
+
          
 
           <label className="block text-gray-700 font-semibold mb-2">

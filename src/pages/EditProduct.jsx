@@ -14,6 +14,8 @@ export default function EditProduct() {
     unit: "",
     sizes: [],
     quantity: 0,
+      hsnCode: "",         // ➕ NEW
+  gstPercent: "",      // ➕ NEW
   });
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [previewUrls, setPreviewUrls] = useState([]);
@@ -41,16 +43,21 @@ useEffect(() => {
       try {
         const res = await axiosInstance.get(`/products-multer/${id}`);
 
-        setFormData({
-          name: res.data.name || "",
-          unit: res.data.unit || "",
-          sizes: res.data.sizes || [],
-          quantity: res.data.quantity || 0,
-        });
+    setFormData({
+  name: res.data.name || "",
+  unit: res.data.unit || "",
+  sizes: res.data.sizes || [],
+  quantity: res.data.quantity || 0,
+  hsnCode: res.data.hsnCode || "",           // ➕
+  gstPercent: res.data.gstPercent || "",     // ➕
+});
+
 
         // Show existing images as previews if any
         if (res.data.images && res.data.images.length > 0) {
-          setPreviewUrls(res.data.images.map((img) => `${BASE_URL}${img}`));
+setPreviewUrls(res.data.images.map((img) =>
+  img.startsWith("http") ? img : `${BASE_URL}${img}`
+));
         } else if (res.data.image) {
           setPreviewUrls([`${BASE_URL}${res.data.image}`]);
         } else {
@@ -113,6 +120,8 @@ useEffect(() => {
       data.append("unit", formData.unit);
       data.append("sizes", JSON.stringify(formData.sizes));
       data.append("quantity", formData.quantity);
+data.append("hsnCode", formData.hsnCode);
+data.append("gstPercent", formData.gstPercent);
 
       images.forEach((imgFile) => {
         data.append("images", imgFile);
@@ -201,6 +210,33 @@ useEffect(() => {
               className="w-full border p-2 rounded"
             />
           </div>
+          <div>
+  <label className="block mb-1 font-semibold">HSN Code</label>
+  <input
+    type="text"
+    name="hsnCode"
+    value={formData.hsnCode}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+    placeholder="Enter HSN Code"
+  />
+</div>
+
+<div>
+  <label className="block mb-1 font-semibold">GST %</label>
+  <input
+    type="number"
+    name="gstPercent"
+    value={formData.gstPercent}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+    placeholder="Enter GST %"
+    min={0}
+    max={100}
+    step="0.01"
+  />
+</div>
+
 
           <div>
             <label className="block mb-1 font-semibold">Product Images</label>

@@ -431,7 +431,7 @@ const handleViewTasks = async () => {
         </NavLink>
       </div>
       {/* All Customers */}
-{user.role !== "sales" && (
+{/* {user.role !== "sales" && ( */}
       <div className="bg-violet-100 p-4 rounded-lg">
         <h3 className="text-lg font-bold text-violet-800">All Customers</h3>
         <p className="text-sm text-violet-700 mt-2">
@@ -442,7 +442,8 @@ const handleViewTasks = async () => {
             View All Customers
           </button>
         </NavLink>
-      </div>)}
+      </div>
+      {/* )} */}
     </div>
   </>
 )}

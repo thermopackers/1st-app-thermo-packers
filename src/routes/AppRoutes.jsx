@@ -257,7 +257,7 @@ export default function AppRoutes() {
             <Route
               path="/customers"
               element={
-                <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin", "accounts","sales"]}>
                   <PageWrapper><CustomerList /></PageWrapper>
                 </ProtectedRoute>
               }

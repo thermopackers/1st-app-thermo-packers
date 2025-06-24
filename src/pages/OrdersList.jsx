@@ -884,6 +884,8 @@ danaRows,
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
                         Dispatch Time
                       </th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
+Remarks                      </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[120px]">
                         PO Copy
                       </th>
@@ -1037,6 +1039,9 @@ const productKey = order.product.toLowerCase();
                               });
                             })()}
                           </td>
+                                      <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
+                            {order.remarks || "N/A"}
+</td>
 
                           {/* ✅ PO Copy */}
             <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">

@@ -125,7 +125,7 @@ const handleVehicleRegister = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     toast.success("Vehicle registered");
-    setNewVehicle({ vehicleNumber: "", driverEmail: "", driverName: "" });
+    setNewVehicle({ vehicleNumber: "", driverEmail: "", driverName: "", gpsLink: "" });
     fetchRegisteredVehicles(); // Refresh dropdown
   } catch (err) {
     toast.error(err.response?.data?.message || "Registration failed");
@@ -183,7 +183,14 @@ const handleVehicleRegister = async () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setPlans(res.data.plans);
+const mergedPlans = res.data.plans.map((plan) => {
+  const matchedVehicle = registeredVehicles.find(
+    (v) => v.vehicleNumber === plan.vehicleNumber
+  );
+  return { ...plan, gpsLink: matchedVehicle?.gpsLink || null };
+});
+
+setPlans(mergedPlans);
       setTotalPages(res.data.totalPages);
     } catch (err) {
       console.error("Error fetching plans:", err);
@@ -318,6 +325,19 @@ const handleSubmit = async (e) => {
         onChange={e => setNewVehicle(v => ({ ...v, driverEmail: e.target.value }))}
       />
     </div>
+    <div className="flex flex-col">
+  <label className="mb-1 font-medium text-sm text-gray-700">GPS Link (optional)</label>
+  <input
+    type="url"
+    placeholder="Paste GPS tracking link"
+    className="border p-2 rounded"
+    value={newVehicle.gpsLink}
+    onChange={(e) =>
+      setNewVehicle((v) => ({ ...v, gpsLink: e.target.value }))
+    }
+  />
+</div>
+
   </div>
 
   <button
@@ -381,20 +401,27 @@ const handleSubmit = async (e) => {
   return (
     <div key={index} className="flex flex-col gap-1 mb-3">
       <div className="flex gap-2">
-        <select
-          value={name}
-          onChange={(e) => {
-            const updated = [...customerNames];
-            updated[index] = e.target.value;
-            setCustomerNames(updated);
-          }}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Select Customer</option>
-          {customerList.map((c) => (
-            <option key={c._id} value={c.name}>{c.name}</option>
-          ))}
-        </select>
+       <input
+  type="text"
+  placeholder="Search customer..."
+  value={name}
+  onChange={(e) => {
+    const updated = [...customerNames];
+    updated[index] = e.target.value;
+    setCustomerNames(updated);
+  }}
+  list={`customer-options-${index}`}
+  className="w-full p-2 border rounded"
+/>
+
+<datalist id={`customer-options-${index}`}>
+  {customerList
+    .filter((c) => c.name.toLowerCase().includes(name.toLowerCase()))
+    .map((c) => (
+      <option key={c._id} value={c.name} />
+    ))}
+</datalist>
+
 
         {index > 0 && (
           <button
@@ -557,6 +584,7 @@ setSearchTerm("");
                   <tr className="text-left">
                     <th className="p-3 font-medium border">Sr No</th>
                     <th className="p-3 font-medium border">Vehicle</th>
+                    <th className="p-3 font-medium border">GPS Link</th>
                     <th className="p-3 font-medium border">Driver</th>
                           <th className="p-3 font-medium border">Customers</th>
                           <th className="p-3 font-medium border">Remarks</th> {/* ✅ New */}
@@ -573,6 +601,21 @@ setSearchTerm("");
                       </td>
                       <td className="p-3 border">{plan.vehicleNumber}</td>
                       <td className="p-3 border">
+  {plan.gpsLink ? (
+    <a
+      href={plan.gpsLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-600 hover:underline text-xs"
+    >
+      🔗 View GPS
+    </a>
+  ) : (
+    <span className="text-gray-400 text-xs">No Link</span>
+  )}
+</td>
+
+                      <td className="p-3 border">
                         {plan.driverName || plan.assignedTo?.name || "-"}
                       </td>
 
@@ -587,6 +630,9 @@ setSearchTerm("");
           <p className="font-medium text-gray-700">{name}</p>
           {customer?.address && (
             <p className="text-gray-500">🏠 {customer.address}</p>
+          )}
+          {customer?.phone && (
+            <p className="text-gray-500">📞 {customer.phone}</p>
           )}
           {customer?.locationLink && (
             <a

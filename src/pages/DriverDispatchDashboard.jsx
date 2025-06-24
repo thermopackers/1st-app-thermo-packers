@@ -96,17 +96,50 @@ removeBtn.className = "absolute top-[-8px] right-[-8px] bg-red-600 text-white ro
 <input type="file" id="image-upload" multiple accept="image/*" class="swal2-file" style="background-color: #e0f2fe; padding: 10px; border-radius: 8px;" />
         <div id="image-preview" class="flex flex-wrap mt-3 gap-2"></div>
         <p class="text-sm text-gray-500 mt-2">Upload images as proof before marking complete.</p>
+        <!-- ✅ Sample Images Section -->
+<div class="mt-4">
+  <p class="text-sm text-gray-700 mb-1 font-semibold">📸 Sample Images:</p>
+  <div id="sample-thumbnails" class="flex gap-2 flex-wrap justify-start">
+    <img src="./images/sample1.jpg" loading="lazy" alt="Sample 1" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample2.jpg" loading="lazy" alt="Sample 2" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample3.jpg" loading="lazy" alt="Sample 3" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample4.jpg" loading="lazy" alt="Sample 4" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample5.jpg" loading="lazy" alt="Sample 5" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample6.jpg" loading="lazy" alt="Sample 6" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+    <img src="./images/sample7.jpg" loading="lazy" alt="Sample 7" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
+  </div>
+</div>
+
       `,
       showCancelButton: true,
       confirmButtonText: "Submit",
       cancelButtonText: "Cancel",
       didOpen: () => {
-        const fileInput = Swal.getPopup().querySelector("#image-upload");
-        fileInput.addEventListener("change", (e) => {
-selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
-          renderImagePreview();
-        });
-      },
+  const fileInput = Swal.getPopup().querySelector("#image-upload");
+  fileInput.addEventListener("change", (e) => {
+    selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
+    renderImagePreview();
+  });
+
+  // ✅ Add zoom-on-click for sample images
+  const thumbs = Swal.getPopup().querySelectorAll(".sample-thumb");
+  thumbs.forEach((img) => {
+    img.addEventListener("click", () => {
+      Swal.fire({
+        imageUrl: img.src,
+        imageAlt: img.alt,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: "90%",
+        background: "#f9fafb",
+        customClass: {
+          popup: "rounded-xl",
+        },
+      });
+    });
+  });
+},
+      
       preConfirm: async () => {
         if (selectedFiles.length === 0) {
           Swal.showValidationMessage("Please upload at least one image");
@@ -232,7 +265,7 @@ for (let file of selectedFiles) {
   className="relative backdrop-blur-md bg-white/80 shadow-xl border border-gray-200 rounded-3xl p-6 pt-14 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl overflow-hidden"
 >
   {/* Top Center Driver Badge */}
-<div className="absolute top-4 right-4 bg-indigo-600 text-white text-xs sm:text-sm px-4 py-1 rounded-full shadow-lg z-10">
+<div className="absolute capitalize top-4 right-4 bg-indigo-600 text-white text-xs sm:text-sm px-4 py-1 rounded-full shadow-lg z-10">
   👨‍✈️ For: {plan.driverName || "N/A"}
 </div>
 
@@ -266,6 +299,9 @@ for (let file of selectedFiles) {
           {detail?.address && (
             <p className="text-xs text-gray-600">🏠 {detail.address}</p>
           )}
+           {detail?.phone && (
+  <p className="text-xs text-gray-600">📞 {detail.phone}</p>
+)}
 
           {detail?.locationLink && (
             <a

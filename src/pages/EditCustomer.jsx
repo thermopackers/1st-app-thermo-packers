@@ -14,6 +14,20 @@ export default function EditCustomer() {
   const [deleting, setDeleting] = useState(false);
   const [newFiles, setNewFiles] = useState([]);
   const [removedDocs, setRemovedDocs] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+
+  useEffect(() => {
+  async function fetchUsers() {
+    try {
+      const res = await axiosInstance.get("/users/all"); // create this route if not already
+      setAllUsers(res.data.filter(u => ["sales", "accounts"].includes(u.role)));
+    } catch (err) {
+      console.error("Failed to load users", err);
+    }
+  }
+
+  fetchUsers();
+}, []);
 
   useEffect(() => {
     async function fetchCustomer() {
@@ -90,6 +104,7 @@ export default function EditCustomer() {
 
       const updatedCustomer = {
         ...customer,
+          createdBy: customer.createdBy, // ✅ ensure it's sent
         gstDocs: [...(customer.gstDocs || []), ...uploadedUrls],
       };
 
@@ -184,6 +199,25 @@ export default function EditCustomer() {
               className="w-full border p-2 rounded"
             />
           </div>
+<div>
+  <label className="block mb-1 font-semibold">Added By (Sales Person)</label>
+  <select
+    name="createdBy"
+    value={customer.createdBy || ""}
+    onChange={(e) =>
+      setCustomer((prev) => ({ ...prev, createdBy: e.target.value }))
+    }
+    className="w-full border p-2 rounded"
+    required
+  >
+    <option value="">Select Sales Person</option>
+    {allUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {user.name} ({user.email})
+      </option>
+    ))}
+  </select>
+</div>
 
           <div>
             <label className="block mb-1 font-semibold">Google Maps Link</label>

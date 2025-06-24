@@ -23,27 +23,66 @@ export default function RequisitionSlips() {
       .catch((err) => console.error("Failed to load slips", err));
   }, [page, search]);
 
-  const openPdfInSwal = (pdfUrl) => {
-    Swal.fire({
-      title: "📄 Material Requisition Slip",
-      html: `
-        <iframe
-          src="https://docs.google.com/gview?url=${encodeURIComponent(
-            pdfUrl
-          )}&embedded=true"
-          width="100%"
-          height="500px"
-          style="border:none"
-        ></iframe>
-      `,
-      width: "80%",
-      showConfirmButton: false,
-      showCloseButton: true,
-      customClass: {
-        popup: "rounded-xl",
-      },
-    });
-  };
+const forceDownload = async (url, fileName) => {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) {
+    console.error("Failed to download file:", err);
+    Swal.fire("Error", "Failed to download the PDF.", "error");
+  }
+};
+
+const openPdfInSwal = (pdfUrl, slip) => {
+  const fileName = `RequisitionSlip_${slip.createdBy}_${new Date(slip.date)
+    .toLocaleDateString()
+    .replace(/\//g, '-')}.pdf`;
+
+  // Create a custom React element instead of HTML string
+  MySwal.fire({
+    title: "📄 Material Requisition Slip",
+    html: `
+      <div id="swal-pdf-preview"></div>
+    `,
+    didOpen: () => {
+      const container = document.getElementById("swal-pdf-preview");
+      if (!container) return;
+
+      const downloadBtn = document.createElement("button");
+      downloadBtn.textContent = "⬇ Download PDF";
+      downloadBtn.className =
+        "mb-3 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm";
+      downloadBtn.onclick = () => forceDownload(pdfUrl, fileName);
+
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+      iframe.width = "100%";
+      iframe.height = "500px";
+      iframe.style.border = "none";
+
+      container.appendChild(downloadBtn);
+      container.appendChild(iframe);
+    },
+    width: "80%",
+    showConfirmButton: false,
+    showCloseButton: true,
+    customClass: {
+      popup: "rounded-xl",
+    },
+  });
+};
+
+
+
+
 
   const handleDelete = async (id) => {
     const confirm = await Swal.fire({
@@ -129,20 +168,35 @@ export default function RequisitionSlips() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => openPdfInSwal(slip.pdfUrl)}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    <FaDownload className="mr-2" /> View Slip
-                  </button>
-                  <button
-                    onClick={() => handleDelete(slip._id)}
-                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                  >
-                    ❌ Delete
-                  </button>
-                </div>
+                <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
+  {/* 🎧 Voice Preview */}
+  {slip.attachments?.some((url) => url.endsWith(".mp3") || url.includes("/upload/") && url.includes(".webm")) && (
+    <audio
+      controls
+      src={slip.attachments.find((url) =>
+        url.endsWith(".mp3") || url.includes(".webm")
+      )}
+      className="w-full sm:w-64 rounded"
+    />
+  )}
+
+  {/* Buttons */}
+  <div className="flex flex-wrap gap-2">
+    <button
+      onClick={() => openPdfInSwal(slip.pdfUrl, slip)}
+      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+    >
+      <FaDownload className="mr-2" /> View Slip
+    </button>
+    <button
+      onClick={() => handleDelete(slip._id)}
+      className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+    >
+      ❌ Delete
+    </button>
+  </div>
+</div>
+
               </div>
             ))}
           </div>

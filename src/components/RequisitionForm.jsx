@@ -1,3 +1,4 @@
+import RecordRTC from "recordrtc";
 import React, { useState } from "react";
 import imageCompression from "browser-image-compression";
 import toast from "react-hot-toast";
@@ -6,6 +7,29 @@ import axiosInstance from "../axiosInstance";
 
 export default function RequisitionForm() {
   const [assignedTo, setAssignedTo] = useState("");
+
+const [recorder, setRecorder] = useState(null);
+const [audioBlob, setAudioBlob] = useState(null);
+const [audioURL, setAudioURL] = useState("");
+const [isRecording, setIsRecording] = useState(false);
+
+const startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const newRecorder = new RecordRTC(stream, { type: "audio" });
+  newRecorder.startRecording();
+  setRecorder(newRecorder);
+  setIsRecording(true);
+};
+
+const stopRecording = async () => {
+  recorder.stopRecording(() => {
+    const blob = recorder.getBlob();
+    setAudioBlob(blob);
+    setAudioURL(URL.createObjectURL(blob));
+    setIsRecording(false);
+  });
+};
+
   const [items, setItems] = useState([
     { name: "", quantity: 1, requiredBy: "", remarks: "" },
   ]);
@@ -83,15 +107,32 @@ export default function RequisitionForm() {
       return data.secure_url;
     });
 
-    const uploadedUrls = await Promise.all(uploadPromises);
-    return uploadedUrls.filter(Boolean);
-  };
+     if (audioBlob) {
+    const audioForm = new FormData();
+    audioForm.append("file", audioBlob);
+    audioForm.append("upload_preset", "todo_uploads");
+    audioForm.append("resource_type", "video"); // audio is uploaded as video
+    const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
+      method: "POST",
+      body: audioForm,
+    });
+    const data = await res.json();
+    uploadPromises.push(Promise.resolve(data.secure_url));
+  }
+
+  const uploadedUrls = await Promise.all(uploadPromises);
+  return uploadedUrls.filter(Boolean);
+};
 
   const resetForm = () => {
     setAssignedTo("");
     setItems([{ name: "", quantity: 1, requiredBy: "", remarks: "" }]);
     setFiles([]);
     setPreviews([]);
+     setAudioBlob(null);
+  setAudioURL("");
+  setRecorder(null);
+  setIsRecording(false);
   };
 
   const handleSubmit = async (e) => {
@@ -233,22 +274,69 @@ export default function RequisitionForm() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <button
-              type="button"
-              onClick={addItem}
-              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              + Add Item
-            </button>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
+  {/* Add Item Button */}
+  <button
+    type="button"
+    onClick={addItem}
+    className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+  >
+    + Add Item
+  </button>
 
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              ✅ Submit
-            </button>
-          </div>
+  {/* Recording Controls */}
+  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+    {!isRecording ? (
+      <button
+        type="button"
+        onClick={startRecording}
+        className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 w-full sm:w-auto"
+      >
+        🎙️ Start Recording
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={stopRecording}
+        className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 w-full sm:w-auto"
+      >
+        ⏹️ Stop Recording
+      </button>
+    )}
+
+   {audioURL && (
+  <div className="relative w-full sm:w-64 mt-2 sm:mt-0">
+    <audio
+      controls
+      src={audioURL}
+      className="w-full rounded"
+    />
+    <button
+      type="button"
+      onClick={() => {
+        setAudioURL("");
+        setAudioBlob(null);
+        setRecorder(null);
+      }}
+      className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center hover:bg-red-700"
+      title="Remove recording"
+    >
+      ×
+    </button>
+  </div>
+)}
+
+  </div>
+
+  {/* Submit Button */}
+  <button
+    type="submit"
+    className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+  >
+    ✅ Submit
+  </button>
+</div>
+
         </form>
       </div>
     </>

@@ -10,6 +10,7 @@ export default function ProductList() {
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [previewImage, setPreviewImage] = useState(null);
+console.log("products",products);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
@@ -91,6 +92,8 @@ onChange={handleSearchChange}
                 <th className="border px-3 py-2 text-left">Images</th>
                 <th className="border px-3 py-2 text-left">Name</th>
                 <th className="border px-3 py-2 text-left">Unit</th>
+                 <th className="border px-3 py-2 text-left">HSN No.</th> {/* ✅ NEW */}
+    <th className="border px-3 py-2 text-left">GST %</th>   {/* ✅ NEW */}
                 <th className="border px-3 py-2 text-left">Stock Status</th>
                 <th className="border px-3 py-2 text-left">Actions</th>
               </tr>
@@ -128,6 +131,11 @@ onClick={() =>
                   </td>
                   <td className="border px-3 py-2">{p.name}</td>
                   <td className="border px-3 py-2">{p.unit}</td>
+                  <td className="border px-3 py-2">{p.hsnCode || <span className="text-gray-400">—</span>}</td>
+<td className="border px-3 py-2">
+  {p.gstPercent != null ? `${p.gstPercent}%` : <span className="text-gray-400">—</span>}
+</td>
+
                   <td className="border px-3 py-2">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-semibold ${
