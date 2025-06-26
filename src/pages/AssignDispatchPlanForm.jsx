@@ -105,7 +105,7 @@ const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+
 useEffect(() => {
   axiosInstance
     .get("/customers/all/dropdown", { headers: { Authorization: `Bearer ${token}` } })
@@ -199,9 +199,12 @@ setPlans(mergedPlans);
     }
   };
 
-  useEffect(() => {
-    if (token) fetchPlans();
-  }, [token, page, searchTerm, filterDate]);
+useEffect(() => {
+  if (token && registeredVehicles.length > 0) {
+    fetchPlans();
+  }
+}, [token, page, searchTerm, filterDate, registeredVehicles]);
+
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
