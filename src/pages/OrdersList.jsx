@@ -1039,9 +1039,10 @@ const productKey = order.product.toLowerCase();
                               });
                             })()}
                           </td>
-                                      <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-                            {order.remarks || "N/A"}
+                                <td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
+  {order.remarks || "N/A"}
 </td>
+
 
                           {/* ✅ PO Copy */}
             <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
