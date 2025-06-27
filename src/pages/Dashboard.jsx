@@ -383,6 +383,35 @@ const handleViewTasks = async () => {
 
 </div>
 
+{user.role !== "driver" && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+    {/* Proforma Invoice Generator */}
+    <div className="bg-emerald-100 p-4 rounded-lg">
+      <h3 className="text-lg font-bold text-emerald-800">Generate Proforma Invoice</h3>
+      <p className="text-sm text-emerald-700 mt-2">
+        Create and print a new proforma invoice for any customer.
+      </p>
+      <NavLink to="/proforma-invoice">
+        <button className="mt-4 cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded">
+          Generate Proforma Invoice
+        </button>
+      </NavLink>
+    </div>
+
+    {/* View Proforma Invoices */}
+    <div className="bg-stone-100 p-4 rounded-lg">
+      <h3 className="text-lg font-bold text-stone-800">Proforma Invoice Dashboard</h3>
+      <p className="text-sm text-stone-700 mt-2">
+        Search, filter, and download generated proforma invoices.
+      </p>
+      <NavLink to="/proforma-dashboard">
+        <button className="mt-4 cursor-pointer bg-stone-500 hover:bg-stone-600 text-white px-4 py-2 rounded">
+          View All Invoices
+        </button>
+      </NavLink>
+    </div>
+  </div>
+)}
 
 
 
@@ -431,7 +460,6 @@ const handleViewTasks = async () => {
         </NavLink>
       </div>
       {/* All Customers */}
-{/* {user.role !== "sales" && ( */}
       <div className="bg-violet-100 p-4 rounded-lg">
         <h3 className="text-lg font-bold text-violet-800">All Customers</h3>
         <p className="text-sm text-violet-700 mt-2">
@@ -443,7 +471,6 @@ const handleViewTasks = async () => {
           </button>
         </NavLink>
       </div>
-      {/* )} */}
     </div>
   </>
 )}

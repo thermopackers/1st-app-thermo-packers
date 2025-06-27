@@ -19,6 +19,8 @@ import DriverDispatchDashboard from "../pages/DriverDispatchDashboard";
 import PackagingReport from "../pages/PackagingReport";
 import RequisitionForm from "../components/RequisitionForm";
 import RequisitionSlips from "../pages/RequisitionSlips";
+import ProformaInvoiceForm from "../components/ProformaInvoiceForm";
+import ProformaInvoiceDashboard from "../pages/ProformaInvoiceDashboard";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -316,6 +318,27 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["admin", "accounts"]}>
       <PageWrapper><RequisitionSlips /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/proforma-invoice"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging"]}>
+      <PageWrapper>
+        <ProformaInvoiceForm />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/proforma-dashboard"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging"]}>
+      <PageWrapper>
+        <ProformaInvoiceDashboard />
+      </PageWrapper>
     </ProtectedRoute>
   }
 />

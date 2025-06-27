@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
   const [submitting, setSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState([]);
   const [audioBlob, setAudioBlob] = useState(null);
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
@@ -215,7 +216,6 @@ const handleSubmit = async (e) => {
 
   const { vehicleNumber, driverName, remarks } = formData;
 
-  // Validate required fields
   if (
     !vehicleNumber ||
     !driverName ||
@@ -236,7 +236,7 @@ const handleSubmit = async (e) => {
       customerNames,
     };
 
-    // ✅ Upload audio if available
+    // ✅ Upload audio if exists
     if (audioBlob) {
       const audioForm = new FormData();
       audioForm.append("file", audioBlob);
@@ -254,13 +254,42 @@ const handleSubmit = async (e) => {
       payload.audioUrl = data.secure_url;
     }
 
+    // ✅ Upload image/PDF attachments if exist
+    if (attachments.length > 0) {
+      const uploadedFiles = [];
+
+      for (let file of attachments) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "todo_uploads");
+        formData.append("cloud_name", "dcr8k5amk");
+
+        const uploadUrl = file.type === "application/pdf"
+          ? "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload"
+          : "https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload";
+
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "Attachment upload failed");
+
+        uploadedFiles.push(data.secure_url);
+      }
+
+      payload.attachmentUrls = uploadedFiles;
+    }
+
+    // ✅ Send the final payload
     await axiosInstance.post("/dispatch-plans/assign", payload, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     toast.success("Plan assigned successfully");
 
-    // Reset form
+    // ✅ Reset all fields
     setFormData({
       vehicleNumber: "",
       driverName: "",
@@ -270,6 +299,7 @@ const handleSubmit = async (e) => {
     setCustomerNames([""]);
     setAudioBlob(null);
     setAudioUrl(null);
+    setAttachments([]); // ✅ reset file state
     fetchPlans();
   } catch (err) {
     toast.error("Error assigning plan");
@@ -278,6 +308,7 @@ const handleSubmit = async (e) => {
     setSubmitting(false);
   }
 };
+
 
 
 
@@ -514,6 +545,57 @@ const handleSubmit = async (e) => {
   )}
 </div>
 
+<div className="md:col-span-2">
+  <label className="block text-sm font-medium mb-1">Attachments (Images/PDFs)</label>
+  <input
+    type="file"
+    multiple
+    accept="image/*,.pdf"
+    onChange={(e) => {
+      const files = Array.from(e.target.files);
+      setAttachments((prev) => [...prev, ...files]);
+    }}
+    className="mb-2"
+  />
+
+  <div className="flex flex-wrap gap-4">
+    {attachments.map((file, index) => {
+      const isImage = file.type.startsWith("image/");
+      const previewUrl = URL.createObjectURL(file);
+      return (
+        <div key={index} className="relative">
+          {isImage ? (
+            <img
+              src={previewUrl}
+              alt={`preview ${index}`}
+              className="w-20 h-20 object-cover border rounded"
+            />
+          ) : (
+            <a
+              href={previewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-xs border p-2 rounded w-20 h-20 bg-gray-100 flex items-center justify-center text-blue-600 text-center"
+            >
+              PDF File
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const updated = [...attachments];
+              updated.splice(index, 1);
+              setAttachments(updated);
+            }}
+            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+          >
+            ×
+          </button>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
   <div className="md:col-span-2 flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Remarks</label>

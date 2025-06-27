@@ -16,6 +16,8 @@ export default function App() {
   // Paths where Navbar/Footer should be hidden
   const hideLayout = [
     "/login",
+    "/proforma-invoice",
+    "/proforma-dashboard",
     "/assign-dispatch",
     "/my-plans",
     "/follow-up",

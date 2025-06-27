@@ -83,14 +83,27 @@ setPreviewUrls(res.data.images.map((img) =>
   };
 
   // Append newly selected images
-  const handleImagesChange = (e) => {
-    const files = Array.from(e.target.files);
+ const MAX_FILE_SIZE_MB = 10;
 
-    setImages((prev) => [...prev, ...files]);
+const handleImagesChange = (e) => {
+  const files = Array.from(e.target.files);
 
-    const newPreviews = files.map((file) => URL.createObjectURL(file));
-    setPreviewUrls((prev) => [...prev, ...newPreviews]);
-  };
+  const validFiles = files.filter((file) => {
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`${file.name} is larger than 10MB and was not added.`);
+      return false;
+    }
+    return true;
+  });
+
+  if (validFiles.length === 0) return;
+
+  setImages((prev) => [...prev, ...validFiles]);
+
+  const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
+  setPreviewUrls((prev) => [...prev, ...newPreviews]);
+};
+
 
   // Remove image by index from previews and images or mark existing as removed
   const handleRemoveImage = (indexToRemove) => {

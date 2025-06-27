@@ -352,6 +352,58 @@ for (let file of selectedFiles) {
         <p className="text-xs text-red-500 mt-1">🎧 Play Voice Message</p>
       </div>
     )}
+    {plan.attachmentUrls?.length > 0 && (
+  <div className="mt-3 space-y-1">
+    <label className="text-sm text-gray-600 font-medium block">📎 Attachments:</label>
+    <div className="flex flex-wrap gap-3">
+      {plan.attachmentUrls.map((url, i) => {
+        const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+        const isPdf = url.endsWith(".pdf");
+        return (
+          <div key={i} className="w-24 h-24 relative">
+            {isImage ? (
+              <img
+                src={url}
+                alt={`Attachment ${i + 1}`}
+                className="w-full h-full object-cover rounded border cursor-pointer shadow"
+                onClick={() =>
+                  Swal.fire({
+                    imageUrl: url,
+                    imageAlt: `Attachment ${i + 1}`,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: '90%',
+                    background: '#f9fafb',
+                    customClass: { popup: 'rounded-xl' },
+                  })
+                }
+              />
+            ) : isPdf ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full h-full flex items-center justify-center bg-red-100 text-red-800 font-semibold text-xs border rounded shadow hover:underline"
+              >
+                📄 PDF
+              </a>
+            ) : (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs text-blue-600 underline"
+              >
+                File {i + 1}
+              </a>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
 
     {/* Actions */}
     <div className="flex flex-col gap-3">
@@ -374,6 +426,7 @@ for (let file of selectedFiles) {
           📷 View Images ({plan.imageUrls.length})
         </button>
       )}
+      
     </div>
   </div>
 </div>
