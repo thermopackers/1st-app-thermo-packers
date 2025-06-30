@@ -61,7 +61,7 @@ const RegisterUser = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-10">
         <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10 mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
-            Register New Users and Vehicles
+            Register New Users
           </h2>
 
           <form onSubmit={handleRegister} className="space-y-5">
@@ -125,7 +125,7 @@ const RegisterUser = () => {
         </div>
 
         <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">All Registered Users</h3>
+          <h3 className="text-xl font-bold text-gray-800 mb-4">All Registered Users and Vehicles</h3>
           <table className="w-full text-sm text-left text-gray-600">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
               <tr>
