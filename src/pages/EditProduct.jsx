@@ -211,18 +211,6 @@ data.append("gstPercent", formData.gstPercent);
               className="w-full border p-2 rounded"
             />
           </div>
-
-          <div>
-            <label className="block mb-1 font-semibold">Quantity</label>
-            <input
-              type="number"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              min={0}
-              className="w-full border p-2 rounded"
-            />
-          </div>
           <div>
   <label className="block mb-1 font-semibold">HSN Code</label>
   <input

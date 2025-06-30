@@ -46,7 +46,7 @@ useEffect(() => {
   const addProductRow = () => {
     setForm(prev => ({
       ...prev,
-      products: [...prev.products, { productId: "", name: "", hsn: "", qty: 1, unit: "", rate: 0, gst: 0 }]
+      products: [...prev.products, { productId: "", name: "", hsn: "", qty: 1, unit: "", rate: 0, gst: 0,  narration: "" }]
     }));
   };
 
@@ -174,14 +174,15 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
       }))}
       onChange={(selectedOption) => {
         const customer = selectedOption.data;
-        setForm(f => ({
-          ...f,
-          contact: customer.phone || "",
-          billTo: customer.address || "",
-          shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
-              gstin: customer.company || ""            // ✅ add this line
+       setForm(f => ({
+  ...f,
+  customerName: customer.name || "", // ✅ Add this line
+  contact: customer.phone || "",
+  billTo: customer.address || "",
+  shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
+  gstin: customer.company || ""
+}));
 
-        }));
       }}
       isSearchable
       menuPortalTarget={document.body}
@@ -327,6 +328,7 @@ packaging: e.target.value,
       {form.products.map((p, i) => {
         const total = p.qty * p.rate;
         return (
+                <React.Fragment key={i}>
           <tr key={i} className="even:bg-gray-50">
             <td className="p-2">{i + 1}</td>
             <td className="w-64 min-w-[200px]">
@@ -435,6 +437,23 @@ packaging: e.target.value,
               </button>
             </td>
           </tr>
+            {/* ✅ Narration Row Below Product Row */}
+        <tr key={`narration-${i}`}>
+          <td colSpan={form.inPunjab ? 10 : 9}>
+            <textarea
+              className="textarea mt-2 w-full text-sm"
+              placeholder="Optional Narration / Description"
+              value={p.narration || ""}
+              onChange={(e) => {
+                const updated = [...form.products];
+                updated[i].narration = e.target.value;
+                setForm(f => ({ ...f, products: updated }));
+              }}
+            />
+          </td>
+        </tr>
+              </React.Fragment>
+
         );
       })}
     </tbody>

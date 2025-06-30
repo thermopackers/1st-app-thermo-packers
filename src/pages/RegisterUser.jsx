@@ -61,7 +61,7 @@ const RegisterUser = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-10">
         <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10 mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
-            Register New User
+            Register New Users and Vehicles
           </h2>
 
           <form onSubmit={handleRegister} className="space-y-5">
