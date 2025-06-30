@@ -26,6 +26,8 @@ export default function ProformaInvoiceForm() {
     contact: "",
     remarks: "",
     products: [],
+     paymentTerms: [],         // ⬅️ Array of selected terms
+  customPaymentTerm: "",    // ⬅️ Dynamic input field
   });
 const [customers, setCustomers] = useState([]);
 useEffect(() => {
@@ -137,7 +139,7 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
 )}
       <InternalNavbar />
       <div className="p-4 max-w-6xl mx-auto space-y-6">
-        <h1 className="text-2xl font-semibold text-center text-blue-700">🧾 Proforma Invoice</h1>
+        <h1 className="text-2xl font-semibold text-center text-blue-700">🧾 Quotation/Proforma Invoice/Estimate</h1>
 
         {/* Invoice Header */}
         <div className="grid md:grid-cols-2 gap-4">
@@ -260,6 +262,7 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
   </div>
 </div>
 
+
 {form.freightType === "Billed" && (
   <div>
     <label className="text-sm font-medium">Freight Amount (₹)</label>
@@ -277,7 +280,37 @@ freight: e.target.value,
     />
   </div>
 )}
-
+<div className="col-span-2">
+  <label className="text-sm font-medium">Payment Terms</label>
+  <div className="grid md:grid-cols-2 gap-2 mt-2 text-sm">
+    {["100% Advance", "45 Days Credit", "Cheque on Delivery"].map((term) => (
+      <label key={term} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={form.paymentTerms.includes(term)}
+          onChange={(e) => {
+            const updated = e.target.checked
+              ? [...form.paymentTerms, term]
+              : form.paymentTerms.filter(t => t !== term);
+            setForm(f => ({ ...f, paymentTerms: updated }));
+          }}
+        />
+        {term}
+      </label>
+    ))}
+  </div>
+  {/* Dynamic input for custom term */}
+  <div className="mt-2">
+    <input
+      className="input w-full"
+      placeholder="Other (please specify)"
+      value={form.customPaymentTerm}
+      onChange={(e) =>
+        setForm(f => ({ ...f, customPaymentTerm: e.target.value }))
+      }
+    />
+  </div>
+</div>
   <div>
     <label className="text-sm font-medium">Packaging Charges (₹)</label>
     <input
