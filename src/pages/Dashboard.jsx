@@ -475,6 +475,20 @@ const handleViewTasks = async () => {
   </>
 )}
 
+{["admin", "accounts"].includes(user.role) && (
+  <div className="bg-blue-50 p-4 rounded-lg mt-6">
+    <h3 className="text-lg font-bold text-blue-800">Register New User</h3>
+    <p className="text-sm text-blue-700 mt-2">
+      Add a new user by email, name and assign them a role.
+    </p>
+    <NavLink to="/register-user">
+      <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+        Register New User
+      </button>
+    </NavLink>
+  </div>
+)}
+
 
           </div>
         </main>

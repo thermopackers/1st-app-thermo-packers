@@ -17,6 +17,7 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/proforma-invoice",
+    "/register-user",
     "/proforma-dashboard",
     "/assign-dispatch",
     "/my-plans",

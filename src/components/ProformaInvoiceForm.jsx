@@ -21,6 +21,7 @@ export default function ProformaInvoiceForm() {
     transportMode: "",
     destination: "",
     freight: 0,
+      freightType: "", // new field to track selected checkbox
     packaging: 0,
     contact: "",
     remarks: "",
@@ -189,17 +190,6 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
   </div>
 
   <div>
-    <label className="text-sm font-medium">Contact</label>
-    <input
-      className="input"
-      type="text"
-      placeholder="Contact"
-      value={form.contact}
-      onChange={(e) => setForm(f => ({ ...f, contact: e.target.value }))}
-    />
-  </div>
-
-  <div>
     <label className="text-sm font-medium">Bill To Address</label>
     <textarea
       className="textarea"
@@ -247,23 +237,59 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
       onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
     />
   </div>
+ <div>
+  <label className="text-sm font-medium">Freight Type</label>
+  <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
+    {["Self Pickup", "PAID", "To Pay", "Billed"].map((type) => (
+      <label key={type} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={form.freightType === type}
+          onChange={() =>
+            setForm((f) => ({
+              ...f,
+              freightType: f.freightType === type ? "" : type,
+              freight: type === "Billed" ? f.freight : 0, // reset if not billed
+            }))
+          }
+        />
+        {type}
+      </label>
+    ))}
+  </div>
+</div>
+
+{form.freightType === "Billed" && (
   <div>
-    <label className="text-sm font-medium">Freight (₹)</label>
+    <label className="text-sm font-medium">Freight Amount (₹)</label>
     <input
       className="input"
       type="number"
-      placeholder="Freight"
-      onChange={(e) => setForm(f => ({ ...f, freight: +e.target.value }))}
+      placeholder="Freight Amount"
+      value={form.freight ?? ""}
+      onChange={(e) =>
+        setForm((f) => ({
+          ...f,
+freight: e.target.value,
+        }))
+      }
     />
   </div>
+)}
+
   <div>
     <label className="text-sm font-medium">Packaging Charges (₹)</label>
     <input
       className="input"
       type="number"
       placeholder="Packaging Charges"
-      onChange={(e) => setForm(f => ({ ...f, packaging: +e.target.value }))}
-    />
+ value={form.packaging ?? ''}
+    onChange={(e) =>
+      setForm(f => ({
+        ...f,
+packaging: e.target.value,
+      }))
+    }    />
   </div>
 </div>
 
@@ -275,110 +301,146 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
         </label>
 
         {/* Products Table */}
-        <div className="overflow-auto">
-          <table className="w-full mt-4 border text-sm">
-            <thead>
-              <tr className="bg-blue-100 text-gray-700">
-                <th className="p-2">#</th><th>Product</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th>
-                {form.inPunjab ? (<><th>CGST</th><th>SGST</th></>) : <th>IGST</th>}
-                <th>Amount</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.products.map((p, i) => {
-                const total = p.qty * p.rate;
-                return (
-                  <tr key={i} className="even:bg-gray-50">
-                    <td className="p-2">{i + 1}</td>
-                  <td className="w-64">
-  <div className="react-select-container z-50">
-    <Select
-      className="text-sm"
-      classNamePrefix="react-select"
-      options={productsList.map(pr => ({
-        value: pr._id,
-        label: pr.name,
-        data: pr
-      }))}
-     onChange={(selectedOption) => {
-  const selected = selectedOption.data;
-  const updated = [...form.products];
-  updated[i] = {
-    ...updated[i],
-    productId: selected._id,
-    name: selected.name,
-    hsn: selected.hsnCode,
-    unit: selected.unit,
-    gst: selected.gstPercent,
-    rate: selected.price || 0,
-    images: selected.images || [], // ✅ Important for PDF!
-  };
-  setForm(f => ({ ...f, products: updated }));
+        <div className="w-full overflow-x-auto">
+  <table className="min-w-[800px] w-full mt-4 border text-sm">
+    <thead>
+      <tr className="bg-blue-100 text-gray-700">
+        <th className="p-2">#</th>
+        <th>Product</th>
+        <th>HSN</th>
+        <th>Qty</th>
+        <th>Unit</th>
+        <th>Rate</th>
+        {form.inPunjab ? (
+          <>
+            <th>CGST</th>
+            <th>SGST</th>
+          </>
+        ) : (
+          <th>IGST</th>
+        )}
+        <th>Amount</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {form.products.map((p, i) => {
+        const total = p.qty * p.rate;
+        return (
+          <tr key={i} className="even:bg-gray-50">
+            <td className="p-2">{i + 1}</td>
+            <td className="w-64 min-w-[200px]">
+              <div className="react-select-container z-50">
+                <Select
+                  className="text-sm"
+                  classNamePrefix="react-select"
+                  options={productsList.map(pr => ({
+                    value: pr._id,
+                    label: pr.name,
+                    data: pr
+                  }))}
+                  onChange={(selectedOption) => {
+                    const selected = selectedOption.data;
+                    const updated = [...form.products];
+                    updated[i] = {
+                      ...updated[i],
+                      productId: selected._id,
+                      name: selected.name,
+                      hsn: selected.hsnCode,
+                      unit: selected.unit,
+                      gst: selected.gstPercent,
+                      rate: updated[i].rate || selected.price || 0,
+                      qty: updated[i].qty || 1,
+                      images: selected.images || [],
+                    };
 
-  // ✅ Set images for this product row index
-  setSelectedImages(prev => ({
-    ...prev,
-    [i]: selected.images || []
-  }));
-}}
+                    setForm(f => ({ ...f, products: updated }));
 
-      menuPortalTarget={document.body} // 👈 renders dropdown outside table
-      styles={{
-        menuPortal: base => ({ ...base, zIndex: 9999 }),
-      }}
-      placeholder="Select product..."
-    />
-  </div>
-  {selectedImages[i]?.length > 0 && (
-  <div className="flex flex-wrap gap-2 mt-2">
-    {selectedImages[i].map((url, idx) => (
-      <img
-        key={idx}
-        src={url}
-        alt={`product-${i}-img-${idx}`}
-        className="w-16 h-16 object-cover border rounded cursor-pointer hover:scale-105 transition"
-       onClick={() => {
-  Swal.fire({
-    imageUrl: url,
-    imageAlt: 'Product Image',
-    showConfirmButton: false,
-    background: '#fff',
-  });
-}}
+                    setSelectedImages(prev => ({
+                      ...prev,
+                      [i]: selected.images || []
+                    }));
+                  }}
+                  menuPortalTarget={document.body}
+                  styles={{
+                    menuPortal: base => ({ ...base, zIndex: 9999 }),
+                  }}
+                  placeholder="Select product..."
+                />
+              </div>
 
-      />
-    ))}
-  </div>
-)}
+              {selectedImages[i]?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedImages[i].map((url, idx) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`product-${i}-img-${idx}`}
+                      className="w-16 h-16 object-cover border rounded cursor-pointer hover:scale-105 transition"
+                      onClick={() => {
+                        Swal.fire({
+                          imageUrl: url,
+                          imageAlt: 'Product Image',
+                          showConfirmButton: false,
+                          background: '#fff',
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </td>
 
-</td>
+            <td>{p.hsn}</td>
+            <td>
+              <input
+                className="input w-16"
+                type="number"
+                value={p.qty}
+                onChange={(e) => {
+                  const updated = [...form.products];
+                  updated[i].qty = +e.target.value;
+                  setForm(f => ({ ...f, products: updated }));
+                }}
+              />
+            </td>
+            <td>{p.unit}</td>
+            <td>
+              <input
+                className="input w-20"
+                type="number"
+                value={p.rate}
+                onChange={(e) => {
+                  const updated = [...form.products];
+                  updated[i].rate = +e.target.value;
+                  setForm(f => ({ ...f, products: updated }));
+                }}
+              />
+            </td>
+            {form.inPunjab ? (
+              <>
+                <td>{(p.gst / 2).toFixed(2)}%</td>
+                <td>{(p.gst / 2).toFixed(2)}%</td>
+              </>
+            ) : (
+              <td>{p.gst}%</td>
+            )}
+            <td>{(total).toFixed(2)}</td>
+            <td>
+              <button
+                onClick={() => removeProductRow(i)}
+                className="text-red-500 hover:text-red-700"
+              >
+                ❌
+              </button>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
 
-                    <td>{p.hsn}</td>
-                    <td><input className="input w-16" type="number" value={p.qty} onChange={(e) => {
-                      const updated = [...form.products];
-                      updated[i].qty = +e.target.value;
-                      setForm(f => ({ ...f, products: updated }));
-                    }} /></td>
-                    <td>{p.unit}</td>
-                    <td><input className="input w-20" type="number" value={p.rate} onChange={(e) => {
-                      const updated = [...form.products];
-                      updated[i].rate = +e.target.value;
-                      setForm(f => ({ ...f, products: updated }));
-                    }} /></td>
-                    {form.inPunjab ? (
-                      <>
-                        <td>{(p.gst / 2).toFixed(2)}%</td>
-                        <td>{(p.gst / 2).toFixed(2)}%</td>
-                      </>
-                    ) : <td>{p.gst}%</td>}
-                    <td>{(p.qty * p.rate).toFixed(2)}</td>
-                    <td><button onClick={() => removeProductRow(i)} className="text-red-500 hover:text-red-700">❌</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
         <button onClick={addProductRow} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded transition">➕ Add Product</button>
 
         {/* Remarks */}
