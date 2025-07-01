@@ -465,7 +465,28 @@ const handleViewPOCopy = (order) => {
   }, [ordersFetched]);
 
 
-  const currentOrders = filteredOrders; // Already paginated from server
+const currentOrders = [...filteredOrders].sort((a, b) => {
+  const getOrderPriority = (order) => {
+    if (
+      order.status === "pending" ||
+      order.dispatchStatus?.toLowerCase() === "not dispatched"
+    ) return 1;
+
+    if (order.status === "in process") return 2;
+
+    if (
+      order.status === "processed" &&
+      (order.dispatchStatus === "not dispatched" ||
+        order.dispatchStatus === "ready to dispatch")
+    ) return 3;
+
+    if (order.dispatchStatus === "dispatched") return 4;
+
+    return 5; // fallback
+  };
+
+  return getOrderPriority(a) - getOrderPriority(b);
+});
 
   console.log("currentOrders", currentOrders);
   const groupedOrders = groupOrdersByPO(currentOrders);
@@ -1378,8 +1399,9 @@ const productKey = order.product.toLowerCase();
                                                   : "dispatch"
                                               );
                                               setSelectedOrder(order);
-                                              setModalOpen(true);
-                                            }
+setTimeout(() => {
+  setModalOpen(true);
+}, 0);                                            }
                                           }}
                                         >
                                           ✅ Dispatch (In Stock)
@@ -1450,8 +1472,9 @@ const productKey = order.product.toLowerCase();
                                             setSelectedSections(
                                               order.requiredSections || {}
                                             ); // ✅ CRITICAL LINE
-                                            setModalOpen(true);
-                                          }
+ setTimeout(() => {
+        setModalOpen(true);
+      }, 0);                                          }
                                         }}
                                       >
                                         🏭 Send to Production
