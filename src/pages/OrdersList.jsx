@@ -1463,18 +1463,23 @@ setTimeout(() => {
                                               ?.handMoulding &&
                                             !order.requiredSections?.cncSection;
 
-                                          if (result.isConfirmed) {
-                                            const slipTypeToSet = isShapeOnly
-                                              ? "shape-packaging"
-                                              : "production";
-                                            setSlipType(slipTypeToSet);
-                                            setSelectedOrder(order);
-                                            setSelectedSections(
-                                              order.requiredSections || {}
-                                            ); // ✅ CRITICAL LINE
- setTimeout(() => {
-        setModalOpen(true);
-      }, 0);                                          }
+                                      if (result.isConfirmed) {
+  const slipTypeToSet = isShapeOnly ? "shape-packaging" : "production";
+
+  // 1. Reset old data to avoid stale values
+  setSelectedOrder(null);
+  setSelectedSections({});
+
+  // 2. Delay to ensure DOM and data updates (especially after pagination)
+  setTimeout(() => {
+    // 3. Set fresh state
+    setSlipType(slipTypeToSet);
+    setSelectedOrder(order);
+    setSelectedSections(order.requiredSections || {});
+    setModalOpen(true);
+  }, 100); // Use 100ms for reliable behavior across pagination
+}
+
                                         }}
                                       >
                                         🏭 Send to Production
