@@ -1399,9 +1399,8 @@ const productKey = order.product.toLowerCase();
                                                   : "dispatch"
                                               );
                                               setSelectedOrder(order);
-setTimeout(() => {
-  setModalOpen(true);
-}, 0);                                            }
+                                              setModalOpen(true);
+                                            }
                                           }}
                                         >
                                           ✅ Dispatch (In Stock)
@@ -1463,23 +1462,17 @@ setTimeout(() => {
                                               ?.handMoulding &&
                                             !order.requiredSections?.cncSection;
 
-                                      if (result.isConfirmed) {
-  const slipTypeToSet = isShapeOnly ? "shape-packaging" : "production";
-
-  // 1. Reset old data to avoid stale values
-  setSelectedOrder(null);
-  setSelectedSections({});
-
-  // 2. Delay to ensure DOM and data updates (especially after pagination)
-  setTimeout(() => {
-    // 3. Set fresh state
-    setSlipType(slipTypeToSet);
-    setSelectedOrder(order);
-    setSelectedSections(order.requiredSections || {});
-    setModalOpen(true);
-  }, 100); // Use 100ms for reliable behavior across pagination
-}
-
+                                          if (result.isConfirmed) {
+                                            const slipTypeToSet = isShapeOnly
+                                              ? "shape-packaging"
+                                              : "production";
+                                            setSlipType(slipTypeToSet);
+                                            setSelectedOrder(order);
+                                            setSelectedSections(
+                                              order.requiredSections || {}
+                                            ); // ✅ CRITICAL LINE
+                                            setModalOpen(true);
+                                          }
                                         }}
                                       >
                                         🏭 Send to Production
@@ -1631,8 +1624,10 @@ setTimeout(() => {
     <div className="flex justify-center items-center gap-2 mt-8 px-4 min-w-max">
       {/* Prev Button */}
       <button
-        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-        disabled={currentPage === 1}
+  onClick={() => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+    window.location.reload(); // ✅ Force refresh after page change
+  }}        disabled={currentPage === 1}
         className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === 1
@@ -1647,8 +1642,10 @@ setTimeout(() => {
       {Array.from({ length: totalPages }, (_, i) => (
         <button
           key={i}
-          onClick={() => setCurrentPage(i + 1)}
-          className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
+  onClick={() => {
+    setCurrentPage(i + 1);
+    window.location.reload(); // ✅ Force full reload to refresh order list
+  }}          className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
             ${
               currentPage === i + 1
                 ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg scale-110"
@@ -1661,8 +1658,10 @@ setTimeout(() => {
 
       {/* Next Button */}
       <button
-        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-        disabled={currentPage === totalPages}
+onClick={() => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    window.location.reload(); // ✅ Force refresh after page change
+  }}        disabled={currentPage === totalPages}
         className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === totalPages
