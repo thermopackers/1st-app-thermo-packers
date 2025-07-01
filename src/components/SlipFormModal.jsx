@@ -62,40 +62,44 @@ const [danaFormData, setDanaFormData] = useState({
 
 useEffect(() => {
   if (isOpen && selectedOrder) {
-    setShapeFormData((prev) => ({
+    setShapeFormData({
       productName: selectedOrder.product || "",
-      dryWeight: prev.dryWeight || selectedOrder.density || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-    }));
+      dryWeight: selectedOrder.density || "",
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+    });
 
-    setDanaFormData((prev) => ({
-      ...prev,
-      productName: prev.productName || selectedOrder.product || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-      density: prev.density || selectedOrder.density || "",
-        densityValue: prev.densityValue || selectedOrder.density?.split(" ")[0] || "",
-
-    }));
-
-    setPackagingFormData((prev) => ({
+    setDanaFormData({
       productName: selectedOrder.product || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-      packagingWeight: prev.packagingWeight || "",
-      packagingType: prev.packagingType || "",
-    }));
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+      density: selectedOrder.density || "",
+      densityValue: selectedOrder.density?.split(" ")[0] || "",
+      densityType: selectedOrder.density?.split(" ")[1] || "",
+      typeOfRawBlock: "",
+      recycledDana: "",
+      weight: "",
+      grade: "",
+    });
 
-    setCuttingFormData((prev) => ({
+    setPackagingFormData({
       productName: selectedOrder.product || "",
-      size: prev.size || selectedOrder.size || "",
-      density: prev.density || selectedOrder.density || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-    }));
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+      packagingWeight: "",
+      packagingType: "",
+    });
+
+    setCuttingFormData({
+      productName: selectedOrder.product || "",
+      size: selectedOrder.size || "",
+      density: selectedOrder.density || "",
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+    });
   }
 }, [isOpen, selectedOrder]);
+
 
 
 

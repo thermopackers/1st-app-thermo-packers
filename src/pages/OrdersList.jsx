@@ -63,6 +63,7 @@ const groupOrdersByPO = (orders) => {
   }, {});
 };
 
+
   const getStockForProduct = (productName) => {
     const product = products.find((p) => p.name === productName);
     return product
@@ -1399,8 +1400,9 @@ const productKey = order.product.toLowerCase();
                                                   : "dispatch"
                                               );
                                               setSelectedOrder(order);
-                                              setModalOpen(true);
-                                            }
+setTimeout(() => {
+  setModalOpen(true);
+}, 0);                                            }
                                           }}
                                         >
                                           ✅ Dispatch (In Stock)
@@ -1471,8 +1473,9 @@ const productKey = order.product.toLowerCase();
                                             setSelectedSections(
                                               order.requiredSections || {}
                                             ); // ✅ CRITICAL LINE
-                                            setModalOpen(true);
-                                          }
+setTimeout(() => {
+  setModalOpen(true);
+}, 0);                                          }
                                         }}
                                       >
                                         🏭 Send to Production
