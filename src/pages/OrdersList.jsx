@@ -1624,10 +1624,8 @@ const productKey = order.product.toLowerCase();
     <div className="flex justify-center items-center gap-2 mt-8 px-4 min-w-max">
       {/* Prev Button */}
       <button
-  onClick={() => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-    window.location.reload(); // ✅ Force refresh after page change
-  }}        disabled={currentPage === 1}
+        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+        disabled={currentPage === 1}
         className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === 1
@@ -1642,10 +1640,8 @@ const productKey = order.product.toLowerCase();
       {Array.from({ length: totalPages }, (_, i) => (
         <button
           key={i}
-  onClick={() => {
-    setCurrentPage(i + 1);
-    window.location.reload(); // ✅ Force full reload to refresh order list
-  }}          className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
+          onClick={() => setCurrentPage(i + 1)}
+          className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
             ${
               currentPage === i + 1
                 ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg scale-110"
@@ -1658,10 +1654,8 @@ const productKey = order.product.toLowerCase();
 
       {/* Next Button */}
       <button
-onClick={() => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-    window.location.reload(); // ✅ Force refresh after page change
-  }}        disabled={currentPage === totalPages}
+        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+        disabled={currentPage === totalPages}
         className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === totalPages
