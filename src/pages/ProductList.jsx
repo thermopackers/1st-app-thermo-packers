@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
@@ -166,26 +166,73 @@ onClick={() =>
           </table>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
-         <button
-  disabled={page === 1}
-  onClick={() => handlePageChange(page - 1)}
-  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 transition"
->
-  ⬅️ Prev
-</button>
-          <span className="text-gray-700">
-            Page <strong>{page}</strong> of <strong>{totalPages}</strong>
-          </span>
+       <div className="mt-6 flex flex-col items-center justify-center gap-3 text-sm">
+  {/* Prev / Page Buttons / Next */}
+  <div className="flex items-center gap-2 flex-wrap justify-center">
+    <button
+      disabled={page === 1}
+      onClick={() => handlePageChange(page - 1)}
+      className="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+    >
+      ⬅️ Prev
+    </button>
+
+    {/* Visible page numbers (max 10) */}
+    {Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter((p) => {
+        // Always show first, last, current, and 2 pages around current
+        return (
+          p === 1 ||
+          p === totalPages ||
+          (p >= page - 2 && p <= page + 2)
+        );
+      })
+      .map((p, idx, arr) => (
+        <React.Fragment key={p}>
+          {idx > 0 && p - arr[idx - 1] > 1 && <span className="px-1">...</span>}
+          <button
+            onClick={() => handlePageChange(p)}
+            className={`px-3 py-1 rounded border ${
+              page === p
+                ? "bg-blue-500 text-white"
+                : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100"
+            }`}
+          >
+            {p}
+          </button>
+        </React.Fragment>
+      ))}
+
+    <button
+      disabled={page === totalPages}
+      onClick={() => handlePageChange(page + 1)}
+      className="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded disabled:opacity-50"
+    >
+      Next ➡️
+    </button>
+  </div>
+
+  {/* Go to page input */}
+  <div className="flex items-center gap-2 mt-2">
+    <span className="text-gray-700">Go to page:</span>
+    <input
+      type="number"
+      min="1"
+      max={totalPages}
+      value={page}
+      onChange={(e) => {
+        const value = Number(e.target.value);
+        if (value >= 1 && value <= totalPages) {
+          setPage(value);
+        }
+      }}
+      className="w-20 border rounded px-2 py-1 text-center"
+    />
+  </div>
+</div>
+
+
         
-<button
-  disabled={page === totalPages}
-  onClick={() => handlePageChange(page + 1)}
-  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 transition"
->
-  Next ➡️
-</button>
-        </div>
       </div>
 
       {/* Image Preview Modal */}

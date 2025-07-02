@@ -132,7 +132,18 @@ const fetchOrders = async () => {
   };
 
 
- const currentOrders = orders;
+const currentOrders = [...orders].sort((a, b) => {
+  const getPriority = (status) => {
+    if (!status) return 99;
+    const s = status.toLowerCase();
+    if (s === "pending") return 1;
+    if (s === "in process") return 2;
+    if (s === "processed") return 3;
+    return 99;
+  };
+
+  return getPriority(a.status) - getPriority(b.status);
+});
 
   console.log("currentOrders", currentOrders);
 

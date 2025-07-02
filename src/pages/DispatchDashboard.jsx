@@ -163,7 +163,32 @@ useEffect(() => {
     }
   };
 
-const currentOrders = filteredOrders; // Already paginated from backend
+const currentOrders = [...filteredOrders].sort((a, b) => {
+  const dispatchPriority = (status) => {
+    if (!status || status.toLowerCase() === "not dispatched") return 1;
+    if (status.toLowerCase() === "ready to dispatch") return 2;
+    if (status.toLowerCase() === "dispatched") return 3;
+    return 4;
+  };
+
+  const packagingPriority = (status) => {
+    if (!status || status.toLowerCase() === "unpackaged") return 1;
+    if (status.toLowerCase() === "packaged") return 2;
+    return 3;
+  };
+
+  const aDispatch = dispatchPriority(a.dispatchStatus);
+  const bDispatch = dispatchPriority(b.dispatchStatus);
+
+  if (aDispatch !== bDispatch) return aDispatch - bDispatch;
+
+  const aPack = packagingPriority(a.packagingStatus);
+  const bPack = packagingPriority(b.packagingStatus);
+
+  if (aPack !== bPack) return aPack - bPack;
+
+  return new Date(b.createdAt) - new Date(a.createdAt);
+});
 
   if (loading) {
     return (

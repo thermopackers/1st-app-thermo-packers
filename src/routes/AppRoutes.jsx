@@ -22,6 +22,7 @@ import RequisitionSlips from "../pages/RequisitionSlips";
 import ProformaInvoiceForm from "../components/ProformaInvoiceForm";
 import ProformaInvoiceDashboard from "../pages/ProformaInvoiceDashboard";
 import RegisterUser from "../pages/RegisterUser";
+import ProformaEditForm from "../pages/ProformaEditForm";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -349,6 +350,16 @@ export default function AppRoutes() {
     <ProtectedRoute allowedRoles={["admin", "accounts"]}>
       <PageWrapper>
         <RegisterUser />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/proforma-edit/:id"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging"]}>
+      <PageWrapper>
+        <ProformaEditForm />
       </PageWrapper>
     </ProtectedRoute>
   }

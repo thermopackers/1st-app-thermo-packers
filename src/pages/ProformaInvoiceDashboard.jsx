@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function ProformaInvoiceDashboard() {
   const [invoices, setInvoices] = useState([]);
@@ -9,7 +10,7 @@ export default function ProformaInvoiceDashboard() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 10;
-
+const navigate=useNavigate();
   const fetchInvoices = async () => {
     try {
       const res = await axiosInstance.get("/proforma/all", {
@@ -67,10 +68,12 @@ const deleteInvoice = async (id) => {
               <tr>
                 <th className="px-3 py-2 text-left">P/I No</th>
                 <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Customer Name</th> {/* Added */}
                 <th className="px-3 py-2 text-left">Bill To</th>
                 <th className="px-3 py-2 text-left">Ship To</th>
                 <th className="px-3 py-2 text-center">Total Products</th>
                 <th className="px-3 py-2 text-center">Invoice</th>
+                <th className="px-3 py-2 text-center">Edit</th>
                 <th className="px-3 py-2 text-center">Delete</th>
               </tr>
             </thead>
@@ -79,6 +82,7 @@ const deleteInvoice = async (id) => {
                 <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
                   <td className="px-3 py-2">{inv.invoiceNo}</td>
                   <td className="px-3 py-2">{inv.date}</td>
+                        <td className="px-3 py-2">{inv.customerName || "—"}</td> {/* Added */}
                   <td className="px-3 py-2">{inv.billTo}</td>
                   <td className="px-3 py-2">{inv.shipTo}</td>
                   <td className="px-3 py-2 text-center">{inv.products?.length}</td>
@@ -92,6 +96,15 @@ const deleteInvoice = async (id) => {
                       View
                     </a>
                   </td>
+                  <td className="px-3 py-2 text-center">
+  <button
+    onClick={() => navigate(`/proforma-edit/${inv._id}`)}
+    className="text-green-600 hover:text-green-800 font-medium"
+  >
+    ✏️ Edit
+  </button>
+</td>
+
                   <td className="px-3 py-2 text-center">
   <button
     onClick={() => deleteInvoice(inv._id)}

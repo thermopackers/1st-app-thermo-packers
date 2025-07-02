@@ -2,17 +2,17 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Swal from 'sweetalert2';
 import Select from "react-select";
-import InternalNavbar from "./InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { useNavigate } from "react-router-dom";
+import InternalNavbar from "../components/InternalNavbar";
 
-export default function ProformaInvoiceForm() {
+export default function ProformaEditForm() {
   const [productsList, setProductsList] = useState([]);
     const navigate = useNavigate(); // 👈 Initialize navigation
   const [loading, setLoading] = useState(false);
   const [narrationImages, setNarrationImages] = useState({});
-  const [narrationUploadLoading, setNarrationUploadLoading] = useState({});
   const [selectedImages, setSelectedImages] = useState({});
+  const [narrationUploadLoading, setNarrationUploadLoading] = useState({});
   const [form, setForm] = useState({
     invoiceNo: `PI/${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random() * 1000)}`,
     date: new Date().toISOString().split("T")[0],
@@ -46,13 +46,30 @@ useEffect(() => {
       toast.error("Error loading customer list");
     });
 }, []);
+const isEditing = !!form._id;
 
   const addProductRow = () => {
     setForm(prev => ({
       ...prev,
-      products: [...prev.products, { productId: "", name: "", hsn: "", qty: 1, unit: "", rate: 0, gst: 0,  narration: "",narrationImages: []  }]
+      products: [...prev.products, { productId: "", name: "", hsn: "", qty: 1, unit: "", rate: 0, gst: 0,  narration: "",narrationImages: [] }]
     }));
   };
+useEffect(() => {
+  const loadInvoice = async () => {
+    const id = location.pathname.split("/").pop();
+    const res = await axiosInstance.get(`/proforma/${id}`);
+    const invoice = res.data.invoice;
+
+    setForm(invoice);
+    setSelectedImages(
+      invoice.products.reduce((acc, p, i) => {
+        acc[i] = p.images || [];
+        return acc;
+      }, {})
+    );
+  };
+  loadInvoice();
+}, []);
 
   const removeProductRow = (index) => {
     const updated = [...form.products];
@@ -61,72 +78,40 @@ useEffect(() => {
   };
 
 const handleSubmit = async () => {
-  if (form.products.length === 0) {
-    toast.error("Please add at least one product before submitting.");
+  if (!form.products.length) {
+    toast.error("Add at least one product.");
     return;
   }
-  if (!form.billTo) {
-    toast.error("Please select a customer.");
-    return;
-  }
-
-  if (!form.transportMode.trim()) {
-    toast.error("Please enter Mode of Transport.");
-    return;
-  }
- // ✅ Validate freightType
-  if (!form.freightType) {
-    toast.error("Please select a Freight Type.");
-    return;
-  }
-
-  // ✅ Validate payment terms
-  const hasPaymentTerms = form.paymentTerms.length > 0 || form.customPaymentTerm.trim() !== "";
-  if (!hasPaymentTerms) {
-    toast.error("Please select or enter at least one Payment Term.");
-    return;
-  }
-  setLoading(true); // start loader
+if (form.freightType === 'Billed' && (!form.freight || Number(form.freight) <= 0)) {
+  toast.error("Please enter freight amount for 'Billed' type.");
+  return;
+}
 
   try {
-const updatedForm = {
-  ...form,
-  products: form.products.map((p, i) => ({
-    ...p,
-    images: selectedImages[i] || [],
-      narrationImages: p.narrationImages || [] // ✅ Add this line
+    setLoading(true);
+    const updatedForm = {
+      ...form,
+        remarks: form.remarks, // ✅ explicitly preserve
+      products: form.products.map((p, i) => ({
+        ...p,
+        images: selectedImages[i] || [],
+          narrationImages: p.narrationImages || [] // ✅ Add this line
 
-  }))
-};
+      }))
+    };
 
-const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm);
-    toast.success("PDF generated!");
-    window.open(res.data.pdfUrl, "_blank");
+    const res = await axiosInstance.put(`/proforma/${form._id}/edit-and-regenerate`, updatedForm);
 
-    // Clear form
-    setForm({
-      invoiceNo: `PI/${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random() * 1000)}`,
-      date: new Date().toISOString().split("T")[0],
-      billTo: "",
-      shipTo: "",
-      sameAddress: true,
-      inPunjab: true,
-      transportMode: "",
-      destination: "",
-      freight: 0,
-      packaging: 0,
-      contact: "",
-      remarks: "",
-      products: [],
-    });
-
+    toast.success("Invoice updated!");
+    window.open(res.data.updatedInvoice.pdfUrl, "_blank");
     navigate("/proforma-dashboard");
   } catch (err) {
-    toast.error("Error generating invoice");
+    toast.error("Failed to update invoice.");
   } finally {
-    setLoading(false); // stop loader
+    setLoading(false);
   }
 };
+
 
 
   useEffect(() => {
@@ -181,30 +166,39 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
 
   <div>
     <label className="text-sm font-medium">Customer</label>
-    <Select
-      className="text-sm"
-      placeholder="Select Customer..."
-      options={customers.map(c => ({
-        value: c._id,
-        label: c.name,
-        data: c
-      }))}
-      onChange={(selectedOption) => {
-        const customer = selectedOption.data;
-       setForm(f => ({
-  ...f,
-  customerName: customer.name || "", // ✅ Add this line
-  contact: customer.phone || "",
-  billTo: customer.address || "",
-  shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
-  gstin: customer.company || ""
-}));
+  <Select
+  className="text-sm"
+  placeholder="Select Customer..."
+  options={customers.map(c => ({
+    value: c._id,
+    label: c.name,
+    data: c
+  }))}
+  value={
+    customers.find(c => c.name === form.customerName)
+      ? {
+          value: customers.find(c => c.name === form.customerName)._id,
+          label: form.customerName,
+          data: customers.find(c => c.name === form.customerName)
+        }
+      : null
+  }
+  onChange={(selectedOption) => {
+    const customer = selectedOption.data;
+    setForm(f => ({
+      ...f,
+      customerName: customer.name || "",
+      contact: customer.phone || "",
+      billTo: customer.address || "",
+      shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
+      gstin: customer.company || ""
+    }));
+  }}
+  isSearchable
+  menuPortalTarget={document.body}
+  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+/>
 
-      }}
-      isSearchable
-      menuPortalTarget={document.body}
-      styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-    />
   </div>
 
   <div>
@@ -221,7 +215,6 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
         }))
       }
     />
-    
   </div>
 
   {!form.sameAddress && (
@@ -242,19 +235,23 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
        <div className="grid md:grid-cols-2 gap-4">
   <div>
     <label className="text-sm font-medium">Mode of Transport</label>
-    <input
-      className="input"
-      placeholder="Transport Mode"
-      onChange={(e) => setForm(f => ({ ...f, transportMode: e.target.value }))}
-    />
+  <input
+  className="input"
+  placeholder="Transport Mode"
+  value={form.transportMode}
+  onChange={(e) => setForm(f => ({ ...f, transportMode: e.target.value }))}
+/>
+
   </div>
   <div>
     <label className="text-sm font-medium">Destination</label>
-    <input
-      className="input"
-      placeholder="Destination"
-      onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
-    />
+   <input
+  className="input"
+  placeholder="Destination"
+  value={form.destination}
+  onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
+/>
+
   </div>
  <div>
   <label className="text-sm font-medium">Freight Type</label>
@@ -282,18 +279,19 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
 {form.freightType === "Billed" && (
   <div>
     <label className="text-sm font-medium">Freight Amount (₹)</label>
-    <input
-      className="input"
-      type="number"
-      placeholder="Freight Amount"
-      value={form.freight ?? ""}
-      onChange={(e) =>
-        setForm((f) => ({
-          ...f,
-freight: e.target.value,
-        }))
-      }
-    />
+   <input
+  className="input"
+  type="number"
+  placeholder="Freight Amount"
+  value={form.freight ?? ""}
+  onChange={(e) =>
+    setForm(f => ({
+      ...f,
+      freight: e.target.value
+    }))
+  }
+/>
+
   </div>
 )}
 <div className="col-span-2">
@@ -329,17 +327,19 @@ freight: e.target.value,
 </div>
   <div>
     <label className="text-sm font-medium">Packaging Charges (₹)</label>
-    <input
-      className="input"
-      type="number"
-      placeholder="Packaging Charges"
- value={form.packaging ?? ''}
-    onChange={(e) =>
-      setForm(f => ({
-        ...f,
-packaging: e.target.value,
-      }))
-    }    />
+  <input
+  className="input"
+  type="number"
+  placeholder="Packaging Charges"
+  value={form.packaging ?? ''}
+  onChange={(e) =>
+    setForm(f => ({
+      ...f,
+      packaging: e.target.value
+    }))
+  }
+/>
+
   </div>
 </div>
 
@@ -382,42 +382,61 @@ packaging: e.target.value,
             <td className="p-2">{i + 1}</td>
             <td className="w-64 min-w-[200px]">
               <div className="react-select-container z-50">
-                <Select
-                  className="text-sm"
-                  classNamePrefix="react-select"
-                  options={productsList.map(pr => ({
-                    value: pr._id,
-                    label: pr.name,
-                    data: pr
-                  }))}
-                  onChange={(selectedOption) => {
-                    const selected = selectedOption.data;
-                    const updated = [...form.products];
-                    updated[i] = {
-                      ...updated[i],
-                      productId: selected._id,
-                      name: selected.name,
-                      hsn: selected.hsnCode,
-                      unit: selected.unit,
-                      gst: selected.gstPercent,
-                      rate: updated[i].rate || selected.price || 0,
+               <Select
+  className="text-sm"
+  classNamePrefix="react-select"
+  options={productsList.map(pr => ({
+    value: pr._id,
+    label: pr.name,
+    data: pr
+  }))}
+  value={
+    productsList.find((option) => option._id === p.productId)
+      ? {
+          value: p.productId,
+          label: p.name,
+          data: {
+            _id: p.productId,
+            name: p.name,
+            hsnCode: p.hsn,
+            gstPercent: p.gst,
+            price: p.rate,
+            unit: p.unit,
+            images: p.images
+          }
+        }
+      : null
+  }
+  onChange={(selectedOption) => {
+    const selected = selectedOption.data;
+    const updated = [...form.products];
+updated[i] = {
+  ...updated[i],
+  productId: selected._id,
+  name: selected.name,
+  hsn: selected.hsnCode,
+  unit: selected.unit,
+  gst: selected.gstPercent,
+ rate: updated[i].rate || selected.price || 0,
                       qty: updated[i].qty || 1,
-                      images: selected.images || [],
-                    };
+  images: selected.images || [],
+};
 
-                    setForm(f => ({ ...f, products: updated }));
 
-                    setSelectedImages(prev => ({
-                      ...prev,
-                      [i]: selected.images || []
-                    }));
-                  }}
-                  menuPortalTarget={document.body}
-                  styles={{
-                    menuPortal: base => ({ ...base, zIndex: 9999 }),
-                  }}
-                  placeholder="Select product..."
-                />
+    setForm(f => ({ ...f, products: updated }));
+
+    setSelectedImages(prev => ({
+      ...prev,
+      [i]: selected.images || []
+    }));
+  }}
+  placeholder="Select product..."
+  menuPortalTarget={document.body}
+  styles={{
+    menuPortal: base => ({ ...base, zIndex: 9999 }),
+  }}
+/>
+
               </div>
 
               {selectedImages[i]?.length > 0 && (
@@ -505,6 +524,7 @@ packaging: e.target.value,
 <input
   type="file"
   accept="image/*"
+  className="bg-yellow-200 p-1 w-full"
   multiple
   onChange={async (e) => {
     const files = Array.from(e.target.files);
@@ -546,13 +566,13 @@ packaging: e.target.value,
 {narrationUploadLoading[i] && (
   <div className="mt-2">
     <div className="inline-block w-5 h-5 border-2 border-t-2 border-blue-500 rounded-full animate-spin"></div>
-    <span className="ml-2 text-sm text-blue-600">Uploading...</span>
+    <span className="ml-2 text-sm text-blue-600">Uploading... Please Wait</span>
   </div>
 )}
 
 
   {/* Preview + Delete */}
-  <div className="flex flex-wrap gap-2 mt-2">
+  <div className="flex flex-wrap gap-2 mt-2 bg-amber-200 mb-10 p-1">
     {form.products[i].narrationImages?.map((url, idx) => (
       <div key={idx} className="relative">
        <img
@@ -591,7 +611,7 @@ packaging: e.target.value,
         <button onClick={addProductRow} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded transition">➕ Add Product</button>
 
         {/* Remarks */}
-        <textarea className="textarea" placeholder="Remarks" onChange={(e) => setForm(f => ({ ...f, remarks: e.target.value }))} />
+        <textarea className="textarea"  value={form.remarks || ""} placeholder="Remarks" onChange={(e) => setForm(f => ({ ...f, remarks: e.target.value }))} />
 
         {/* Submit */}
         <div className="text-center">
@@ -602,8 +622,9 @@ packaging: e.target.value,
   }`}
   onClick={handleSubmit}
 >
-  🧾 Generate PDF
+  {isEditing ? "📄 Update PDF" : "🧾 Generate PDF"}
 </button>
+
 
         </div>
       </div>

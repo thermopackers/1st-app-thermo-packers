@@ -161,7 +161,30 @@ useEffect(() => {
   };
 
 
-  const currentOrders = filteredOrders
+const currentOrders = [...filteredOrders].sort((a, b) => {
+  const getPackagingPriority = (order) => {
+    const status = order.packagingStatus?.toLowerCase();
+    if (status === "unpackaged") return 1;
+    if (status === "packaged") return 2;
+    return 3;
+  };
+
+  const getDispatchPriority = (order) => {
+    const status = order.dispatchStatus?.toLowerCase();
+    if (status === "not dispatched") return 1;
+    if (status === "ready to dispatch") return 2;
+    if (status === "dispatched") return 3;
+    return 4;
+  };
+
+  const packagingDiff = getPackagingPriority(a) - getPackagingPriority(b);
+  if (packagingDiff !== 0) return packagingDiff;
+
+  const dispatchDiff = getDispatchPriority(a) - getDispatchPriority(b);
+  if (dispatchDiff !== 0) return dispatchDiff;
+
+  return new Date(b.createdAt) - new Date(a.createdAt); // newest first if all else equal
+});
 
 const handlePageChange = (page) => {
   if (page >= 1 && page <= totalPages) {
