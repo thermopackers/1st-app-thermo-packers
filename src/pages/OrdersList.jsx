@@ -24,6 +24,9 @@ export default function OrdersList() {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [filterLoading, setFilterLoading] = useState(false);
   const [products, setProducts] = useState([]);
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dispatchStatusFilter, setDispatchStatusFilter] = useState("");
   const [localSections, setLocalSections] = useState({});
   const [disabledOrders, setDisabledOrders] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,14 +39,13 @@ export default function OrdersList() {
     startDate: "",
     endDate: "",
   });
-  
+
   const sectionsList = [
     {
       key: "preExpander",
       label: "EPS/Thermocol Block Moulding",
     },
     { key: "shapeMoulding", label: "EPS/Thermocol Shape Moulding" },
-   
   ];
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState("sales");
@@ -51,18 +53,17 @@ export default function OrdersList() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersFetched, setOrdersFetched] = useState(false);
-const location = useLocation();
+  const location = useLocation();
 
   const ordersPerPage = 8;
-const groupOrdersByPO = (orders) => {
-  return orders.reduce((groups, order) => {
-    const po = order.po || "N/A";
-    if (!groups[po]) groups[po] = [];
-    groups[po].push(order);
-    return groups;
-  }, {});
-};
-
+  const groupOrdersByPO = (orders) => {
+    return orders.reduce((groups, order) => {
+      const po = order.po || "N/A";
+      if (!groups[po]) groups[po] = [];
+      groups[po].push(order);
+      return groups;
+    }, {});
+  };
 
   const getStockForProduct = (productName) => {
     const product = products.find((p) => p.name === productName);
@@ -72,169 +73,180 @@ const groupOrdersByPO = (orders) => {
   };
   const [selectedSections, setSelectedSections] = useState({});
   console.log("selectedSections", selectedSections);
- 
 
+  const handleSlipSubmit = async (payload) => {
+    try {
+      if (!selectedOrder) return;
 
-const handleSlipSubmit = async (payload) => {
-  try {
-    if (!selectedOrder) return;
+      console.log("🟡 Slip type:", slipType);
+      console.log("🟡 Selected order ID:", selectedOrder._id);
+      console.log("🟡 Full Payload:", payload);
+      console.log("✅ shapeFormData:", payload.shapeFormData);
+      console.log("✅ packagingFormData:", payload.packagingFormData);
 
-    console.log("🟡 Slip type:", slipType);
-    console.log("🟡 Selected order ID:", selectedOrder._id);
-    console.log("🟡 Full Payload:", payload);
-    console.log("✅ shapeFormData:", payload.shapeFormData);
-    console.log("✅ packagingFormData:", payload.packagingFormData);
+      if (slipType === "production") {
+        const hasShapeMoulding = selectedOrder?.requiredSections?.shapeMoulding;
 
-    if (slipType === "production") {
-  const hasShapeMoulding = selectedOrder?.requiredSections?.shapeMoulding;
+        if (hasShapeMoulding) {
+          // ✅ SHAPE MOULDING FLOW
+          await axiosInstance.post("/slips/production", {
+            ...payload.shapeFormData,
+            orderId: selectedOrder._id,
+          });
 
-  if (hasShapeMoulding) {
-    // ✅ SHAPE MOULDING FLOW
-    await axiosInstance.post("/slips/production", {
-      ...payload.shapeFormData,
-      orderId: selectedOrder._id,
-    });
+          await actuallySendToProduction(
+            selectedOrder._id,
+            payload.shapeFormData,
+            null,
+            payload.shapeFormData,
+            payload.packagingFormData
+          );
 
-    await actuallySendToProduction(
-      selectedOrder._id,
-      payload.shapeFormData,
-      null,
-      payload.shapeFormData,
-      payload.packagingFormData
-    );
+          // ✅ Send to Packaging Automatically
+          await actuallySendToPackaging(
+            selectedOrder._id,
+            payload.packagingFormData
+          );
+        } else {
+          console.log("📦 Submitting Dana Slip:", {
+            orderId: selectedOrder._id,
+            ...payload.danaFormData,
+          });
 
-    // ✅ Send to Packaging Automatically
-    await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
+          // ✅ BLOCK MOULDING FLOW
+          await axiosInstance.post("/slips/dana", {
+            orderId: selectedOrder._id,
+            ...payload.danaFormData,
+          });
 
-  } else {
-    console.log("📦 Submitting Dana Slip:", {
-  orderId: selectedOrder._id,
-  ...payload.danaFormData,
-});
+          await axiosInstance.post("/slips/dispatch", {
+            orderId: selectedOrder._id,
+            row: [payload.cuttingFormData],
+          });
 
-    // ✅ BLOCK MOULDING FLOW
-await axiosInstance.post("/slips/dana", {
-  orderId: selectedOrder._id,
-  ...payload.danaFormData,
-});
+          await axiosInstance.put(
+            `/orders/send-to-production/${selectedOrder._id}`,
+            {
+              sections: ["blockMoulding"],
+              remainingToProduce: 0,
+              cuttingRows: [payload.cuttingFormData],
+              danaRows: [payload.danaFormData], // ✅ Add this
+            }
+          );
 
+          // ✅ Set Dispatch Status & Rows
+          await axiosInstance.post(`/orders/send-to-dispatch`, {
+            orderIds: [selectedOrder._id],
+            sections: ["blockMoulding"], // or other applicable section
+            cuttingRows: [payload.cuttingFormData],
+          });
 
-    await axiosInstance.post("/slips/dispatch", {
-      orderId: selectedOrder._id,
-      row: [payload.cuttingFormData],
-    });
+          // ✅ Send to Dispatch Automatically
+          await actuallySendToDispatch(selectedOrder._id, [
+            payload.cuttingFormData,
+          ]);
+        }
 
-  await axiosInstance.put(`/orders/send-to-production/${selectedOrder._id}`, {
-  sections: ["blockMoulding"],
-  remainingToProduce: 0,
-  cuttingRows: [payload.cuttingFormData],
-    danaRows: [payload.danaFormData], // ✅ Add this
+        await Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Production slip submitted successfully!",
+        });
 
-});
+        setModalOpen(false);
+        setSelectedOrder(null);
+        return;
+      }
 
-// ✅ Set Dispatch Status & Rows
-await axiosInstance.post(`/orders/send-to-dispatch`, {
-  orderIds: [selectedOrder._id],
-  sections: ["blockMoulding"], // or other applicable section
-  cuttingRows: [payload.cuttingFormData],
-});
+      let endpoint;
+      let formToSave;
 
-    // ✅ Send to Dispatch Automatically
-    await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
-  }
+      if (slipType === "packaging") {
+        endpoint = "/slips/packaging";
+        formToSave = {
+          ...payload.packagingFormData,
+          orderId: selectedOrder._id,
+        };
+      } else if (slipType === "dispatch") {
+        endpoint = "/slips/dispatch";
 
-  await Swal.fire({
-    icon: "success",
-    title: "Success!",
-    text: "Production slip submitted successfully!",
-  });
+        formToSave = {
+          orderId: selectedOrder._id,
+          row: [payload.cuttingFormData], // <-- important fix here
+        };
 
-  setModalOpen(false);
-  setSelectedOrder(null);
-  return;
-}
+        console.log("🔥 Dispatch cuttingFormData:", payload.cuttingFormData);
+      } else if (slipType === "shape-packaging") {
+        console.log("📦 Submitting shape-packaging forms...");
 
+        await axiosInstance.post("/slips/production", {
+          ...payload.shapeFormData,
+          orderId: selectedOrder._id,
+        });
 
-    let endpoint;
-    let formToSave;
+        await axiosInstance.post("/slips/packaging", {
+          ...payload.packagingFormData,
+          orderId: selectedOrder._id,
+        });
 
-    if (slipType === "packaging") {
-      endpoint = "/slips/packaging";
-      formToSave = {
-        ...payload.packagingFormData,
-        orderId: selectedOrder._id,
-      };
-    } else if (slipType === "dispatch") {
-      endpoint = "/slips/dispatch";
+        await actuallySendToProduction(
+          selectedOrder._id,
+          payload.shapeFormData,
+          null,
+          payload.shapeFormData,
+          payload.packagingFormData
+        );
+        await actuallySendToPackaging(
+          selectedOrder._id,
+          payload.packagingFormData
+        );
 
-      formToSave = {
-        orderId: selectedOrder._id,
-        row: [payload.cuttingFormData],  // <-- important fix here
-      };
+        await Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Shape and packaging slips submitted successfully!",
+        });
 
-      console.log("🔥 Dispatch cuttingFormData:", payload.cuttingFormData);
-    } else if (slipType === "shape-packaging") {
-      console.log("📦 Submitting shape-packaging forms...");
+        setModalOpen(false);
+        setSelectedOrder(null);
+        return;
+      } else {
+        console.warn("⚠️ Unsupported slip type:", slipType);
+        return;
+      }
 
-      await axiosInstance.post("/slips/production", {
-        ...payload.shapeFormData,
-        orderId: selectedOrder._id,
-      });
+      // Submit to dispatch or packaging
+      console.log("📤 Submitting form to:", endpoint);
+      console.log("📄 Form data being sent:", formToSave);
 
-      await axiosInstance.post("/slips/packaging", {
-        ...payload.packagingFormData,
-        orderId: selectedOrder._id,
-      });
+      await axiosInstance.post(endpoint, formToSave);
 
-      await actuallySendToProduction(
-        selectedOrder._id,
-        payload.shapeFormData,
-        null,
-        payload.shapeFormData,
-    payload.packagingFormData
-      );
-  await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
+      if (slipType === "packaging") {
+        await actuallySendToPackaging(
+          selectedOrder._id,
+          payload.packagingFormData
+        );
+      } else if (slipType === "dispatch") {
+        await actuallySendToDispatch(selectedOrder._id, [
+          payload.cuttingFormData,
+        ]);
+      }
 
       await Swal.fire({
         icon: "success",
         title: "Success!",
-        text: "Shape and packaging slips submitted successfully!",
+        text: `${
+          slipType === "dispatch" ? "Dispatch" : "Packaging"
+        } slip submitted successfully!`,
       });
 
       setModalOpen(false);
       setSelectedOrder(null);
-      return;
-    } else {
-      console.warn("⚠️ Unsupported slip type:", slipType);
-      return;
+    } catch (err) {
+      console.error("❌ Error submitting slip:", err);
+      alert("Error submitting slip");
     }
-
-    // Submit to dispatch or packaging
-    console.log("📤 Submitting form to:", endpoint);
-    console.log("📄 Form data being sent:", formToSave);
-
-    await axiosInstance.post(endpoint, formToSave);
-
-    if (slipType === "packaging") {
-      await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
-    } else if (slipType === "dispatch") {
-      await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
-    }
-
-    await Swal.fire({
-      icon: "success",
-      title: "Success!",
-      text: `${slipType === "dispatch" ? "Dispatch" : "Packaging"} slip submitted successfully!`,
-    });
-
-    setModalOpen(false);
-    setSelectedOrder(null);
-  } catch (err) {
-    console.error("❌ Error submitting slip:", err);
-    alert("Error submitting slip");
-  }
-};
-
+  };
 
   useEffect(() => {
     axiosInstance
@@ -242,7 +254,6 @@ await axiosInstance.post(`/orders/send-to-dispatch`, {
       .then((res) => setProducts(res.data))
       .catch((err) => console.error("Error fetching products:", err));
   }, []);
-
 
   // ✅ 2. This resets pagination ONLY when the searchTerm changes
   useEffect(() => {
@@ -272,72 +283,82 @@ await axiosInstance.post(`/orders/send-to-dispatch`, {
     });
     setLocalSections(initialSections);
   }, [orders]);
-const fetchOrders = async (page = 1) => {
-  setLoading(true);
-  try {
-    const decoded = JSON.parse(atob(token.split(".")[1]));
-    setRole(decoded.role);
+  const fetchOrders = async (page = 1) => {
+    setLoading(true);
+    try {
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      setRole(decoded.role);
 
-    const params = {
-      page,
-      limit: ordersPerPage,
-      ...filters,
-      search: searchTerm, // ✅ send to backend
-    };
+      const params = {
+        page,
+        limit: ordersPerPage,
+        ...filters,
+        search: searchTerm, // ✅ send to backend
+        sort: sortOrder,
+        status: statusFilter,
+        dispatchStatus: dispatchStatusFilter,
+      };
 
-    let url = "/orders";
-    if (decoded.role === "production") url = "/orders/production-dashboard";
-    else if (decoded.role === "dispatch") url = "/orders/dispatch-dashboard";
+      let url = "/orders";
+      if (decoded.role === "production") url = "/orders/production-dashboard";
+      else if (decoded.role === "dispatch") url = "/orders/dispatch-dashboard";
 
-    const res = await axiosInstance.get(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    });
+      const res = await axiosInstance.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
 
-    setOrders(res.data.orders);
-    setFilteredOrders(res.data.orders);
-    setTotalPages(res.data.totalPages);
-    setOrdersFetched(true);
-  } catch (err) {
-    console.error("Error fetching orders:", err);
-    toast.error("Failed to fetch orders");
-  } finally {
-    setLoading(false);
-  }
-};
+      setOrders(res.data.orders);
+      setFilteredOrders(res.data.orders);
+      setTotalPages(res.data.totalPages);
+      setOrdersFetched(true);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      toast.error("Failed to fetch orders");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     if (!token) {
       navigate("/login");
       return;
     }
 
-
     fetchOrders(currentPage);
-  }, [filters, token,location,currentPage,searchTerm]);
+  }, [
+  filters,
+  token,
+  location,
+  currentPage,
+  searchTerm,
+  sortOrder,
+  statusFilter,
+  dispatchStatusFilter,
+]);
 
+  const MySwal = withReactContent(Swal);
 
-const MySwal = withReactContent(Swal);
+  const handleViewPOCopy = (order) => {
+    const isPDF = order.poCopy?.toLowerCase().endsWith(".pdf");
+    const url = order.poCopy?.startsWith("http")
+      ? order.poCopy
+      : `https://res.cloudinary.com/dcr8k5amk/raw/upload/${order.poCopy}`;
 
-const handleViewPOCopy = (order) => {
-  const isPDF = order.poCopy?.toLowerCase().endsWith(".pdf");
-  const url = order.poCopy?.startsWith("http")
-    ? order.poCopy
-    : `https://res.cloudinary.com/dcr8k5amk/raw/upload/${order.poCopy}`;
-
-  MySwal.fire({
-    title: "📎 PO Copy",
-    html: isPDF
-      ? `<iframe src="${url}" width="100%" height="500px" style="border:none;"></iframe>`
-      : `<img src="${url}" style="max-height:500px; max-width:100%;" />`,
-    showCancelButton: true,
-    confirmButtonText: "🖊 Change PO Copy",
-    cancelButtonText: "Close",
-    preConfirm: () => {
-      document.getElementById(`upload-po-${order._id}`).click();
-      return false; // prevent closing
-    },
-  });
-};
+    MySwal.fire({
+      title: "📎 PO Copy",
+      html: isPDF
+        ? `<iframe src="${url}" width="100%" height="500px" style="border:none;"></iframe>`
+        : `<img src="${url}" style="max-height:500px; max-width:100%;" />`,
+      showCancelButton: true,
+      confirmButtonText: "🖊 Change PO Copy",
+      cancelButtonText: "Close",
+      preConfirm: () => {
+        document.getElementById(`upload-po-${order._id}`).click();
+        return false; // prevent closing
+      },
+    });
+  };
 
   useEffect(() => {
     const storedDisabled = localStorage.getItem("disabledOrders");
@@ -377,7 +398,7 @@ const handleViewPOCopy = (order) => {
       });
       setOrders(orders.filter((o) => o._id !== id));
       toast.success("Order deleted");
-      fetchOrders()
+      fetchOrders();
     } catch (err) {
       console.error("Error deleting:", err);
     }
@@ -465,74 +486,51 @@ const handleViewPOCopy = (order) => {
     }
   }, [ordersFetched]);
 
+const currentOrders = filteredOrders;
 
-const currentOrders = [...filteredOrders].sort((a, b) => {
-  const getOrderPriority = (order) => {
-    if (
-      order.status === "pending" ||
-      order.dispatchStatus?.toLowerCase() === "not dispatched"
-    ) return 1;
-
-    if (order.status === "in process") return 2;
-
-    if (
-      order.status === "processed" &&
-      (order.dispatchStatus === "not dispatched" ||
-        order.dispatchStatus === "ready to dispatch")
-    ) return 3;
-
-    if (order.dispatchStatus === "dispatched") return 4;
-
-    return 5; // fallback
-  };
-
-  return getOrderPriority(a) - getOrderPriority(b);
-});
 
   console.log("currentOrders", currentOrders);
   const groupedOrders = groupOrdersByPO(currentOrders);
 
   // ✅ Declare SweetAlert2 with Tailwind buttons globally
- 
- 
-const handleSectionRadioChange = async (orderId, selectedKey) => {
-  const updatedSections = {};
 
-  // Set only the selected section to true
-  sectionsList.forEach(({ key }) => {
-    updatedSections[key] = key === selectedKey;
-  });
+  const handleSectionRadioChange = async (orderId, selectedKey) => {
+    const updatedSections = {};
 
-  try {
-    const { data: updatedOrder } = await axiosInstance.put(
-      `/orders/${orderId}/sections`,
-      { requiredSections: updatedSections }
-    );
+    // Set only the selected section to true
+    sectionsList.forEach(({ key }) => {
+      updatedSections[key] = key === selectedKey;
+    });
 
-    // Update local state
-    setOrders((prevOrders) =>
-      prevOrders.map((o) =>
-        o._id === orderId
-          ? {
-              ...o,
-              requiredSections: updatedOrder.requiredSections,
-              sentTo: updatedOrder.sentTo,
-            }
-          : o
-      )
-    );
+    try {
+      const { data: updatedOrder } = await axiosInstance.put(
+        `/orders/${orderId}/sections`,
+        { requiredSections: updatedSections }
+      );
 
-    setLocalSections((prev) => ({
-      ...prev,
-      [orderId]: updatedOrder.requiredSections,
-    }));
-     // Call fetchOrders here to refresh the data
-    fetchOrders(currentPage);
-  } catch (error) {
-    console.error("Error updating section selection:", error);
-  }
-};
+      // Update local state
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o._id === orderId
+            ? {
+                ...o,
+                requiredSections: updatedOrder.requiredSections,
+                sentTo: updatedOrder.sentTo,
+              }
+            : o
+        )
+      );
 
+      setLocalSections((prev) => ({
+        ...prev,
+        [orderId]: updatedOrder.requiredSections,
+      }));
+      // Call fetchOrders here to refresh the data
+      fetchOrders(currentPage);
+    } catch (error) {
+      console.error("Error updating section selection:", error);
+    }
+  };
 
   const swalWithTailwindButtons = Swal.mixin({
     customClass: {
@@ -546,71 +544,77 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
 
   // Send selected orders to Production
 
- const actuallySendToProduction = async (orderId, shapeRowData,packagingFormData, cuttingFormData) => {
- console.log("cuttocut😍",cuttingFormData);
- 
-  const freshOrder = orders.find((o) => o._id === orderId);
-  if (!freshOrder) return;
+  const actuallySendToProduction = async (
+    orderId,
+    shapeRowData,
+    packagingFormData,
+    cuttingFormData
+  ) => {
+    console.log("cuttocut😍", cuttingFormData);
 
-  const selectedSections = Object.entries(freshOrder.requiredSections || {})
-    .filter(([_, value]) => value)
-    .map(([key]) => key);
+    const freshOrder = orders.find((o) => o._id === orderId);
+    if (!freshOrder) return;
 
-  const product = products.find((p) => p.name === freshOrder.product);
-  const stock = product ? product.quantity : 0;
-  const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
+    const selectedSections = Object.entries(freshOrder.requiredSections || {})
+      .filter(([_, value]) => value)
+      .map(([key]) => key);
 
-  // ✅ Construct danaSlip from shapeRowData
- const danaRows = [
-  {
-    productName: shapeRowData.productName || freshOrder.product,
-    rawMaterial: shapeRowData.dryWeight,
-    quantity: shapeRowData.quantity,
-    remarks: shapeRowData.remarks,
-     density: shapeRowData.density || "",             // Add actual value
-    recycledDana: shapeRowData.recycledDana || "",   // Add actual value
-    weight: shapeRowData.weight || "",               // Add actual value
-    grade: shapeRowData.grade || "",                 // Add actual value
-  },
-];
+    const product = products.find((p) => p.name === freshOrder.product);
+    const stock = product ? product.quantity : 0;
+    const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
 
-
-  // ✅ Construct dispatchSlip from cuttingFormData
-  const dispatchSlip = {
-    size: cuttingFormData.size,
-    density: cuttingFormData.density,
-    quantity: cuttingFormData.quantity,
-    remarks: cuttingFormData.remarks,
-  };
-
-  try {
-    const res = await axiosInstance.put(
-      `/orders/send-to-production/${orderId}`,
+    // ✅ Construct danaSlip from shapeRowData
+    const danaRows = [
       {
-        sections: selectedSections,
-        remainingToProduce: remainingQuantity,
-        shapeRows: shapeRowData ? [shapeRowData] : [],
-        cuttingRows: cuttingFormData ? [cuttingFormData] : [],
-        packagingSlip: packagingFormData || null,
-danaRows,
-        dispatchSlip,
+        productName: shapeRowData.productName || freshOrder.product,
+        rawMaterial: shapeRowData.dryWeight,
+        quantity: shapeRowData.quantity,
+        remarks: shapeRowData.remarks,
+        density: shapeRowData.density || "", // Add actual value
+        recycledDana: shapeRowData.recycledDana || "", // Add actual value
+        weight: shapeRowData.weight || "", // Add actual value
+        grade: shapeRowData.grade || "", // Add actual value
+      },
+    ];
+
+    // ✅ Construct dispatchSlip from cuttingFormData
+    const dispatchSlip = {
+      size: cuttingFormData.size,
+      density: cuttingFormData.density,
+      quantity: cuttingFormData.quantity,
+      remarks: cuttingFormData.remarks,
+    };
+
+    try {
+      const res = await axiosInstance.put(
+        `/orders/send-to-production/${orderId}`,
+        {
+          sections: selectedSections,
+          remainingToProduce: remainingQuantity,
+          shapeRows: shapeRowData ? [shapeRowData] : [],
+          cuttingRows: cuttingFormData ? [cuttingFormData] : [],
+          packagingSlip: packagingFormData || null,
+          danaRows,
+          dispatchSlip,
+        }
+      );
+
+      if (res.data.message === "Order sent to production") {
+        setDisabledOrders((prev) => {
+          const updated = { ...prev, [orderId]: true };
+          localStorage.setItem("disabledOrders", JSON.stringify(updated));
+          return updated;
+        });
       }
-    );
-
-    if (res.data.message === "Order sent to production") {
-      setDisabledOrders((prev) => {
-        const updated = { ...prev, [orderId]: true };
-        localStorage.setItem("disabledOrders", JSON.stringify(updated));
-        return updated;
-      });
+    } catch (error) {
+      console.error("❌ Error sending to Production:", error);
+      alert(
+        `Error submitting slip: ${
+          error?.response?.data?.message || error.message
+        }`
+      );
     }
-  } catch (error) {
-    console.error("❌ Error sending to Production:", error);
-      alert(`Error submitting slip: ${error?.response?.data?.message || error.message}`);
-
-  }
-};
-
+  };
 
   const actuallySendToPackaging = async (orderId, packagingFormData) => {
     try {
@@ -695,13 +699,13 @@ danaRows,
   return (
     <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {uploadingPOCopy && (
-  <div className="fixed inset-0 bg-[#000000af] bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white px-6 py-4 rounded-md shadow-md flex flex-col items-center gap-3">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-      <p className="text-gray-700">Uploading PO Copy...</p>
-    </div>
-  </div>
-)}
+        <div className="fixed inset-0 bg-[#000000af] bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white px-6 py-4 rounded-md shadow-md flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+            <p className="text-gray-700">Uploading PO Copy...</p>
+          </div>
+        </div>
+      )}
 
       <InternalNavbar />
       <div className="max-w-7xl min-h-[100vh] mx-auto p-6 relative ">
@@ -751,6 +755,9 @@ danaRows,
                 onClick={() => {
                   setFilters({ employeeId: "", startDate: "", endDate: "" });
                   setSearchTerm("");
+                   setSortOrder("newest");
+  setStatusFilter("");
+  setDispatchStatusFilter("");
                 }}
                 className="w-full bg-[#b632ebd7] font-bold hover:bg-[#B229EA] cursor-pointer text-white px-4 py-2 rounded-lg shadow-md transition"
               >
@@ -814,20 +821,22 @@ danaRows,
               className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-{/* Clear Filters Button (Sales Role) */}
-{(role === "sales" || role === "dispatch" || role === "packaging") && (
-  <div className="col-span-1 flex items-end">
-    <button
-      onClick={() => {
-        setFilters({ employeeId: "", startDate: "", endDate: "" });
-        setSearchTerm("");
-      }}
-      className="w-full bg-yellow-500 cursor-pointer hover:bg-yellow-600 text-white font-bold px-4 py-2 rounded-md shadow-lg transition"
-    >
-      ⟳ Clear Filters
-    </button>
-  </div>
-)}
+          {/* Clear Filters Button (Sales Role) */}
+          {(role === "sales" ||
+            role === "dispatch" ||
+            role === "packaging") && (
+            <div className="col-span-1 flex items-end">
+              <button
+                onClick={() => {
+                  setFilters({ employeeId: "", startDate: "", endDate: "" });
+                  setSearchTerm("");
+                }}
+                className="w-full bg-yellow-500 cursor-pointer hover:bg-yellow-600 text-white font-bold px-4 py-2 rounded-md shadow-lg transition"
+              >
+                ⟳ Clear Filters
+              </button>
+            </div>
+          )}
 
           {/* Export Button */}
           {orders.length > 0 && (
@@ -840,20 +849,68 @@ danaRows,
               </button>
             </div>
           )}
+          {/* Sort Order */}
+<div className="col-span-1">
+  <label className="block text-sm font-semibold text-gray-700 mb-1">
+    🕒 Sort By
+  </label>
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+</div>
+
+{/* Status Filter */}
+<div className="col-span-1">
+  <label className="block text-sm font-semibold text-gray-700 mb-1">
+    🏷️ Production Status
+  </label>
+  <select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="">All</option>
+    <option value="pending">Pending</option>
+    <option value="in process">In Process</option>
+    <option value="processed">Processed</option>
+  </select>
+</div>
+
+{/* Dispatch Status Filter */}
+<div className="col-span-1">
+  <label className="block text-sm font-semibold text-gray-700 mb-1">
+    🚚 Dispatch Status
+  </label>
+  <select
+    value={dispatchStatusFilter}
+    onChange={(e) => setDispatchStatusFilter(e.target.value)}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="">All</option>
+    <option value="not dispatched">Not Dispatched</option>
+    <option value="ready to dispatch">Ready to Dispatch</option>
+    <option value="dispatched">Dispatched</option>
+  </select>
+</div>
+
         </div>
 
         {/* Table and Pagination logic here */}
-       {loading || filterLoading ? (
-  <div className="flex justify-center items-center h-120">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-16 h-16 border-4 border-purple-300 border-t-[#355DFC] rounded-full animate-spin"></div>
-      <p className="text-[#355DFC] font-medium">
-        {loading ? "Loading orders..." : "Filtering orders..."}
-      </p>
-    </div>
-  </div>
-) : currentOrders.length === 0 ? (
-
+        {loading || filterLoading ? (
+          <div className="flex justify-center items-center h-120">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 border-4 border-purple-300 border-t-[#355DFC] rounded-full animate-spin"></div>
+              <p className="text-[#355DFC] font-medium">
+                {loading ? "Loading orders..." : "Filtering orders..."}
+              </p>
+            </div>
+          </div>
+        ) : currentOrders.length === 0 ? (
           <h1 className="text-center font-bold text-2xl text-gray-600">
             No orders found!
           </h1>
@@ -907,7 +964,8 @@ danaRows,
                         Dispatch Time
                       </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
-Remarks                      </th>
+                        Remarks{" "}
+                      </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[120px]">
                         PO Copy
                       </th>
@@ -939,739 +997,805 @@ Remarks                      </th>
                         Packaging Status
                       </th>
                       {/* {role !== "dispatch" && ( */}
-                        <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
-                          Dispatch Status
-                        </th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+                        Dispatch Status
+                      </th>
                       {/* )} */}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
-                    {Object.entries(groupOrdersByPO(currentOrders)).map(([poNumber, poOrders], index) => (
-  <React.Fragment key={poNumber}>
-    <tr className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-purple-100'} text-left`}>
-      <td colSpan="100%" className="px-4 py-2 font-bold text-gray-800">
-        📄 <strong>PO:</strong> {poNumber} — {poOrders.length} order{poOrders.length > 1 ? "s" : ""}
-      </td>
-    </tr>
+                    {Object.entries(groupOrdersByPO(currentOrders)).map(
+                      ([poNumber, poOrders], index) => (
+                        <React.Fragment key={poNumber}>
+                          <tr
+                            className={`${
+                              index % 2 === 0 ? "bg-blue-100" : "bg-purple-100"
+                            } text-left`}
+                          >
+                            <td
+                              colSpan="100%"
+                              className="px-4 py-2 font-bold text-gray-800"
+                            >
+                              📄 <strong>PO:</strong> {poNumber} —{" "}
+                              {poOrders.length} order
+                              {poOrders.length > 1 ? "s" : ""}
+                            </td>
+                          </tr>
 
-    {poOrders.map((order) => {
-console.log("📎 PO COPY URL:", order.poCopy);
+                          {poOrders.map((order) => {
+                            console.log("📎 PO COPY URL:", order.poCopy);
 
-      const isSent =
-        order.packagingSlip || order.cuttingSlip || order.shapeSlip || order.danaSlip;
-const productKey = order.product.toLowerCase();
-      return (
-         <tr key={order._id} className="order-row">
-                          <td className="px-4 py-2 text-sm text-gray-800">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-800">
-                            {order.shortId}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {order.customerName}
-                          </td>
-                          
-                          
-  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
-  <button
-    onClick={() => {
-      const product = products.find((p) => p.name === order.product);
-      if (product?.images?.length > 0) {
-        setActiveProductImage({
-          name: product.name,
-          images: product.images,
-        });
-      } else {
-        Swal.fire({
-          icon: "info",
-          title: "No Image",
-          text: "No images available for this product.",
-        });
-      }
-    }}
-  >
-    {order.product}
-  </button>
-</td>
-
-
-
-
-
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {order.size ? order.size : "N/A"}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {order.quantity}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {getStockForProduct(order.product)}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap font-bold bg-red-200">
-                            {Math.max(
-                              order.quantity -
-                                getStockForProduct(order.product),
-                              0
-                            )}
-                          </td>
-
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            ₹{order.price}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {order.density}kg/m<sup>3</sup>
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            ₹{order.packagingCharge}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {order.po}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {`${order.freight}: ₹${order.freightAmount}`}
-                          </td>
-
-                          {/* ✅ Dispatch Date */}
-                          <td className="px-4 py-2 whitespace-nowrap max-w-[160px] truncate">
-                            {(() => {
-                              if (!order.date) return "N/A";
-
-                              const today = new Date();
-                              const deliveryDate = new Date(order.date);
-
-                              // Set both dates to midnight to ignore the time portion
-                              today.setHours(0, 0, 0, 0);
-                              deliveryDate.setHours(0, 0, 0, 0);
-
-                              const diffDays = Math.ceil(
-                                (deliveryDate - today) / (1000 * 60 * 60 * 24)
-                              );
-
-                              // Compare the days difference
-                              if (diffDays <= 7) return "Within 1 Week";
-                              if (diffDays <= 14) return "Within 2 Weeks";
-                              if (diffDays <= 20) return "Within 20 Days";
-
-                              // If no match, return the date in the required format
-                              return deliveryDate.toLocaleDateString("en-IN", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              });
-                            })()}
-                          </td>
-                                <td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
-  {order.remarks || "N/A"}
-</td>
-
-
-                          {/* ✅ PO Copy */}
-            <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-  {/* Only show once per PO */}
-  {order._id === poOrders[0]._id && (
-    <>
-      {order.poCopy ? (
-        <div className="flex flex-col gap-1">
-          <button
-            onClick={() => {
-              const isPDF =
-                order.poCopy.toLowerCase().endsWith(".pdf") ||
-                order.poCopy.includes(".pdf");
-
-              Swal.fire({
-                title: "PO Copy Preview",
-                html: isPDF
-                  ? `<iframe src="${order.poCopy}" width="100%" height="500px" style="border:none;"></iframe>`
-                  : `<img src="${order.poCopy}" style="max-width:100%; max-height:500px;" />`,
-                width: 700,
-                showCancelButton: true,
-                showConfirmButton: false,
-                cancelButtonText: "Close",
-              });
-            }}
-            className="text-blue-600 underline hover:text-blue-800 text-left truncate"
-          >
-            📄 {order.poOriginalName || "View PO Copy"}
-          </button>
-
-          <button
-            onClick={async () => {
-              const { value: file } = await Swal.fire({
-                title: "Upload new PO Copy",
-                input: "file",
-                inputAttributes: {
-                  accept: "application/pdf,image/*",
-                  "aria-label": "Upload PO Copy",
-                },
-                confirmButtonText: "Upload",
-                showCancelButton: true,
-              });
-
-              if (file) {
-                const formData = new FormData();
-                formData.append("poCopy", file);
-                setUploadingPOCopy(true);
-
-                try {
-                  const res = await axiosInstance.post(
-                    `/files/upload/po-copy/${order._id}`,
-                    formData,
-                    {
-                      headers: {
-                        "Content-Type": "multipart/form-data",
-                      },
-                    }
-                  );
-
-                  Swal.fire("✅ Updated!", "PO Copy updated successfully", "success");
-                  window.location.reload();
-                } catch (err) {
-                  Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
-                  console.error(err);
-                } finally {
-                  setUploadingPOCopy(false);
-                }
-              }
-            }}
-            className="text-sm text-gray-600 underline hover:text-red-600"
-          >
-            ✏️ Edit PO Copy
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={async () => {
-            const { value: file } = await Swal.fire({
-              title: "Upload PO Copy",
-              input: "file",
-              inputAttributes: {
-                accept: "application/pdf,image/*",
-                "aria-label": "Upload PO Copy",
-              },
-              confirmButtonText: "Upload",
-              showCancelButton: true,
-            });
-
-            if (file) {
-              const formData = new FormData();
-              formData.append("poCopy", file);
-              setUploadingPOCopy(true);
-
-              try {
-                const res = await axiosInstance.post(
-                  `/files/upload/po-copy/${order._id}`,
-                  formData,
-                  {
-                    headers: {
-                      "Content-Type": "multipart/form-data",
-                    },
-                  }
-                );
-
-                Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
-                window.location.reload();
-              } catch (err) {
-                Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
-                console.error(err);
-              } finally {
-                setUploadingPOCopy(false);
-              }
-            }
-          }}
-          className="text-blue-600 underline hover:text-blue-800 text-sm"
-        >
-          📤 Upload PO Copy
-        </button>
-      )}
-    </>
-  )}
-</td>
-
-
-
-
- 
-
-
-
-
-
-
-                          {/* ✅ Action Buttons */}
-                          {role !== "production" &&
-                            role !== "dispatch" &&
-                            role !== "packaging" && (
-                              <td className="px-4 py-2 whitespace-nowrap">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                 <button
-  className={`flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm shadow-md transition 
-    ${isSent
-      ? "bg-gray-400 text-white cursor-not-allowed"
-      : "bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"}
-  `}
-  disabled={isSent}
-  onClick={() => {
-    if (isSent) return;
-    setEditOrder(order);
-  }}
->
-  ✏️ Edit
-</button>
-
-                                  <button
-                                    className="flex cursor-pointer items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm shadow-md transition"
-                                    onClick={() => handleDelete(order._id)}
-                                  >
-                                    🗑️ Delete
-                                  </button>
-                                </div>
-                              </td>
-                            )}
-
-                          {role !== "production" &&
-                            role !== "dispatch" &&
-                            role !== "sales" &&
-                            role !== "admin" &&
-                            role !== "packaging" && (
-                              <>
-                                {/* Section Checkboxes */}
+                            const isSent =
+                              order.packagingSlip ||
+                              order.cuttingSlip ||
+                              order.shapeSlip ||
+                              order.danaSlip;
+                            const productKey = order.product.toLowerCase();
+                            return (
+                              <tr key={order._id} className="order-row">
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                  {new Date(
+                                    order.createdAt
+                                  ).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-800">
+                                  {order.shortId}
+                                </td>
                                 <td className="px-4 py-2 whitespace-nowrap">
-                                 {sectionsList.map((section) => {
-  const keyId = `${order._id}-${section.key}`;
-
-  return (
-    <label key={keyId} className="flex items-center gap-2">
-      <input
-        type="radio"
-        name={`section-${order._id}`} // Group radio buttons per order
-        value={section.key}
-        checked={localSections[order._id]?.[section.key] || false}
-        disabled={!!disabledOrders[order._id]}
-        onChange={() => handleSectionRadioChange(order._id, section.key)}
-      />
-      {section.label}
-    </label>
-  );
-})}
-
+                                  {order.customerName}
                                 </td>
 
-                                {/* Buttons Logic */}
-                                <td className="p-2 flex md:flex-col gap-2">
+                                <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+                                  <button
+                                    onClick={() => {
+                                      const product = products.find(
+                                        (p) => p.name === order.product
+                                      );
+                                      if (product?.images?.length > 0) {
+                                        setActiveProductImage({
+                                          name: product.name,
+                                          images: product.images,
+                                        });
+                                      } else {
+                                        Swal.fire({
+                                          icon: "info",
+                                          title: "No Image",
+                                          text: "No images available for this product.",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    {order.product}
+                                  </button>
+                                </td>
+
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.size ? order.size : "N/A"}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.quantity}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {getStockForProduct(order.product)}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap font-bold bg-red-200">
+                                  {Math.max(
+                                    order.quantity -
+                                      getStockForProduct(order.product),
+                                    0
+                                  )}
+                                </td>
+
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  ₹{order.price}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.density}kg/m<sup>3</sup>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  ₹{order.packagingCharge}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.po}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {`${order.freight}: ₹${order.freightAmount}`}
+                                </td>
+
+                                {/* ✅ Dispatch Date */}
+                                <td className="px-4 py-2 whitespace-nowrap max-w-[160px] truncate">
                                   {(() => {
-                                    const stock = getStockForProduct(
-                                      order.product
+                                    if (!order.date) return "N/A";
+
+                                    const today = new Date();
+                                    const deliveryDate = new Date(order.date);
+
+                                    // Set both dates to midnight to ignore the time portion
+                                    today.setHours(0, 0, 0, 0);
+                                    deliveryDate.setHours(0, 0, 0, 0);
+
+                                    const diffDays = Math.ceil(
+                                      (deliveryDate - today) /
+                                        (1000 * 60 * 60 * 24)
                                     );
-                                    const requiredSections =
-                                      order.requiredSections || {};
-                                    const requiredKeys = Object.entries(
-                                      requiredSections
-                                    )
-                                      .filter(([_, val]) => val)
-                                      .map(([key]) => key);
 
-                                    const sentToProduction =
-                                      order.sentTo?.production || [];
-                                    const sentToDispatch =
-                                      order.sentTo?.dispatch || [];
+                                    // Compare the days difference
+                                    if (diffDays <= 7) return "Within 1 Week";
+                                    if (diffDays <= 14) return "Within 2 Weeks";
+                                    if (diffDays <= 20) return "Within 20 Days";
 
-                                    const alreadyDispatched =
-                                      requiredKeys.every((section) =>
-                                        sentToDispatch.includes(section)
-                                      );
-
-                                    const alreadySentToProduction =
-                                      requiredKeys.every((section) =>
-                                        sentToProduction.includes(section)
-                                      );
-
-                                    const isShapeOnly =
-                                      requiredKeys.length === 1 &&
-                                      requiredKeys.includes("shapeMoulding");
-
-                                    // ✅ New Case: shape only + in stock => Send to Packaging
-                                    if (
-                                      isShapeOnly &&
-                                      stock >= order.quantity
-                                    ) {
-                                      return (
-                                        <button
-                                          className="bg-purple-600 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                          disabled={
-                                            alreadyDispatched ||
-                                            disabledOrders[order._id]
-                                          }
-                                          onClick={async () => {
-                                            if (alreadyDispatched) {
-                                              Swal.fire({
-                                                icon: "info",
-                                                title: "Already Sent",
-                                                text: "This order has already been dispatched!",
-                                              });
-                                              return;
-                                            }
-
-                                            const result =
-                                              await swalWithTailwindButtons.fire(
-                                                {
-                                                  title:
-                                                    "Proceed to Packaging?",
-                                                  text: "This shape moulding order is in stock. Fill packaging slip?",
-                                                  icon: "question",
-                                                  showCancelButton: true,
-                                                  confirmButtonText: "Yes!",
-                                                  cancelButtonText:
-                                                    "No, cancel!",
-                                                  reverseButtons: true,
-                                                  customClass: {
-                                                    confirmButton:
-                                                      "ml-2 px-4 py-2 bg-green-600 text-white rounded",
-                                                    cancelButton:
-                                                      "mr-2 px-4 py-2 bg-red-600 text-white rounded",
-                                                  },
-                                                }
-                                              );
-
-                                            if (result.isConfirmed) {
-                                              setSlipType("packaging");
-                                              setSelectedOrder(order);
-                                              setSelectedSections(
-                                                order.requiredSections || {}
-                                              ); // new state
-                                              // ✅ Delay modal open to ensure state is set
-                                              setTimeout(() => {
-                                                setModalOpen(true);
-                                              }, 0);
-                                            }
-                                          }}
-                                        >
-                                          📦 Send to Packaging
-                                        </button>
-                                      );
-                                    }
-
-                                    // Default: Dispatch (In Stock)
-                                    if (stock >= order.quantity) {
-                                      return (
-                                        <button
-                                          className="bg-green-600 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                          disabled={
-                                            alreadyDispatched ||
-                                            disabledOrders[order._id]
-                                          }
-                                          onClick={async () => {
-                                            if (alreadyDispatched) {
-                                              Swal.fire({
-                                                icon: "info",
-                                                title: "Already Dispatched",
-                                                text: "This order has already been sent to dispatch!",
-                                              });
-                                              return;
-                                            }
-
-                                            const result =
-                                              await swalWithTailwindButtons.fire(
-                                                {
-                                                  title: "Are you sure?",
-                                                  text: "You want to send this order to Dispatch/Cutting!",
-                                                  icon: "warning",
-                                                  showCancelButton: true,
-                                                  confirmButtonText: "Yes!",
-                                                  cancelButtonText:
-                                                    "No, cancel!",
-                                                  reverseButtons: true,
-                                                  customClass: {
-                                                    confirmButton:
-                                                      "ml-2 px-4 py-2 bg-green-600 text-white rounded",
-                                                    cancelButton:
-                                                      "mr-2 px-4 py-2 bg-red-600 text-white rounded",
-                                                  },
-                                                }
-                                              );
-
-                                            if (result.isConfirmed) {
-                                              const hasShapeMoulding =
-                                                order.requiredSections
-                                                  ?.shapeMoulding;
-                                              setSlipType(
-                                                hasShapeMoulding
-                                                  ? "packaging"
-                                                  : "dispatch"
-                                              );
-                                              setSelectedOrder(order);
-setTimeout(() => {
-  setModalOpen(true);
-}, 0);                                            }
-                                          }}
-                                        >
-                                          ✅ Dispatch (In Stock)
-                                        </button>
-                                      );
-                                    }
-
-                                    // Default: Send to Production
-                                    return (
-                                      <button
-                                        className="bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={
-                                          alreadySentToProduction ||
-                                          alreadyDispatched ||
-                                          disabledOrders[order._id]
-                                        }
-                                        onClick={async () => {
-                                          if (alreadySentToProduction) {
-                                            Swal.fire({
-                                              icon: "info",
-                                              title: "Already Sent",
-                                              text: "This order has already been sent to production!",
-                                            });
-                                            return;
-                                          }
-
-                                          if (alreadyDispatched) {
-                                            Swal.fire({
-                                              icon: "info",
-                                              title: "Already Dispatched",
-                                              text: "You cannot send to production after dispatch!",
-                                            });
-                                            return;
-                                          }
-
-                                          const result =
-                                            await swalWithTailwindButtons.fire({
-                                              title: "Are you sure?",
-                                              text: "You want to send this order to Production!",
-                                              icon: "warning",
-                                              showCancelButton: true,
-                                              confirmButtonText: "Yes!",
-                                              cancelButtonText: "No, cancel!",
-                                              reverseButtons: true,
-                                              customClass: {
-                                                confirmButton:
-                                                  "ml-2 px-4 py-2 bg-green-600 text-white rounded",
-                                                cancelButton:
-                                                  "mr-2 px-4 py-2 bg-red-600 text-white rounded",
-                                              },
-                                            });
-
-                                          const isShapeOnly =
-                                            order.requiredSections
-                                              ?.shapeMoulding &&
-                                            !order.requiredSections
-                                              ?.preExpander &&
-                                            !order.requiredSections
-                                              ?.handMoulding &&
-                                            !order.requiredSections?.cncSection;
-
-                                          if (result.isConfirmed) {
-                                            const slipTypeToSet = isShapeOnly
-                                              ? "shape-packaging"
-                                              : "production";
-                                            setSlipType(slipTypeToSet);
-                                            setSelectedOrder(order);
-                                            setSelectedSections(
-                                              order.requiredSections || {}
-                                            ); // ✅ CRITICAL LINE
-setTimeout(() => {
-  setModalOpen(true);
-}, 0);                                          }
-                                        }}
-                                      >
-                                        🏭 Send to Production
-                                      </button>
+                                    // If no match, return the date in the required format
+                                    return deliveryDate.toLocaleDateString(
+                                      "en-IN",
+                                      {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      }
                                     );
                                   })()}
                                 </td>
-                              </>
-                            )}
+                                <td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
+                                  {order.remarks || "N/A"}
+                                </td>
 
-                          {/* ✅ Status */}
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`w-3 h-3 rounded-full ${
-                                  order.status?.toLowerCase() === "pending"
-                                    ? "bg-orange-500"
-                                    : order.status?.toLowerCase() ===
-                                      "in process"
-                                    ? "bg-yellow-500"
-                                    : order.status?.toLowerCase() ===
-                                      "processed"
-                                    ? "bg-green-500"
-                                    : "bg-gray-400"
-                                }`}
-                              ></span>
+                                {/* ✅ PO Copy */}
+                                <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
+                                  {/* Only show once per PO */}
+                                  {order._id === poOrders[0]._id && (
+                                    <>
+                                      {order.poCopy ? (
+                                        <div className="flex flex-col gap-1">
+                                          <button
+                                            onClick={() => {
+                                              const isPDF =
+                                                order.poCopy
+                                                  .toLowerCase()
+                                                  .endsWith(".pdf") ||
+                                                order.poCopy.includes(".pdf");
 
-                              <span className="capitalize">
-                                {(order.dispatchStatus === "dispatched" ||
-                                  order.dispatchStatus ===
-                                    "ready to dispatch") &&
-                                order.status === "pending"
-                                  ? "Direct To Dispatch"
-                                  : order.status}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap">
-                               {" "}
-                            <div className="flex items-center gap-2">
-                                   {" "}
-                              <span
-                                className={`w-3 h-3 rounded-full ${
-                                  order.packagingStatus?.toLowerCase() ===
-                                  "unpackaged"
-                                    ? "bg-orange-500"
-                                    : order.packagingStatus?.toLowerCase() ===
-                                      "packaged"
-                                    ? "bg-green-500"
-                                    : "bg-gray-400"
-                                }`}
-                              ></span>
-                                
-                              <span className="capitalize">
-                                {(order.dispatchStatus === "dispatched" ||
-                                  order.dispatchStatus ===
-                                    "ready to dispatch") &&
-                                order.packagingStatus === "unpackaged"
-                                  ? "packaged"
-                                  : order.packagingStatus}
-                              </span>
-                                 {" "}
-                            </div>
-                             {" "}
-                          </td>
-                            <td className="px-4 py-2 whitespace-nowrap">
-                                 {" "}
-                              <div className="flex items-center gap-2">
-                                     {" "}
-                                <span
-                                  className={`w-3 h-3 rounded-full ${
-                                    order.dispatchStatus?.toLowerCase() ===
-                                    "not dispatched"
-                                      ? "bg-orange-500"
-                                      : order.dispatchStatus?.toLowerCase() ===
-                                        "ready to dispatch"
-                                      ? "bg-yellow-500"
-                                      : order.dispatchStatus?.toLowerCase() ===
-                                        "dispatched"
-                                      ? "bg-green-500"
-                                      : "bg-gray-400"
-                                  }`}
-                                ></span>
-                                     {" "}
-                                <span className="capitalize">
-                                  {order.dispatchStatus || "Unknown"}
-                                </span>
-                                   {" "}
-                              </div>
-                               {" "}
-                            </td>
-                        </tr>
-      );
-    })}
-  </React.Fragment>
-))}
+                                              Swal.fire({
+                                                title: "PO Copy Preview",
+                                                html: isPDF
+                                                  ? `<iframe src="${order.poCopy}" width="100%" height="500px" style="border:none;"></iframe>`
+                                                  : `<img src="${order.poCopy}" style="max-width:100%; max-height:500px;" />`,
+                                                width: 700,
+                                                showCancelButton: true,
+                                                showConfirmButton: false,
+                                                cancelButtonText: "Close",
+                                              });
+                                            }}
+                                            className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+                                          >
+                                            📄{" "}
+                                            {order.poOriginalName ||
+                                              "View PO Copy"}
+                                          </button>
 
+                                          <button
+                                            onClick={async () => {
+                                              const { value: file } =
+                                                await Swal.fire({
+                                                  title: "Upload new PO Copy",
+                                                  input: "file",
+                                                  inputAttributes: {
+                                                    accept:
+                                                      "application/pdf,image/*",
+                                                    "aria-label":
+                                                      "Upload PO Copy",
+                                                  },
+                                                  confirmButtonText: "Upload",
+                                                  showCancelButton: true,
+                                                });
+
+                                              if (file) {
+                                                const formData = new FormData();
+                                                formData.append("poCopy", file);
+                                                setUploadingPOCopy(true);
+
+                                                try {
+                                                  const res =
+                                                    await axiosInstance.post(
+                                                      `/files/upload/po-copy/${order._id}`,
+                                                      formData,
+                                                      {
+                                                        headers: {
+                                                          "Content-Type":
+                                                            "multipart/form-data",
+                                                        },
+                                                      }
+                                                    );
+
+                                                  Swal.fire(
+                                                    "✅ Updated!",
+                                                    "PO Copy updated successfully",
+                                                    "success"
+                                                  );
+                                                  window.location.reload();
+                                                } catch (err) {
+                                                  Swal.fire(
+                                                    "❌ Error",
+                                                    "Failed to upload PO Copy",
+                                                    "error"
+                                                  );
+                                                  console.error(err);
+                                                } finally {
+                                                  setUploadingPOCopy(false);
+                                                }
+                                              }
+                                            }}
+                                            className="text-sm text-gray-600 underline hover:text-red-600"
+                                          >
+                                            ✏️ Edit PO Copy
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={async () => {
+                                            const { value: file } =
+                                              await Swal.fire({
+                                                title: "Upload PO Copy",
+                                                input: "file",
+                                                inputAttributes: {
+                                                  accept:
+                                                    "application/pdf,image/*",
+                                                  "aria-label":
+                                                    "Upload PO Copy",
+                                                },
+                                                confirmButtonText: "Upload",
+                                                showCancelButton: true,
+                                              });
+
+                                            if (file) {
+                                              const formData = new FormData();
+                                              formData.append("poCopy", file);
+                                              setUploadingPOCopy(true);
+
+                                              try {
+                                                const res =
+                                                  await axiosInstance.post(
+                                                    `/files/upload/po-copy/${order._id}`,
+                                                    formData,
+                                                    {
+                                                      headers: {
+                                                        "Content-Type":
+                                                          "multipart/form-data",
+                                                      },
+                                                    }
+                                                  );
+
+                                                Swal.fire(
+                                                  "✅ Uploaded!",
+                                                  "PO Copy uploaded successfully",
+                                                  "success"
+                                                );
+                                                window.location.reload();
+                                              } catch (err) {
+                                                Swal.fire(
+                                                  "❌ Error",
+                                                  "Failed to upload PO Copy",
+                                                  "error"
+                                                );
+                                                console.error(err);
+                                              } finally {
+                                                setUploadingPOCopy(false);
+                                              }
+                                            }
+                                          }}
+                                          className="text-blue-600 underline hover:text-blue-800 text-sm"
+                                        >
+                                          📤 Upload PO Copy
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </td>
+
+                                {/* ✅ Action Buttons */}
+                                {role !== "production" &&
+                                  role !== "dispatch" &&
+                                  role !== "packaging" && (
+                                    <td className="px-4 py-2 whitespace-nowrap">
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                        <button
+                                          className={`flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm shadow-md transition 
+    ${
+      isSent
+        ? "bg-gray-400 text-white cursor-not-allowed"
+        : "bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"
+    }
+  `}
+                                          disabled={isSent}
+                                          onClick={() => {
+                                            if (isSent) return;
+                                            setEditOrder(order);
+                                          }}
+                                        >
+                                          ✏️ Edit
+                                        </button>
+
+                                        <button
+                                          className="flex cursor-pointer items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm shadow-md transition"
+                                          onClick={() =>
+                                            handleDelete(order._id)
+                                          }
+                                        >
+                                          🗑️ Delete
+                                        </button>
+                                      </div>
+                                    </td>
+                                  )}
+
+                                {role !== "production" &&
+                                  role !== "dispatch" &&
+                                  role !== "sales" &&
+                                  role !== "admin" &&
+                                  role !== "packaging" && (
+                                    <>
+                                      {/* Section Checkboxes */}
+                                      <td className="px-4 py-2 whitespace-nowrap">
+                                        {sectionsList.map((section) => {
+                                          const keyId = `${order._id}-${section.key}`;
+
+                                          return (
+                                            <label
+                                              key={keyId}
+                                              className="flex items-center gap-2"
+                                            >
+                                              <input
+                                                type="radio"
+                                                name={`section-${order._id}`} // Group radio buttons per order
+                                                value={section.key}
+                                                checked={
+                                                  localSections[order._id]?.[
+                                                    section.key
+                                                  ] || false
+                                                }
+                                                disabled={
+                                                  !!disabledOrders[order._id]
+                                                }
+                                                onChange={() =>
+                                                  handleSectionRadioChange(
+                                                    order._id,
+                                                    section.key
+                                                  )
+                                                }
+                                              />
+                                              {section.label}
+                                            </label>
+                                          );
+                                        })}
+                                      </td>
+
+                                      {/* Buttons Logic */}
+                                      <td className="p-2 flex md:flex-col gap-2">
+                                        {(() => {
+                                          const stock = getStockForProduct(
+                                            order.product
+                                          );
+                                          const requiredSections =
+                                            order.requiredSections || {};
+                                          const requiredKeys = Object.entries(
+                                            requiredSections
+                                          )
+                                            .filter(([_, val]) => val)
+                                            .map(([key]) => key);
+
+                                          const sentToProduction =
+                                            order.sentTo?.production || [];
+                                          const sentToDispatch =
+                                            order.sentTo?.dispatch || [];
+
+                                          const alreadyDispatched =
+                                            requiredKeys.every((section) =>
+                                              sentToDispatch.includes(section)
+                                            );
+
+                                          const alreadySentToProduction =
+                                            requiredKeys.every((section) =>
+                                              sentToProduction.includes(section)
+                                            );
+
+                                          const isShapeOnly =
+                                            requiredKeys.length === 1 &&
+                                            requiredKeys.includes(
+                                              "shapeMoulding"
+                                            );
+
+                                          // ✅ New Case: shape only + in stock => Send to Packaging
+                                          if (
+                                            isShapeOnly &&
+                                            stock >= order.quantity
+                                          ) {
+                                            return (
+                                              <button
+                                                className="bg-purple-600 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled={
+                                                  alreadyDispatched ||
+                                                  disabledOrders[order._id]
+                                                }
+                                                onClick={async () => {
+                                                  if (alreadyDispatched) {
+                                                    Swal.fire({
+                                                      icon: "info",
+                                                      title: "Already Sent",
+                                                      text: "This order has already been dispatched!",
+                                                    });
+                                                    return;
+                                                  }
+
+                                                  const result =
+                                                    await swalWithTailwindButtons.fire(
+                                                      {
+                                                        title:
+                                                          "Proceed to Packaging?",
+                                                        text: "This shape moulding order is in stock. Fill packaging slip?",
+                                                        icon: "question",
+                                                        showCancelButton: true,
+                                                        confirmButtonText:
+                                                          "Yes!",
+                                                        cancelButtonText:
+                                                          "No, cancel!",
+                                                        reverseButtons: true,
+                                                        customClass: {
+                                                          confirmButton:
+                                                            "ml-2 px-4 py-2 bg-green-600 text-white rounded",
+                                                          cancelButton:
+                                                            "mr-2 px-4 py-2 bg-red-600 text-white rounded",
+                                                        },
+                                                      }
+                                                    );
+
+                                                  if (result.isConfirmed) {
+                                                    setSlipType("packaging");
+                                                    setSelectedOrder(order);
+                                                    setSelectedSections(
+                                                      order.requiredSections ||
+                                                        {}
+                                                    ); // new state
+                                                    // ✅ Delay modal open to ensure state is set
+                                                    setTimeout(() => {
+                                                      setModalOpen(true);
+                                                    }, 0);
+                                                  }
+                                                }}
+                                              >
+                                                📦 Send to Packaging
+                                              </button>
+                                            );
+                                          }
+
+                                          // Default: Dispatch (In Stock)
+                                          if (stock >= order.quantity) {
+                                            return (
+                                              <button
+                                                className="bg-green-600 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled={
+                                                  alreadyDispatched ||
+                                                  disabledOrders[order._id]
+                                                }
+                                                onClick={async () => {
+                                                  if (alreadyDispatched) {
+                                                    Swal.fire({
+                                                      icon: "info",
+                                                      title:
+                                                        "Already Dispatched",
+                                                      text: "This order has already been sent to dispatch!",
+                                                    });
+                                                    return;
+                                                  }
+
+                                                  const result =
+                                                    await swalWithTailwindButtons.fire(
+                                                      {
+                                                        title: "Are you sure?",
+                                                        text: "You want to send this order to Dispatch/Cutting!",
+                                                        icon: "warning",
+                                                        showCancelButton: true,
+                                                        confirmButtonText:
+                                                          "Yes!",
+                                                        cancelButtonText:
+                                                          "No, cancel!",
+                                                        reverseButtons: true,
+                                                        customClass: {
+                                                          confirmButton:
+                                                            "ml-2 px-4 py-2 bg-green-600 text-white rounded",
+                                                          cancelButton:
+                                                            "mr-2 px-4 py-2 bg-red-600 text-white rounded",
+                                                        },
+                                                      }
+                                                    );
+
+                                                  if (result.isConfirmed) {
+                                                    const hasShapeMoulding =
+                                                      order.requiredSections
+                                                        ?.shapeMoulding;
+                                                    setSlipType(
+                                                      hasShapeMoulding
+                                                        ? "packaging"
+                                                        : "dispatch"
+                                                    );
+                                                    setSelectedOrder(order);
+                                                    setTimeout(() => {
+                                                      setModalOpen(true);
+                                                    }, 0);
+                                                  }
+                                                }}
+                                              >
+                                                ✅ Dispatch (In Stock)
+                                              </button>
+                                            );
+                                          }
+
+                                          // Default: Send to Production
+                                          return (
+                                            <button
+                                              className="bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                              disabled={
+                                                alreadySentToProduction ||
+                                                alreadyDispatched ||
+                                                disabledOrders[order._id]
+                                              }
+                                              onClick={async () => {
+                                                if (alreadySentToProduction) {
+                                                  Swal.fire({
+                                                    icon: "info",
+                                                    title: "Already Sent",
+                                                    text: "This order has already been sent to production!",
+                                                  });
+                                                  return;
+                                                }
+
+                                                if (alreadyDispatched) {
+                                                  Swal.fire({
+                                                    icon: "info",
+                                                    title: "Already Dispatched",
+                                                    text: "You cannot send to production after dispatch!",
+                                                  });
+                                                  return;
+                                                }
+
+                                                const result =
+                                                  await swalWithTailwindButtons.fire(
+                                                    {
+                                                      title: "Are you sure?",
+                                                      text: "You want to send this order to Production!",
+                                                      icon: "warning",
+                                                      showCancelButton: true,
+                                                      confirmButtonText: "Yes!",
+                                                      cancelButtonText:
+                                                        "No, cancel!",
+                                                      reverseButtons: true,
+                                                      customClass: {
+                                                        confirmButton:
+                                                          "ml-2 px-4 py-2 bg-green-600 text-white rounded",
+                                                        cancelButton:
+                                                          "mr-2 px-4 py-2 bg-red-600 text-white rounded",
+                                                      },
+                                                    }
+                                                  );
+
+                                                const isShapeOnly =
+                                                  order.requiredSections
+                                                    ?.shapeMoulding &&
+                                                  !order.requiredSections
+                                                    ?.preExpander &&
+                                                  !order.requiredSections
+                                                    ?.handMoulding &&
+                                                  !order.requiredSections
+                                                    ?.cncSection;
+
+                                                if (result.isConfirmed) {
+                                                  const slipTypeToSet =
+                                                    isShapeOnly
+                                                      ? "shape-packaging"
+                                                      : "production";
+                                                  setSlipType(slipTypeToSet);
+                                                  setSelectedOrder(order);
+                                                  setSelectedSections(
+                                                    order.requiredSections || {}
+                                                  ); // ✅ CRITICAL LINE
+                                                  setTimeout(() => {
+                                                    setModalOpen(true);
+                                                  }, 0);
+                                                }
+                                              }}
+                                            >
+                                              🏭 Send to Production
+                                            </button>
+                                          );
+                                        })()}
+                                      </td>
+                                    </>
+                                  )}
+
+                                {/* ✅ Status */}
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`w-3 h-3 rounded-full ${
+                                        order.status?.toLowerCase() ===
+                                        "pending"
+                                          ? "bg-orange-500"
+                                          : order.status?.toLowerCase() ===
+                                            "in process"
+                                          ? "bg-yellow-500"
+                                          : order.status?.toLowerCase() ===
+                                            "processed"
+                                          ? "bg-green-500"
+                                          : "bg-gray-400"
+                                      }`}
+                                    ></span>
+
+                                    <span className="capitalize">
+                                      {(order.dispatchStatus === "dispatched" ||
+                                        order.dispatchStatus ===
+                                          "ready to dispatch") &&
+                                      order.status === "pending"
+                                        ? "Direct To Dispatch"
+                                        : order.status}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                     {" "}
+                                  <div className="flex items-center gap-2">
+                                         {" "}
+                                    <span
+                                      className={`w-3 h-3 rounded-full ${
+                                        order.packagingStatus?.toLowerCase() ===
+                                        "unpackaged"
+                                          ? "bg-orange-500"
+                                          : order.packagingStatus?.toLowerCase() ===
+                                            "packaged"
+                                          ? "bg-green-500"
+                                          : "bg-gray-400"
+                                      }`}
+                                    ></span>
+                                     
+                                    <span className="capitalize">
+                                      {(order.dispatchStatus === "dispatched" ||
+                                        order.dispatchStatus ===
+                                          "ready to dispatch") &&
+                                      order.packagingStatus === "unpackaged"
+                                        ? "packaged"
+                                        : order.packagingStatus}
+                                    </span>
+                                       {" "}
+                                  </div>
+                                   {" "}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                     {" "}
+                                  <div className="flex items-center gap-2">
+                                         {" "}
+                                    <span
+                                      className={`w-3 h-3 rounded-full ${
+                                        order.dispatchStatus?.toLowerCase() ===
+                                        "not dispatched"
+                                          ? "bg-orange-500"
+                                          : order.dispatchStatus?.toLowerCase() ===
+                                            "ready to dispatch"
+                                          ? "bg-yellow-500"
+                                          : order.dispatchStatus?.toLowerCase() ===
+                                            "dispatched"
+                                          ? "bg-green-500"
+                                          : "bg-gray-400"
+                                      }`}
+                                    ></span>
+                                         {" "}
+                                    <span className="capitalize">
+                                      {order.dispatchStatus || "Unknown"}
+                                    </span>
+                                       {" "}
+                                  </div>
+                                   {" "}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      )
+                    )}
                   </tbody>
                 </table>
-              {activeProductImage && (
-  <div
-    className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
-    onClick={() => setActiveProductImage(null)}
-  >
-    <div
-      className="bg-white rounded-lg p-4 max-w-4xl w-full overflow-y-auto max-h-[90vh] relative"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => setActiveProductImage(null)}
-        className="absolute top-2 right-3 text-2xl font-bold text-red-500 hover:text-red-700"
-      >
-        ✖
-      </button>
-      <h2 className="text-lg font-semibold mb-4">
-        {activeProductImage.name} - Images
-      </h2>
-      {activeProductImage.images.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {activeProductImage.images.map((img, i) => (
-            <img
-              key={i}
-              src={
-                img.startsWith("http")
-                  ? img
-                  : `${import.meta.env.VITE_REACT_APP_API_URL}${img}`
-              }
-              alt={`Image ${i + 1}`}
-              className="w-full h-48 object-cover rounded border"
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500">No images available.</p>
-      )}
-    </div>
-  </div>
-)}
-
-
-
+                {activeProductImage && (
+                  <div
+                    className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
+                    onClick={() => setActiveProductImage(null)}
+                  >
+                    <div
+                      className="bg-white rounded-lg p-4 max-w-4xl w-full overflow-y-auto max-h-[90vh] relative"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setActiveProductImage(null)}
+                        className="absolute top-2 right-3 text-2xl font-bold text-red-500 hover:text-red-700"
+                      >
+                        ✖
+                      </button>
+                      <h2 className="text-lg font-semibold mb-4">
+                        {activeProductImage.name} - Images
+                      </h2>
+                      {activeProductImage.images.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {activeProductImage.images.map((img, i) => (
+                            <img
+                              key={i}
+                              src={
+                                img.startsWith("http")
+                                  ? img
+                                  : `${
+                                      import.meta.env.VITE_REACT_APP_API_URL
+                                    }${img}`
+                              }
+                              alt={`Image ${i + 1}`}
+                              className="w-full h-48 object-cover rounded border"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">No images available.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
-       {/* Pagination Controls */}
-{filteredOrders?.length > 0 && (
-  <div className="overflow-x-auto w-full">
-    <div className="flex justify-center items-center gap-2 mt-8 px-4 min-w-max">
-      {/* Prev Button */}
-      <button
-        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-        disabled={currentPage === 1}
-        className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
+        {/* Pagination Controls */}
+        {filteredOrders?.length > 0 && (
+          <div className="overflow-x-auto w-full">
+            <div className="flex justify-center items-center gap-2 mt-8 px-4 min-w-max">
+              {/* Prev Button */}
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === 1
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
               : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
           }`}
-      >
-        ⏮ Prev
-      </button>
+              >
+                ⏮ Prev
+              </button>
 
-      {/* Page Numbers */}
-      {Array.from({ length: totalPages }, (_, i) => (
-        <button
-          key={i}
-          onClick={() => setCurrentPage(i + 1)}
-          className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
+              {/* Page Numbers */}
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-4 py-2 rounded-full transition-all duration-300 font-semibold text-sm
             ${
               currentPage === i + 1
                 ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg scale-110"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
-        >
-          {i + 1}
-        </button>
-      ))}
+                >
+                  {i + 1}
+                </button>
+              ))}
 
-      {/* Next Button */}
-      <button
-        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-        disabled={currentPage === totalPages}
-        className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
+              {/* Next Button */}
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 
           ${
             currentPage === totalPages
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
               : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
           }`}
-      >
-        Next ⏭
-      </button>
-    </div>
-  </div>
-)}
-
+              >
+                Next ⏭
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Edit Modal */}
         {editOrder && (
