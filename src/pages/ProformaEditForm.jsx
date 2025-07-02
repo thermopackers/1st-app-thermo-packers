@@ -137,6 +137,13 @@ if (form.freightType === 'Billed' && (!form.freight || Number(form.freight) <= 0
     <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid"></div>
   </div>
 )}
+{Object.values(narrationUploadLoading).some(val => val) && (
+  <div className="fixed inset-0 bg-[#000000b7] bg-opacity-40 flex items-center justify-center z-[9998]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid"></div>
+    <span className="ml-4 text-white text-lg font-medium">Uploading narration image...</span>
+  </div>
+)}
+
       <InternalNavbar />
       <div className="p-4 max-w-6xl mx-auto space-y-6">
         <h1 className="text-2xl font-semibold text-center text-blue-700">🧾 Quotation/Proforma Invoice/Estimate</h1>
