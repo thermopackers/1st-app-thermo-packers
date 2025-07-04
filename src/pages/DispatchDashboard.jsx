@@ -22,6 +22,7 @@ const DispatchDashboard = () => {
   const [error, setError] = useState("");
 const [totalPages, setTotalPages] = useState(1);
 const [searchParams, setSearchParams] = useSearchParams();
+const [sortOrder, setSortOrder] = useState("newest");
 const currentPage = parseInt(searchParams.get("page")) || 1;
 const ordersPerPage = 5;
 const handlePageChange = (page) => {
@@ -80,6 +81,7 @@ useEffect(() => {
           endDate,
           status: statusFilter,
           search: searchTerm,
+            sort: sortOrder, // ✅ add this line
         },
       });
 
@@ -95,7 +97,7 @@ useEffect(() => {
   };
 
   fetchOrders();
-}, [currentPage, startDate, endDate, statusFilter, searchTerm]);
+}, [currentPage, startDate, endDate, statusFilter, searchTerm,sortOrder]);
 
 
 
@@ -163,32 +165,36 @@ useEffect(() => {
     }
   };
 
-const currentOrders = [...filteredOrders].sort((a, b) => {
-  const dispatchPriority = (status) => {
-    if (!status || status.toLowerCase() === "not dispatched") return 1;
-    if (status.toLowerCase() === "ready to dispatch") return 2;
-    if (status.toLowerCase() === "dispatched") return 3;
-    return 4;
-  };
+const currentOrders =
+  sortOrder === "newest" || sortOrder === "oldest"
+    ? filteredOrders
+    : [...filteredOrders].sort((a, b) => {
+        const dispatchPriority = (status) => {
+          if (!status || status.toLowerCase() === "not dispatched") return 1;
+          if (status.toLowerCase() === "ready to dispatch") return 2;
+          if (status.toLowerCase() === "dispatched") return 3;
+          return 4;
+        };
 
-  const packagingPriority = (status) => {
-    if (!status || status.toLowerCase() === "unpackaged") return 1;
-    if (status.toLowerCase() === "packaged") return 2;
-    return 3;
-  };
+        const packagingPriority = (status) => {
+          if (!status || status.toLowerCase() === "unpackaged") return 1;
+          if (status.toLowerCase() === "packaged") return 2;
+          return 3;
+        };
 
-  const aDispatch = dispatchPriority(a.dispatchStatus);
-  const bDispatch = dispatchPriority(b.dispatchStatus);
+        const aDispatch = dispatchPriority(a.dispatchStatus);
+        const bDispatch = dispatchPriority(b.dispatchStatus);
 
-  if (aDispatch !== bDispatch) return aDispatch - bDispatch;
+        if (aDispatch !== bDispatch) return aDispatch - bDispatch;
 
-  const aPack = packagingPriority(a.packagingStatus);
-  const bPack = packagingPriority(b.packagingStatus);
+        const aPack = packagingPriority(a.packagingStatus);
+        const bPack = packagingPriority(b.packagingStatus);
 
-  if (aPack !== bPack) return aPack - bPack;
+        if (aPack !== bPack) return aPack - bPack;
 
-  return new Date(b.createdAt) - new Date(a.createdAt);
-});
+        return new Date(b.createdAt) - new Date(a.createdAt); // fallback to date
+      });
+
 
   if (loading) {
     return (
@@ -262,6 +268,18 @@ const currentOrders = [...filteredOrders].sort((a, b) => {
       onChange={(e) => setEndDate(e.target.value)}
     />
   </div>
+{/* Sort Order Filter */}
+<div className="flex flex-col">
+  <label className="mb-1 text-sm font-medium text-gray-700">Sort Order:</label>
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+</div>
 
   <div className="flex flex-col self-end">
     <button
@@ -270,6 +288,7 @@ const currentOrders = [...filteredOrders].sort((a, b) => {
         setSearchTerm("");
         setStartDate("");
         setEndDate("");
+          setSortOrder("newest");
       }}
       className="mt-1 px-4 py-2 cursor-pointer bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
     >

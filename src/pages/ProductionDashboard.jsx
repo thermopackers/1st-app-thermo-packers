@@ -19,6 +19,7 @@ const [searchParams, setSearchParams] = useSearchParams();
 const currentPage = parseInt(searchParams.get("page")) || 1;
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const [dispatchedOrders, setDispatchedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
@@ -63,6 +64,7 @@ const fetchOrders = async () => {
     if (statusFilter !== "all") params.append("status", statusFilter);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
+params.append("sort", sortOrder); // ✅ new
 
     const response = await axiosInstance.get(
       `/orders/production-dashboard?${params.toString()}`,
@@ -132,18 +134,8 @@ const fetchOrders = async () => {
   };
 
 
-const currentOrders = [...orders].sort((a, b) => {
-  const getPriority = (status) => {
-    if (!status) return 99;
-    const s = status.toLowerCase();
-    if (s === "pending") return 1;
-    if (s === "in process") return 2;
-    if (s === "processed") return 3;
-    return 99;
-  };
+const currentOrders = orders;
 
-  return getPriority(a.status) - getPriority(b.status);
-});
 
   console.log("currentOrders", currentOrders);
 
@@ -158,7 +150,7 @@ const currentOrders = [...orders].sort((a, b) => {
       duration: 1,
       delay: 1,
     });
-  }, [currentPage, searchTerm, statusFilter, startDate, endDate]);
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate,sortOrder]);
 const onSearchChange = (e) => {
   setSearchTerm(e.target.value);
   setSearchParams({ page: 1 });
@@ -262,6 +254,19 @@ const onEndDateChange = (e) => {
       <option value="processed">Processed</option>
     </select>
   </div>
+  {/* Sort Order Filter */}
+<div className="flex flex-col">
+  <label className="mb-1 text-sm font-medium text-gray-700">Sort Order:</label>
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+</div>
+
 
   {/* Clear Filters Button */}
   <div className="flex flex-col justify-end">
@@ -272,6 +277,7 @@ const onEndDateChange = (e) => {
         setStartDate("");
         setEndDate("");
         setStatusFilter("all");
+        setSortOrder("newest"); // ✅ Reset sort too
       }}
       className="px-4 py-3 cursor-pointer bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
     >

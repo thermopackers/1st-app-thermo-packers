@@ -16,7 +16,7 @@ const PackagingDashboard = () => {
   const [totalPages, setTotalPages] = useState(1);
     const [products, setProducts] = useState([]);
       const [activeProductImage, setActiveProductImage] = useState(null);
-
+const [sortOrder, setSortOrder] = useState("newest");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +69,7 @@ useEffect(() => {
             search: searchTerm, // ✅ send search to backend
   packagingStatus: statusFilter,   // send packagingStatus filter here
     readyForPackaging: true,  
+      sort: sortOrder, // ✅ add this
         },
       });
 
@@ -79,7 +80,6 @@ useEffect(() => {
         ready = ready.filter((order) => order.packagingStatus === statusFilter);
       }
 
-      ready.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setOrders(ready);
       setFilteredOrders(ready);
@@ -94,7 +94,7 @@ useEffect(() => {
   };
 
   fetchOrders();
-}, [statusFilter, startDate, endDate, currentPage,searchTerm]);
+}, [statusFilter, startDate, endDate, currentPage,searchTerm,sortOrder]);
 
 
   useEffect(() => {
@@ -161,30 +161,34 @@ useEffect(() => {
   };
 
 
-const currentOrders = [...filteredOrders].sort((a, b) => {
-  const getPackagingPriority = (order) => {
-    const status = order.packagingStatus?.toLowerCase();
-    if (status === "unpackaged") return 1;
-    if (status === "packaged") return 2;
-    return 3;
-  };
+const currentOrders =
+  sortOrder === ""
+    ? [...filteredOrders].sort((a, b) => {
+        const getPackagingPriority = (order) => {
+          const status = order.packagingStatus?.toLowerCase();
+          if (status === "unpackaged") return 1;
+          if (status === "packaged") return 2;
+          return 3;
+        };
 
-  const getDispatchPriority = (order) => {
-    const status = order.dispatchStatus?.toLowerCase();
-    if (status === "not dispatched") return 1;
-    if (status === "ready to dispatch") return 2;
-    if (status === "dispatched") return 3;
-    return 4;
-  };
+        const getDispatchPriority = (order) => {
+          const status = order.dispatchStatus?.toLowerCase();
+          if (status === "not dispatched") return 1;
+          if (status === "ready to dispatch") return 2;
+          if (status === "dispatched") return 3;
+          return 4;
+        };
 
-  const packagingDiff = getPackagingPriority(a) - getPackagingPriority(b);
-  if (packagingDiff !== 0) return packagingDiff;
+        const packagingDiff = getPackagingPriority(a) - getPackagingPriority(b);
+        if (packagingDiff !== 0) return packagingDiff;
 
-  const dispatchDiff = getDispatchPriority(a) - getDispatchPriority(b);
-  if (dispatchDiff !== 0) return dispatchDiff;
+        const dispatchDiff = getDispatchPriority(a) - getDispatchPriority(b);
+        if (dispatchDiff !== 0) return dispatchDiff;
 
-  return new Date(b.createdAt) - new Date(a.createdAt); // newest first if all else equal
-});
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+    : filteredOrders;
+
 
 const handlePageChange = (page) => {
   if (page >= 1 && page <= totalPages) {
@@ -262,6 +266,18 @@ const handlePageChange = (page) => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+{/* Sort Order Filter */}
+<div className="flex flex-col">
+  <label className="mb-1 text-sm font-medium text-gray-700">Sort Order:</label>
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+</div>
 
           <div className="flex md:mt-6 items-center pt-6 md:pt-0">
             <button
@@ -270,6 +286,8 @@ const handlePageChange = (page) => {
                 setStartDate("");
                 setEndDate("");
                 setSearchTerm("");
+                  setSortOrder("newest");
+
               }}
               className="p-3 bg-red-500 text-white cursor-pointer rounded-lg shadow hover:bg-red-600 transition"
             >
