@@ -300,9 +300,7 @@ export default function OrdersList() {
       };
 
       let url = "/orders";
-      if (decoded.role === "production") url = "/orders/production-dashboard";
-      else if (decoded.role === "dispatch") url = "/orders/dispatch-dashboard";
-
+  
       const res = await axiosInstance.get(url, {
         headers: { Authorization: `Bearer ${token}` },
         params,
