@@ -1,5 +1,6 @@
 import React from "react";
 import * as XLSX from "xlsx";
+import { useMemo } from "react";
 import { saveAs } from "file-saver";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -411,7 +412,10 @@ const currentOrders = filteredOrders;
 
 
   console.log("currentOrders", currentOrders);
-  const groupedOrders = groupOrdersByPO(currentOrders);
+
+const groupedOrders = useMemo(() => {
+  return groupOrdersByPO(filteredOrders);
+}, [filteredOrders]);
 
   // ✅ Declare SweetAlert2 with Tailwind buttons globally
 
@@ -1107,7 +1111,7 @@ const actuallySendToProduction = async (
                                {/* ✅ PO Copy */}
                                
 <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-  {Array.isArray(order.poCopy) && (
+  {Array.isArray(order.poCopy) ? (
     <div className="flex flex-col gap-1">
       {/* ✅ List PO Copy buttons or fallback messages */}
       {order.poCopy.filter((url) => url).length > 0 ? (
@@ -1217,6 +1221,10 @@ const actuallySendToProduction = async (
       >
         {order.poCopy.length > 0 ? "✏️ Add More PO Copy" : "📤 Upload PO Copy"}
       </button>
+    </div>
+  ) : (
+    <div className="text-sm text-gray-500 italic">
+      No PO Copy available
     </div>
   )}
 </td>
