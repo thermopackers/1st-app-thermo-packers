@@ -32,6 +32,7 @@ export default function OrdersList() {
   const [localSections, setLocalSections] = useState({});
   const [disabledOrders, setDisabledOrders] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
+    const [filteredOrders, setFilteredOrders] = useState([]);
   const [slipType, setSlipType] = useState(null); // 'production' or 'dispatch'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeProductImage, setActiveProductImage] = useState(null);
@@ -98,7 +99,6 @@ const sectionsList = [
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState("sales");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersFetched, setOrdersFetched] = useState(false);
   const location = useLocation();
