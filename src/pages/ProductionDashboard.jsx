@@ -354,29 +354,27 @@ const onEndDateChange = (e) => {
   </button>
 </td>                    
 <td className="px-6 py-4">{order.quantity}</td>
-                    <td className="px-6 py-4">
+                   <td className="px-6 py-4 space-y-1">
+  {order.shapeSlip?.url && (
+    <a
+      href={order.shapeSlip.url}
+      download
+      className="text-green-600 underline block"
+    >
+      🏭 Shape Slip
+    </a>
+  )}
+  {order.danaSlip?.url && (
+    <a
+      href={order.danaSlip.url}
+      download
+      className="text-blue-600 underline block"
+    >
+      🧪 Dana Slip
+    </a>
+  )}
+</td>
 
-{order.requiredSections?.shapeMoulding
-  ? order.shapeSlip?.url && (
-      <a
-  href={order.shapeSlip.url} // ✅ Correct: no prefix
-        download
-        className="text-green-600 underline"
-      >
-        🏭 Shape Slip
-      </a>
-    )
-  : order.danaSlip?.url && (
-      <a
-href={order.danaSlip.url}
-        download
-        className="text-green-600 underline"
-      >
-        🧪 Dana Slip
-      </a>
-    )}
-
-                    </td>
 
                     <td className="px-6 py-4">
                       {order.sentTo?.production?.length > 0
