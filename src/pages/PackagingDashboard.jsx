@@ -220,8 +220,7 @@ const handlePageChange = (page) => {
         </button>
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
-          Packaging & Dispatch Dashboard(Shape Moulds)
-        </h2>
+EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex flex-col">

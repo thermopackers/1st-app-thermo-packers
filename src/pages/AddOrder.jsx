@@ -20,7 +20,7 @@ export default function AddOrder() {
     remarks: "",
      billTo: "",
   shipTo: "",
-  sameAsBillTo: false, // 🔁 checkbox state
+  sameAsBillTo: true, // 🔁 checkbox state
   });
   const [productList, setProductList] = useState([
     {
@@ -507,21 +507,23 @@ console.log("productList rendering:", productList);
   </label>
 </div>
 
-{/* 🚚 Ship To Address */}
-<div className="flex flex-col col-span-2">
-  <label htmlFor="shipTo" className="mb-1 font-medium text-gray-700">
-    🚚 Ship To Address
-  </label>
-  <input
-    id="shipTo"
-    name="shipTo"
-    placeholder="Enter Ship To Address"
-    value={clientDetails.shipTo}
-    onChange={handleClientChange}
-    className="border border-gray-400 p-2 rounded w-full"
-    disabled={clientDetails.sameAsBillTo}
-  />
-</div>
+{/* 🚚 Ship To Address — only show when NOT same as Bill To */}
+{!clientDetails.sameAsBillTo && (
+  <div className="flex flex-col col-span-2">
+    <label htmlFor="shipTo" className="mb-1 font-medium text-gray-700">
+      🚚 Ship To Address
+    </label>
+    <input
+      id="shipTo"
+      name="shipTo"
+      placeholder="Enter Ship To Address"
+      value={clientDetails.shipTo}
+      onChange={handleClientChange}
+      className="border border-gray-400 p-2 rounded w-full"
+    />
+  </div>
+)}
+
 
 
             <select

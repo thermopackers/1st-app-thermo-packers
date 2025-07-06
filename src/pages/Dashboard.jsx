@@ -245,67 +245,59 @@ const handleViewTasks = async () => {
               )}
             </div>
             {/* Production → Packaging → Dispatch Grid */}
-            {["production", "packaging", "dispatch"].some(role => user.role === role || user.role === "accounts") && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                {(user.role === "production" || user.role === "accounts") && (
-                  <div className="bg-purple-100 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-purple-800">Production Dashboard</h3>
-                    <p className="text-sm text-purple-700 mt-2">
-                      Track production status and mark items as completed.
-                    </p>
-                    <NavLink to="/production-dashboard">
-                      <button className="mt-4 cursor-pointer bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
-                        Go to Production
-                      </button>
-                    </NavLink>
-                  </div>
-                )}
+       {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
+  <div className="bg-white mt-6 p-6 rounded-lg shadow-md">
+    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      Go To All Type of Production / Dispatch Sections
+    </h3>
 
-                {(user.role === "packaging" || user.role === "accounts") && (
-                  <div className="bg-pink-100 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-pink-800">Packaging & Dispatch Thermocol Shape Moulding Section
-                      </h3>
-                    <p className="text-sm text-pink-700 mt-2">
-                      Handle packaging tasks and update packaging status.
-                    </p>
-                    <NavLink to="/packaging-dashboard">
-                      <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded">
-                        Go to Packaging & Dispatch Thermocol Shape Moulding Section
-                      </button>
-                    </NavLink>
-                  </div>
-                )}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {(user.role === "production" || user.role === "accounts") && (
+        <NavLink to="/production-dashboard">
+          <div className="h-full">
+            <button className="w-full h-full min-h-[64px] bg-purple-500 hover:bg-purple-600 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
+              Go to Production Section
+            </button>
+          </div>
+        </NavLink>
+      )}
 
-                {(user.role === "dispatch" || user.role === "accounts") && (
-                  <div className="bg-red-100 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-red-800">Packaging & Dispatch Thermocol Sheet Cutting Section</h3>
-                    <p className="text-sm text-red-700 mt-2">
-                      View ready orders and update dispatch details.
-                    </p>
-                    <NavLink to="/dispatch-dashboard">
-                      <button className="mt-4 cursor-pointer bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
-                        Go to Packaging & Dispatch Thermocol Sheet Cutting Section
-                      </button>
-                    </NavLink>
-                  </div>
-                )}
-               
+      {(user.role === "dispatch" || user.role === "accounts") && (
+        <NavLink to="/dispatch-dashboard">
+          <div className="h-full">
+            <button className="w-full h-full min-h-[64px] bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
+              EPS/Thermocol Sheet Cutting & Dispatch Section
+            </button>
+          </div>
+        </NavLink>
+      )}
 
-              </div>
-            )}
-             {(user.role === "accounts") && (
-  <div className="bg-yellow-100 p-4 rounded-lg mt-6">
-    <h3 className="text-lg font-bold text-yellow-800">EPS/Thermocol CNC Hot Wire/CNC Router Section</h3>
-    <p className="text-sm text-yellow-700 mt-2">
-      Manage CNC-related products.
-    </p>
-    <NavLink to="/cnc-dashboard">
-      <button className="mt-4 cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
-        Go to CNC Hot Wire/CNC Router Section
-      </button>
-    </NavLink>
+      {(user.role === "packaging" || user.role === "dispatch" || user.role === "accounts") && (
+        <NavLink to="/packaging-dashboard">
+          <div className="h-full">
+            <button className="w-full h-full min-h-[64px] bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
+              EPS/Thermocol Shape Moulding Packaging & Dispatch Section
+            </button>
+          </div>
+        </NavLink>
+      )}
+
+      {user.role === "accounts" && (
+        <NavLink to="/cnc-dashboard">
+          <div className="h-full">
+            <button className="w-full h-full min-h-[64px] bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
+              CNC Hot Wire / CNC Router Section
+            </button>
+          </div>
+        </NavLink>
+      )}
+    </div>
   </div>
 )}
+
+
+
+            
             {user.role === "admin" && (
               <div className="bg-yellow-100 p-4 rounded-lg mt-6">
                 <h3 className="text-lg font-bold text-yellow-800">Admin Tools</h3>

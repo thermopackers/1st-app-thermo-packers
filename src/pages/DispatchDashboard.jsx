@@ -219,8 +219,7 @@ const currentOrders =
         </button>
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
-          Packaging & Dispatch Dashboard (Block Moulds)
-        </h2>
+EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 
         {/* Filters omitted for brevity — unchanged */}
 <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
