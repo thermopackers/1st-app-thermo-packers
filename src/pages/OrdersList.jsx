@@ -1112,77 +1112,85 @@ const actuallySendToProduction = async (
                                
 <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
   <div className="flex flex-col gap-1">
-    {Array.isArray(order.poCopy) && order.poCopy.length > 0
-      ? order.poCopy.map((fileUrl, idx) => {
-          const isFullUrl = fileUrl.startsWith("http");
-          const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
+    {/* ✅ Always treat poCopy as array */}
+    {(() => {
+      const poCopyArray = Array.isArray(order.poCopy)
+        ? order.poCopy
+        : order.poCopy
+        ? [order.poCopy]
+        : [];
 
-          let finalUrl = null;
+      return poCopyArray.length > 0
+        ? poCopyArray.map((fileUrl, idx) => {
+            const isFullUrl = fileUrl.startsWith("http");
+            const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
 
-          if (isFullUrl) {
-            finalUrl = isPdfFile
-              ? fileUrl.replace("/image/", "/raw/")
-              : fileUrl;
+            let finalUrl = null;
 
-            if (isPdfFile && !finalUrl.toLowerCase().endsWith(".pdf")) {
-              finalUrl += ".pdf";
+            if (isFullUrl) {
+              finalUrl = isPdfFile
+                ? fileUrl.replace("/image/", "/raw/")
+                : fileUrl;
+
+              if (isPdfFile && !finalUrl.toLowerCase().endsWith(".pdf")) {
+                finalUrl += ".pdf";
+              }
             }
-          }
 
-          const originalName =
-            Array.isArray(order.poOriginalName) &&
-            order.poOriginalName[idx]
-              ? order.poOriginalName[idx]
-              : `PO Copy ${idx + 1}`;
+            const originalName = Array.isArray(order.poOriginalName)
+              ? order.poOriginalName[idx] || `PO Copy ${idx + 1}`
+              : order.poOriginalName || `PO Copy ${idx + 1}`;
 
-          if (!finalUrl) {
+            if (!finalUrl) {
+              return (
+                <div key={idx} className="text-sm text-gray-500 italic">
+                  📄 {originalName} — old file, not viewable.
+                </div>
+              );
+            }
+
             return (
-              <div key={idx} className="text-sm text-gray-500 italic">
-                📄 {originalName} — old file, not viewable.
-              </div>
+              <button
+                key={idx}
+                onClick={() => {
+                  Swal.fire({
+                    title: originalName,
+                    html: isPdfFile
+                      ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
+                         <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
+                      : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
+                    width: 700,
+                    showCancelButton: true,
+                    showConfirmButton: false,
+                    cancelButtonText: "Close",
+                  });
+                }}
+                className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+              >
+                📄 {originalName}
+              </button>
             );
-          }
+          })
+        : (
+          <div className="text-sm text-gray-500 italic">
+            No PO Copy uploaded yet.
+          </div>
+        );
+    })()}
 
-          return (
-            <button
-              key={idx}
-              onClick={() => {
-                Swal.fire({
-                  title: originalName,
-                  html: isPdfFile
-                    ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
-                       <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
-                    : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
-                  width: 700,
-                  showCancelButton: true,
-                  showConfirmButton: false,
-                  cancelButtonText: "Close",
-                });
-              }}
-              className="text-blue-600 underline hover:text-blue-800 text-left truncate"
-            >
-              📄 {originalName}
-            </button>
-          );
-        })
-      : (
-        <div className="text-sm text-gray-500 italic">
-          No PO Copy uploaded yet.
-        </div>
-      )}
-
-    {/* ✅ Always show Upload Button */}
+    {/* ✅ Upload Button — always visible */}
     <button
       onClick={async () => {
+        const isArray = Array.isArray(order.poCopy);
+        const title = isArray ? "Upload more PO Copies" : "Upload PO Copy";
+        const multiple = isArray;
+
         const { value: files } = await Swal.fire({
-          title:
-            Array.isArray(order.poCopy) && order.poCopy.length > 0
-              ? "Upload more PO Copies"
-              : "Upload PO Copy",
+          title,
           input: "file",
           inputAttributes: {
             accept: "application/pdf,image/*",
-            multiple: Array.isArray(order.poCopy) && order.poCopy.length > 0,
+            multiple,
             "aria-label": "Upload PO Copy",
           },
           confirmButtonText: "Upload",
@@ -1202,9 +1210,7 @@ const actuallySendToProduction = async (
               `/files/upload/po-copy/${order._id}`,
               formData,
               {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
+                headers: { "Content-Type": "multipart/form-data" },
               }
             );
 
@@ -1220,12 +1226,11 @@ const actuallySendToProduction = async (
       }}
       className="text-sm text-gray-600 underline hover:text-red-600"
     >
-      {Array.isArray(order.poCopy) && order.poCopy.length > 0
-        ? "✏️ Add More PO Copy"
-        : "📤 Upload PO Copy"}
+      📤 Upload PO Copy
     </button>
   </div>
 </td>
+
 
 
 
