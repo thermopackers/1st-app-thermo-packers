@@ -1107,167 +1107,120 @@ const actuallySendToProduction = async (
                                {/* ✅ PO Copy */}
                                
 <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-  {/* Only show once per PO */}
-{Array.isArray(order.poCopy) && (
-    <>
-      {/* ✅ Show multiple PO Copies if available */}
-{Array.isArray(order.poCopy) && order.poCopy.filter(url => url).length > 0 ? (
-        <div className="flex flex-col gap-1">
-          {order.poCopy.map((fileUrl, idx) => {
-const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
-// Fix malformed Cloudinary URL if fileUrl already contains upload/
-const baseUrl = "https://res.cloudinary.com/dcr8k5amk";
-const sanitizedPath = fileUrl.replace(/^.*\/upload\//, ""); // remove existing "upload/..." prefix if present
+  {Array.isArray(order.poCopy) && (
+    <div className="flex flex-col gap-1">
+      {/* ✅ List PO Copy buttons or fallback messages */}
+      {order.poCopy.filter((url) => url).length > 0 ? (
+        order.poCopy.map((fileUrl, idx) => {
+          const isFullUrl = fileUrl.startsWith("http");
+          const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
 
-const fileUrlFull = isPdfFile
-  ? `${baseUrl}/raw/upload/${sanitizedPath}?fl_attachment=false`
-  : `${baseUrl}/image/upload/${sanitizedPath}`;
+          let finalUrl = null;
 
-    // ✅ Force .pdf extension if missing
-  let finalUrl = fileUrlFull;
-  if (isPdfFile && !fileUrlFull.toLowerCase().endsWith(".pdf")) {
-    finalUrl += ".pdf";
-  }
+          if (isFullUrl) {
+            finalUrl = isPdfFile
+              ? fileUrl.replace("/image/", "/raw/")
+              : fileUrl;
 
-const isPDF = fileUrl.toLowerCase().includes(".pdf");
-            const originalName =
-              Array.isArray(order.poOriginalName) && order.poOriginalName[idx]
-                ? order.poOriginalName[idx]
-                : `PO Copy ${idx + 1}`;
-
-            return (
-              <button
-                key={idx}
-                onClick={() => {
-                  Swal.fire({
-                    title: originalName,
-                  html: isPdfFile
-  ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
-     <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
-  : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
-                    width: 700,
-                    showCancelButton: true,
-                    showConfirmButton: false,
-                    cancelButtonText: "Close",
-                  });
-                }}
-                className="text-blue-600 underline hover:text-blue-800 text-left truncate"
-              >
-                📄 {originalName}
-              </button>
-            );
-          })}
-
-          {/* Upload more */}
-          <button
-            onClick={async () => {
-              const { value: files } = await Swal.fire({
-                title: "Upload more PO Copies",
-                input: "file",
-                inputAttributes: {
-                  accept: "application/pdf,image/*",
-                  multiple: true,
-                  "aria-label": "Upload PO Copy",
-                },
-                confirmButtonText: "Upload",
-                showCancelButton: true,
-              });
-
-              if (files) {
-                const selectedFiles = Array.from(
-                  files instanceof FileList ? files : [files]
-                );
-                const formData = new FormData();
-                selectedFiles.forEach((f) => formData.append("poCopy", f));
-                setUploadingPOCopy(true);
-
-                try {
-                  await axiosInstance.post(
-                    `/files/upload/po-copy/${order._id}`,
-                    formData,
-                    {
-                      headers: {
-                        "Content-Type": "multipart/form-data",
-                      },
-                    }
-                  );
-
-                  Swal.fire(
-                    "✅ Uploaded!",
-                    "PO Copies uploaded successfully",
-                    "success"
-                  );
-                  window.location.reload();
-                } catch (err) {
-                  Swal.fire(
-                    "❌ Error",
-                    "Failed to upload PO Copies",
-                    "error"
-                  );
-                  console.error(err);
-                } finally {
-                  setUploadingPOCopy(false);
-                }
-              }
-            }}
-            className="text-sm text-gray-600 underline hover:text-red-600"
-          >
-            ✏️ Add More PO Copy
-          </button>
-        </div>
-      ) : (
-        // 🔹 Initial PO Copy Upload if none exist
-        <button
-          onClick={async () => {
-            const { value: file } = await Swal.fire({
-              title: "Upload PO Copy",
-              input: "file",
-              inputAttributes: {
-                accept: "application/pdf,image/*",
-                "aria-label": "Upload PO Copy",
-              },
-              confirmButtonText: "Upload",
-              showCancelButton: true,
-            });
-
-            if (file) {
-              const formData = new FormData();
-              formData.append("poCopy", file);
-              setUploadingPOCopy(true);
-
-              try {
-                await axiosInstance.post(
-                  `/files/upload/po-copy/${order._id}`,
-                  formData,
-                  {
-                    headers: {
-                      "Content-Type": "multipart/form-data",
-                    },
-                  }
-                );
-
-                Swal.fire(
-                  "✅ Uploaded!",
-                  "PO Copy uploaded successfully",
-                  "success"
-                );
-                window.location.reload();
-              } catch (err) {
-                Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
-                console.error(err);
-              } finally {
-                setUploadingPOCopy(false);
-              }
+            if (isPdfFile && !finalUrl.toLowerCase().endsWith(".pdf")) {
+              finalUrl += ".pdf";
             }
-          }}
-          className="text-blue-600 underline hover:text-blue-800 text-sm"
-        >
-          📤 Upload PO Copy
-        </button>
+          }
+
+          const originalName =
+            Array.isArray(order.poOriginalName) &&
+            order.poOriginalName[idx]
+              ? order.poOriginalName[idx]
+              : `PO Copy ${idx + 1}`;
+
+          if (!finalUrl) {
+            return (
+              <div key={idx} className="text-sm text-gray-500 italic">
+                📄 {originalName} — old file, not viewable. Please re-upload.
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={idx}
+              onClick={() => {
+                Swal.fire({
+                  title: originalName,
+                  html: isPdfFile
+                    ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
+                       <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
+                    : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
+                  width: 700,
+                  showCancelButton: true,
+                  showConfirmButton: false,
+                  cancelButtonText: "Close",
+                });
+              }}
+              className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+            >
+              📄 {originalName}
+            </button>
+          );
+        })
+      ) : (
+        <div className="text-sm text-gray-500 italic">
+          No PO Copy uploaded yet.
+        </div>
       )}
-    </>
+
+      {/* ✅ Upload/Add PO Copy Button */}
+      <button
+        onClick={async () => {
+          const { value: files } = await Swal.fire({
+            title: order.poCopy.length > 0 ? "Upload more PO Copies" : "Upload PO Copy",
+            input: "file",
+            inputAttributes: {
+              accept: "application/pdf,image/*",
+              multiple: order.poCopy.length > 0,
+              "aria-label": "Upload PO Copy",
+            },
+            confirmButtonText: "Upload",
+            showCancelButton: true,
+          });
+
+          if (files) {
+            const selectedFiles = Array.from(
+              files instanceof FileList ? files : [files]
+            );
+            const formData = new FormData();
+            selectedFiles.forEach((f) => formData.append("poCopy", f));
+            setUploadingPOCopy(true);
+
+            try {
+              await axiosInstance.post(
+                `/files/upload/po-copy/${order._id}`,
+                formData,
+                {
+                  headers: {
+                    "Content-Type": "multipart/form-data",
+                  },
+                }
+              );
+
+              Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
+              window.location.reload();
+            } catch (err) {
+              Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
+              console.error(err);
+            } finally {
+              setUploadingPOCopy(false);
+            }
+          }
+        }}
+        className="text-sm text-gray-600 underline hover:text-red-600"
+      >
+        {order.poCopy.length > 0 ? "✏️ Add More PO Copy" : "📤 Upload PO Copy"}
+      </button>
+    </div>
   )}
 </td>
+
 
 
 
