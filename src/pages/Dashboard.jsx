@@ -289,8 +289,23 @@ const handleViewTasks = async () => {
                     </NavLink>
                   </div>
                 )}
+               
+
               </div>
             )}
+             {(user.role === "accounts") && (
+  <div className="bg-yellow-100 p-4 rounded-lg mt-6">
+    <h3 className="text-lg font-bold text-yellow-800">EPS/Thermocol CNC Hot Wire/CNC Router Section</h3>
+    <p className="text-sm text-yellow-700 mt-2">
+      Manage CNC-related products.
+    </p>
+    <NavLink to="/cnc-dashboard">
+      <button className="mt-4 cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+        Go to CNC Hot Wire/CNC Router Section
+      </button>
+    </NavLink>
+  </div>
+)}
             {user.role === "admin" && (
               <div className="bg-yellow-100 p-4 rounded-lg mt-6">
                 <h3 className="text-lg font-bold text-yellow-800">Admin Tools</h3>

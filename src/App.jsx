@@ -38,6 +38,7 @@ export default function App() {
     "/add-product",
     "/all-products",
     "/reports/shape-moulding",
+    "/cnc-dashboard",
     "/customers",
     "/reports/block-moulding",
     "/add-customer",

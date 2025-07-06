@@ -22,6 +22,15 @@ const SlipFormModal = ({
     isProduction &&
     !selectedSections.shapeMoulding &&
     selectedSections.preExpander;
+const [cncFormData, setCNCFormData] = useState({
+  productName: "",
+  size: "",
+  quantity: "",
+  drawingName: "",
+});
+const handleCNCChange = (field, value) => {
+  setCNCFormData({ ...cncFormData, [field]: value });
+};
 
   const [cuttingFormData, setCuttingFormData] = useState({
   productName: "",
@@ -62,95 +71,113 @@ const [danaFormData, setDanaFormData] = useState({
 
 useEffect(() => {
   if (isOpen && selectedOrder) {
-    setShapeFormData({
+    setShapeFormData((prev) => ({
       productName: selectedOrder.product || "",
-      dryWeight: selectedOrder.density || "",
-      quantity: selectedOrder.quantity || "",
-      remarks: selectedOrder.remarks || "",
-    });
+      dryWeight: prev.dryWeight || selectedOrder.density || "",
+      quantity: prev.quantity || selectedOrder.quantity || "",
+      remarks: prev.remarks || selectedOrder.remarks || "",
+    }));
 
-    setDanaFormData({
-      productName: selectedOrder.product || "",
-      quantity: selectedOrder.quantity || "",
-      remarks: selectedOrder.remarks || "",
-      density: selectedOrder.density || "",
-      densityValue: selectedOrder.density?.split(" ")[0] || "",
-      densityType: selectedOrder.density?.split(" ")[1] || "",
-      typeOfRawBlock: "",
-      recycledDana: "",
-      weight: "",
-      grade: "",
-    });
+    setDanaFormData((prev) => ({
+      ...prev,
+      productName: prev.productName || selectedOrder.product || "",
+      quantity: prev.quantity || selectedOrder.quantity || "",
+      remarks: prev.remarks || selectedOrder.remarks || "",
+      density: prev.density || selectedOrder.density || "",
+        densityValue: prev.densityValue || selectedOrder.density?.split(" ")[0] || "",
 
-    setPackagingFormData({
-      productName: selectedOrder.product || "",
-      quantity: selectedOrder.quantity || "",
-      remarks: selectedOrder.remarks || "",
-      packagingWeight: "",
-      packagingType: "",
-    });
+    }));
 
-    setCuttingFormData({
+    setPackagingFormData((prev) => ({
       productName: selectedOrder.product || "",
-      size: selectedOrder.size || "",
-      density: selectedOrder.density || "",
-      quantity: selectedOrder.quantity || "",
-      remarks: selectedOrder.remarks || "",
-    });
+      quantity: prev.quantity || selectedOrder.quantity || "",
+      remarks: prev.remarks || selectedOrder.remarks || "",
+      packagingWeight: prev.packagingWeight || "",
+      packagingType: prev.packagingType || "",
+    }));
+
+    setCuttingFormData((prev) => ({
+      productName: selectedOrder.product || "",
+      size: prev.size || selectedOrder.size || "",
+      density: prev.density || selectedOrder.density || "",
+      quantity: prev.quantity || selectedOrder.quantity || "",
+      remarks: prev.remarks || selectedOrder.remarks || "",
+    }));
+     // ✅ ADD THIS: CNC form auto-fill
+    setCNCFormData((prev) => ({
+      productName: selectedOrder.product || "",
+      size: prev.size || selectedOrder.size || "",
+      quantity: prev.quantity || selectedOrder.quantity || "",
+      drawingName: prev.drawingName || "",
+        remarks: prev.remarks || selectedOrder.remarks || "",
+    }));
   }
 }, [isOpen, selectedOrder]);
 
 
 
 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  try {
+    if (type === "dana") {
+  const finalDensity =
+    danaFormData.densityValue && danaFormData.densityType
+      ? `${danaFormData.densityValue} ${danaFormData.densityType}`
+      : "";
 
-    try {
-     if (type === "production") {
-const mergedDanaFormData = {
-  ...danaFormData,
-  productName: danaFormData.productName || selectedOrder?.product || "",
-  quantity: danaFormData.quantity || selectedOrder?.quantity || "",
-  remarks: danaFormData.remarks || selectedOrder?.remarks || "",
+  await onSubmit({
+    danaFormData: {
+      ...danaFormData,
+      density: finalDensity,                         // ✅ combines value + type
+      productName: selectedOrder.product || "",      // ✅ ensures product name is sent
+    },
+  });
+} else if (type === "production") {
+      await onSubmit({ shapeFormData });
+    } else if (type === "dispatch") {
+      await onSubmit({ cuttingFormData });
+    } else if (type === "cnc-slip") {
+      await onSubmit({ cncFormData });
+    } else if (type === "packaging" || type === "shape-packaging") {
+      await onSubmit({ packagingFormData });
+    }
+
+    // Reset fields after submit
+    setCuttingFormData({ productName: "", size: "", density: "", quantity: "", remarks: "" });
+    setShapeFormData({ productName: "", dryWeight: "", quantity: "", remarks: "" });
+    setPackagingFormData({
+      productName: selectedOrder?.product || "",
+      packagingWeight: "",
+      packagingType: "",
+      quantity: "",
+      remarks: "",
+    });
+    setDanaFormData({
+      typeOfRawBlock: "",
+      densityValue: "",
+      densityType: "",
+      recycledDana: "",
+      weight: "",
+      grade: "",
+    });
+    setCNCFormData({
+      productName: "",
+      size: "",
+      quantity: "",
+      drawingName: "",
+    });
+
+    onClose();
+  } catch (error) {
+    console.error("❌ Error submitting form:", error);
+  } finally {
+    setLoading(false);
+  }
 };
 
-
-
-
-await onSubmit({ cuttingFormData, shapeFormData, danaFormData: mergedDanaFormData });
-} else if (type === "shape-packaging") {
-        await onSubmit({ shapeFormData, packagingFormData });
-      } else if (type === "packaging") {
-        await onSubmit({ packagingFormData });
-      } else {
-        await onSubmit({ cuttingFormData });
-      }
-
-      setCuttingFormData({ size: "", density: "", quantity: "", remarks: "" });
-      setShapeFormData({
-        productName: "",
-        dryWeight: "",
-        quantity: "",
-        remarks: "",
-      });
-      setPackagingFormData({
-        productName: selectedOrder?.product || "",
-        packagingWeight: "",
-        packagingType: "",
-        quantity: "",
-        remarks: "",
-      });
-
-      onClose();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCuttingChange = (field, value) => {
     setCuttingFormData((prev) => ({ ...prev, [field]: value }));
@@ -178,199 +205,217 @@ await onSubmit({ cuttingFormData, shapeFormData, danaFormData: mergedDanaFormDat
         className="relative bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto mx-4 md:mx-auto mt-16 p-8 border border-gray-200"
         overlayClassName="fixed inset-0 backdrop-blur-sm flex justify-center items-start z-100 bg-grey-100/10"
       >
-        <h2 className="text-2xl font-extrabold mb-6 text-gray-900 select-none">
-          {isProduction
-            ? showAsDanaSlip
-              ? "Production Slip Details (Dana + Cutting)"
-              : "Production Slip Details (Shape + Cutting)"
-            : isPackaging
-            ? "Material Packaging Slip"
-            : "Cutting Slip Details"}
-        </h2>
+       <h2 className="text-2xl font-extrabold mb-6 text-gray-900 select-none">
+  {type === "dana"
+    ? "Raw Block/Dana Slip"
+    : type === "production"
+    ? "Shape Moulding Production Slip"
+    : type === "packaging"
+    ? "Material Packaging Slip"
+    : type === "cnc-slip"
+    ? "CNC Slip"
+    : "Cutting Slip Details"}
+</h2>
+
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Shape Slip */}
-          {shouldShowShapeSlip && (
-            <section className="space-y-4">
-              <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
-                {showAsDanaSlip ? "Raw Block/Dana Slip" : "Shape Moulding Production Slip/Die Moulding"}
-              </h3>
-              <label className="font-bold text-xl">Product Name:</label>
-              <input
-                type="text"
-                disabled
-                placeholder="Product Name"
-                value={
-        showAsDanaSlip
-          ? danaFormData.productName
-          : shapeFormData.productName
-      }
-      onChange={(e) =>
-        showAsDanaSlip
-          ? handleDanaChange("productName", e.target.value)
-          : handleShapeChange("productName", e.target.value)
-      }
-                className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-              />
-              <label className="font-bold text-xl">
-  {showAsDanaSlip ? "Density (Kg/m³)" : "Dry Weight / Density"}
-</label>
-<input
-  type="text"
-  placeholder={showAsDanaSlip ? "Density" : "Dry Weight / Density"}
-  value={showAsDanaSlip ? danaFormData.density : shapeFormData.dryWeight}
-  onChange={(e) =>
-    showAsDanaSlip
-      ? handleDanaChange("density", e.target.value)
-      : handleShapeChange("dryWeight", e.target.value)
-  }
-  disabled={showAsDanaSlip}  // ⬅️ Disable if Dana Slip
-  required
-  className="w-full border border-gray-300 rounded-md px-4 py-3 bg-gray-100 text-gray-700"
-/>
+       {/* Dana Slip */}
+{type === "dana" && (
+  <>
+    <section className="space-y-4">
+      <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
+        Raw Block/Dana Slip
+      </h3>
 
-              <label className="font-bold text-xl">Quantity:</label>
-              <input
-                type="number"
-                placeholder="Quantity"
-                 value={
-        showAsDanaSlip
-          ? danaFormData.quantity
-          : shapeFormData.quantity
-      }
-      onChange={(e) =>
-        showAsDanaSlip
-          ? handleDanaChange("quantity", e.target.value)
-          : handleShapeChange("quantity", e.target.value)
-      }
-                required
-                min={1}
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
-              <label className="font-bold text-xl">Remarks:</label>
-              <textarea
-                placeholder="Remarks"
-                 value={
-        showAsDanaSlip
-          ? danaFormData.remarks
-          : shapeFormData.remarks
-      }
-      onChange={(e) =>
-        showAsDanaSlip
-          ? handleDanaChange("remarks", e.target.value)
-          : handleShapeChange("remarks", e.target.value)
-      }
-                rows={3}
-                required
-                className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
-              />
-            </section>
-          )}
-{showAsDanaSlip && (
+      <label className="font-bold text-xl">Product Name:</label>
+      <input
+        type="text"
+        disabled
+        placeholder="Product Name"
+        value={danaFormData.productName}
+        onChange={(e) => handleDanaChange("productName", e.target.value)}
+        className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+      />
+
+      <label className="font-bold text-xl">Density (Kg/m³):</label>
+      <input
+        type="text"
+        placeholder="Density"
+        value={danaFormData.density}
+        onChange={(e) => handleDanaChange("density", e.target.value)}
+        disabled
+        required
+        className="w-full border border-gray-300 rounded-md px-4 py-3 bg-gray-100 text-gray-700"
+      />
+
+      <label className="font-bold text-xl">Quantity:</label>
+      <input
+        type="number"
+        placeholder="Quantity"
+        value={danaFormData.quantity}
+        onChange={(e) => handleDanaChange("quantity", e.target.value)}
+        required
+        min={1}
+        className="w-full border border-gray-300 rounded-md px-4 py-3"
+      />
+
+      <label className="font-bold text-xl">Remarks:</label>
+      <textarea
+        placeholder="Remarks"
+        value={danaFormData.remarks}
+        onChange={(e) => handleDanaChange("remarks", e.target.value)}
+        rows={3}
+        required
+        className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
+      />
+    </section>
+
+    <section className="space-y-4 pt-6">
+      <label className="font-bold text-xl">Type of Raw Block:</label>
+      <div className="flex flex-wrap gap-2">
+        {["With Both Gutka", "Without Both Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
+          <label key={option} className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="typeOfRawBlock"
+              value={option}
+              checked={danaFormData.typeOfRawBlock === option}
+              onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+            />
+            {option}
+          </label>
+        ))}
+      </div>
+      <input
+        type="text"
+        placeholder="Custom Raw Block Type"
+        value={danaFormData.typeOfRawBlock}
+        onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+        className="w-full border border-gray-300 rounded-md px-4 py-2"
+      />
+
+      <label className="font-bold text-xl">Density (Kg/m³):</label>
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          placeholder="e.g. 21"
+          value={danaFormData.densityValue}
+          onChange={(e) => {
+            const value = e.target.value;
+            handleDanaChange("densityValue", value);
+            handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
+          }}
+          className="w-1/2 border border-gray-300 rounded-md px-4 py-2"
+        />
+
+        <div className="flex flex-wrap gap-2">
+          {["FR", "Pink FR", "Non FR", "ND", "Pink Non FR"].map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                handleDanaChange("densityType", type);
+                handleDanaChange("density", `${danaFormData.densityValue} ${type}`.trim());
+              }}
+              className={`px-3 py-1 border rounded-md text-sm ${
+                danaFormData.densityType === type
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-gray-800 border-gray-300"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="font-bold text-xl">Recycled Dana:</label>
+      <div className="flex gap-4">
+        {["30%", "50%", "No"].map((val) => (
+          <label key={val} className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="recycledDana"
+              value={val}
+              checked={danaFormData.recycledDana === val}
+              onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
+            />
+            {val}
+          </label>
+        ))}
+      </div>
+
+      <label className="font-bold text-xl">Weight of Raw Block (kg):</label>
+      <input
+        type="text"
+        placeholder="Weight"
+        value={danaFormData.weight}
+        onChange={(e) => handleDanaChange("weight", e.target.value)}
+        className="w-full border border-gray-300 rounded-md px-4 py-2"
+      />
+
+      <label className="font-bold text-xl">Grade of Raw Material:</label>
+      <input
+        type="text"
+        placeholder="Grade"
+        value={danaFormData.grade}
+        onChange={(e) => handleDanaChange("grade", e.target.value)}
+        className="w-full border border-gray-300 rounded-md px-4 py-2"
+      />
+    </section>
+  </>
+)}
+
+{/* Shape Moulding Slip */}
+{type === "production" && (
   <section className="space-y-4">
-    <label className="font-bold text-xl">Type of Raw Block:</label>
-    <div className="flex flex-wrap gap-2">
-      {["With Both Gutka", "Without Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
-        <label key={option} className="flex items-center gap-1">
-          <input
-            type="radio"
-            name="typeOfRawBlock"
-            value={option}
-            checked={danaFormData.typeOfRawBlock === option}
-            onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-          />
-          {option}
-        </label>
-      ))}
-    </div>
+    <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
+      Shape Moulding Production Slip / Die Moulding
+    </h3>
+
+    <label className="font-bold text-xl">Product Name:</label>
     <input
       type="text"
-      placeholder="Custom Raw Block Type"
-      value={danaFormData.typeOfRawBlock}
-      onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-2"
+      disabled
+      value={shapeFormData.productName}
+      onChange={(e) => handleShapeChange("productName", e.target.value)}
+      className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
     />
 
-{/* Density Input */}
-<label className="font-bold text-xl">Density (Kg/m³):</label>
-<div className="flex gap-2 items-center">
-  <input
-    type="text"
-    placeholder="e.g. 21"
-    value={danaFormData.densityValue}
-    onChange={(e) => {
-      const value = e.target.value;
-      handleDanaChange("densityValue", value);
-      handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
-    }}
-    className="w-1/2 border border-gray-300 rounded-md px-4 py-2"
-  />
-
-  <div className="flex flex-wrap gap-2">
-    {["FR", "Pink FR", "Non FR", "Pink Non FR"].map((type) => (
-      <button
-        key={type}
-        type="button"
-        onClick={() => {
-          handleDanaChange("densityType", type);
-          handleDanaChange("density", `${danaFormData.densityValue} ${type}`.trim());
-        }}
-        className={`px-3 py-1 border rounded-md text-sm ${
-          danaFormData.densityType === type
-            ? "bg-indigo-600 text-white"
-            : "bg-white text-gray-800 border-gray-300"
-        }`}
-      >
-        {type}
-      </button>
-    ))}
-  </div>
-</div>
-
-
-
-
-
-
-
-
-    <label className="font-bold text-xl">Recycled Dana:</label>
-    <div className="flex gap-4">
-      {["30%", "50%", "No"].map((val) => (
-        <label key={val} className="flex items-center gap-1">
-          <input
-            type="radio"
-            name="recycledDana"
-            value={val}
-            checked={danaFormData.recycledDana === val}
-            onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
-          />
-          {val}
-        </label>
-      ))}
-    </div>
-
-    <label className="font-bold text-xl">Weight of Raw Block (kg):</label>
+    <label className="font-bold text-xl">Dry Weight / Density:</label>
     <input
       type="text"
-      placeholder="Weight"
-      value={danaFormData.weight}
-      onChange={(e) => handleDanaChange("weight", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-2"
+      placeholder="Dry Weight / Density"
+      value={shapeFormData.dryWeight}
+      onChange={(e) => handleShapeChange("dryWeight", e.target.value)}
+      required
+      className="w-full border border-gray-300 rounded-md px-4 py-3 bg-white text-gray-700"
     />
 
-    <label className="font-bold text-xl">Grade of Raw Material:</label>
+    <label className="font-bold text-xl">Quantity:</label>
     <input
-      type="text"
-      placeholder="Grade"
-      value={danaFormData.grade}
-      onChange={(e) => handleDanaChange("grade", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-2"
+      type="number"
+      placeholder="Quantity"
+      value={shapeFormData.quantity}
+      onChange={(e) => handleShapeChange("quantity", e.target.value)}
+      required
+      min={1}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
     />
 
-  
+    <label className="font-bold text-xl">Remarks:</label>
+    <textarea
+      placeholder="Remarks"
+      value={shapeFormData.remarks}
+      onChange={(e) => handleShapeChange("remarks", e.target.value)}
+      rows={3}
+      required
+      className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
+    />
   </section>
 )}
+
+
 
           {/* Packaging Slip */}
           {isPackaging && (
@@ -408,7 +453,7 @@ await onSubmit({ cuttingFormData, shapeFormData, danaFormData: mergedDanaFormDat
           )}
 
           {/* Cutting Slip */}
-          {!isPackaging && (
+          {type === "dispatch" && (
             <section className="space-y-4">
               <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
                 Cutting Slip
@@ -460,6 +505,47 @@ await onSubmit({ cuttingFormData, shapeFormData, danaFormData: mergedDanaFormDat
               />
             </section>
           )}
+{type === "cnc-slip" && (
+  <section className="space-y-4">
+    <label className="font-bold text-xl">Product Name:</label>
+    <input
+      type="text"
+      value={cncFormData.productName}
+      onChange={(e) => handleCNCChange("productName", e.target.value)}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    />
+    <label className="font-bold text-xl">Size:</label>
+    <input
+      type="text"
+      value={cncFormData.size}
+      onChange={(e) => handleCNCChange("size", e.target.value)}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    />
+    <label className="font-bold text-xl">Quantity:</label>
+    <input
+      type="number"
+      value={cncFormData.quantity}
+      onChange={(e) => handleCNCChange("quantity", e.target.value)}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    />
+    <label className="font-bold text-xl">Drawing Name:</label>
+    <input
+      type="text"
+      value={cncFormData.drawingName}
+      onChange={(e) => handleCNCChange("drawingName", e.target.value)}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    />
+    <label className="font-bold text-xl">Remarks:</label>
+<textarea
+  value={cncFormData.remarks}
+  onChange={(e) => handleCNCChange("remarks", e.target.value)}
+  className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
+  rows={4}
+  placeholder="Enter any special CNC instructions or notes..."
+/>
+
+  </section>
+)}
 
           {/* Footer */}
           <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">

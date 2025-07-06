@@ -194,7 +194,7 @@ const stopRecording = async () => {
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">Quantity</label>
     <input
-      type="number"
+      type="text"
       placeholder="Qty"
       value={item.quantity}
       onChange={(e) => handleItemChange(i, "quantity", e.target.value)}

@@ -6,7 +6,6 @@ import InternalNavbar from "../components/InternalNavbar";
 import AssignTaskForm from "../components/AssignTaskForm";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import SalesFollowUpForm from "./SalesFollowUpForm";
 import { useUserContext } from "../context/UserContext";
 
 const AdminDashboard = () => {

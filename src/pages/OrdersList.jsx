@@ -19,6 +19,7 @@ export default function OrdersList() {
   const [expandedProductId, setExpandedProductId] = useState(null);
   const [orders, setOrders] = useState([]);
   const [editOrder, setEditOrder] = useState(null);
+  const [selectedRadioByOrder, setSelectedRadioByOrder] = useState({});
   const [totalPages, setTotalPages] = useState(1);
   const [employees, setEmployees] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -33,6 +34,7 @@ export default function OrdersList() {
   const [slipType, setSlipType] = useState(null); // 'production' or 'dispatch'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeProductImage, setActiveProductImage] = useState(null);
+console.log("selectedRadioByOrder",selectedRadioByOrder);
 
   const [filters, setFilters] = useState({
     employeeId: "",
@@ -40,13 +42,14 @@ export default function OrdersList() {
     endDate: "",
   });
 
-  const sectionsList = [
-    {
-      key: "preExpander",
-      label: "EPS/Thermocol Block Moulding",
-    },
-    { key: "shapeMoulding", label: "EPS/Thermocol Shape Moulding" },
-  ];
+const sectionsList = [
+  { key: "preExpander", label: "EPS/Thermocol Block Moulding" },
+  { key: "shapeMoulding", label: "EPS/Thermocol Shape Moulding" },
+  { key: "sheetCutting", label: "EPS/Thermocol Sheet Cutting" },
+  { key: "shapePackaging", label: "EPS/Thermocol Shape Moulding Packaging" },
+  { key: "cncSection", label: "EPS/Thermocol CNC Hot Wire/CNC Router" },
+];
+
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState("sales");
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,6 +59,24 @@ export default function OrdersList() {
   const location = useLocation();
 
   const ordersPerPage = 8;
+
+  // 🔁 Maps section keys to slip types
+const sectionToSlipType = {
+  preExpander: "dana",
+  shapeMoulding: "production",
+  sheetCutting: "dispatch",
+  shapePackaging: "packaging",
+  cncSection: "cnc-slip",
+};
+
+// 🧠 Helper to get slipType from selected sections
+const getSlipTypeFromSection = (requiredSections) => {
+  if (!requiredSections) return null;
+  const active = Object.entries(requiredSections).find(([_, v]) => v);
+  return active ? sectionToSlipType[active[0]] || null : null;
+};
+
+
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
       const po = order.po || "N/A";
@@ -84,79 +105,72 @@ export default function OrdersList() {
       console.log("✅ shapeFormData:", payload.shapeFormData);
       console.log("✅ packagingFormData:", payload.packagingFormData);
 
-      if (slipType === "production") {
-        const hasShapeMoulding = selectedOrder?.requiredSections?.shapeMoulding;
+const slipTypeToHandler = {
+dana: async () => {
+  await axiosInstance.post("/slips/dana", {
+    orderId: selectedOrder._id,
+    ...payload.danaFormData,
+  });
+  await actuallySendToProduction(selectedOrder._id, null, null, null, payload.danaFormData);
+},
 
-        if (hasShapeMoulding) {
-          // ✅ SHAPE MOULDING FLOW
-          await axiosInstance.post("/slips/production", {
-            ...payload.shapeFormData,
-            orderId: selectedOrder._id,
-          });
+  production: async () => {
+    await axiosInstance.post("/slips/production", {
+      orderId: selectedOrder._id,
+      ...payload.shapeFormData,
+    });
+    await actuallySendToProduction(selectedOrder._id, payload.shapeFormData, null, null);
+  },
 
-          await actuallySendToProduction(
-            selectedOrder._id,
-            payload.shapeFormData,
-            null,
-            payload.shapeFormData,
-            payload.packagingFormData
-          );
+  dispatch: async () => {
+    await axiosInstance.post("/slips/dispatch", {
+      orderId: selectedOrder._id,
+      row: [payload.cuttingFormData],
+    });
+    await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
+  },
 
-          // ✅ Send to Packaging Automatically
-          await actuallySendToPackaging(
-            selectedOrder._id,
-            payload.packagingFormData
-          );
-        } else {
-          console.log("📦 Submitting Dana Slip:", {
-            orderId: selectedOrder._id,
-            ...payload.danaFormData,
-          });
+  packaging: async () => {
+    await axiosInstance.post("/slips/packaging", {
+      orderId: selectedOrder._id,
+      ...payload.packagingFormData,
+    });
+    await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
+  },
 
-          // ✅ BLOCK MOULDING FLOW
-          await axiosInstance.post("/slips/dana", {
-            orderId: selectedOrder._id,
-            ...payload.danaFormData,
-          });
+  "cnc-slip": async () => {
+    await axiosInstance.post("/slips/cnc", {
+      orderId: selectedOrder._id,
+      ...payload.cncFormData,
+    });
+  },
+};
 
-          await axiosInstance.post("/slips/dispatch", {
-            orderId: selectedOrder._id,
-            row: [payload.cuttingFormData],
-          });
+try {
+  if (!selectedOrder) return;
 
-          await axiosInstance.put(
-            `/orders/send-to-production/${selectedOrder._id}`,
-            {
-              sections: ["blockMoulding"],
-              remainingToProduce: 0,
-              cuttingRows: [payload.cuttingFormData],
-              danaRows: [payload.danaFormData], // ✅ Add this
-            }
-          );
+  const handler = slipTypeToHandler[slipType];
+  if (!handler) {
+    console.warn("⚠️ Unsupported slip type:", slipType);
+    return;
+  }
 
-          // ✅ Set Dispatch Status & Rows
-          await axiosInstance.post(`/orders/send-to-dispatch`, {
-            orderIds: [selectedOrder._id],
-            sections: ["blockMoulding"], // or other applicable section
-            cuttingRows: [payload.cuttingFormData],
-          });
+  await handler();
 
-          // ✅ Send to Dispatch Automatically
-          await actuallySendToDispatch(selectedOrder._id, [
-            payload.cuttingFormData,
-          ]);
-        }
+  await Swal.fire({
+    icon: "success",
+    title: "Success!",
+    text: "Slip submitted successfully!",
+  });
 
-        await Swal.fire({
-          icon: "success",
-          title: "Success!",
-          text: "Production slip submitted successfully!",
-        });
+  setModalOpen(false);
+  setSelectedOrder(null);
+} catch (err) {
+  console.error("❌ Error submitting slip:", err);
+  alert("Error submitting slip");
+}
 
-        setModalOpen(false);
-        setSelectedOrder(null);
-        return;
-      }
+
 
       let endpoint;
       let formToSave;
@@ -176,8 +190,8 @@ export default function OrdersList() {
         };
 
         console.log("🔥 Dispatch cuttingFormData:", payload.cuttingFormData);
-      } else if (slipType === "shape-packaging") {
-        console.log("📦 Submitting shape-packaging forms...");
+      } else if (slipType === "packaging") {
+        console.log("📦 Submitting packaging forms...");
 
         await axiosInstance.post("/slips/production", {
           ...payload.shapeFormData,
@@ -337,27 +351,6 @@ export default function OrdersList() {
 
   const MySwal = withReactContent(Swal);
 
-  const handleViewPOCopy = (order) => {
-    const isPDF = order.poCopy?.toLowerCase().endsWith(".pdf");
-    const url = order.poCopy?.startsWith("http")
-      ? order.poCopy
-      : `https://res.cloudinary.com/dcr8k5amk/raw/upload/${order.poCopy}`;
-
-    MySwal.fire({
-      title: "📎 PO Copy",
-      html: isPDF
-        ? `<iframe src="${url}" width="100%" height="500px" style="border:none;"></iframe>`
-        : `<img src="${url}" style="max-height:500px; max-width:100%;" />`,
-      showCancelButton: true,
-      confirmButtonText: "🖊 Change PO Copy",
-      cancelButtonText: "Close",
-      preConfirm: () => {
-        document.getElementById(`upload-po-${order._id}`).click();
-        return false; // prevent closing
-      },
-    });
-  };
-
   useEffect(() => {
     const storedDisabled = localStorage.getItem("disabledOrders");
     if (storedDisabled) {
@@ -492,43 +485,52 @@ const currentOrders = filteredOrders;
 
   // ✅ Declare SweetAlert2 with Tailwind buttons globally
 
-  const handleSectionRadioChange = async (orderId, selectedKey) => {
-    const updatedSections = {};
+const handleSectionRadioChange = async (orderId, selectedKey) => {
+    console.log("🔥 Radio changed:", selectedKey);
 
-    // Set only the selected section to true
-    sectionsList.forEach(({ key }) => {
-      updatedSections[key] = key === selectedKey;
-    });
+  const updatedSections = {};
 
-    try {
-      const { data: updatedOrder } = await axiosInstance.put(
-        `/orders/${orderId}/sections`,
-        { requiredSections: updatedSections }
-      );
+  // Set only the selected section to true
+  sectionsList.forEach(({ key }) => {
+    updatedSections[key] = key === selectedKey;
+  });
 
-      // Update local state
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o._id === orderId
-            ? {
-                ...o,
-                requiredSections: updatedOrder.requiredSections,
-                sentTo: updatedOrder.sentTo,
-              }
-            : o
-        )
-      );
+  try {
+    const { data: updatedOrder } = await axiosInstance.put(
+      `/orders/${orderId}/sections`,
+      { requiredSections: updatedSections }
+    );
 
-      setLocalSections((prev) => ({
-        ...prev,
-        [orderId]: updatedOrder.requiredSections,
-      }));
-      // Call fetchOrders here to refresh the data
-      fetchOrders(currentPage);
-    } catch (error) {
-      console.error("Error updating section selection:", error);
-    }
-  };
+    // Update local state
+    setOrders((prevOrders) =>
+      prevOrders.map((o) =>
+        o._id === orderId
+          ? {
+              ...o,
+              requiredSections: updatedOrder.requiredSections,
+              sentTo: updatedOrder.sentTo,
+            }
+          : o
+      )
+    );
+
+    setLocalSections((prev) => ({
+      ...prev,
+      [orderId]: updatedOrder.requiredSections,
+    }));
+
+    // ✅ Store selected radio key for this order
+    setSelectedRadioByOrder((prev) => ({
+      ...prev,
+      [orderId]: selectedKey,
+    }));
+   console.log("✅ Updated localSections:", updatedOrder.requiredSections);
+    console.log("✅ Updated selectedRadioByOrder:", selectedKey);
+    fetchOrders(currentPage);
+  } catch (error) {
+    console.error("Error updating section selection:", error);
+  }
+};
 
   const swalWithTailwindButtons = Swal.mixin({
     customClass: {
@@ -546,7 +548,8 @@ const currentOrders = filteredOrders;
     orderId,
     shapeRowData,
     packagingFormData,
-    cuttingFormData
+    cuttingFormData,
+    danaFormData
   ) => {
     console.log("cuttocut😍", cuttingFormData);
 
@@ -562,26 +565,33 @@ const currentOrders = filteredOrders;
     const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
 
     // ✅ Construct danaSlip from shapeRowData
-    const danaRows = [
+  const danaRows = danaFormData
+  ? [
       {
-        productName: shapeRowData.productName || freshOrder.product,
-        rawMaterial: shapeRowData.dryWeight,
-        quantity: shapeRowData.quantity,
-        remarks: shapeRowData.remarks,
-        density: shapeRowData.density || "", // Add actual value
-        recycledDana: shapeRowData.recycledDana || "", // Add actual value
-        weight: shapeRowData.weight || "", // Add actual value
-        grade: shapeRowData.grade || "", // Add actual value
+        productName: danaFormData.productName || freshOrder.product,
+        rawMaterial: danaFormData.typeOfRawBlock,
+        quantity: danaFormData.quantity,
+        remarks: danaFormData.remarks,
+        density: danaFormData.density || "",
+        recycledDana: danaFormData.recycledDana || "",
+        weight: danaFormData.weight || "",
+        grade: danaFormData.grade || "",
       },
-    ];
+    ]
+  : [];
+
 
     // ✅ Construct dispatchSlip from cuttingFormData
-    const dispatchSlip = {
+    const cuttingRows = cuttingFormData?.size ? [cuttingFormData] : [];
+const dispatchSlip = cuttingFormData?.size
+  ? {
       size: cuttingFormData.size,
       density: cuttingFormData.density,
       quantity: cuttingFormData.quantity,
       remarks: cuttingFormData.remarks,
-    };
+    }
+  : null;
+
 
     try {
       const res = await axiosInstance.put(
@@ -590,7 +600,7 @@ const currentOrders = filteredOrders;
           sections: selectedSections,
           remainingToProduce: remainingQuantity,
           shapeRows: shapeRowData ? [shapeRowData] : [],
-          cuttingRows: cuttingFormData ? [cuttingFormData] : [],
+          cuttingRows,
           packagingSlip: packagingFormData || null,
           danaRows,
           dispatchSlip,
@@ -932,6 +942,11 @@ const currentOrders = filteredOrders;
                         Product Name
                       </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+                        Bill To</th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+  Ship To</th>
+
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Size
                       </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
@@ -994,11 +1009,11 @@ const currentOrders = filteredOrders;
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Packaging Status
                       </th>
-                      {/* {role !== "dispatch" && ( */}
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Dispatch Status
                       </th>
-                      {/* )} */}
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+                        CNC Status</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
@@ -1021,7 +1036,6 @@ const currentOrders = filteredOrders;
                           </tr>
 
                           {poOrders.map((order) => {
-                            console.log("📎 PO COPY URL:", order.poCopy);
 
                             const isSent =
                               order.packagingSlip ||
@@ -1066,6 +1080,15 @@ const currentOrders = filteredOrders;
                                     {order.product}
                                   </button>
                                 </td>
+<td className="px-4 py-2 whitespace-pre-wrap max-w-[250px] text-sm text-gray-800">
+  <strong>Bill To:</strong><br />
+  {order.billTo || "—"}
+</td>
+
+<td className="px-4 py-2 whitespace-pre-wrap max-w-[250px] text-sm text-gray-800">
+  <strong>Ship To:</strong><br />
+  {order.shipTo || "—"}
+</td>
 
                                 <td className="px-4 py-2 whitespace-nowrap">
                                   {order.size ? order.size : "N/A"}
@@ -1137,157 +1160,172 @@ const currentOrders = filteredOrders;
                                   {order.remarks || "N/A"}
                                 </td>
 
-                                {/* ✅ PO Copy */}
-                                <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-                                  {/* Only show once per PO */}
-                                  {order._id === poOrders[0]._id && (
-                                    <>
-                                      {order.poCopy ? (
-                                        <div className="flex flex-col gap-1">
-                                          <button
-                                            onClick={() => {
-                                              const isPDF =
-                                                order.poCopy
-                                                  .toLowerCase()
-                                                  .endsWith(".pdf") ||
-                                                order.poCopy.includes(".pdf");
+                               {/* ✅ PO Copy */}
+                               
+<td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
+  {/* Only show once per PO */}
+{Array.isArray(order.poCopy) && (
+    <>
+      {/* ✅ Show multiple PO Copies if available */}
+{Array.isArray(order.poCopy) && order.poCopy.filter(url => url).length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {order.poCopy.map((fileUrl, idx) => {
+const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
+// Fix malformed Cloudinary URL if fileUrl already contains upload/
+const baseUrl = "https://res.cloudinary.com/dcr8k5amk";
+const sanitizedPath = fileUrl.replace(/^.*\/upload\//, ""); // remove existing "upload/..." prefix if present
 
-                                              Swal.fire({
-                                                title: "PO Copy Preview",
-                                                html: isPDF
-                                                  ? `<iframe src="${order.poCopy}" width="100%" height="500px" style="border:none;"></iframe>`
-                                                  : `<img src="${order.poCopy}" style="max-width:100%; max-height:500px;" />`,
-                                                width: 700,
-                                                showCancelButton: true,
-                                                showConfirmButton: false,
-                                                cancelButtonText: "Close",
-                                              });
-                                            }}
-                                            className="text-blue-600 underline hover:text-blue-800 text-left truncate"
-                                          >
-                                            📄{" "}
-                                            {order.poOriginalName ||
-                                              "View PO Copy"}
-                                          </button>
+const fileUrlFull = isPdfFile
+  ? `${baseUrl}/raw/upload/${sanitizedPath}?fl_attachment=false`
+  : `${baseUrl}/image/upload/${sanitizedPath}`;
 
-                                          <button
-                                            onClick={async () => {
-                                              const { value: file } =
-                                                await Swal.fire({
-                                                  title: "Upload new PO Copy",
-                                                  input: "file",
-                                                  inputAttributes: {
-                                                    accept:
-                                                      "application/pdf,image/*",
-                                                    "aria-label":
-                                                      "Upload PO Copy",
-                                                  },
-                                                  confirmButtonText: "Upload",
-                                                  showCancelButton: true,
-                                                });
+    // ✅ Force .pdf extension if missing
+  let finalUrl = fileUrlFull;
+  if (isPdfFile && !fileUrlFull.toLowerCase().endsWith(".pdf")) {
+    finalUrl += ".pdf";
+  }
 
-                                              if (file) {
-                                                const formData = new FormData();
-                                                formData.append("poCopy", file);
-                                                setUploadingPOCopy(true);
+const isPDF = fileUrl.toLowerCase().includes(".pdf");
+            const originalName =
+              Array.isArray(order.poOriginalName) && order.poOriginalName[idx]
+                ? order.poOriginalName[idx]
+                : `PO Copy ${idx + 1}`;
 
-                                                try {
-                                                  const res =
-                                                    await axiosInstance.post(
-                                                      `/files/upload/po-copy/${order._id}`,
-                                                      formData,
-                                                      {
-                                                        headers: {
-                                                          "Content-Type":
-                                                            "multipart/form-data",
-                                                        },
-                                                      }
-                                                    );
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  Swal.fire({
+                    title: originalName,
+                  html: isPdfFile
+  ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
+     <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
+  : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
+                    width: 700,
+                    showCancelButton: true,
+                    showConfirmButton: false,
+                    cancelButtonText: "Close",
+                  });
+                }}
+                className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+              >
+                📄 {originalName}
+              </button>
+            );
+          })}
 
-                                                  Swal.fire(
-                                                    "✅ Updated!",
-                                                    "PO Copy updated successfully",
-                                                    "success"
-                                                  );
-                                                  window.location.reload();
-                                                } catch (err) {
-                                                  Swal.fire(
-                                                    "❌ Error",
-                                                    "Failed to upload PO Copy",
-                                                    "error"
-                                                  );
-                                                  console.error(err);
-                                                } finally {
-                                                  setUploadingPOCopy(false);
-                                                }
-                                              }
-                                            }}
-                                            className="text-sm text-gray-600 underline hover:text-red-600"
-                                          >
-                                            ✏️ Edit PO Copy
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          onClick={async () => {
-                                            const { value: file } =
-                                              await Swal.fire({
-                                                title: "Upload PO Copy",
-                                                input: "file",
-                                                inputAttributes: {
-                                                  accept:
-                                                    "application/pdf,image/*",
-                                                  "aria-label":
-                                                    "Upload PO Copy",
-                                                },
-                                                confirmButtonText: "Upload",
-                                                showCancelButton: true,
-                                              });
+          {/* Upload more */}
+          <button
+            onClick={async () => {
+              const { value: files } = await Swal.fire({
+                title: "Upload more PO Copies",
+                input: "file",
+                inputAttributes: {
+                  accept: "application/pdf,image/*",
+                  multiple: true,
+                  "aria-label": "Upload PO Copy",
+                },
+                confirmButtonText: "Upload",
+                showCancelButton: true,
+              });
 
-                                            if (file) {
-                                              const formData = new FormData();
-                                              formData.append("poCopy", file);
-                                              setUploadingPOCopy(true);
+              if (files) {
+                const selectedFiles = Array.from(
+                  files instanceof FileList ? files : [files]
+                );
+                const formData = new FormData();
+                selectedFiles.forEach((f) => formData.append("poCopy", f));
+                setUploadingPOCopy(true);
 
-                                              try {
-                                                const res =
-                                                  await axiosInstance.post(
-                                                    `/files/upload/po-copy/${order._id}`,
-                                                    formData,
-                                                    {
-                                                      headers: {
-                                                        "Content-Type":
-                                                          "multipart/form-data",
-                                                      },
-                                                    }
-                                                  );
+                try {
+                  await axiosInstance.post(
+                    `/files/upload/po-copy/${order._id}`,
+                    formData,
+                    {
+                      headers: {
+                        "Content-Type": "multipart/form-data",
+                      },
+                    }
+                  );
 
-                                                Swal.fire(
-                                                  "✅ Uploaded!",
-                                                  "PO Copy uploaded successfully",
-                                                  "success"
-                                                );
-                                                window.location.reload();
-                                              } catch (err) {
-                                                Swal.fire(
-                                                  "❌ Error",
-                                                  "Failed to upload PO Copy",
-                                                  "error"
-                                                );
-                                                console.error(err);
-                                              } finally {
-                                                setUploadingPOCopy(false);
-                                              }
-                                            }
-                                          }}
-                                          className="text-blue-600 underline hover:text-blue-800 text-sm"
-                                        >
-                                          📤 Upload PO Copy
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
-                                </td>
+                  Swal.fire(
+                    "✅ Uploaded!",
+                    "PO Copies uploaded successfully",
+                    "success"
+                  );
+                  window.location.reload();
+                } catch (err) {
+                  Swal.fire(
+                    "❌ Error",
+                    "Failed to upload PO Copies",
+                    "error"
+                  );
+                  console.error(err);
+                } finally {
+                  setUploadingPOCopy(false);
+                }
+              }
+            }}
+            className="text-sm text-gray-600 underline hover:text-red-600"
+          >
+            ✏️ Add More PO Copy
+          </button>
+        </div>
+      ) : (
+        // 🔹 Initial PO Copy Upload if none exist
+        <button
+          onClick={async () => {
+            const { value: file } = await Swal.fire({
+              title: "Upload PO Copy",
+              input: "file",
+              inputAttributes: {
+                accept: "application/pdf,image/*",
+                "aria-label": "Upload PO Copy",
+              },
+              confirmButtonText: "Upload",
+              showCancelButton: true,
+            });
+
+            if (file) {
+              const formData = new FormData();
+              formData.append("poCopy", file);
+              setUploadingPOCopy(true);
+
+              try {
+                await axiosInstance.post(
+                  `/files/upload/po-copy/${order._id}`,
+                  formData,
+                  {
+                    headers: {
+                      "Content-Type": "multipart/form-data",
+                    },
+                  }
+                );
+
+                Swal.fire(
+                  "✅ Uploaded!",
+                  "PO Copy uploaded successfully",
+                  "success"
+                );
+                window.location.reload();
+              } catch (err) {
+                Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
+                console.error(err);
+              } finally {
+                setUploadingPOCopy(false);
+              }
+            }
+          }}
+          className="text-blue-600 underline hover:text-blue-800 text-sm"
+        >
+          📤 Upload PO Copy
+        </button>
+      )}
+    </>
+  )}
+</td>
+
+
 
                                 {/* ✅ Action Buttons */}
                                 {role !== "production" &&
@@ -1334,6 +1372,14 @@ const currentOrders = filteredOrders;
                                       <td className="px-4 py-2 whitespace-nowrap">
                                         {sectionsList.map((section) => {
                                           const keyId = `${order._id}-${section.key}`;
+const sentToProduction = order.sentTo?.production || [];
+const sentToDispatch = order.sentTo?.dispatch || [];
+
+const isSectionSent =
+  (["preExpander", "shapeMoulding", "cncSection"].includes(section.key) &&
+    sentToProduction.includes(section.key)) ||
+  (["sheetCutting", "shapePackaging"].includes(section.key) &&
+    sentToDispatch.includes(section.key));
 
                                           return (
                                             <label
@@ -1349,9 +1395,6 @@ const currentOrders = filteredOrders;
                                                     section.key
                                                   ] || false
                                                 }
-                                                disabled={
-                                                  !!disabledOrders[order._id]
-                                                }
                                                 onChange={() =>
                                                   handleSectionRadioChange(
                                                     order._id,
@@ -1359,7 +1402,12 @@ const currentOrders = filteredOrders;
                                                   )
                                                 }
                                               />
-                                              {section.label}
+<>
+  {section.label}
+  {isSectionSent && (
+    <span className="ml-1 text-green-600 text-xs font-semibold">✅ Sent</span>
+  )}
+</>
                                             </label>
                                           );
                                         })}
@@ -1524,82 +1572,80 @@ const currentOrders = filteredOrders;
                                               </button>
                                             );
                                           }
+const selectedKey = selectedRadioByOrder[order._id];
+
+const isSectionSentToProduction = sentToProduction.includes(selectedKey);
+const isSectionSentToDispatch = sentToDispatch.includes(selectedKey);
+
+const isSectionAlreadySent =
+  ["preExpander", "shapeMoulding", "cncSection"].includes(selectedKey)
+    ? isSectionSentToProduction
+    : isSectionSentToDispatch;
 
                                           // Default: Send to Production
                                           return (
-                                            <button
+                                             <button
                                               className="bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                              disabled={
-                                                alreadySentToProduction ||
-                                                alreadyDispatched ||
-                                                disabledOrders[order._id]
-                                              }
-                                              onClick={async () => {
-                                                if (alreadySentToProduction) {
-                                                  Swal.fire({
-                                                    icon: "info",
-                                                    title: "Already Sent",
-                                                    text: "This order has already been sent to production!",
-                                                  });
-                                                  return;
-                                                }
+                                              disabled={isSectionAlreadySent}
 
-                                                if (alreadyDispatched) {
-                                                  Swal.fire({
-                                                    icon: "info",
-                                                    title: "Already Dispatched",
-                                                    text: "You cannot send to production after dispatch!",
-                                                  });
-                                                  return;
-                                                }
+                                             onClick={async () => {
+if (isSectionAlreadySent) {
+  Swal.fire({
+    icon: "info",
+    title: "Already Sent",
+    text: `This section (${selectedKey}) has already been sent.`,
+  });
+  return;
+}
 
-                                                const result =
-                                                  await swalWithTailwindButtons.fire(
-                                                    {
-                                                      title: "Are you sure?",
-                                                      text: "You want to send this order to Production!",
-                                                      icon: "warning",
-                                                      showCancelButton: true,
-                                                      confirmButtonText: "Yes!",
-                                                      cancelButtonText:
-                                                        "No, cancel!",
-                                                      reverseButtons: true,
-                                                      customClass: {
-                                                        confirmButton:
-                                                          "ml-2 px-4 py-2 bg-green-600 text-white rounded",
-                                                        cancelButton:
-                                                          "mr-2 px-4 py-2 bg-red-600 text-white rounded",
-                                                      },
-                                                    }
-                                                  );
 
-                                                const isShapeOnly =
-                                                  order.requiredSections
-                                                    ?.shapeMoulding &&
-                                                  !order.requiredSections
-                                                    ?.preExpander &&
-                                                  !order.requiredSections
-                                                    ?.handMoulding &&
-                                                  !order.requiredSections
-                                                    ?.cncSection;
 
-                                                if (result.isConfirmed) {
-                                                  const slipTypeToSet =
-                                                    isShapeOnly
-                                                      ? "shape-packaging"
-                                                      : "production";
-                                                  setSlipType(slipTypeToSet);
-                                                  setSelectedOrder(order);
-                                                  setSelectedSections(
-                                                    order.requiredSections || {}
-                                                  ); // ✅ CRITICAL LINE
-                                                  setTimeout(() => {
-                                                    setModalOpen(true);
-                                                  }, 0);
-                                                }
-                                              }}
-                                            >
-                                              🏭 Send to Production
+  const result = await swalWithTailwindButtons.fire({
+    title: "Are you sure?",
+    text: "You want to send this order to Production!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes!",
+    cancelButtonText: "No, cancel!",
+    reverseButtons: true,
+    customClass: {
+      confirmButton: "ml-2 px-4 py-2 bg-green-600 text-white rounded",
+      cancelButton: "mr-2 px-4 py-2 bg-red-600 text-white rounded",
+    },
+  });
+
+  if (result.isConfirmed) {
+    const selectedKey = selectedRadioByOrder[order._id];
+
+    // ✅ Rebuild selectedSections from selectedKey
+    const oneSelected = sectionsList.reduce((acc, curr) => {
+      acc[curr.key] = curr.key === selectedKey;
+      return acc;
+    }, {});
+
+    // ✅ Logging before state is set
+    console.log("✅ Selected Key:", selectedKey);
+    console.log("✅ Setting selectedSections to:", oneSelected);
+
+    // ✅ Set slip type
+   setSlipType(sectionToSlipType[selectedKey] || "production");
+
+
+    // ✅ Set correct section state and open modal
+    setSelectedOrder(order);
+    setSelectedSections(oneSelected);
+    setTimeout(() => {
+      setModalOpen(true);
+    }, 0);
+  }
+}}
+
+
+
+                                                
+                                              
+                                            > {isSectionAlreadySent ? "✅ Sent" : "🏭 Send to Production"}
+
                                             </button>
                                           );
                                         })()}
@@ -1689,6 +1735,18 @@ const currentOrders = filteredOrders;
                                   </div>
                                    {" "}
                                 </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+    order.cncStatus === "processed"
+      ? "bg-green-100 text-green-700"
+      : order.cncStatus === "in process"
+      ? "bg-yellow-100 text-yellow-700"
+      : "bg-red-100 text-red-700"
+  }`}>
+    {order.cncStatus || "pending"}
+  </span>
+</td>
+
                               </tr>
                             );
                           })}

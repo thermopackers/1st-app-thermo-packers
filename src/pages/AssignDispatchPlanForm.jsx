@@ -24,6 +24,11 @@ const [customerList, setCustomerList] = useState([]);
   vehicleNumber: "",
   remarks: "",
   driverName: "",
+    dateOfTrip: (() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0]; // YYYY-MM-DD
+  })(),
 });
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
 useEffect(() => {
@@ -145,6 +150,45 @@ const handleVehicleRegister = async () => {
       .catch((err) => console.error("Failed to fetch drivers:", err));
   }, [token]);
 
+const handleEditTripDate = async (planId, currentDate) => {
+  const { value: formValues } = await Swal.fire({
+    title: "Edit Date of Trip",
+    html: `
+      <input type="date" id="trip-date" class="swal2-input" value="${currentDate ? new Date(currentDate).toISOString().split("T")[0] : ''}" />
+    `,
+    focusConfirm: false,
+    preConfirm: () => {
+      const date = document.getElementById("trip-date").value;
+      if (!date) {
+        Swal.showValidationMessage("Please select a valid date.");
+        return false;
+      }
+      return date;
+    },
+    showCancelButton: true,
+    confirmButtonText: "Update Date",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!formValues) return;
+
+  try {
+    await axiosInstance.patch(
+      `/dispatch-plans/${planId}/date`,
+      { dateOfTrip: formValues },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    toast.success("Date of Trip updated");
+    fetchPlans(); // Refresh the table
+  } catch (err) {
+    console.error("Failed to update date:", err);
+    toast.error("Failed to update date");
+  }
+};
+
+
   const handleDelete = async (planId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -234,6 +278,7 @@ const handleSubmit = async (e) => {
       driverName,
       remarks,
       customerNames,
+        dateOfTrip: formData.dateOfTrip, // ✅ Add this
     };
 
     // ✅ Upload audio if exists
@@ -393,6 +438,17 @@ const handleSubmit = async (e) => {
   <h2 className="md:col-span-2 text-2xl font-bold text-blue-800">
     Assign Dispatch Plan
   </h2>
+<div className="flex flex-col">
+  <label className="mb-1 font-medium text-sm text-gray-700">Date of Trip</label>
+  <input
+    type="date"
+    name="dateOfTrip"
+    value={formData.dateOfTrip}
+    onChange={handleChange}
+    className="w-full p-2 border rounded shadow-sm"
+    required
+  />
+</div>
 
   <div className="flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Number</label>
@@ -668,6 +724,7 @@ setSearchTerm("");
                 <thead className="bg-blue-50 text-blue-800">
                   <tr className="text-left">
                     <th className="p-3 font-medium border">Sr No</th>
+                          <th className="p-3 font-medium border">Date of Trip</th> {/* ✅ New */}
                     <th className="p-3 font-medium border">Vehicle</th>
                     <th className="p-3 font-medium border">GPS Link</th>
                     <th className="p-3 font-medium border">Driver</th>
@@ -684,6 +741,21 @@ setSearchTerm("");
                       <td className="p-3 border">
                         {(page - 1) * 10 + index + 1}
                       </td>
+                      <td className="p-3 border text-xs text-gray-800">
+  <div className="flex items-center gap-2">
+    {plan.dateOfTrip ? (
+      <span>{new Date(plan.dateOfTrip).toLocaleDateString()}</span>
+    ) : (
+      <span className="text-gray-400">—</span>
+    )}
+    <button
+      onClick={() => handleEditTripDate(plan._id, plan.dateOfTrip)}
+      className="text-blue-600 underline text-xs hover:text-blue-800"
+    >
+      Edit
+    </button>
+  </div>
+</td>
                       <td className="p-3 border">{plan.vehicleNumber}</td>
                       <td className="p-3 border">
   {plan.gpsLink ? (
@@ -742,6 +814,7 @@ setSearchTerm("");
   )}
 </td>
                               <td className="p-3 border">{plan.remarks || "-"}</td> {/* ✅ New */}
+
                       <td className="p-3 border">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${

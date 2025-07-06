@@ -278,6 +278,9 @@ for (let file of selectedFiles) {
         🚛 {plan.vehicleNumber}
       </h2>
       <p className="text-sm text-gray-600">
+  <strong>Date of Trip:</strong> {new Date(plan.dateOfTrip).toLocaleDateString()}
+</p>
+      <p className="text-sm text-gray-600">
         <strong>Assigned On:</strong> {new Date(plan.assignedOn).toLocaleString()}
       </p>
     </div>

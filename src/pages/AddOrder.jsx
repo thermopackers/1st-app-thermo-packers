@@ -14,10 +14,13 @@ export default function AddOrder() {
   const [clientDetails, setClientDetails] = useState({
     customerName: "",
     po: "",
-    poCopy: null,
+  poCopy: [], // ✅ now an array
     deliveryRange: "",
     date: "",
     remarks: "",
+     billTo: "",
+  shipTo: "",
+  sameAsBillTo: false, // 🔁 checkbox state
   });
   const [productList, setProductList] = useState([
     {
@@ -109,7 +112,7 @@ const options = useMemo(() => {
 }, [allProducts, loadingProducts]);
 
   const handleClientChange = (e) => {
-  const { name, value, type, files } = e.target;
+  const { name, value, type, files, checked } = e.target;
 
   if (type === "file") {
   const file = files[0];
@@ -132,8 +135,7 @@ const options = useMemo(() => {
 
   console.log("✅ File accepted:", file.name, file.type, file.size);
   setClientDetails({ ...clientDetails, [name]: file });
-}
- else if (name === "deliveryRange") {
+} else if (name === "deliveryRange") {
     const days =
       value === "1week"
         ? 7
@@ -149,6 +151,27 @@ const options = useMemo(() => {
       deliveryRange: value,
       date: today.toISOString().split("T")[0],
     });
+  }
+  // ✅ Checkbox: Same as Bill To
+  else if (name === "sameAsBillTo") {
+    const updatedDetails = {
+      ...clientDetails,
+      sameAsBillTo: checked,
+      shipTo: checked ? clientDetails.billTo : "",
+    };
+    setClientDetails(updatedDetails);
+  }
+
+  // ✅ Bill To change should update Ship To if checkbox is checked
+  else if (name === "billTo") {
+    const updatedDetails = {
+      ...clientDetails,
+      billTo: value,
+    };
+    if (clientDetails.sameAsBillTo) {
+      updatedDetails.shipTo = value;
+    }
+    setClientDetails(updatedDetails);
   } else {
     setClientDetails({ ...clientDetails, [name]: value });
   }
@@ -284,6 +307,8 @@ const handleSubmit = async (e) => {
     formData.append("date", clientDetails.date);
     formData.append("remarks", clientDetails.remarks);
     formData.append("products", JSON.stringify(modifiedProductList));
+formData.append("billTo", clientDetails.billTo);
+formData.append("shipTo", clientDetails.shipTo);
 
     const response = await axiosInstance.post("/orders/multi", formData, {
       headers: {
@@ -295,23 +320,31 @@ const handleSubmit = async (e) => {
     const createdOrder = response.data.orders[0];
     console.log("🧾 New Order:", createdOrder);
 
-    // ✅ Upload PO file to Cloudinary only if present
-    if (clientDetails.poCopy) {
-      if (clientDetails.poCopy.size === 0) {
-        toast.error("PO file is empty. Please select a valid PDF.");
-      } else {
-        const poForm = new FormData();
-        poForm.append("poCopy", clientDetails.poCopy);
+  // ✅ Upload multiple PO files (images/pdfs) if present
+if (clientDetails.poCopy.length > 0) {
+  for (const file of clientDetails.poCopy) {
+    const poForm = new FormData();
+    poForm.append("poCopy", file);
 
-        const poUploadRes = await axiosInstance.post(
-          `/files/upload/po-copy/${createdOrder._id}`,
-          poForm
-        );
-
-        console.log("✅ PO Copy uploaded to Cloudinary:", poUploadRes.data);
-
-      }
+    try {
+      const poUploadRes = await axiosInstance.post(
+        `/files/upload/po-copy/${createdOrder._id}`,
+        poForm,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log("✅ Uploaded:", poUploadRes.data);
+    } catch (uploadErr) {
+      console.error("❌ Failed to upload file:", file.name, uploadErr);
+      toast.error(`Upload failed for: ${file.name}`);
     }
+  }
+}
+
 
     toast.success("Order submitted!");
         navigate("/dashboard", { replace: true });
@@ -383,12 +416,114 @@ console.log("productList rendering:", productList);
               required
               className="border border-gray-400 p-2 rounded w-full"
             />
-            <input
-              type="file"
-              name="poCopy"
-              onChange={handleClientChange}
-              className="col-span-2 bg-green-100 cursor-pointer p-2 rounded"
+           <input
+  type="file"
+  name="poCopy"
+  multiple
+  accept=".pdf,.png,.jpg,.jpeg"
+  onChange={(e) => {
+    const selectedFiles = Array.from(e.target.files);
+    const validTypes = ["application/pdf", "image/jpeg", "image/png"];
+
+    const filtered = selectedFiles.filter(
+      (file) => validTypes.includes(file.type) && file.size > 1000
+    );
+
+    if (filtered.length !== selectedFiles.length) {
+      toast.error("Some files were skipped (invalid type or size).");
+    }
+
+    setClientDetails((prev) => ({
+      ...prev,
+      poCopy: [...prev.poCopy, ...filtered],
+    }));
+  }}
+  className="col-span-2 bg-green-100 cursor-pointer p-2 rounded"
+/>
+
+{clientDetails.poCopy.length > 0 && (
+  <div className="col-span-2">
+    <p className="text-sm text-gray-600 font-medium">Attached Files:</p>
+    <div className="flex flex-wrap gap-4 mt-2">
+      {clientDetails.poCopy.map((file, index) => (
+        <div key={index} className="relative border p-2 rounded">
+          {file.type.includes("image") ? (
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Preview ${index}`}
+              className="w-24 h-24 object-cover rounded"
             />
+          ) : (
+            <div className="w-24 h-24 flex items-center justify-center bg-gray-100 text-xs text-gray-700 rounded">
+              {file.name}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const updatedFiles = [...clientDetails.poCopy];
+              updatedFiles.splice(index, 1);
+              setClientDetails((prev) => ({
+                ...prev,
+                poCopy: updatedFiles,
+              }));
+            }}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* 🧾 Bill To Address */}
+<div className="flex flex-col col-span-2">
+  <label htmlFor="billTo" className="mb-1 font-medium text-gray-700">
+    🧾 Bill To Address
+  </label>
+  <input
+    id="billTo"
+    name="billTo"
+    placeholder="Enter Bill To Address"
+    value={clientDetails.billTo}
+    onChange={handleClientChange}
+    className="border border-gray-400 p-2 rounded w-full"
+    required
+  />
+</div>
+
+{/* ✅ Ship to same as Bill To checkbox */}
+<div className="flex items-center gap-2 col-span-2">
+  <input
+    type="checkbox"
+    id="sameAsBillTo"
+    name="sameAsBillTo"
+    checked={clientDetails.sameAsBillTo}
+    onChange={handleClientChange}
+  />
+  <label htmlFor="sameAsBillTo" className="text-sm text-gray-700">
+    🚚 Ship to same as Bill To
+  </label>
+</div>
+
+{/* 🚚 Ship To Address */}
+<div className="flex flex-col col-span-2">
+  <label htmlFor="shipTo" className="mb-1 font-medium text-gray-700">
+    🚚 Ship To Address
+  </label>
+  <input
+    id="shipTo"
+    name="shipTo"
+    placeholder="Enter Ship To Address"
+    value={clientDetails.shipTo}
+    onChange={handleClientChange}
+    className="border border-gray-400 p-2 rounded w-full"
+    disabled={clientDetails.sameAsBillTo}
+  />
+</div>
+
+
             <select
               name="deliveryRange"
               required
@@ -413,202 +548,227 @@ console.log("productList rendering:", productList);
 
           <h3 className="text-xl font-semibold mt-4">Product Details</h3>
           {productList.map((prod, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-400 rounded-md"
-            >
-
-
-
-<Select
-  options={options}
-  isDisabled={loadingProducts}                   // disable if loading
-  placeholder={loadingProducts ? "Loading products..." : "Select Product"}  // dynamic placeholder
-  value={
-    prod.product
-      ? options.find((opt) => opt.value === prod.product)
-      : prod.customProduct
-      ? { label: 'Other (Custom Product)', value: 'custom' }
-      : null
-  }
-  onChange={(selectedOption) => {
-    if (selectedOption.value === 'custom') {
-      // handleProductChange(index, 'product', '');
-      console.log("🟢 Product selected:", selectedOption.value);
-
-      handleProductChange(index, 'customProduct', '');
-    } else {
-      handleProductChange(index, 'product', selectedOption.value);
-      // handleProductChange(index, 'customProduct', '');
-    }
-  }}
-  className="w-full"
-  classNamePrefix="react-select"
-/>
-
-
-              {/* Show custom product input if no product selected */}
-              {!prod.product && (
-                <input
-                  type="text"
-                  value={prod.customProduct}
-                  placeholder="Enter Custom Product"
-                  onChange={(e) =>
-                    handleProductChange(index, "customProduct", e.target.value)
-                  }
-                  className="border border-gray-400 p-2 rounded"
-                  required={!prod.product}
-                />
-              )}
-
-            <select
-  value={prod.size}
-  onChange={(e) => handleProductChange(index, "size", e.target.value)}
-  className="border p-2 rounded"
-  disabled={prod.customSize.length > 0}
->
-  <option value="">Select Size</option>
-  {(availableSizesList[index] || []).map((size, i) => (
-    <option key={i} value={size}>
-      {size}
-    </option>
-  ))}
-</select>
-
-
-              {/* Show custom size input if no size selected */}
-              {!prod.size && (
-                <input
-                  type="text"
-                  value={prod.customSize}
-                  placeholder="Enter Custom Size"
-                  onChange={(e) =>
-                    handleProductChange(index, "customSize", e.target.value)
-                  }
-                  className="border border-gray-400 p-2 rounded"
-                  // required={!prod.size}
-                />
-              )}
-
-              <input
-                type="number"
-                value={prod.quantity}
-                placeholder="Qty"
-                onChange={(e) =>
-                  handleProductChange(index, "quantity", e.target.value)
-                }
-                className="border border-gray-400 p-2 rounded"
-                required
-                min={1}
-              />
-              <input
-                type="number"
-                value={prod.price}
-                placeholder="Price"
-                onChange={(e) =>
-                  handleProductChange(index, "price", e.target.value)
-                }
-                className="border border-gray-400 p-2 rounded"
-                required
-                min={0}
-                step="0.01"
-              />
-              <input
-                type="number"
-                value={prod.density}
-                placeholder="Density"
-                onChange={(e) =>
-                  handleProductChange(index, "density", e.target.value)
-                }
-                className="border border-gray-400 p-2 rounded"
-                min={0}
-                step="0.01"
-              />
-              <input
-                type="number"
-                value={prod.packagingCharge}
-                placeholder="Packaging Charge"
-                onChange={(e) =>
-                  handleProductChange(index, "packagingCharge", e.target.value)
-                }
-                className="border border-gray-400 p-2 rounded"
-                min={0}
-                step="0.01"
-              />
-              {/* Freight dropdown */}
-              <select
-                value={prod.freight}
-                onChange={(e) =>
-                  handleProductChange(index, "freight", e.target.value)
-                }
-                className="border border-gray-400 p-2 rounded"
-                required
-              >
-                <option value="">Select Freight</option>
-                <option value="To pay">To pay</option>
-                <option value="Self Dispatch">Self Pickup</option>
-                <option value="Freight Paid">Freight Paid</option>
-                <option value="Billed in Invoice">Billed in Invoice</option>
-              </select>
-              {/* Freight amount conditional input */}
-            {(prod.freight === "To pay" || prod.freight === "Billed in Invoice") && (
-              <div className="mb-3">
-                <label className="block mb-1 font-medium">
-                  {prod.freight === "To pay"
-                    ? "Amount to pay"
-                    : "Amount billed in invoice"}
-                </label>
-                <input
-                  type="text"
-                  value={prod.freightAmount}
-                  onChange={(e) =>
-                    handleProductChange(index, "freightAmount", e.target.value)
-                  }
-                  min="0"
-                  step="0.01"
-                  required
-                  className="w-full border border-gray-400 p-2 rounded"
-                />
-              </div>
-              
-            )}
-        {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (
-  <div className="col-span-2">
-    <p className="text-sm text-gray-500 mb-2">
-      Previewing {prod.productImages.length} image(s)
-    </p>
-    <div className="flex flex-wrap gap-4">
-      {prod.productImages.map((img, i) => (
-        <img
-          key={i}
-          src={img}
-          alt={`${prod.product} ${i + 1}`}
-          onClick={() =>
-            setModalImage((prev) => (prev === img ? null : img))
+  <div
+    key={index}
+    className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-400 rounded-md"
+  >
+    {/* 🧾 Product Selector */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Product</label>
+      <Select
+        options={options}
+        isDisabled={loadingProducts}
+        placeholder={loadingProducts ? "Loading products..." : "Select Product"}
+        value={
+          prod.product
+            ? options.find((opt) => opt.value === prod.product)
+            : prod.customProduct
+            ? { label: "Other (Custom Product)", value: "custom" }
+            : null
+        }
+        onChange={(selectedOption) => {
+          if (selectedOption.value === "custom") {
+            handleProductChange(index, "customProduct", "");
+          } else {
+            handleProductChange(index, "product", selectedOption.value);
           }
-          className="w-32 h-32 object-cover border rounded cursor-pointer hover:scale-105 transition"
-        />
-      ))}
+        }}
+        className="w-full"
+        classNamePrefix="react-select"
+      />
     </div>
-  </div>
-)}
 
+    {/* 🛠 Custom Product */}
+    {!prod.product && (
+      <div className="flex flex-col">
+        <label className="mb-1 font-medium text-gray-700">Custom Product</label>
+        <input
+          type="text"
+          value={prod.customProduct}
+          placeholder="Enter Custom Product"
+          onChange={(e) =>
+            handleProductChange(index, "customProduct", e.target.value)
+          }
+          className="border border-gray-400 p-2 rounded"
+          required={!prod.product}
+        />
+      </div>
+    )}
 
+    {/* 📦 Size Dropdown */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Size</label>
+      <select
+        value={prod.size}
+        onChange={(e) => handleProductChange(index, "size", e.target.value)}
+        className="border p-2 rounded"
+        disabled={prod.customSize.length > 0}
+      >
+        <option value="">Select Size</option>
+        {(availableSizesList[index] || []).map((size, i) => (
+          <option key={i} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+    </div>
 
+    {/* 📐 Custom Size */}
+    {!prod.size && (
+      <div className="flex flex-col">
+        <label className="mb-1 font-medium text-gray-700">Custom Size</label>
+        <input
+          type="text"
+          value={prod.customSize}
+          placeholder="Enter Custom Size"
+          onChange={(e) =>
+            handleProductChange(index, "customSize", e.target.value)
+          }
+          className="border border-gray-400 p-2 rounded"
+        />
+      </div>
+    )}
 
+    {/* 🔢 Quantity */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Quantity</label>
+      <input
+        type="number"
+        value={prod.quantity}
+        placeholder="Qty"
+        onChange={(e) =>
+          handleProductChange(index, "quantity", e.target.value)
+        }
+        className="border border-gray-400 p-2 rounded"
+        required
+        min={1}
+      />
+    </div>
 
+    {/* 💰 Price */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Price</label>
+      <input
+        type="number"
+        value={prod.price}
+        placeholder="Price"
+        onChange={(e) =>
+          handleProductChange(index, "price", e.target.value)
+        }
+        className="border border-gray-400 p-2 rounded"
+        required
+        min={0}
+        step="0.01"
+      />
+    </div>
 
+    {/* ⚖️ Density */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Density</label>
+      <input
+        type="number"
+        value={prod.density}
+        placeholder="Density"
+        onChange={(e) =>
+          handleProductChange(index, "density", e.target.value)
+        }
+        className="border border-gray-400 p-2 rounded"
+        min={0}
+        step="0.01"
+      />
+    </div>
 
-              <button
-                type="button"
-                onClick={() => removeProduct(index)}
-                className="text-white bg-red-600 rounded cursor-pointer font-bold text-xl"
-                aria-label={`Remove product ${index + 1}`}
-              >
-                &times;
-              </button>
-            </div>
+    {/* 📦 Packaging Charge */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Packaging Charge</label>
+      <input
+        type="number"
+        value={prod.packagingCharge}
+        placeholder="Packaging Charge"
+        onChange={(e) =>
+          handleProductChange(index, "packagingCharge", e.target.value)
+        }
+        className="border border-gray-400 p-2 rounded"
+        min={0}
+        step="0.01"
+      />
+    </div>
+
+    {/* 🚚 Freight Type */}
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-gray-700">Freight</label>
+      <select
+        value={prod.freight}
+        onChange={(e) =>
+          handleProductChange(index, "freight", e.target.value)
+        }
+        className="border border-gray-400 p-2 rounded"
+        required
+      >
+        <option value="">Select Freight</option>
+        <option value="To pay">To pay</option>
+        <option value="Self Dispatch">Self Pickup</option>
+        <option value="Freight Paid">Freight Paid</option>
+        <option value="Billed in Invoice">Billed in Invoice</option>
+      </select>
+    </div>
+
+    {/* 💸 Freight Amount (conditional) */}
+    {(prod.freight === "To pay" || prod.freight === "Billed in Invoice") && (
+      <div className="mb-3 flex flex-col">
+        <label className="mb-1 font-medium">
+          {prod.freight === "To pay"
+            ? "Amount to pay"
+            : "Amount billed in invoice"}
+        </label>
+        <input
+          type="text"
+          value={prod.freightAmount}
+          onChange={(e) =>
+            handleProductChange(index, "freightAmount", e.target.value)
+          }
+          min="0"
+          step="0.01"
+          required
+          className="w-full border border-gray-400 p-2 rounded"
+        />
+      </div>
+    )}
+
+    {/* 🖼 Product Images */}
+    {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (
+      <div className="col-span-2">
+        <p className="text-sm text-gray-500 mb-2">
+          Previewing {prod.productImages.length} image(s)
+        </p>
+        <div className="flex flex-wrap gap-4">
+          {prod.productImages.map((img, i) => (
+            <img
+              key={i}
+              src={img}
+              alt={`${prod.product} ${i + 1}`}
+              onClick={() =>
+                setModalImage((prev) => (prev === img ? null : img))
+              }
+              className="w-32 h-32 object-cover border rounded cursor-pointer hover:scale-105 transition"
+            />
           ))}
+        </div>
+      </div>
+    )}
+
+    {/* ❌ Remove Button */}
+    <button
+      type="button"
+      onClick={() => removeProduct(index)}
+      className="text-white bg-red-600 rounded cursor-pointer font-bold text-xl"
+      aria-label={`Remove product ${index + 1}`}
+    >
+      &times;
+    </button>
+  </div>
+))}
+
           
 
           <button

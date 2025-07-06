@@ -302,7 +302,7 @@ const handleSave = async () => {
                       "Total Qty",
                       "Dry Wt(in gms)",
                       "Total Wt(in kgs)",
-                      "Rejection(in No of Pcs)",
+                      "Reject",
                       "Actions",
                     ].map((head) => (
                       <th
