@@ -36,6 +36,50 @@ export default function OrdersList() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeProductImage, setActiveProductImage] = useState(null);
 console.log("selectedRadioByOrder",selectedRadioByOrder);
+const [resolvedPOUrls, setResolvedPOUrls] = useState({});
+const checkIfUrlExists = async (url) => {
+  try {
+    const res = await fetch(url, { method: "HEAD" });
+    return res.ok;
+  } catch (err) {
+    console.error("URL check failed:", err);
+    return false;
+  }
+};
+
+useEffect(() => {
+  const resolveAllPOCopyUrls = async () => {
+    const result = {};
+
+    for (const order of filteredOrders) {
+      const poCopyList = Array.isArray(order.poCopy)
+        ? order.poCopy
+        : order.poCopy
+        ? [order.poCopy]
+        : [];
+
+      result[order._id] = [];
+
+      for (const fileUrl of poCopyList) {
+        let url = fileUrl;
+
+        if (fileUrl.toLowerCase().includes(".pdf") && fileUrl.includes("/image/")) {
+          const testRawUrl = fileUrl.replace("/image/", "/raw/");
+          const exists = await checkIfUrlExists(testRawUrl);
+          if (exists) url = testRawUrl;
+        }
+
+        result[order._id].push(url);
+      }
+    }
+
+    setResolvedPOUrls(result);
+  };
+
+  if (filteredOrders.length) {
+    resolveAllPOCopyUrls();
+  }
+}, [filteredOrders]);
 
   const [filters, setFilters] = useState({
     employeeId: "",
@@ -1114,69 +1158,60 @@ const actuallySendToProduction = async (
   <div className="flex flex-col gap-1">
     {/* ✅ Always treat poCopy as array */}
     {(() => {
-      const poCopyArray = Array.isArray(order.poCopy)
-        ? order.poCopy
-        : order.poCopy
-        ? [order.poCopy]
-        : [];
+  const poCopyArray = Array.isArray(order.poCopy)
+    ? order.poCopy
+    : order.poCopy
+    ? [order.poCopy]
+    : [];
 
-      return poCopyArray.length > 0
-        ? poCopyArray.map((fileUrl, idx) => {
-            const isFullUrl = fileUrl.startsWith("http");
-            const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
+  return poCopyArray.length > 0
+    ? poCopyArray.map((fileUrl, idx) => {
+        const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
+        const finalUrl = resolvedPOUrls?.[order._id]?.[idx] || fileUrl;
 
-            let finalUrl = null;
+        const originalName = Array.isArray(order.poOriginalName)
+          ? order.poOriginalName[idx] || `PO Copy ${idx + 1}`
+          : order.poOriginalName || `PO Copy ${idx + 1}`;
 
-            if (isFullUrl) {
-              finalUrl = isPdfFile
-                ? fileUrl.replace("/image/", "/raw/")
-                : fileUrl;
+        if (!finalUrl) {
+          return (
+            <div key={idx} className="text-sm text-gray-500 italic">
+              📄 {originalName} — old file, not viewable.
+            </div>
+          );
+        }
 
-              if (isPdfFile && !finalUrl.toLowerCase().endsWith(".pdf")) {
-                finalUrl += ".pdf";
-              }
-            }
-
-            const originalName = Array.isArray(order.poOriginalName)
-              ? order.poOriginalName[idx] || `PO Copy ${idx + 1}`
-              : order.poOriginalName || `PO Copy ${idx + 1}`;
-
-            if (!finalUrl) {
-              return (
-                <div key={idx} className="text-sm text-gray-500 italic">
-                  📄 {originalName} — old file, not viewable.
-                </div>
-              );
-            }
-
-            return (
-              <button
-                key={idx}
-                onClick={() => {
-                  Swal.fire({
-                    title: originalName,
-                    html: isPdfFile
-                      ? `<iframe src="${finalUrl}" width="100%" height="500px" style="border:none;"></iframe>
-                         <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>`
-                      : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
-                    width: 700,
-                    showCancelButton: true,
-                    showConfirmButton: false,
-                    cancelButtonText: "Close",
-                  });
-                }}
-                className="text-blue-600 underline hover:text-blue-800 text-left truncate"
-              >
-                📄 {originalName}
-              </button>
-            );
-          })
-        : (
-          <div className="text-sm text-gray-500 italic">
-            No PO Copy uploaded yet.
-          </div>
+        return (
+          <button
+            key={idx}
+            onClick={() => {
+              Swal.fire({
+                title: originalName,
+               html: isPdfFile
+  ? `<div style="height:500px">
+       <p style="font-size:14px;color:gray;">⏳ Loading PDF preview...</p>
+       <iframe src="${finalUrl}" width="100%" height="480px" style="border:none;"></iframe>
+       <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>
+     </div>`
+  : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
+                showCancelButton: true,
+                showConfirmButton: false,
+                cancelButtonText: "Close",
+              });
+            }}
+            className="text-blue-600 underline hover:text-blue-800 text-left truncate"
+          >
+            📄 {originalName}
+          </button>
         );
-    })()}
+      })
+    : (
+      <div className="text-sm text-gray-500 italic">
+        No PO Copy uploaded yet.
+      </div>
+    );
+})()}
+
 
     {/* ✅ Upload Button — always visible */}
     <button
