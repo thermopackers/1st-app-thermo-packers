@@ -1111,11 +1111,9 @@ const actuallySendToProduction = async (
                                {/* ✅ PO Copy */}
                                
 <td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
-  {Array.isArray(order.poCopy) ? (
-    <div className="flex flex-col gap-1">
-      {/* ✅ List PO Copy buttons or fallback messages */}
-      {order.poCopy.filter((url) => url).length > 0 ? (
-        order.poCopy.map((fileUrl, idx) => {
+  <div className="flex flex-col gap-1">
+    {Array.isArray(order.poCopy) && order.poCopy.length > 0
+      ? order.poCopy.map((fileUrl, idx) => {
           const isFullUrl = fileUrl.startsWith("http");
           const isPdfFile = fileUrl.toLowerCase().includes(".pdf");
 
@@ -1140,7 +1138,7 @@ const actuallySendToProduction = async (
           if (!finalUrl) {
             return (
               <div key={idx} className="text-sm text-gray-500 italic">
-                📄 {originalName} — old file, not viewable. Please re-upload.
+                📄 {originalName} — old file, not viewable.
               </div>
             );
           }
@@ -1167,67 +1165,68 @@ const actuallySendToProduction = async (
             </button>
           );
         })
-      ) : (
+      : (
         <div className="text-sm text-gray-500 italic">
           No PO Copy uploaded yet.
         </div>
       )}
 
-      {/* ✅ Upload/Add PO Copy Button */}
-      <button
-        onClick={async () => {
-          const { value: files } = await Swal.fire({
-            title: order.poCopy.length > 0 ? "Upload more PO Copies" : "Upload PO Copy",
-            input: "file",
-            inputAttributes: {
-              accept: "application/pdf,image/*",
-              multiple: order.poCopy.length > 0,
-              "aria-label": "Upload PO Copy",
-            },
-            confirmButtonText: "Upload",
-            showCancelButton: true,
-          });
+    {/* ✅ Always show Upload Button */}
+    <button
+      onClick={async () => {
+        const { value: files } = await Swal.fire({
+          title:
+            Array.isArray(order.poCopy) && order.poCopy.length > 0
+              ? "Upload more PO Copies"
+              : "Upload PO Copy",
+          input: "file",
+          inputAttributes: {
+            accept: "application/pdf,image/*",
+            multiple: Array.isArray(order.poCopy) && order.poCopy.length > 0,
+            "aria-label": "Upload PO Copy",
+          },
+          confirmButtonText: "Upload",
+          showCancelButton: true,
+        });
 
-          if (files) {
-            const selectedFiles = Array.from(
-              files instanceof FileList ? files : [files]
+        if (files) {
+          const selectedFiles = Array.from(
+            files instanceof FileList ? files : [files]
+          );
+          const formData = new FormData();
+          selectedFiles.forEach((f) => formData.append("poCopy", f));
+          setUploadingPOCopy(true);
+
+          try {
+            await axiosInstance.post(
+              `/files/upload/po-copy/${order._id}`,
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+              }
             );
-            const formData = new FormData();
-            selectedFiles.forEach((f) => formData.append("poCopy", f));
-            setUploadingPOCopy(true);
 
-            try {
-              await axiosInstance.post(
-                `/files/upload/po-copy/${order._id}`,
-                formData,
-                {
-                  headers: {
-                    "Content-Type": "multipart/form-data",
-                  },
-                }
-              );
-
-              Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
-              window.location.reload();
-            } catch (err) {
-              Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
-              console.error(err);
-            } finally {
-              setUploadingPOCopy(false);
-            }
+            Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
+            window.location.reload();
+          } catch (err) {
+            Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
+            console.error(err);
+          } finally {
+            setUploadingPOCopy(false);
           }
-        }}
-        className="text-sm text-gray-600 underline hover:text-red-600"
-      >
-        {order.poCopy.length > 0 ? "✏️ Add More PO Copy" : "📤 Upload PO Copy"}
-      </button>
-    </div>
-  ) : (
-    <div className="text-sm text-gray-500 italic">
-      No PO Copy available
-    </div>
-  )}
+        }
+      }}
+      className="text-sm text-gray-600 underline hover:text-red-600"
+    >
+      {Array.isArray(order.poCopy) && order.poCopy.length > 0
+        ? "✏️ Add More PO Copy"
+        : "📤 Upload PO Copy"}
+    </button>
+  </div>
 </td>
+
 
 
 
