@@ -95,172 +95,102 @@ const getSlipTypeFromSection = (requiredSections) => {
   const [selectedSections, setSelectedSections] = useState({});
   console.log("selectedSections", selectedSections);
 
-  const handleSlipSubmit = async (payload) => {
-    try {
-      if (!selectedOrder) return;
+const handleSlipSubmit = async (payload) => {
+  try {
+    if (!selectedOrder) return;
 
-      console.log("🟡 Slip type:", slipType);
-      console.log("🟡 Selected order ID:", selectedOrder._id);
-      console.log("🟡 Full Payload:", payload);
-      console.log("✅ shapeFormData:", payload.shapeFormData);
-      console.log("✅ packagingFormData:", payload.packagingFormData);
+    console.log("🟡 Slip type:", slipType);
+    console.log("🟡 Selected order ID:", selectedOrder._id);
+    console.log("🟡 Full Payload:", payload);
+    console.log("✅ shapeFormData:", payload.shapeFormData);
+    console.log("✅ packagingFormData:", payload.packagingFormData);
 
-const slipTypeToHandler = {
-dana: async () => {
-  await axiosInstance.post("/slips/dana", {
-    orderId: selectedOrder._id,
-    ...payload.danaFormData,
-  });
-  await actuallySendToProduction(selectedOrder._id, null, null, null, payload.danaFormData);
-},
+    const selectedSections = selectedOrder?.requiredSections || {};
 
-  production: async () => {
-    await axiosInstance.post("/slips/production", {
-      orderId: selectedOrder._id,
-      ...payload.shapeFormData,
+    const slipTypeToHandler = {
+      dana: async () => {
+        if (selectedSections.preExpander) {
+          await axiosInstance.post("/slips/dana", {
+            orderId: selectedOrder._id,
+            ...payload.danaFormData,
+          });
+          await actuallySendToProduction(
+            selectedOrder._id,
+            null,
+            null,
+            null,
+            payload.danaFormData
+          );
+        }
+      },
+
+      production: async () => {
+        if (selectedSections.shapeMoulding) {
+          await axiosInstance.post("/slips/production", {
+            orderId: selectedOrder._id,
+            ...payload.shapeFormData,
+          });
+          await actuallySendToProduction(
+            selectedOrder._id,
+            payload.shapeFormData,
+            null,
+            null
+          );
+        }
+      },
+
+      dispatch: async () => {
+        if (selectedSections.sheetCutting) {
+          await axiosInstance.post("/slips/dispatch", {
+            orderId: selectedOrder._id,
+            row: [payload.cuttingFormData],
+          });
+          await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
+        }
+      },
+
+      packaging: async () => {
+        if (selectedSections.shapePackaging) {
+          await axiosInstance.post("/slips/packaging", {
+            orderId: selectedOrder._id,
+            ...payload.packagingFormData,
+          });
+          await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
+        }
+      },
+
+      "cnc-slip": async () => {
+        if (selectedSections.cncSection) {
+          await axiosInstance.post("/slips/cnc", {
+            orderId: selectedOrder._id,
+            ...payload.cncFormData,
+          });
+        }
+      },
+    };
+
+    const handler = slipTypeToHandler[slipType];
+    if (!handler) {
+      console.warn("⚠️ Unsupported slip type:", slipType);
+      return;
+    }
+
+    await handler();
+
+    await Swal.fire({
+      icon: "success",
+      title: "Success!",
+      text: "Slip submitted successfully!",
     });
-    await actuallySendToProduction(selectedOrder._id, payload.shapeFormData, null, null);
-  },
 
-  dispatch: async () => {
-    await axiosInstance.post("/slips/dispatch", {
-      orderId: selectedOrder._id,
-      row: [payload.cuttingFormData],
-    });
-    await actuallySendToDispatch(selectedOrder._id, [payload.cuttingFormData]);
-  },
-
-  packaging: async () => {
-    await axiosInstance.post("/slips/packaging", {
-      orderId: selectedOrder._id,
-      ...payload.packagingFormData,
-    });
-    await actuallySendToPackaging(selectedOrder._id, payload.packagingFormData);
-  },
-
-  "cnc-slip": async () => {
-    await axiosInstance.post("/slips/cnc", {
-      orderId: selectedOrder._id,
-      ...payload.cncFormData,
-    });
-  },
+    setModalOpen(false);
+    setSelectedOrder(null);
+  } catch (err) {
+    console.error("❌ Error submitting slip:", err);
+    alert("Error submitting slip");
+  }
 };
 
-try {
-  if (!selectedOrder) return;
-
-  const handler = slipTypeToHandler[slipType];
-  if (!handler) {
-    console.warn("⚠️ Unsupported slip type:", slipType);
-    return;
-  }
-
-  await handler();
-
-  await Swal.fire({
-    icon: "success",
-    title: "Success!",
-    text: "Slip submitted successfully!",
-  });
-
-  setModalOpen(false);
-  setSelectedOrder(null);
-} catch (err) {
-  console.error("❌ Error submitting slip:", err);
-  alert("Error submitting slip");
-}
-
-
-
-      let endpoint;
-      let formToSave;
-
-      if (slipType === "packaging") {
-        endpoint = "/slips/packaging";
-        formToSave = {
-          ...payload.packagingFormData,
-          orderId: selectedOrder._id,
-        };
-      } else if (slipType === "dispatch") {
-        endpoint = "/slips/dispatch";
-
-        formToSave = {
-          orderId: selectedOrder._id,
-          row: [payload.cuttingFormData], // <-- important fix here
-        };
-
-        console.log("🔥 Dispatch cuttingFormData:", payload.cuttingFormData);
-      } else if (slipType === "packaging") {
-        console.log("📦 Submitting packaging forms...");
-
-        await axiosInstance.post("/slips/production", {
-          ...payload.shapeFormData,
-          orderId: selectedOrder._id,
-        });
-
-        await axiosInstance.post("/slips/packaging", {
-          ...payload.packagingFormData,
-          orderId: selectedOrder._id,
-        });
-
-        await actuallySendToProduction(
-          selectedOrder._id,
-          payload.shapeFormData,
-          null,
-          payload.shapeFormData,
-          payload.packagingFormData
-        );
-        await actuallySendToPackaging(
-          selectedOrder._id,
-          payload.packagingFormData
-        );
-
-        await Swal.fire({
-          icon: "success",
-          title: "Success!",
-          text: "Shape and packaging slips submitted successfully!",
-        });
-
-        setModalOpen(false);
-        setSelectedOrder(null);
-        return;
-      } else {
-        console.warn("⚠️ Unsupported slip type:", slipType);
-        return;
-      }
-
-      // Submit to dispatch or packaging
-      console.log("📤 Submitting form to:", endpoint);
-      console.log("📄 Form data being sent:", formToSave);
-
-      await axiosInstance.post(endpoint, formToSave);
-
-      if (slipType === "packaging") {
-        await actuallySendToPackaging(
-          selectedOrder._id,
-          payload.packagingFormData
-        );
-      } else if (slipType === "dispatch") {
-        await actuallySendToDispatch(selectedOrder._id, [
-          payload.cuttingFormData,
-        ]);
-      }
-
-      await Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: `${
-          slipType === "dispatch" ? "Dispatch" : "Packaging"
-        } slip submitted successfully!`,
-      });
-
-      setModalOpen(false);
-      setSelectedOrder(null);
-    } catch (err) {
-      console.error("❌ Error submitting slip:", err);
-      alert("Error submitting slip");
-    }
-  };
 
   useEffect(() => {
     axiosInstance
