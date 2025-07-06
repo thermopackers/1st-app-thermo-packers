@@ -474,85 +474,99 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
 
   // Send selected orders to Production
 
-  const actuallySendToProduction = async (
-    orderId,
-    shapeRowData,
-    packagingFormData,
-    cuttingFormData,
-    danaFormData
-  ) => {
-    console.log("cuttocut😍", cuttingFormData);
+const actuallySendToProduction = async (
+  orderId,
+  shapeRowData,
+  packagingFormData,
+  cuttingFormData,
+  danaFormData
+) => {
+  console.log("cuttocut😍", cuttingFormData);
 
-    const freshOrder = orders.find((o) => o._id === orderId);
-    if (!freshOrder) return;
+  const freshOrder = orders.find((o) => o._id === orderId);
+  if (!freshOrder) return;
 
-    const selectedSections = Object.entries(freshOrder.requiredSections || {})
-      .filter(([_, value]) => value)
-      .map(([key]) => key);
+  const selectedSections = Object.entries(freshOrder.requiredSections || {})
+    .filter(([_, value]) => value)
+    .map(([key]) => key);
 
-    const product = products.find((p) => p.name === freshOrder.product);
-    const stock = product ? product.quantity : 0;
-    const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
+  const product = products.find((p) => p.name === freshOrder.product);
+  const stock = product ? product.quantity : 0;
+  const remainingQuantity = Math.max(freshOrder.quantity - stock, 0);
 
-    // ✅ Construct danaSlip from shapeRowData
   const danaRows = danaFormData
-  ? [
-      {
-        productName: danaFormData.productName || freshOrder.product,
-        rawMaterial: danaFormData.typeOfRawBlock,
-        quantity: danaFormData.quantity,
-        remarks: danaFormData.remarks,
-        density: danaFormData.density || "",
-        recycledDana: danaFormData.recycledDana || "",
-        weight: danaFormData.weight || "",
-        grade: danaFormData.grade || "",
-      },
-    ]
-  : [];
-
-
-    // ✅ Construct dispatchSlip from cuttingFormData
-    const cuttingRows = cuttingFormData?.size ? [cuttingFormData] : [];
-const dispatchSlip = cuttingFormData?.size
-  ? {
-      size: cuttingFormData.size,
-      density: cuttingFormData.density,
-      quantity: cuttingFormData.quantity,
-      remarks: cuttingFormData.remarks,
-    }
-  : null;
-
-
-    try {
-      const res = await axiosInstance.put(
-        `/orders/send-to-production/${orderId}`,
+    ? [
         {
-          sections: selectedSections,
-          remainingToProduce: remainingQuantity,
-          shapeRows: shapeRowData ? [shapeRowData] : [],
-          cuttingRows,
-          packagingSlip: packagingFormData || null,
-          danaRows,
-          dispatchSlip,
-        }
-      );
+          productName: danaFormData.productName || freshOrder.product,
+          rawMaterial: danaFormData.typeOfRawBlock,
+          quantity: danaFormData.quantity,
+          remarks: danaFormData.remarks,
+          density: danaFormData.density || "",
+          recycledDana: danaFormData.recycledDana || "",
+          weight: danaFormData.weight || "",
+          grade: danaFormData.grade || "",
+        },
+      ]
+    : [];
 
-      if (res.data.message === "Order sent to production") {
-        setDisabledOrders((prev) => {
-          const updated = { ...prev, [orderId]: true };
-          localStorage.setItem("disabledOrders", JSON.stringify(updated));
-          return updated;
-        });
+  const cuttingRows = cuttingFormData?.size ? [cuttingFormData] : [];
+  const dispatchSlip = cuttingFormData?.size
+    ? {
+        size: cuttingFormData.size,
+        density: cuttingFormData.density,
+        quantity: cuttingFormData.quantity,
+        remarks: cuttingFormData.remarks,
       }
-    } catch (error) {
-      console.error("❌ Error sending to Production:", error);
-      alert(
-        `Error submitting slip: ${
-          error?.response?.data?.message || error.message
-        }`
-      );
+    : null;
+
+  try {
+    const payload = {
+      sections: selectedSections,
+      remainingToProduce: remainingQuantity,
+    };
+
+    if (selectedSections.includes("blockMoulding") && danaFormData) {
+      payload.danaRows = danaRows;
     }
-  };
+
+    if (selectedSections.includes("shapeMoulding") && shapeRowData) {
+      payload.shapeRows = [shapeRowData];
+    }
+
+    if (cuttingRows.length > 0) {
+      payload.cuttingRows = cuttingRows;
+    }
+
+    if (dispatchSlip) {
+      payload.dispatchSlip = dispatchSlip;
+    }
+
+    if (packagingFormData) {
+      payload.packagingSlip = packagingFormData;
+    }
+
+    const res = await axiosInstance.put(
+      `/orders/send-to-production/${orderId}`,
+      payload
+    );
+
+    if (res.data.message === "Order sent to production") {
+      setDisabledOrders((prev) => {
+        const updated = { ...prev, [orderId]: true };
+        localStorage.setItem("disabledOrders", JSON.stringify(updated));
+        return updated;
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error sending to Production:", error);
+    alert(
+      `Error submitting slip: ${
+        error?.response?.data?.message || error.message
+      }`
+    );
+  }
+};
+
 
   const actuallySendToPackaging = async (orderId, packagingFormData) => {
     try {
