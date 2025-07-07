@@ -71,48 +71,58 @@ const [danaFormData, setDanaFormData] = useState({
 
 useEffect(() => {
   if (isOpen && selectedOrder) {
-    setShapeFormData((prev) => ({
+    // Shape Slip
+    setShapeFormData({
       productName: selectedOrder.product || "",
-      dryWeight: prev.dryWeight || selectedOrder.density || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-    }));
+      dryWeight: selectedOrder.density || "",
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+    });
 
-    setDanaFormData((prev) => ({
-      ...prev,
-      productName: prev.productName || selectedOrder.product || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-      density: prev.density || selectedOrder.density || "",
-        densityValue: prev.densityValue || selectedOrder.density?.split(" ")[0] || "",
-
-    }));
-
-    setPackagingFormData((prev) => ({
+    // Dana Slip
+    const densityParts = selectedOrder.density?.split(" ") || ["", ""];
+    setDanaFormData({
       productName: selectedOrder.product || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-      packagingWeight: prev.packagingWeight || "",
-      packagingType: prev.packagingType || "",
-    }));
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+      density: selectedOrder.density || "",
+      densityValue: densityParts[0],
+      densityType: densityParts[1],
+      typeOfRawBlock: "",
+      recycledDana: "",
+      weight: "",
+      grade: "",
+    });
 
-    setCuttingFormData((prev) => ({
+    // Packaging Slip
+    setPackagingFormData({
       productName: selectedOrder.product || "",
-      size: prev.size || selectedOrder.size || "",
-      density: prev.density || selectedOrder.density || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      remarks: prev.remarks || selectedOrder.remarks || "",
-    }));
-     // ✅ ADD THIS: CNC form auto-fill
-    setCNCFormData((prev) => ({
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+      packagingWeight: "",
+      packagingType: "",
+    });
+
+    // Cutting Slip
+    setCuttingFormData({
       productName: selectedOrder.product || "",
-      size: prev.size || selectedOrder.size || "",
-      quantity: prev.quantity || selectedOrder.quantity || "",
-      drawingName: prev.drawingName || "",
-        remarks: prev.remarks || selectedOrder.remarks || "",
-    }));
+      size: selectedOrder.size || "",
+      density: selectedOrder.density || "",
+      quantity: selectedOrder.quantity || "",
+      remarks: selectedOrder.remarks || "",
+    });
+
+    // CNC Slip
+    setCNCFormData({
+      productName: selectedOrder.product || "",
+      size: selectedOrder.size || "",
+      quantity: selectedOrder.quantity || "",
+      drawingName: "",
+      remarks: selectedOrder.remarks || "",
+    });
   }
 }, [isOpen, selectedOrder]);
+
 
 
 
