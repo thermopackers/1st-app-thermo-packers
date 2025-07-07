@@ -1316,14 +1316,27 @@ const actuallySendToProduction = async (
                                       <td className="px-4 py-2 whitespace-nowrap">
                                         {sectionsList.map((section) => {
                                           const keyId = `${order._id}-${section.key}`;
-const sentToProduction = order.sentTo?.production || [];
-const sentToDispatch = order.sentTo?.dispatch || [];
+const isSectionSent = (() => {
+  switch (section.key) {
+    case "preExpander":
+      return !!order.danaSlip;
 
-const isSectionSent =
-  (["preExpander", "shapeMoulding", "cncSection"].includes(section.key) &&
-    sentToProduction.includes(section.key)) ||
-  (["sheetCutting", "shapePackaging"].includes(section.key) &&
-    sentToDispatch.includes(section.key));
+    case "shapeMoulding":
+      return !!order.shapeSlip;
+
+    case "sheetCutting":
+      return !!order.cuttingSlip;
+
+    case "shapePackaging":
+      return !!order.packagingSlip;
+
+    case "cncSection":
+      return !!order.cncSlip;
+
+    default:
+      return false;
+  }
+})();
 
                                           return (
                                             <label
