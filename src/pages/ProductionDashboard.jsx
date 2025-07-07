@@ -307,9 +307,7 @@ const onEndDateChange = (e) => {
                   <th className="px-6 py-4 text-left font-medium">Quantity</th>
                   <th className="px-6 py-4 text-left font-medium">Slip</th>
 
-                  <th className="px-6 py-4 text-left font-medium">
-                    Sent to Production Sections
-                  </th>
+                 
                   <th className="px-6 py-4 text-left font-medium">
                     Production Status
                   </th>
@@ -376,11 +374,7 @@ const onEndDateChange = (e) => {
 </td>
 
 
-                    <td className="px-6 py-4">
-                      {order.sentTo?.production?.length > 0
-                        ? order.sentTo.production.join(", ")
-                        : "N/A"}
-                    </td>
+                   
                     <td className="px-6 py-4 flex items-center">
                       {order.status}
                       <span

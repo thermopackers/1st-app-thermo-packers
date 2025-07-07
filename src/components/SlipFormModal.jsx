@@ -31,6 +31,11 @@ const [cncFormData, setCNCFormData] = useState({
 const handleCNCChange = (field, value) => {
   setCNCFormData({ ...cncFormData, [field]: value });
 };
+const [missingFields, setMissingFields] = useState([]);
+const inputClass = (field, base = "") =>
+  `w-full border rounded-md px-4 py-3 ${base} ${
+    missingFields.includes(field) ? "border-red-500" : "border-gray-300"
+  }`;
 
   const [cuttingFormData, setCuttingFormData] = useState({
   productName: "",
@@ -126,26 +131,70 @@ useEffect(() => {
 
 
 
-
 const handleSubmit = async (e) => {
   e.preventDefault();
   setLoading(true);
 
+  const missing = [];
+
+  const checkMissing = (fields, data) => {
+    fields.forEach((field) => {
+      if (!data[field]?.toString().trim()) {
+        missing.push(field);
+      }
+    });
+  };
+
+  if (type === "dana") {
+    checkMissing(
+      [
+        "typeOfRawBlock",
+        "densityValue",
+        "densityType",
+        "recycledDana",
+        "weight",
+        "grade",
+        "quantity",
+        "remarks",
+      ],
+      danaFormData
+    );
+  } else if (type === "production") {
+    checkMissing(["dryWeight", "quantity", "remarks"], shapeFormData);
+  } else if (type === "dispatch") {
+    checkMissing(["size", "density", "quantity", "remarks"], cuttingFormData);
+  } else if (type === "cnc-slip") {
+    checkMissing(
+      ["productName", "size", "quantity", "drawingName", "remarks"],
+      cncFormData
+    );
+  } else if (type === "packaging" || type === "shape-packaging") {
+    checkMissing(["quantity", "remarks"], packagingFormData);
+  }
+
+  if (missing.length > 0) {
+    setMissingFields(missing); // you must declare this state: const [missingFields, setMissingFields] = useState([]);
+    setLoading(false);
+    return;
+  }
+
+  setMissingFields([]); // clear on valid
+
   try {
     if (type === "dana") {
-  const finalDensity =
-    danaFormData.densityValue && danaFormData.densityType
-      ? `${danaFormData.densityValue} ${danaFormData.densityType}`
-      : "";
+      const finalDensity =
+        danaFormData.densityValue && danaFormData.densityType
+          ? `${danaFormData.densityValue} ${danaFormData.densityType}`
+          : "";
 
-  await onSubmit({
-    danaFormData: {
-      ...danaFormData,
-      density: finalDensity,                         // ✅ combines value + type
-      productName: selectedOrder.product || "",      // ✅ ensures product name is sent
-    },
-  });
-} else if (type === "production") {
+      await onSubmit({
+        danaFormData: {
+          ...danaFormData,
+          density: finalDensity,
+          productName: selectedOrder.product || "",
+        },
+      });
+    } else if (type === "production") {
       await onSubmit({ shapeFormData });
     } else if (type === "dispatch") {
       await onSubmit({ cuttingFormData });
@@ -260,24 +309,21 @@ const handleSubmit = async (e) => {
 
       <label className="font-bold text-xl">Quantity:</label>
       <input
-        type="number"
-        placeholder="Quantity"
-        value={danaFormData.quantity}
-        onChange={(e) => handleDanaChange("quantity", e.target.value)}
-        required
-        min={1}
-        className="w-full border border-gray-300 rounded-md px-4 py-3"
-      />
+  type="number"
+  placeholder="Quantity"
+  value={danaFormData.quantity}
+  onChange={(e) => handleDanaChange("quantity", e.target.value)}
+  className={inputClass("quantity")}
+/>
 
       <label className="font-bold text-xl">Remarks:</label>
-      <textarea
-        placeholder="Remarks"
-        value={danaFormData.remarks}
-        onChange={(e) => handleDanaChange("remarks", e.target.value)}
-        rows={3}
-        required
-        className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
-      />
+   <textarea
+  placeholder="Remarks"
+  value={danaFormData.remarks}
+  onChange={(e) => handleDanaChange("remarks", e.target.value)}
+  rows={3}
+  className={inputClass("remarks", "resize-none")}
+/>
     </section>
 
     <section className="space-y-4 pt-6">
@@ -297,81 +343,92 @@ const handleSubmit = async (e) => {
         ))}
       </div>
       <input
-        type="text"
-        placeholder="Custom Raw Block Type"
-        value={danaFormData.typeOfRawBlock}
-        onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-        className="w-full border border-gray-300 rounded-md px-4 py-2"
-      />
+  type="text"
+  placeholder="Custom Raw Block Type"
+  value={danaFormData.typeOfRawBlock}
+  onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+  className={inputClass("typeOfRawBlock")}
+/>
 
       <label className="font-bold text-xl">Density (Kg/m³):</label>
       <div className="flex gap-2 items-center">
-        <input
-          type="text"
-          placeholder="e.g. 21"
-          value={danaFormData.densityValue}
-          onChange={(e) => {
-            const value = e.target.value;
-            handleDanaChange("densityValue", value);
-            handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
-          }}
-          className="w-1/2 border border-gray-300 rounded-md px-4 py-2"
-        />
+       <input
+  type="text"
+  placeholder="e.g. 21"
+  value={danaFormData.densityValue}
+  onChange={(e) => {
+    const value = e.target.value;
+    handleDanaChange("densityValue", value);
+    handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
+  }}
+  className={inputClass("densityValue")}
+/>
 
         <div className="flex flex-wrap gap-2">
-          {["FR", "Pink FR", "Non FR", "ND", "Pink Non FR"].map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                handleDanaChange("densityType", type);
-                handleDanaChange("density", `${danaFormData.densityValue} ${type}`.trim());
-              }}
-              className={`px-3 py-1 border rounded-md text-sm ${
-                danaFormData.densityType === type
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white text-gray-800 border-gray-300"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
+        {["FR", "Pink FR", "Non FR", "ND", "Pink Non FR"].map((type) => (
+  <button
+    key={type}
+    type="button"
+    onClick={() => {
+      handleDanaChange("densityType", type);
+      handleDanaChange(
+        "density",
+        `${danaFormData.densityValue} ${type}`.trim()
+      );
+    }}
+    className={`px-3 py-1 border rounded-md text-sm ${
+      danaFormData.densityType === type
+        ? "bg-indigo-600 text-white"
+        : "bg-white text-gray-800 border-gray-300"
+    } ${missingFields.includes("densityType") ? "ring-2 ring-red-500" : ""}`}
+  >
+    {type}
+  </button>
+))}
+
         </div>
       </div>
 
-      <label className="font-bold text-xl">Recycled Dana:</label>
-      <div className="flex gap-4">
-        {["30%", "50%", "No"].map((val) => (
-          <label key={val} className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="recycledDana"
-              value={val}
-              checked={danaFormData.recycledDana === val}
-              onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
-            />
-            {val}
-          </label>
-        ))}
-      </div>
+     <label className="font-bold text-xl">Recycled Dana:</label>
+<div className="flex flex-wrap gap-4">
+  {["30%", "50%", "No"].map((val) => (
+    <label
+      key={val}
+      className={`flex items-center gap-1 px-2 py-1 rounded-md ${
+        missingFields.includes("recycledDana") ? "ring-2 ring-red-500" : ""
+      }`}
+    >
+      <input
+        type="radio"
+        name="recycledDana"
+        value={val}
+        checked={danaFormData.recycledDana === val}
+        onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
+      />
+      {val}
+    </label>
+  ))}
+</div>
+
+
 
       <label className="font-bold text-xl">Weight of Raw Block (kg):</label>
-      <input
-        type="text"
-        placeholder="Weight"
-        value={danaFormData.weight}
-        onChange={(e) => handleDanaChange("weight", e.target.value)}
-        className="w-full border border-gray-300 rounded-md px-4 py-2"
-      />
+     <input
+  type="text"
+  placeholder="Weight"
+  value={danaFormData.weight}
+  onChange={(e) => handleDanaChange("weight", e.target.value)}
+  className={inputClass("weight")}
+/>
 
       <label className="font-bold text-xl">Grade of Raw Material:</label>
-      <input
-        type="text"
-        placeholder="Grade"
-        value={danaFormData.grade}
-        onChange={(e) => handleDanaChange("grade", e.target.value)}
-        className="w-full border border-gray-300 rounded-md px-4 py-2"
-      />
+     <input
+  type="text"
+  placeholder="Grade"
+  value={danaFormData.grade}
+  onChange={(e) => handleDanaChange("grade", e.target.value)}
+  className={inputClass("grade")}
+/>
     </section>
   </>
 )}
@@ -393,35 +450,31 @@ const handleSubmit = async (e) => {
     />
 
     <label className="font-bold text-xl">Dry Weight / Density:</label>
-    <input
-      type="text"
-      placeholder="Dry Weight / Density"
-      value={shapeFormData.dryWeight}
-      onChange={(e) => handleShapeChange("dryWeight", e.target.value)}
-      required
-      className="w-full border border-gray-300 rounded-md px-4 py-3 bg-white text-gray-700"
-    />
+   <input
+  type="text"
+  placeholder="Dry Weight / Density"
+  value={shapeFormData.dryWeight}
+  onChange={(e) => handleShapeChange("dryWeight", e.target.value)}
+  className={inputClass("dryWeight")}
+/>
 
     <label className="font-bold text-xl">Quantity:</label>
-    <input
-      type="number"
-      placeholder="Quantity"
-      value={shapeFormData.quantity}
-      onChange={(e) => handleShapeChange("quantity", e.target.value)}
-      required
-      min={1}
-      className="w-full border border-gray-300 rounded-md px-4 py-3"
-    />
+   <input
+  type="number"
+  placeholder="Quantity"
+  value={shapeFormData.quantity}
+  onChange={(e) => handleShapeChange("quantity", e.target.value)}
+  className={inputClass("quantity")}
+/>
 
     <label className="font-bold text-xl">Remarks:</label>
-    <textarea
-      placeholder="Remarks"
-      value={shapeFormData.remarks}
-      onChange={(e) => handleShapeChange("remarks", e.target.value)}
-      rows={3}
-      required
-      className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
-    />
+ <textarea
+  placeholder="Remarks"
+  value={shapeFormData.remarks}
+  onChange={(e) => handleShapeChange("remarks", e.target.value)}
+  rows={3}
+  className={inputClass("remarks", "resize-none")}
+/>
   </section>
 )}
 
@@ -441,24 +494,21 @@ const handleSubmit = async (e) => {
                 className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
               />
               <label className="font-bold text-xl">Quantity:</label>
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={packagingFormData.quantity}
-                onChange={(e) => handlePackagingChange("quantity", e.target.value)}
-                required
-                min={1}
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
+             <input
+  type="number"
+  placeholder="Quantity"
+  value={packagingFormData.quantity}
+  onChange={(e) => handlePackagingChange("quantity", e.target.value)}
+  className={inputClass("quantity")}
+/>
               <label className="font-bold text-xl">Remarks:</label>
               <textarea
-                placeholder="Remarks"
-                required
-                value={packagingFormData.remarks}
-                onChange={(e) => handlePackagingChange("remarks", e.target.value)}
-                rows={3}
-                className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
-              />
+  placeholder="Remarks"
+  value={packagingFormData.remarks}
+  onChange={(e) => handlePackagingChange("remarks", e.target.value)}
+  rows={3}
+  className={inputClass("remarks", "resize-none")}
+/>
             </section>
           )}
 
@@ -478,80 +528,75 @@ const handleSubmit = async (e) => {
 
               <label className="font-bold text-xl">Size:</label>
               <input
-                type="text"
-                placeholder="Size (e.g., 24x18x2 inch)"
-                value={cuttingFormData.size}
-                onChange={(e) => handleCuttingChange("size", e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
+  type="text"
+  placeholder="Size (e.g., 24x18x2 inch)"
+  value={cuttingFormData.size}
+  onChange={(e) => handleCuttingChange("size", e.target.value)}
+  className={inputClass("size")}
+/>
               <label className="font-bold text-xl">Density(kg/m³):</label>
-              <input
-                type="text"
-                placeholder="Density (e.g., 12 Kg/m³)"
-                value={cuttingFormData.density}
-                onChange={(e) => handleCuttingChange("density", e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
+             <input
+  type="text"
+  placeholder="Density (e.g., 12 Kg/m³)"
+  value={cuttingFormData.density}
+  onChange={(e) => handleCuttingChange("density", e.target.value)}
+  className={inputClass("density")}
+/>
               <label className="font-bold text-xl">Quantity:</label>
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={cuttingFormData.quantity}
-                onChange={(e) => handleCuttingChange("quantity", e.target.value)}
-                required
-                min={1}
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
+             <input
+  type="number"
+  placeholder="Quantity"
+  value={cuttingFormData.quantity}
+  onChange={(e) => handleCuttingChange("quantity", e.target.value)}
+  className={inputClass("quantity")}
+/>
               <label className="font-bold text-xl">Remarks:</label>
-              <textarea
-                placeholder="Remarks"
-                value={cuttingFormData.remarks}
-                onChange={(e) => handleCuttingChange("remarks", e.target.value)}
-                rows={3}
-                required
-                className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
-              />
+             <textarea
+  placeholder="Remarks"
+  value={cuttingFormData.remarks}
+  onChange={(e) => handleCuttingChange("remarks", e.target.value)}
+  rows={3}
+  className={inputClass("remarks", "resize-none")}
+/>
             </section>
           )}
 {type === "cnc-slip" && (
   <section className="space-y-4">
     <label className="font-bold text-xl">Product Name:</label>
-    <input
-      type="text"
-      value={cncFormData.productName}
-      onChange={(e) => handleCNCChange("productName", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-3"
-    />
+  <input
+  type="text"
+  value={cncFormData.productName}
+  onChange={(e) => handleCNCChange("productName", e.target.value)}
+  className={inputClass("productName")}
+/>
     <label className="font-bold text-xl">Size:</label>
-    <input
-      type="text"
-      value={cncFormData.size}
-      onChange={(e) => handleCNCChange("size", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-3"
-    />
+  <input
+  type="text"
+  value={cncFormData.size}
+  onChange={(e) => handleCNCChange("size", e.target.value)}
+  className={inputClass("size")}
+/>
     <label className="font-bold text-xl">Quantity:</label>
-    <input
-      type="number"
-      value={cncFormData.quantity}
-      onChange={(e) => handleCNCChange("quantity", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-3"
-    />
+  <input
+  type="number"
+  value={cncFormData.quantity}
+  onChange={(e) => handleCNCChange("quantity", e.target.value)}
+  className={inputClass("quantity")}
+/>
     <label className="font-bold text-xl">Drawing Name:</label>
-    <input
-      type="text"
-      value={cncFormData.drawingName}
-      onChange={(e) => handleCNCChange("drawingName", e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-4 py-3"
-    />
+  
+<input
+  type="text"
+  value={cncFormData.drawingName}
+  onChange={(e) => handleCNCChange("drawingName", e.target.value)}
+  className={inputClass("drawingName")}
+/>
     <label className="font-bold text-xl">Remarks:</label>
 <textarea
   value={cncFormData.remarks}
   onChange={(e) => handleCNCChange("remarks", e.target.value)}
-  className="w-full border border-gray-300 rounded-md px-4 py-3 resize-none"
   rows={4}
-  placeholder="Enter any special CNC instructions or notes..."
+  className={inputClass("remarks", "resize-none")}
 />
 
   </section>
