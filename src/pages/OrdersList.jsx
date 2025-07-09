@@ -89,7 +89,7 @@ useEffect(() => {
   });
 
 const sectionsList = [
-  { key: "preExpander", label: "EPS/Thermocol Block Molding Production Section" },
+  { key: "preExpander", label: "EPS/Thermocol Block Molding/Dana/Beads Production Section" },
   { key: "shapeMoulding", label: "EPS/Thermocol Shape Molding Production Section" },
   { key: "sheetCutting", label: "EPS/Thermocol Sheet Cutting & Dispatch Section" },
   { key: "shapePackaging", label: "EPS/Thermocol Shape Molding Packaging & Dispatch Section" },

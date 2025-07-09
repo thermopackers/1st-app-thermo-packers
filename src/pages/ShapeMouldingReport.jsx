@@ -89,16 +89,17 @@ const isKnownProduct = (name) => {
       }
     };
 
-    if (
-      user.role === "accounts" ||
-      user.productionSection === "shapeMoulding"
-    ) {
-      fetchData();
-    }
+   if (
+  user.role === "accounts" ||
+  user.productionSection?.includes("shapeMoulding")
+) {
+  fetchData();
+}
+
   }, [user, currentPage, searchTerm, filterDate]);
 
-  if (!(user.role === "accounts" || user.productionSection === "shapeMoulding"))
-    return null;
+  if (!(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")))
+  return null;
 
   const handleInputChange = (date, index, field, value) => {
     const updatedGrouped = { ...groupedData };

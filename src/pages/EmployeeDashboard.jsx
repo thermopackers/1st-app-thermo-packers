@@ -7,12 +7,14 @@ import axiosInstance from "../axiosInstance";
 import SalesFollowUpForm from "./SalesFollowUpForm";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useUserContext } from "../context/UserContext";
+import toast from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 5;
 
 const EmployeeDashboard = () => {
   const { tasks, loading, markTaskDone, fetchTasks } = useToDo();
   const { user } = useUserContext();
+  const [notifiedTasks, setNotifiedTasks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
   console.log("task", tasks);
@@ -514,29 +516,44 @@ useEffect(() => {
                    {task.isOrderFollowUp &&
   task.assignedBy?.role === "accounts" &&
   user.role === "sales" && (() => {
-    const followUps = task.followUps || [];
-    const lastFollowUp = followUps[followUps.length - 1];
-    const continueStatuses = [
-      "No Response / Call Not Answered",
-      "Number Unreachable / Switched Off",
-      "Follow-up Requested – Call Scheduled for Later"
-    ];
+  const followUps = task.followUps || [];
+const today = new Date().toISOString().slice(0, 10);
+const todayFollowUp = followUps.find(
+  (entry) => new Date(entry.date).toISOString().slice(0, 10) === today
+);
+const lastFollowUp = followUps[followUps.length - 1];
 
-    // If no follow-up yet, or the last one requires continuation
-    if (!lastFollowUp || continueStatuses.includes(lastFollowUp.response)) {
-      return (
-        <SalesFollowUpForm
-          taskId={task._id}
-          onFollowUpSubmitted={fetchTasks}
-        />
-      );
-    }
+const continueStatuses = [
+  "No Response / Call Not Answered",
+  "Number Unreachable / Switched Off",
+  "Follow-up Requested – Call Scheduled for Later"
+];
+if (
+  task.isOrderFollowUp &&
+  !todayFollowUp &&
+  lastFollowUp &&
+  !notifiedTasks.includes(task._id)
+) {
+  toast.success("🔁 This follow-up task was updated. Please submit again.");
+  setNotifiedTasks((prev) => [...prev, task._id]);
+}
 
-    return (
-      <p className="text-sm text-green-700 mt-2 italic">
-        ✅ This order follow-up was completed based on the last response.
-      </p>
-    );
+// ✅ Show the follow-up form if no follow-up for today or it requires continuation
+if (!todayFollowUp || continueStatuses.includes(lastFollowUp?.response)) {
+  return (
+    <SalesFollowUpForm
+      taskId={task._id}
+      onFollowUpSubmitted={fetchTasks}
+    />
+  );
+}
+
+return (
+  <p className="text-sm text-green-700 mt-2 italic">
+    ✅ This order follow-up was completed based on the last response.
+  </p>
+);
+
   })()}
 
                     {/* Show done remarks if task is DONE and remarks exist */}

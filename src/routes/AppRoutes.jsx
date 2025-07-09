@@ -24,6 +24,7 @@ import ProformaInvoiceDashboard from "../pages/ProformaInvoiceDashboard";
 import RegisterUser from "../pages/RegisterUser";
 import ProformaEditForm from "../pages/ProformaEditForm";
 import CNCDashboard from "../pages/CNCDashboard";
+import MileageChart from "../pages/MileageChart";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -370,7 +371,7 @@ export default function AppRoutes() {
   path="/cnc-dashboard"
   element={
     <ProtectedRoute
-      allowedRoles={["accounts"]}
+      allowedRoles={["accounts","production"]}
     >
       <PageWrapper>
         <CNCDashboard />
@@ -378,6 +379,17 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="/mileage-chart"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+      <PageWrapper>
+        <MileageChart />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 
           </Routes>
         </Suspense>

@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   console.log("tasks", tasks);
 
   const [users, setUsers] = useState([]);
+  const [assignedUsers, setAssignedUsers] = useState([]);
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
@@ -41,6 +42,12 @@ const AdminDashboard = () => {
       .then((res) => setUsers(res.data))
       .catch((err) => console.error("Error fetching users:", err));
   }, []);
+useEffect(() => {
+  axiosInstance
+    .get("/todos/assigned-users")
+    .then((res) => setAssignedUsers(res.data))
+    .catch((err) => console.error("Error fetching assigned users:", err));
+}, []);
 
   // Fetch tasks whenever filters or page changes
   useEffect(() => {
@@ -141,6 +148,18 @@ const AdminDashboard = () => {
             <option value="NOT DONE">Pending</option>
             <option value="DONE">Done</option>
           </select>
+<select
+  className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+  value={selectedUser}
+  onChange={(e) => updateFilters({ assignedTo: e.target.value, page: 1 })}
+>
+  <option value="">All Employees</option>
+  {assignedUsers.map((users) => (
+    <option key={users._id} value={users._id}>
+      {users.name} ({users.role})
+    </option>
+  ))}
+</select>
 
           <button
             onClick={clearFilters}
@@ -441,18 +460,17 @@ const AdminDashboard = () => {
                     )}
 
                     <div className="mt-4 flex gap-3">
-                       {!task.isOrderFollowUp && (
-                      <button
-                        onClick={() => {
-                          setEditingTask(task);
-                          setShowAssignForm(true);
-                          window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 scrolls to top
-                        }}
-                        className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
-                        aria-label={`Edit task ${task.title}`}
-                      >
-                        <span>✏️</span> Edit
-                      </button>)}
+                       <button
+  onClick={() => {
+    setEditingTask(task);
+    setShowAssignForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 scrolls to top
+  }}
+  className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
+  aria-label={`Edit task ${task.title}`}
+>
+  <span>✏️</span> Edit
+</button>
 
                       <button
                         onClick={() => handleDelete(task._id)}

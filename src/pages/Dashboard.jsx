@@ -246,53 +246,70 @@ const handleViewTasks = async () => {
             </div>
             {/* Production → Packaging → Dispatch Grid */}
        {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
-  <div className="bg-white mt-6 p-6 rounded-lg shadow-md">
-    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
-      Go To All Type of Production / Dispatch Sections
-    </h3>
+<div className="bg-white mt-6 p-4 rounded-lg shadow-md">
+  <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+    Go To All Type of Production / Dispatch Sections
+  </h3>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {(user.role === "production" || user.role === "accounts") && (
-        <NavLink to="/production-dashboard">
-          <div className="h-full">
-            <button className="w-full h-full min-h-[64px] bg-purple-500 hover:bg-purple-600 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
-              Go to Production Section
-            </button>
-          </div>
-        </NavLink>
-      )}
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {(user.role === "accounts" || user.role === "production") && (
+      <>
+        {/* Block Moulding Button Section */}
+        {(user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
+          <NavLink to="/production-dashboard?type=dana" className="h-full">
+            <div className="h-full">
+              <button className="w-full h-full min-h-[80px] bg-indigo-600 hover:bg-indigo-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+                EPS/Thermocol Block Molding Production Section
+              </button>
+            </div>
+          </NavLink>
+        )}
 
-      {(user.role === "dispatch" || user.role === "accounts") && (
-        <NavLink to="/dispatch-dashboard">
-          <div className="h-full">
-            <button className="w-full h-full min-h-[64px] bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
-              EPS/Thermocol Sheet Cutting & Dispatch Section
-            </button>
-          </div>
-        </NavLink>
-      )}
+        {/* Shape Moulding Button Section */}
+        {(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
+          <NavLink to="/production-dashboard?type=shape" className="h-full">
+            <div className="h-full">
+              <button className="w-full h-full min-h-[80px] bg-purple-600 hover:bg-purple-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+                EPS/Thermocol Shape Molding Production Section
+              </button>
+            </div>
+          </NavLink>
+        )}
+      </>
+    )}
 
-      {(user.role === "packaging" || user.role === "dispatch" || user.role === "accounts") && (
-        <NavLink to="/packaging-dashboard">
-          <div className="h-full">
-            <button className="w-full h-full min-h-[64px] bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
-              EPS/Thermocol Shape Moulding Packaging & Dispatch Section
-            </button>
-          </div>
-        </NavLink>
-      )}
+    {(user.role === "dispatch" || user.role === "accounts") && (
+      <NavLink to="/dispatch-dashboard" className="h-full">
+        <div className="h-full">
+          <button className="w-full h-full min-h-[80px] bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+            EPS/Thermocol Sheet Cutting & Dispatch Section
+          </button>
+        </div>
+      </NavLink>
+    )}
 
-      {user.role === "accounts" && (
-        <NavLink to="/cnc-dashboard">
-          <div className="h-full">
-            <button className="w-full h-full min-h-[64px] bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-4 rounded shadow text-sm sm:text-base">
-              CNC Hot Wire / CNC Router Section
-            </button>
-          </div>
-        </NavLink>
-      )}
-    </div>
+    {(user.role === "packaging" || user.role === "accounts") && (
+      <NavLink to="/packaging-dashboard" className="h-full">
+        <div className="h-full">
+          <button className="w-full h-full min-h-[80px] bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+            EPS/Thermocol Shape Moulding Packaging & Dispatch Section
+          </button>
+        </div>
+      </NavLink>
+    )}
+
+    {(user.role === "accounts" || (user.role === "production" && user.productionSection?.includes("cnc"))) && (
+      <NavLink to="/cnc-dashboard" className="h-full">
+        <div className="h-full">
+          <button className="w-full h-full min-h-[80px] bg-yellow-600 hover:bg-yellow-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+            EPS/Thermocol CNC Hot Wire / CNC Router Section
+          </button>
+        </div>
+      </NavLink>
+    )}
   </div>
+</div>
+
 )}
 
 
@@ -390,7 +407,7 @@ const handleViewTasks = async () => {
 
 </div>
 
-{user.role !== "driver" && (
+{!["driver", "production", "dispatch", "packaging"].includes(user.role) && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
     {/* Proforma Invoice Generator */}
     <div className="bg-emerald-100 p-4 rounded-lg">
@@ -483,6 +500,7 @@ const handleViewTasks = async () => {
 )}
 
 {["admin", "accounts"].includes(user.role) && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
   <div className="bg-blue-50 p-4 rounded-lg mt-6">
     <h3 className="text-lg font-bold text-blue-800">Register New User</h3>
     <p className="text-sm text-blue-700 mt-2">
@@ -494,7 +512,21 @@ const handleViewTasks = async () => {
       </button>
     </NavLink>
   </div>
+
+  <div className="bg-indigo-100 p-4 rounded-lg mt-6">
+    <h3 className="text-lg font-bold text-indigo-800">Vehicle Mileage Report</h3>
+    <p className="text-sm text-indigo-700 mt-2">
+      View mileage (KM/L) per vehicle based on diesel filled and KM readings.
+    </p>
+    <NavLink to="/mileage-chart">
+      <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+        Open Mileage Chart
+      </button>
+    </NavLink>
+  </div>
+  </div>
 )}
+
 
 
           </div>

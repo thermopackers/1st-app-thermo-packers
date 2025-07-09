@@ -170,31 +170,45 @@ const openPdfInSwal = (pdfUrl, slip) => {
 
                 <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
   {/* 🎧 Voice Preview */}
-  {slip.attachments?.some((url) => url.endsWith(".mp3") || url.includes("/upload/") && url.includes(".webm")) && (
+{slip.attachments
+  ?.filter((url) => url.endsWith(".mp3") || url.includes(".webm"))
+  .map((audioUrl, idx) => (
     <audio
+      key={idx}
       controls
-      src={slip.attachments.find((url) =>
-        url.endsWith(".mp3") || url.includes(".webm")
-      )}
+      src={audioUrl}
       className="w-full sm:w-64 rounded"
     />
-  )}
+  ))}
+
 
   {/* Buttons */}
-  <div className="flex flex-wrap gap-2">
-    <button
-      onClick={() => openPdfInSwal(slip.pdfUrl, slip)}
-      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-    >
-      <FaDownload className="mr-2" /> View Slip
-    </button>
-    <button
-      onClick={() => handleDelete(slip._id)}
-      className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-    >
-      ❌ Delete
-    </button>
-  </div>
+<div className="flex flex-wrap gap-2">
+  <button
+    onClick={() => openPdfInSwal(slip.pdfUrl, slip)}
+    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+  >
+    <FaDownload className="mr-2" /> View Slip
+  </button>
+
+  <button
+    onClick={() => {
+      localStorage.setItem("editRequisitionSlip", JSON.stringify(slip));
+      window.location.href = "/material-requisition"; // navigate to form page
+    }}
+    className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
+  >
+    ✏️ Edit
+  </button>
+
+  <button
+    onClick={() => handleDelete(slip._id)}
+    className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+  >
+    ❌ Delete
+  </button>
+</div>
+
 </div>
 
               </div>

@@ -35,6 +35,7 @@ export default function AddOrder() {
       freight: "",
       freightAmount: "",
           productImages: [], // ✅ ensure this is initialized
+    productRemarks: "", // 💬 new field
 
     },
   ]);
@@ -153,14 +154,21 @@ const options = useMemo(() => {
     });
   }
   // ✅ Checkbox: Same as Bill To
-  else if (name === "sameAsBillTo") {
-    const updatedDetails = {
-      ...clientDetails,
-      sameAsBillTo: checked,
-      shipTo: checked ? clientDetails.billTo : "",
-    };
-    setClientDetails(updatedDetails);
-  }
+ else if (name === "sameAsBillTo") {
+  const selectedCustomer = allCustomers.find(
+    (c) => c.name === clientDetails.customerName
+  );
+
+  const updatedDetails = {
+    ...clientDetails,
+    sameAsBillTo: checked,
+    billTo: checked && selectedCustomer ? selectedCustomer.address : clientDetails.billTo,
+    shipTo: checked && selectedCustomer ? selectedCustomer.address : "",
+  };
+
+  setClientDetails(updatedDetails);
+}
+
 
   // ✅ Bill To change should update Ship To if checkbox is checked
   else if (name === "billTo") {
@@ -177,32 +185,51 @@ const options = useMemo(() => {
   }
 };
 
-const handleProductChange = (index, field, value) => {
+const handleProductChange = async (index, field, value) => {
   const updated = [...productList]; // make shallow copy
 
   const product = allProducts.find((p) => p.name === value);
 
-  if (field === "product" && product) {
-    const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
-    const imageList = Array.isArray(product.images)
-      ? product.images.map((img) =>
-          img.startsWith("http") ? img : `${BASE_URL}${img}`
-        )
-      : [];
+if (field === "product" && product) {
+  const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
+  const imageList = Array.isArray(product.images)
+    ? product.images.map((img) =>
+        img.startsWith("http") ? img : `${BASE_URL}${img}`
+      )
+    : [];
 
-    updated[index] = {
-      ...updated[index],
-      product: product.name,
-      customProduct: "",
-      size: "",
-      customSize: "",
-      productImages: imageList,
-    };
+  updated[index] = {
+    ...updated[index],
+    product: product.name,
+    customProduct: "",
+    size: "",
+    customSize: "",
+    productImages: imageList,
+  };
 
-    const updatedSizesList = [...availableSizesList];
-    updatedSizesList[index] = product.sizes || [];
-    setAvailableSizesList(updatedSizesList);
+  const updatedSizesList = [...availableSizesList];
+  updatedSizesList[index] = product.sizes || [];
+  setAvailableSizesList(updatedSizesList);
+
+  // ✅ Auto-fill last price if customer is selected
+  const customerName = clientDetails.customerName;
+  if (customerName && product.name) {
+    try {
+      const res = await axiosInstance.get(
+        `/orders/last-price?customerName=${encodeURIComponent(
+          customerName
+        )}&product=${encodeURIComponent(product.name)}`
+      );
+      if (res.data?.price) {
+        updated[index].price = res.data.price;
+        toast.success(`💰 Last price auto-filled: ₹${res.data.price}`);
+      }
+    } catch (err) {
+      console.warn("No previous price found for this customer and product.");
+    }
   }
+}
+
 
   else if (field === "customProduct") {
     updated[index] = {
@@ -385,13 +412,20 @@ console.log("productList rendering:", productList);
                 clientDetails.customerName &&
                 customerOptions.find((opt) => opt.value === clientDetails.customerName) || null
               }
-              onChange={(selected) => {
-                if (selected.value === "custom") {
-                  setClientDetails({ ...clientDetails, customerName: "" });
-                } else {
-                  setClientDetails({ ...clientDetails, customerName: selected.value });
-                }
-              }}
+          onChange={(selected) => {
+  if (selected.value === "custom") {
+    setClientDetails({ ...clientDetails, customerName: "", billTo: "", shipTo: "" });
+  } else {
+    const selectedCustomer = allCustomers.find((c) => c.name === selected.value);
+    setClientDetails((prev) => ({
+      ...prev,
+      customerName: selected.value,
+      billTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.billTo,
+      shipTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.shipTo,
+    }));
+  }
+}}
+
               className="w-full"
               classNamePrefix="react-select"
             />
@@ -477,23 +511,10 @@ console.log("productList rendering:", productList);
     </div>
   </div>
 )}
-{/* 🧾 Bill To Address */}
-<div className="flex flex-col col-span-2">
-  <label htmlFor="billTo" className="mb-1 font-medium text-gray-700">
-    🧾 Bill To Address
-  </label>
-  <input
-    id="billTo"
-    name="billTo"
-    placeholder="Enter Bill To Address"
-    value={clientDetails.billTo}
-    onChange={handleClientChange}
-    className="border border-gray-400 p-2 rounded w-full"
-    required
-  />
-</div>
+
 
 {/* ✅ Ship to same as Bill To checkbox */}
+{/* ✅ Checkbox */}
 <div className="flex items-center gap-2 col-span-2">
   <input
     type="checkbox"
@@ -507,22 +528,44 @@ console.log("productList rendering:", productList);
   </label>
 </div>
 
-{/* 🚚 Ship To Address — only show when NOT same as Bill To */}
+{/* 🔄 Show both if checkbox is unchecked */}
 {!clientDetails.sameAsBillTo && (
-  <div className="flex flex-col col-span-2">
-    <label htmlFor="shipTo" className="mb-1 font-medium text-gray-700">
-      🚚 Ship To Address
-    </label>
-    <input
-      id="shipTo"
-      name="shipTo"
-      placeholder="Enter Ship To Address"
-      value={clientDetails.shipTo}
-      onChange={handleClientChange}
-      className="border border-gray-400 p-2 rounded w-full"
-    />
-  </div>
+  <>
+    {/* 🧾 Bill To Address */}
+    <div className="flex flex-col col-span-2">
+      <label htmlFor="billTo" className="mb-1 font-medium text-gray-700">
+        🧾 Bill To Address
+      </label>
+      <input
+        id="billTo"
+        name="billTo"
+        placeholder="Enter Bill To Address"
+        value={clientDetails.billTo}
+        onChange={handleClientChange}
+        className="border border-gray-400 p-2 rounded w-full"
+        required
+      />
+    </div>
+
+    {/* 🚚 Ship To Address */}
+    <div className="flex flex-col col-span-2">
+      <label htmlFor="shipTo" className="mb-1 font-medium text-gray-700">
+        🚚 Ship To Address
+      </label>
+      <input
+        id="shipTo"
+        name="shipTo"
+        placeholder="Enter Ship To Address"
+        value={clientDetails.shipTo}
+        onChange={handleClientChange}
+        className="border border-gray-400 p-2 rounded w-full"
+        required
+      />
+    </div>
+  </>
 )}
+
+
 
 
 
@@ -736,6 +779,21 @@ console.log("productList rendering:", productList);
         />
       </div>
     )}
+<div className="col-span-2">
+   <label className="mb-1 font-medium text-gray-700">
+    Product Remarks
+  </label>
+  <textarea
+    value={prod.productRemarks}
+    placeholder="Remarks for this product"
+    onChange={(e) =>
+      handleProductChange(index, "productRemarks", e.target.value)
+    }
+    className="w-full border border-gray-400 p-2 rounded"
+    rows={2}
+  />
+</div>
+
 
     {/* 🖼 Product Images */}
     {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (

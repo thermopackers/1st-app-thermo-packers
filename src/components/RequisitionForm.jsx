@@ -1,5 +1,5 @@
 import RecordRTC from "recordrtc";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import imageCompression from "browser-image-compression";
 import toast from "react-hot-toast";
 import InternalNavbar from "./InternalNavbar";
@@ -35,7 +35,30 @@ const stopRecording = async () => {
   ]);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [editId, setEditId] = useState(null); // 🆕
+ useEffect(() => {
+    const stored = localStorage.getItem("editRequisitionSlip");
+    if (stored) {
+      const data = JSON.parse(stored);
+      setAssignedTo(data.createdBy || "");
+      setItems(data.items || []);
+     setPreviews(
+  (data.attachments || [])
+    .filter((url) => url.startsWith("http") && url.includes("cloudinary"))
+    .map((url) => {
+      const type = url.includes(".pdf")
+        ? "pdf"
+        : url.includes(".webm") || url.includes(".mp3")
+        ? "audio"
+        : "image";
+      return { name: url, url, type };
+    })
+);
 
+
+      setEditId(data._id); // 🆕 set edit mode
+    }
+  }, []);
   const handleItemChange = (i, field, value) => {
     const updated = [...items];
     updated[i][field] = value;
@@ -133,24 +156,39 @@ const stopRecording = async () => {
   setAudioURL("");
   setRecorder(null);
   setIsRecording(false);
+   setEditId(null); // 🆕
+  localStorage.removeItem("editRequisitionSlip"); // 🆕
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     toast.dismiss();
-    toast.loading("Uploading...");
+  toast.loading(editId ? "Updating..." : "Uploading...");
 
     try {
-      const attachments = await uploadFilesToCloudinary();
+        const attachments = await uploadFilesToCloudinary();
+const allAttachments = [
+  ...attachments,
+  ...previews
+    .filter((p) => p.url.startsWith("http") && p.url.includes("cloudinary"))
+    .map((p) => p.url),
+];
 
-      const res = await axiosInstance.post("/requisitions/create", {
-        createdBy: assignedTo,
-        items: JSON.stringify(items),
-        attachments,
-      });
+    const payload = {
+      createdBy: assignedTo,
+      items: JSON.stringify(items),
+      attachments: allAttachments,
+    };
+
+    let res;
+    if (editId) {
+      res = await axiosInstance.put(`/requisitions/update/${editId}`, payload);
+    } else {
+      res = await axiosInstance.post("/requisitions/create", payload);
+    }
 
       toast.dismiss();
-      toast.success("Requisition uploaded!");
+    toast.success(editId ? "Requisition updated!" : "Requisition uploaded!");
       console.log(res.data);
       resetForm();
     } catch (err) {
@@ -245,34 +283,39 @@ const stopRecording = async () => {
             className="w-full border border-dashed border-gray-400 p-4 rounded-lg"
           />
 
-          {previews.length > 0 && (
-            <div className="flex flex-wrap gap-4 mt-4">
-              {previews.map((file, i) => (
-                <div
-                  key={i}
-                  className="relative border rounded-lg p-2 bg-gray-50 shadow"
-                >
-                  {file.type === "image" ? (
-                    <img
-                      src={file.url}
-                      alt={file.name}
-                      className="h-24 w-24 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="h-24 w-24 flex items-center justify-center bg-gray-200 text-sm text-gray-600 rounded">
-                      📄 PDF
-                    </div>
-                  )}
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hover:bg-red-700"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        {previews.length > 0 && (
+  <div className="flex flex-wrap gap-4 mt-4">
+    {previews.map((file, i) => (
+      <div
+        key={i}
+        className="relative border rounded-lg p-2 bg-gray-50 shadow"
+      >
+        {file.type === "image" ? (
+          <img
+            src={file.url}
+            alt={file.name}
+            className="h-24 w-24 object-cover rounded"
+          />
+        ) : file.type === "pdf" ? (
+          <div className="h-24 w-24 flex items-center justify-center bg-gray-200 text-sm text-gray-600 rounded">
+            📄 PDF
+          </div>
+        ) : file.type === "audio" ? (
+          <audio controls src={file.url} className="w-48 h-12 rounded" />
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => removeFile(i)}
+          className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hover:bg-red-700"
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
   {/* Add Item Button */}

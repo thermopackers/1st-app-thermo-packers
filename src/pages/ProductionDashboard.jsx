@@ -17,6 +17,7 @@ const ProductionDashboard = () => {
   const [orders, setOrders] = useState([]);
 const [searchParams, setSearchParams] = useSearchParams();
 const currentPage = parseInt(searchParams.get("page")) || 1;
+const typeFilter = searchParams.get("type"); // shape or dana
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
@@ -77,16 +78,26 @@ params.append("sort", sortOrder); // ✅ new
 
     let enrichedOrders = response.data.orders;
 
-    // Filter orders based on user.productionSection (if needed, can move to backend for further optimization)
-    if (user && user.productionSection) {
-      enrichedOrders = enrichedOrders.filter((order) => {
-        if (user.productionSection === "shapeMoulding") {
-          return order.requiredSections?.shapeMoulding === true;
-        } else {
-          return !order.requiredSections?.shapeMoulding;
-        }
-      });
+  // ✅ Filter by slip type from URL
+    if (typeFilter === "shape") {
+      enrichedOrders = enrichedOrders.filter(o => o.shapeSlip?.url);
+    } else if (typeFilter === "dana") {
+      enrichedOrders = enrichedOrders.filter(o => o.danaSlip?.url);
     }
+
+    // Filter orders based on user.productionSection (if needed, can move to backend for further optimization)
+if (user && Array.isArray(user.productionSection)) {
+  enrichedOrders = enrichedOrders.filter((order) => {
+    if (user.productionSection.includes("shapeMoulding")) {
+      return order.requiredSections?.shapeMoulding === true;
+    }
+    if (user.productionSection.includes("blockMoulding")) {
+      return order.requiredSections?.shapeMoulding !== true;
+    }
+    return true;
+  });
+}
+
 
     setOrders(enrichedOrders);
 
@@ -150,7 +161,7 @@ const currentOrders = orders;
       duration: 1,
       delay: 1,
     });
-  }, [currentPage, searchTerm, statusFilter, startDate, endDate,sortOrder]);
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate, sortOrder, typeFilter]);
 const onSearchChange = (e) => {
   setSearchTerm(e.target.value);
   setSearchParams({ page: 1 });
@@ -185,9 +196,10 @@ const onEndDateChange = (e) => {
         <h2 className="text-3xl md:text-4xl text-center font-semibold dashboard-title">
           Production Dashboard
         </h2>
+        
  <div>
        <div className="p-4 flex flex-col md:flex-row gap-4 justify-center">
-        {(user.role === "accounts" || user.productionSection === "shapeMoulding") && (
+{(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
           <button
             onClick={() => navigate("/reports/shape-moulding")}
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -195,7 +207,7 @@ const onEndDateChange = (e) => {
             View Shape Moulding Production Report
           </button>
         )}
-        {(user.role === "accounts" || user.productionSection === "blockMoulding") && (
+{(user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
           <button
             onClick={() => navigate("/reports/block-moulding")}
             className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700"

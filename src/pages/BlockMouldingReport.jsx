@@ -62,14 +62,15 @@ const BlockMouldingReport = () => {
 
     if (
       user.role === "accounts" ||
-      user.productionSection === "blockMoulding"
+  user.productionSection?.includes("blockMoulding")
     ) {
       fetchData();
     }
   }, [user, currentPage, searchTerm, filterDate]);
 
-  if (!(user.role === "accounts" || user.productionSection === "blockMoulding"))
-    return null;
+if (!(user.role === "accounts" || user.productionSection?.includes("blockMoulding")))
+  return null;
+
 
   const handleInputChange = (date, index, field, value) => {
     const updatedGrouped = { ...groupedData };

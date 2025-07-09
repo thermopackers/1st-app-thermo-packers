@@ -12,11 +12,17 @@ const RegisterUser = () => {
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
+const [productionSection, setProductionSection] = useState([]);
+console.log("userss",users);
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (role === 'production' && productionSection.length === 0) {
+  toast.error('Please select at least one production section.');
+  return;
+}
     try {
-      const res = await axiosInstance.post('/users/register', { name, email, role });
+      const res = await axiosInstance.post('/users/register', { name, email, role, productionSection  });
       setMessage(res.data.message);
       setIsSuccess(true);
       setName('');
@@ -103,6 +109,32 @@ const RegisterUser = () => {
                 <option value="packaging">Packaging</option>
               </select>
             </div>
+{role === 'production' && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
+    <div className="flex flex-col gap-2">
+      {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
+        <label key={section} className="inline-flex items-center">
+          <input
+            type="checkbox"
+            value={section}
+            checked={productionSection.includes(section)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setProductionSection([...productionSection, section]);
+              } else {
+                setProductionSection(productionSection.filter(s => s !== section));
+              }
+            }}
+            className="mr-2"
+          />
+          {section}
+        </label>
+      ))}
+    </div>
+  </div>
+)}
+
 
             <button
               type="submit"
@@ -133,6 +165,7 @@ const RegisterUser = () => {
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Role</th>
+                <th className="px-4 py-2">Prod. Section</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -143,6 +176,11 @@ const RegisterUser = () => {
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
                   <td className="px-4 py-2 capitalize">{u.role}</td>
+<td className="px-4 py-2 capitalize">
+  {Array.isArray(u.productionSection) && u.productionSection.length > 0
+    ? u.productionSection.join(', ')
+    : '-'}
+</td>
                   <td className="px-4 py-2">
                     <button
                       onClick={() => handleDelete(u._id)}

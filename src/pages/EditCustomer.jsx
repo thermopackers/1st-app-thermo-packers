@@ -15,6 +15,7 @@ export default function EditCustomer() {
   const [newFiles, setNewFiles] = useState([]);
   const [removedDocs, setRemovedDocs] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [frequentProducts, setFrequentProducts] = useState([]);
 
   useEffect(() => {
   async function fetchUsers() {
@@ -34,6 +35,13 @@ export default function EditCustomer() {
       try {
         const res = await axiosInstance.get(`/customers/${id}`);
         setCustomer(res.data);
+          // ✅ Fetch frequently bought products here
+      if (res.data.name) {
+        const ordersRes = await axiosInstance.get(
+          `/orders/customer-summary/${encodeURIComponent(res.data.name)}`
+        );
+        setFrequentProducts(ordersRes.data);
+      }
       } catch (err) {
         if (err.response?.status === 404) {
           toast.error("Customer not found or deleted");
@@ -140,10 +148,41 @@ export default function EditCustomer() {
   return (
     <>
       <InternalNavbar />
-      <div className="max-w-lg mx-auto p-6">
-        <h2 className="text-xl font-bold mb-4">Edit Customer</h2>
+        <h2 className="text-2xl text-center py-2 font-bold">Edit Customer</h2>
+<div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto p-6">
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+       
+        {frequentProducts.length > 0 && (
+  <div className="mt-6">
+    <h3 className="text-lg font-semibold mb-2">Frequently Bought Products</h3>
+    <div className="border rounded">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-100 text-left">
+          <tr>
+            <th className="px-3 py-2">Product</th>
+            <th className="px-3 py-2">Price</th>
+            <th className="px-3 py-2">Remarks</th>
+            <th className="px-3 py-2">Times Ordered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {frequentProducts.map((item, idx) => (
+            <tr key={idx} className="border-t">
+              <td className="px-3 py-2">{item.product}</td>
+<td className="px-3 py-2 text-green-700 font-semibold">
+  ₹{item.price}
+  <span className="ml-1 text-xs text-gray-500">(last)</span>
+</td>
+              <td className="px-3 py-2">{item.remarks || "-"}</td>
+              <td className="px-3 py-2">{item.timesOrdered}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+ <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1 font-semibold">Name</label>
             <input
