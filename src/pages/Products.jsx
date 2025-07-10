@@ -52,7 +52,7 @@ const fetchProducts = async () => {
         category: selectedCat || undefined,  // send category only if selected
         search: searchTerm || undefined,
       },
-    });
+    });    
     setAllProducts(data.products);
     setTotalPages(data.pagination.totalPages);
   } catch (err) {

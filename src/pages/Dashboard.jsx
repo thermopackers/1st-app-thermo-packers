@@ -94,7 +94,7 @@ const handleViewTasks = async () => {
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
               <span className="capitalize">({user.role})</span>
             </h2>)}
-            {user.role === "sales" && notifications.length > 0 && (
+            {notifications.length > 0 && (
   <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
     <h3 className="text-md font-bold text-yellow-800 mb-2">🔔 Follow-Up Reminders</h3>
     <ul className="space-y-1">

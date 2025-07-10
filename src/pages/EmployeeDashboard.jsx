@@ -514,8 +514,7 @@ useEffect(() => {
                     )}
 
                    {task.isOrderFollowUp &&
-  task.assignedBy?.role === "accounts" &&
-  user.role === "sales" && (() => {
+  task.assignedBy?.role === "accounts" && (() => {
   const followUps = task.followUps || [];
 const today = new Date().toISOString().slice(0, 10);
 const todayFollowUp = followUps.find(
