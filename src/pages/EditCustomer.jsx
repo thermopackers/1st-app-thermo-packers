@@ -239,7 +239,7 @@ export default function EditCustomer() {
             />
           </div>
 <div>
-  <label className="block mb-1 font-semibold">Added By (Sales Person)</label>
+  <label className="block mb-1 font-semibold">Customer Handled/Managed by</label>
   <select
     name="createdBy"
     value={customer.createdBy || ""}

@@ -64,7 +64,7 @@ useEffect(() => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-lg-full animate-spin mx-auto mb-4"></div>
           <p className="text-lg font-medium text-blue-700">Loading Dashboard...</p>
         </div>
       </div>
@@ -81,13 +81,13 @@ const handleViewTasks = async () => {
       <div className="min-h-screen bg-gray-100 flex flex-col">
         <main className="flex-1 p-6 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
           <button
-            className="absolute hidden md:block left-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 back-button"
+            className="absolute hidden md:block left-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-lg-md shadow-md hover:bg-blue-600 back-button"
             onClick={() => navigate(-1)}
           >
             ↩️ Back
           </button>
 
-          <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
+          <div className="bg-white md:mt-[8vh] shadow-md rounded-lg-lg p-6">
                           {user.role !== "driver" && (
 
             <h2 className="text-xl font-semibold mb-4">
@@ -95,7 +95,7 @@ const handleViewTasks = async () => {
               <span className="capitalize">({user.role})</span>
             </h2>)}
             {notifications.length > 0 && (
-  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-6">
+  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-6">
     <h3 className="text-md font-bold text-yellow-800 mb-2">🔔 Follow-Up Reminders</h3>
     <ul className="space-y-1">
       {notifications
@@ -119,7 +119,7 @@ const handleViewTasks = async () => {
     <button
       onClick={() => setPage((p) => Math.max(p - 1, 1))}
       disabled={page === 1}
-      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+      className="px-2 py-1 bg-gray-200 rounded-lg disabled:opacity-50"
     >
       Prev
     </button>
@@ -129,7 +129,7 @@ const handleViewTasks = async () => {
     <button
       onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
       disabled={page === totalPages}
-      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+      className="px-2 py-1 bg-gray-200 rounded-lg disabled:opacity-50"
     >
       Next
     </button>
@@ -147,24 +147,24 @@ const handleViewTasks = async () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               {user.role === "driver" && (<>
-  <div className="bg-teal-100 p-4 rounded-lg">
+  <div className="bg-teal-100 p-4 rounded-lg-lg">
     <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
     <p className="text-sm text-teal-700 mt-2">
       View your assigned daily dispatch plans.
     </p>
     <NavLink to="/my-plans">
-      <button className="mt-4 cursor-pointer bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded">
+      <button className="mt-4 cursor-pointer bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg">
         Go to My Plans
       </button>
     </NavLink>
   </div>
-  <div className="bg-pink-100 p-4 rounded-lg">
+  <div className="bg-pink-100 p-4 rounded-lg-lg">
     <h3 className="text-lg font-bold text-pink-800">My Assets</h3>
     <p className="text-sm text-pink-700 mt-2">
       View your assigned assets.
     </p>
     <NavLink to="/my-assets">
-      <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded">
+      <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg">
         Go to My Assets
       </button>
     </NavLink>
@@ -175,13 +175,13 @@ const handleViewTasks = async () => {
               {/* Your Orders */}
                             {user.role !== "driver" &&
 
-              <div className="bg-blue-100 p-4 rounded-lg">
+              <div className="bg-blue-100 p-4 rounded-lg-lg">
                 <h3 className="text-lg font-bold text-blue-800">Your Orders</h3>
                 <p className="text-sm text-blue-700 mt-2">
                   View and manage the placed orders.
                 </p>
                 <NavLink to="/orders">
-                  <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                  <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
                     View Orders
                   </button>
                 </NavLink>
@@ -190,7 +190,7 @@ const handleViewTasks = async () => {
 
               {/* My Tasks */}
               {user.role !== "admin" &&
-              <div className="bg-indigo-50 p-4 rounded-lg">
+              <div className="bg-indigo-50 p-4 rounded-lg-lg">
                 <h3 className="text-lg font-bold text-indigo-800">My Tasks</h3>
                 <p className="text-sm text-indigo-700 mt-2">
                   View and complete your assigned personal tasks.
@@ -199,14 +199,14 @@ const handleViewTasks = async () => {
   <NavLink to="/my-tasks">
    <button
   onClick={handleViewTasks}
-  className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded"
+  className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg"
 >
   View My Assigned ToDos
 </button>
 
   </NavLink>
   {notifications.filter(n => !n.read).length > 0 && (
-    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg-full">
       {notifications.filter(n => !n.read).length}
     </span>
   )}
@@ -218,26 +218,26 @@ const handleViewTasks = async () => {
 
 
               {(user.role === "sales" || user.role === "admin" || user.role === "accounts") && (
-                <div className="bg-green-100 p-4 rounded-lg">
+                <div className="bg-green-100 p-4 rounded-lg-lg">
                   <h3 className="text-lg font-bold text-green-800">Add New Order</h3>
                   <p className="text-sm text-green-700 mt-2">
                     Create and submit a new customer/company order.
                   </p>
                   <NavLink to="/add-order">
-                    <button className="mt-4 cursor-pointer bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                    <button className="mt-4 cursor-pointer bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
                       Add New Order
                     </button>
                   </NavLink>
                 </div>
               )}
 {(user.role === "dispatch" || user.role === "accounts") && (
-                <div className="bg-orange-100 p-4 rounded-lg">
+                <div className="bg-orange-100 p-4 rounded-lg-lg">
                   <h3 className="text-lg font-bold text-orange-800">Inventory Manager</h3>
                   <p className="text-sm text-orange-700 mt-2">
                     View and update current product stock levels.
                   </p>
                   <NavLink to="/inventory">
-                    <button className="mt-4 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded">
+                    <button className="mt-4 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
                       Manage Inventory
                     </button>
                   </NavLink>
@@ -246,7 +246,7 @@ const handleViewTasks = async () => {
             </div>
             {/* Production → Packaging → Dispatch Grid */}
        {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
-<div className="bg-white mt-6 p-4 rounded-lg shadow-md">
+<div className="bg-white mt-6 p-4 rounded-lg-lg shadow-md">
   <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
     Go To All Type of Production / Dispatch Sections
   </h3>
@@ -258,7 +258,7 @@ const handleViewTasks = async () => {
         {(user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
           <NavLink to="/production-dashboard?type=dana" className="h-full">
             <div className="h-full">
-              <button className="w-full h-full min-h-[80px] bg-indigo-600 hover:bg-indigo-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+              <button className="w-full h-full min-h-[80px] bg-indigo-600 hover:bg-indigo-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
                 EPS/Thermocol Block Molding Production Section
               </button>
             </div>
@@ -269,7 +269,7 @@ const handleViewTasks = async () => {
         {(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
           <NavLink to="/production-dashboard?type=shape" className="h-full">
             <div className="h-full">
-              <button className="w-full h-full min-h-[80px] bg-purple-600 hover:bg-purple-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+              <button className="w-full h-full min-h-[80px] bg-purple-600 hover:bg-purple-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
                 EPS/Thermocol Shape Molding Production Section
               </button>
             </div>
@@ -281,7 +281,7 @@ const handleViewTasks = async () => {
     {(user.role === "dispatch" || user.role === "accounts") && (
       <NavLink to="/dispatch-dashboard" className="h-full">
         <div className="h-full">
-          <button className="w-full h-full min-h-[80px] bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+          <button className="w-full h-full min-h-[80px] bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
             EPS/Thermocol Sheet Cutting & Dispatch Section
           </button>
         </div>
@@ -291,7 +291,7 @@ const handleViewTasks = async () => {
     {(user.role === "packaging" || user.role === "accounts") && (
       <NavLink to="/packaging-dashboard" className="h-full">
         <div className="h-full">
-          <button className="w-full h-full min-h-[80px] bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+          <button className="w-full h-full min-h-[80px] bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
             EPS/Thermocol Shape Moulding Packaging & Dispatch Section
           </button>
         </div>
@@ -301,7 +301,7 @@ const handleViewTasks = async () => {
     {(user.role === "accounts" || (user.role === "production" && user.productionSection?.includes("cnc"))) && (
       <NavLink to="/cnc-dashboard" className="h-full">
         <div className="h-full">
-          <button className="w-full h-full min-h-[80px] bg-yellow-600 hover:bg-yellow-700 text-white py-6 px-4 rounded shadow text-sm sm:text-base text-center">
+          <button className="w-full h-full min-h-[80px] bg-yellow-600 hover:bg-yellow-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
             EPS/Thermocol CNC Hot Wire / CNC Router Section
           </button>
         </div>
@@ -316,13 +316,13 @@ const handleViewTasks = async () => {
 
             
             {user.role === "admin" && (
-              <div className="bg-yellow-100 p-4 rounded-lg mt-6">
+              <div className="bg-yellow-100 p-4 rounded-lg-lg mt-6">
                 <h3 className="text-lg font-bold text-yellow-800">Admin Tools</h3>
                 <p className="text-sm text-yellow-700 mt-2">
                   You have access to manage users and view all orders.
                 </p>
                 <NavLink to="/admin-dashboard">
-                  <button className="mt-4 cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                  <button className="mt-4 cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
                     Go to Admin Panel
                   </button>
                 </NavLink>
@@ -334,26 +334,26 @@ const handleViewTasks = async () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
   {/* Task Dashboard — only for admin and accounts */}
   {["admin", "accounts","sales"].includes(user.role) && (
-    <div className="bg-indigo-100 p-4 rounded-lg">
+    <div className="bg-indigo-100 p-4 rounded-lg-lg">
       <h3 className="text-lg font-bold text-indigo-800">Task Dashboard</h3>
       <p className="text-sm text-indigo-700 mt-2">
         View, complete, and manage your assigned tasks.
       </p>
       <NavLink to="/task-dashboard">
-        <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+        <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
           Go to ToDo Dashboard
         </button>
       </NavLink>
     </div>
   )}
 {["accounts", "packaging"].includes(user.role) && (
-  <div className="bg-fuchsia-100 p-4 rounded-lg">
+  <div className="bg-fuchsia-100 p-4 rounded-lg-lg">
     <h3 className="text-lg font-bold text-fuchsia-800">Daily Shape Moulding Section, Packaging & Dispatch Report</h3>
     <p className="text-sm text-fuchsia-700 mt-2">
       View daily packaging status and packed stock details.
     </p>
     <NavLink to="/reports/packaging">
-      <button className="mt-4 cursor-pointer bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded">
+      <button className="mt-4 cursor-pointer bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded-lg">
         Go To Daily Shape Moulding Section, Packaging & Dispatch Report
       </button>
     </NavLink>
@@ -361,13 +361,13 @@ const handleViewTasks = async () => {
 )}
   {/* Assign Dispatch Plan — visible to dispatch, packaging, admin, accounts */}
   {["dispatch", "packaging", "admin", "accounts"].includes(user.role) && (
-    <div className="bg-sky-100 p-4 rounded-lg">
+    <div className="bg-sky-100 p-4 rounded-lg-lg">
       <h3 className="text-lg font-bold text-sky-800">Assign Dispatch Plan</h3>
       <p className="text-sm text-sky-700 mt-2">
         Plan and assign dispatch tasks to specific drivers and vehicles.
       </p>
       <NavLink to="/assign-dispatch">
-        <button className="mt-4 cursor-pointer bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded">
+        <button className="mt-4 cursor-pointer bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg">
           Go to Assign Dispatch
         </button>
       </NavLink>
@@ -377,26 +377,26 @@ const handleViewTasks = async () => {
   <>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Submit Material Requisition */}
-      <div className="bg-rose-100 p-4 rounded-lg">
+      <div className="bg-rose-100 p-4 rounded-lg-lg">
         <h3 className="text-lg font-bold text-rose-800">Material Requisition Form</h3>
         <p className="text-sm text-rose-700 mt-2">
           Fill and submit a new material requisition slip for raw materials.
         </p>
         <NavLink to="/material-requisition">
-          <button className="mt-4 cursor-pointer bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded">
+          <button className="mt-4 cursor-pointer bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg">
             Go to Requisition Form
           </button>
         </NavLink>
       </div>
 
       {/* View All Requisition Slips */}
-      <div className="bg-amber-100 p-4 rounded-lg">
+      <div className="bg-amber-100 p-4 rounded-lg-lg">
         <h3 className="text-lg font-bold text-amber-800">Requisition Slips</h3>
         <p className="text-sm text-amber-700 mt-2">
           View and download all submitted requisition slip PDFs.
         </p>
         <NavLink to="/requisition-slips">
-          <button className="mt-4 cursor-pointer bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded">
+          <button className="mt-4 cursor-pointer bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg">
             View Requisition Slips
           </button>
         </NavLink>
@@ -408,96 +408,72 @@ const handleViewTasks = async () => {
 </div>
 
 {!["driver", "production", "dispatch", "packaging"].includes(user.role) && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-    {/* Proforma Invoice Generator */}
-    <div className="bg-emerald-100 p-4 rounded-lg">
-      <h3 className="text-lg font-bold text-emerald-800">Generate Proforma Invoice</h3>
-      <p className="text-sm text-emerald-700 mt-2">
-        Create and print a new proforma invoice for any customer.
-      </p>
-      <NavLink to="/proforma-invoice">
-        <button className="mt-4 cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded">
-          Generate Proforma Invoice
-        </button>
-      </NavLink>
-    </div>
+  <div className="bg-white mt-6 p-4 rounded-lg-lg shadow-md">
+    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      QUOTATION / PROFORMA INVOICE / ESTIMATE
+    </h3>
 
-    {/* View Proforma Invoices */}
-    <div className="bg-stone-100 p-4 rounded-lg">
-      <h3 className="text-lg font-bold text-stone-800">Proforma Invoice Dashboard</h3>
-      <p className="text-sm text-stone-700 mt-2">
-        Search, filter, and download generated proforma invoices.
-      </p>
-      <NavLink to="/proforma-dashboard">
-        <button className="mt-4 cursor-pointer bg-stone-500 hover:bg-stone-600 text-white px-4 py-2 rounded">
-          View All Invoices
-        </button>
-      </NavLink>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+      {/* Proforma Invoice Section */}
+     
+            <NavLink to="/proforma-invoice">
+                          <button className="w-full bg-green-500 hover:bg-green-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+                Make New Quotation / Proforma Invoice / Estimate
+              </button>
+            </NavLink>
+            <NavLink to="/proforma-dashboard">
+                                      <button className="w-full bg-gray-500 hover:bg-gray-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+                View Old Quotation / Proforma Invoice / Estimate
+              </button>
+            </NavLink>
+        
     </div>
   </div>
 )}
 
 
 
-       {["admin","sales", "accounts"].includes(user.role) && (
-  <>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-      {/* Add New Product */}
-      <div className="bg-lime-100 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-lime-800">Add New Product</h3>
-        <p className="text-sm text-lime-700 mt-2">
-          Add a new product to the system including size, stock info, and image.
-        </p>
-        <NavLink to="/add-product">
-          <button className="mt-4 cursor-pointer bg-lime-500 hover:bg-lime-600 text-white px-4 py-2 rounded">
-            Add New Product
+
+
+{["admin", "sales", "accounts"].includes(user.role) && (
+  <div className="mt-6">
+    {/* Product Info Section */}
+    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <h3 className="text-xl font-bold text-gray-800 text-center mb-4">SALES - PRODUCTS Information</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <NavLink to="/add-product" className="w-full">
+          <button className="w-full bg-lime-500 hover:bg-lime-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+            Add new PRODUCT
           </button>
         </NavLink>
-      </div>
-
-      {/* Add New Customer */}
-      <div className="bg-cyan-100 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-cyan-800">Add New Customer</h3>
-        <p className="text-sm text-cyan-700 mt-2">
-          Register a new customer or company in the database.
-        </p>
-        <NavLink to="/add-customer">
-          <button className="mt-4 cursor-pointer bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded">
-            Add New Customer
+        <NavLink to="/all-products" className="w-full">
+          <button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+            View/Edit/Delete PRODUCT
           </button>
         </NavLink>
       </div>
     </div>
 
-    {/* All Products & All Customers */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-      {/* All Products */}
-      <div className="bg-orange-100 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-orange-800">All Products</h3>
-        <p className="text-sm text-orange-700 mt-2">
-          View and manage all products in the system.
-        </p>
-        <NavLink to="/all-products">
-          <button className="mt-4 cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
-            View All Products
+    {/* Customer Info Section */}
+    <div className="bg-white rounded-lg shadow-md p-4">
+      <h3 className="text-xl font-bold text-gray-800 text-center mb-4">CUSTOMERS - Information</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <NavLink to="/add-customer" className="w-full">
+          <button className="w-full bg-cyan-500 hover:bg-cyan-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+            Add New CUSTOMER
           </button>
         </NavLink>
-      </div>
-      {/* All Customers */}
-      <div className="bg-violet-100 p-4 rounded-lg">
-        <h3 className="text-lg font-bold text-violet-800">All Customers</h3>
-        <p className="text-sm text-violet-700 mt-2">
-          View and manage all customers and companies.
-        </p>
-        <NavLink to="/customers">
-          <button className="mt-4 cursor-pointer bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded">
-            View All Customers
+        <NavLink to="/customers" className="w-full">
+          <button className="w-full bg-violet-500 hover:bg-violet-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+            View/Edit/Delete CUSTOMER
           </button>
         </NavLink>
       </div>
     </div>
-  </>
+  </div>
 )}
+
+
 
 {["admin", "accounts"].includes(user.role) && (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -507,19 +483,19 @@ const handleViewTasks = async () => {
       Add a new user by email, name and assign them a role.
     </p>
     <NavLink to="/register-user">
-      <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+      <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
         Register New User
       </button>
     </NavLink>
   </div>
 
-  <div className="bg-indigo-100 p-4 rounded-lg mt-6">
+  <div className="bg-indigo-100 p-4 rounded-lg md:mt-6 mt-0">
     <h3 className="text-lg font-bold text-indigo-800">Vehicle Mileage Report</h3>
     <p className="text-sm text-indigo-700 mt-2">
       View mileage (KM/L) per vehicle based on diesel filled and KM readings.
     </p>
     <NavLink to="/mileage-chart">
-      <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+      <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
         Open Mileage Chart
       </button>
     </NavLink>
