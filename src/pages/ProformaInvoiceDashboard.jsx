@@ -66,7 +66,8 @@ const deleteInvoice = async (id) => {
           <table className="w-full text-sm">
             <thead className="bg-blue-100 text-gray-700">
               <tr>
-                <th className="px-3 py-2 text-left">P/I No</th>
+                <th className="px-3 py-2 text-left">S.No</th>
+                <th className="px-3 py-2 text-left">P/I ID</th>
                 <th className="px-3 py-2 text-left">Date</th>
                     <th className="px-3 py-2 text-left">Customer Name</th> {/* Added */}
                 <th className="px-3 py-2 text-left">Bill To</th>
@@ -78,8 +79,9 @@ const deleteInvoice = async (id) => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {invoices.map((inv,index) => (
                 <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
+                  <td className="px-3 py-2">{(page - 1) * limit + index + 1}</td>
                   <td className="px-3 py-2">{inv.invoiceNo}</td>
                   <td className="px-3 py-2">{inv.date}</td>
                         <td className="px-3 py-2">{inv.customerName || "—"}</td> {/* Added */}
