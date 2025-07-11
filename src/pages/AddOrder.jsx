@@ -403,6 +403,7 @@ console.log("productList rendering:", productList);
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="flex items-center justify-center flex-col gap-4">
 
             {/* Customer Dropdown */}
             <Select
@@ -450,6 +451,7 @@ console.log("productList rendering:", productList);
               required
               className="border border-gray-400 p-2 rounded w-full"
             />
+            </div>
            <input
   type="file"
   name="poCopy"
@@ -595,7 +597,7 @@ console.log("productList rendering:", productList);
           {productList.map((prod, index) => (
   <div
     key={index}
-    className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-400 rounded-md"
+    className="bg-gray-50 p-4 border border-gray-400 rounded-md space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4"
   >
     {/* 🧾 Product Selector */}
     <div className="flex flex-col">
@@ -758,10 +760,10 @@ console.log("productList rendering:", productList);
       </select>
     </div>
 
-    {/* 💸 Freight Amount (conditional) */}
+    {/* 💸 Freight Amount */}
     {(prod.freight === "To pay" || prod.freight === "Billed in Invoice") && (
-      <div className="mb-3 flex flex-col">
-        <label className="mb-1 font-medium">
+      <div className="flex flex-col">
+        <label className="mb-1 font-medium text-gray-700">
           {prod.freight === "To pay"
             ? "Amount to pay"
             : "Amount billed in invoice"}
@@ -772,30 +774,29 @@ console.log("productList rendering:", productList);
           onChange={(e) =>
             handleProductChange(index, "freightAmount", e.target.value)
           }
+          className="border border-gray-400 p-2 rounded"
           min="0"
           step="0.01"
           required
-          className="w-full border border-gray-400 p-2 rounded"
         />
       </div>
     )}
-<div className="col-span-2">
-   <label className="mb-1 font-medium text-gray-700">
-    Product Remarks
-  </label>
-  <textarea
-    value={prod.productRemarks}
-    placeholder="Remarks for this product"
-    onChange={(e) =>
-      handleProductChange(index, "productRemarks", e.target.value)
-    }
-    className="w-full border border-gray-400 p-2 rounded"
-    rows={2}
-  />
-</div>
 
+    {/* 📝 Product Remarks */}
+    <div className="col-span-2">
+      <label className="mb-1 font-medium text-gray-700">Product Remarks</label>
+      <textarea
+        value={prod.productRemarks}
+        placeholder="Remarks for this product"
+        onChange={(e) =>
+          handleProductChange(index, "productRemarks", e.target.value)
+        }
+        className="w-full border border-gray-400 p-2 rounded"
+        rows={2}
+      />
+    </div>
 
-    {/* 🖼 Product Images */}
+    {/* 🖼 Image Preview */}
     {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (
       <div className="col-span-2">
         <p className="text-sm text-gray-500 mb-2">
@@ -817,17 +818,19 @@ console.log("productList rendering:", productList);
       </div>
     )}
 
-    {/* ❌ Remove Button */}
-    <button
-      type="button"
-      onClick={() => removeProduct(index)}
-      className="text-white bg-red-600 rounded cursor-pointer font-bold text-xl"
-      aria-label={`Remove product ${index + 1}`}
-    >
-      &times;
-    </button>
+  {/* ❌ Remove Button */}
+<button
+  type="button"
+  onClick={() => removeProduct(index)}
+  className="w-full text-white bg-red-600 rounded cursor-pointer font-bold text-xl mt-2 md:mt-0"
+  aria-label={`Remove product ${index + 1}`}
+>
+  &times;
+</button>
+
   </div>
 ))}
+
 
           
 
