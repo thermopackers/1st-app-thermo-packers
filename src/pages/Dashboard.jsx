@@ -373,7 +373,7 @@ const handleViewTasks = async () => {
       </NavLink>
     </div>
   )}
-  {["admin", "accounts"].includes(user.role) && (
+  {["admin","sales","accounts","dispatch", "packaging","production"].includes(user.role) && (
   <>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Submit Material Requisition */}

@@ -159,6 +159,7 @@ export default function EditCustomer() {
       <table className="min-w-full text-sm">
         <thead className="bg-gray-100 text-left">
           <tr>
+            <th className="px-3 py-2">Last Ordered</th>
             <th className="px-3 py-2">Product</th>
             <th className="px-3 py-2">Price</th>
             <th className="px-3 py-2">Remarks</th>
@@ -168,6 +169,9 @@ export default function EditCustomer() {
         <tbody>
           {frequentProducts.map((item, idx) => (
             <tr key={idx} className="border-t">
+<td className="px-3 py-2">
+  {item.orderDate ? new Date(item.orderDate).toLocaleDateString() : "-"}
+</td>
               <td className="px-3 py-2">{item.product}</td>
 <td className="px-3 py-2 text-green-700 font-semibold">
   ₹{item.price}

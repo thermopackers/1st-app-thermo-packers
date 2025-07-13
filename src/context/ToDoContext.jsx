@@ -75,8 +75,7 @@ const fetchAllTasks = async (params = {}) => {
 
   // ✅ Mark done with remarks
   const markTaskDone = async (taskId, remarks) => {
-    console.log('🟢 markTaskDone called with taskId:', taskId, 'remarks:', remarks);
-    if (!taskId) {
+     if (!taskId) {
       console.error('❌ No taskId provided to markTaskDone');
       return;
     }

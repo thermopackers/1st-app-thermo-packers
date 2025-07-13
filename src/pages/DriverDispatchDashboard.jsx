@@ -16,8 +16,7 @@ export default function DriverDispatchDashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 6; // or any number you want per page
-  console.log("customerDetails", customerDetails);
-
+ 
   const fetchPlans = async (currentPage = 1) => {
     setLoading(true);
     try {

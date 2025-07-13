@@ -10,8 +10,7 @@ export default function ProductList() {
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [previewImage, setPreviewImage] = useState(null);
-console.log("products",products);
-
+ 
   const [searchParams, setSearchParams] = useSearchParams();
   const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
 

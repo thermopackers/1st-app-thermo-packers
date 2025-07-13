@@ -1,27 +1,51 @@
+
+
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import { FaDownload } from "react-icons/fa";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useUserContext } from "../context/UserContext";
 
 const MySwal = withReactContent(Swal);
 
 export default function RequisitionSlips() {
+  const { user } = useUserContext(); // ✅ Current logged-in user
+
   const [slips, setSlips] = useState([]);
   const [page, setPage] = useState(1);
+  const [assigningSlipId, setAssigningSlipId] = useState(null); // for overlay loader
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+const [employees, setEmployees] = useState([]);
 
-  useEffect(() => {
-    axiosInstance
-      .get(`/requisitions/all?page=${page}&limit=10&search=${search}`)
-      .then((res) => {
-        setSlips(res.data.slips);
-        setTotalPages(res.data.totalPages);
-      })
-      .catch((err) => console.error("Failed to load slips", err));
-  }, [page, search]);
+useEffect(() => {
+  axiosInstance.get("/users/get-all-users")
+    .then((res) => setEmployees(res.data))
+    .catch((err) => console.error("Failed to load users", err));
+}, []);
+
+useEffect(() => {
+  if (!user?._id || !user?.role) return;
+
+  axiosInstance
+    .get(`/requisitions/all`, {
+      params: {
+        page,
+        limit: 10,
+        search,
+        userId: user._id,
+        role: user.role,
+      },
+    })
+    .then((res) => {
+      setSlips(res.data.slips);
+      setTotalPages(res.data.totalPages);
+    })
+    .catch((err) => console.error("Failed to load slips", err));
+}, [page, search, user]);
+
 
 const forceDownload = async (url, fileName) => {
   try {
@@ -149,10 +173,11 @@ const openPdfInSwal = (pdfUrl, slip) => {
         ) : (
           <div className="grid gap-4">
             {slips.map((slip) => (
-              <div
-                key={slip._id}
-                className="bg-white p-4 rounded-xl shadow-md flex flex-col sm:flex-row justify-between sm:items-center gap-4"
-              >
+            <div
+  key={slip._id}
+  className="relative bg-white p-4 rounded-xl shadow-md flex flex-col sm:flex-row justify-between sm:items-center gap-4"
+>
+
                 <div className="text-sm break-words">
                   <p>
                     <span className="font-semibold">Person:</span>{" "}
@@ -191,22 +216,94 @@ const openPdfInSwal = (pdfUrl, slip) => {
     <FaDownload className="mr-2" /> View Slip
   </button>
 
-  <button
-    onClick={() => {
-      localStorage.setItem("editRequisitionSlip", JSON.stringify(slip));
-      window.location.href = "/material-requisition"; // navigate to form page
-    }}
-    className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
-  >
-    ✏️ Edit
-  </button>
+{(user?.role === "admin" || user?.role === "accounts") && (
+    <button
+      onClick={() => {
+        localStorage.setItem("editRequisitionSlip", JSON.stringify(slip));
+        window.location.href = "/material-requisition";
+      }}
+      className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
+    >
+      ✏️ Edit
+    </button>
 
-  <button
-    onClick={() => handleDelete(slip._id)}
-    className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+
+)}
+
+
+<>
+ {(user?.role === "admin" || user?.role === "accounts") && (
+ 
+    <button
+      onClick={() => handleDelete(slip._id)}
+      className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+    >
+      ❌ Delete
+    </button>
+)}
+
+
+  {/* 👇 Employee Assignment Dropdown */}
+{user?.role === "admin" || user?.role === "accounts" ? (
+  <select
+value={slip.assignedTo?.[0] || ""} 
+    className="ml-2 px-3 py-2 border border-gray-300 rounded-md text-sm"
+    onChange={async (e) => {
+      const assignedTo = e.target.value;
+      if (!assignedTo) return;
+  setAssigningSlipId(slip._id); // show loader
+
+      try {
+        // ✅ Use new lightweight route
+        await axiosInstance.patch(`/requisitions/assign/${slip._id}`, {
+          assignedTo: [assignedTo],
+        });
+
+        // ✅ Create associated task
+        await axiosInstance.post("/todos/create", {
+          title: `Handle Requisition Slip by ${slip.createdBy}`,
+          description: `Please process this requisition slip dated ${new Date(
+            slip.date
+          ).toLocaleDateString()}.`,
+          assignedTo,
+          images: [slip.pdfUrl],
+          origin: "requisition",
+        });
+
+        Swal.fire("✅ Assigned", "Slip assigned successfully!", "success");
+
+        // ✅ Locally update state
+        setSlips((prev) =>
+          prev.map((s) =>
+            s._id === slip._id ? { ...s, assignedTo: [assignedTo] } : s
+          )
+        );
+      } catch (err) {
+        console.error("Failed to assign slip:", err);
+        Swal.fire("Error", "Failed to assign slip.", "error");
+      } finally {
+    setAssigningSlipId(null); // hide loader
+  }
+    }}
   >
-    ❌ Delete
-  </button>
+    <option value="" disabled>Assign to employee</option>
+    {employees.map((emp) => (
+      <option key={emp._id} value={emp._id}>
+        {emp.name} ({emp.role})
+      </option>
+    ))}
+  </select>
+) : null}
+
+{assigningSlipId === slip._id && (
+  <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center rounded-lg">
+    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-600 border-opacity-70"></div>
+  </div>
+)}
+
+
+</>
+
 </div>
 
 </div>

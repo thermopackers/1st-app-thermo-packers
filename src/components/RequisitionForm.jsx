@@ -379,6 +379,15 @@ const allAttachments = [
     ✅ Submit
   </button>
 </div>
+{editId && (
+  <button
+    type="button"
+    onClick={resetForm}
+    className="w-full sm:w-auto px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+  >
+    ❌ Cancel Edit
+  </button>
+)}
 
         </form>
       </div>

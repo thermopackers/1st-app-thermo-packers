@@ -95,7 +95,7 @@ const updateCNCStatus = async (orderId, newStatus) => {
         </button>
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
-          EPS / Thermocol CNC Dashboard
+          EPS / Thermocol CNC Hot Wire/CNC Router Dashboard
         </h2>
 
         <div className="flex flex-wrap items-end gap-4 mb-6">

@@ -1,3 +1,5 @@
+
+
 import { useToDo } from "../context/ToDoContext";
 import InternalNavbar from "../components/InternalNavbar";
 import { useEffect, useState } from "react";
@@ -17,8 +19,8 @@ const EmployeeDashboard = () => {
   const [notifiedTasks, setNotifiedTasks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
-  console.log("task", tasks);
-  console.log("usssr", user);
+ const [requisitionSlips, setRequisitionSlips] = useState({});
+
   const { taskId } = useParams();
 
   const navigate = useNavigate();
@@ -28,8 +30,7 @@ const EmployeeDashboard = () => {
     axiosInstance
       .patch(`/notifications/mark-read/${user._id}`)
       .then(() => {
-        console.log("Marked notifications as read");
-        return axiosInstance.get(`/notifications/${user._id}`); // ✅ fetch again
+         return axiosInstance.get(`/notifications/${user._id}`); // ✅ fetch again
       })
       .then((res) => setNotifications(res.data))
       .catch((err) =>
@@ -42,6 +43,27 @@ const EmployeeDashboard = () => {
 
     fetchTasks();
   }, []);
+useEffect(() => {
+  const fetchSlip = async (task) => {
+    if (
+      task.origin === "requisition" &&
+      task.requisitionId &&
+      !requisitionSlips[task.requisitionId]
+    ) {
+      try {
+        const res = await axiosInstance.get(`/requisitions/${task.requisitionId}`);
+        setRequisitionSlips((prev) => ({
+          ...prev,
+          [task.requisitionId]: res.data,
+        }));
+      } catch (err) {
+        console.error("❌ Failed to load requisition slip", err);
+      }
+    }
+  };
+
+  tasks.forEach(fetchSlip);
+}, [tasks]);
 
   useEffect(() => {
   if (taskId) {
@@ -452,6 +474,12 @@ useEffect(() => {
                       }`}
                     >
                       {task.title}
+                      {/* ✅ Show badge if it's from requisition */}
+  {task.origin === "requisition" && (
+    <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">
+      From Requisition
+    </span>
+  )}
                       {!task.isOrderFollowUp && task.repeat !== "ONE_TIME" && (
                         <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
                           ⟳{" "}
@@ -464,7 +492,32 @@ useEffect(() => {
                       )}
                     </h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
-                    <p className="text-sm text-gray-500 mt-2">
+{/* ✅ Show requisition info if available */}
+{task.origin === "requisition" && requisitionSlips[task.requisitionId] && (
+  <div className="mt-2 space-y-1 text-sm text-gray-700">
+    <p>
+      <strong>🧾 Items:</strong>{" "}
+      {requisitionSlips[task.requisitionId].items?.length || 0}
+    </p>
+
+    {requisitionSlips[task.requisitionId].attachments?.some(
+      (url) => url.endsWith(".webm") || url.endsWith(".mp3")
+    ) && (
+      <div className="space-y-1">
+        <p className="font-medium text-indigo-700">🎧 Audio Notes:</p>
+        {requisitionSlips[task.requisitionId].attachments
+          .filter((url) => url.endsWith(".webm") || url.endsWith(".mp3"))
+          .map((url, i) => (
+            <audio key={i} controls className="w-full rounded">
+              <source src={url} type="audio/webm" />
+            </audio>
+          ))}
+      </div>
+    )}
+  </div>
+)}
+
+<p className="text-sm text-gray-500 mt-2">
                       Assigned by: {task.assignedBy?.name || "N/A"}
                     </p>
                     <p className="text-sm text-gray-500">
@@ -591,7 +644,7 @@ return (
 
                   {/* Show assigned images */}
           {/* Assigned Media Section */}
-{task.images?.length > 0 && (
+{task.origin !== "requisition" && task.images?.length > 0 && (
   <div className="mt-4">
     <h4 className="text-sm font-semibold text-gray-700 mb-2">📎 Assigned Media</h4>
     <div className="flex flex-wrap gap-3">

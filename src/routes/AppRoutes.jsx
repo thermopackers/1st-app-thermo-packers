@@ -312,7 +312,7 @@ export default function AppRoutes() {
 <Route
   path="/material-requisition"
   element={
-    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging","driver"]}>
       <PageWrapper><RequisitionForm /></PageWrapper>
     </ProtectedRoute>
   }
@@ -320,7 +320,7 @@ export default function AppRoutes() {
 <Route
   path="/requisition-slips"
   element={
-    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging","driver"]}>
       <PageWrapper><RequisitionSlips /></PageWrapper>
     </ProtectedRoute>
   }

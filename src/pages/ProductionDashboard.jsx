@@ -30,7 +30,8 @@ const typeFilter = searchParams.get("type"); // shape or dana
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [packagingReadyOrders, setPackagingReadyOrders] = useState([]);
-  
+const type = searchParams.get('type');
+
 const groupOrdersByPO = (orders) => {
   return orders.reduce((groups, order) => {
     const po = order.po || "N/A";
@@ -148,8 +149,7 @@ if (user && Array.isArray(user.productionSection)) {
 const currentOrders = orders;
 
 
-  console.log("currentOrders", currentOrders);
-
+ 
   useEffect(() => {
     fetchOrders();
     gsap.from(".dashboard-title", { opacity: 0, y: -30, duration: 1 });
@@ -185,17 +185,13 @@ const onEndDateChange = (e) => {
   return (
     <>
       <InternalNavbar />
-
-      <button
-            className="absolute hidden md:block left-4 top-[12vh] cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 back-button"
-            onClick={() => navigate(-1)}
-          >
-            ↩️ Back
-          </button>
       <div className="relative md:mt-8 mt-4 px-4">
         <h2 className="text-3xl md:text-4xl text-center font-semibold dashboard-title">
-          Production Dashboard
-        </h2>
+  {type === 'shape'
+    ? 'EPS/Thermocol Shape Moulding Production Dashboard'
+    : 'EPS/Thermocol Block Moulding / Dana / Beads Production Dashboard'}
+</h2>
+
         
  <div>
        <div className="p-4 flex flex-col md:flex-row gap-4 justify-center">

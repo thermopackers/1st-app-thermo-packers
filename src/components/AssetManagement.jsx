@@ -46,8 +46,7 @@ const AssetManagement = ({ hideNavbar }) => {
         const res = await axiosInstance.get("/assets/all-assets", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-              console.log("🔍 Asset data:", res.data); // <-- Add this
-
+ 
         setAssets(res.data);
       } catch (err) {
         console.error("Error fetching assets:", err);

@@ -49,7 +49,6 @@ export default function AddOrder() {
     const fetchProductSizes = async () => {
       try {
         const response = await axiosInstance.get("/products/all-backend-products");
-              console.log("Fetched products:", response.data); // 🔍 log here
 
         setAllProducts(response.data);
       } catch (error) {
@@ -134,8 +133,7 @@ const options = useMemo(() => {
     return;
   }
 
-  console.log("✅ File accepted:", file.name, file.type, file.size);
-  setClientDetails({ ...clientDetails, [name]: file });
+   setClientDetails({ ...clientDetails, [name]: file });
 } else if (name === "deliveryRange") {
     const days =
       value === "1week"
@@ -255,8 +253,7 @@ if (field === "product" && product) {
     }
   }
 
-  console.log("✅ Final updated productList:", updated);
-  setProductList(updated); // ✅ properly trigger re-render
+   setProductList(updated); // ✅ properly trigger re-render
 };
 
   const addAnotherProduct = () => {
@@ -345,8 +342,7 @@ formData.append("shipTo", clientDetails.shipTo);
     });
 
     const createdOrder = response.data.orders[0];
-    console.log("🧾 New Order:", createdOrder);
-
+ 
   // ✅ Upload multiple PO files (images/pdfs) if present
 if (clientDetails.poCopy.length > 0) {
   for (const file of clientDetails.poCopy) {
@@ -364,8 +360,7 @@ if (clientDetails.poCopy.length > 0) {
           },
         }
       );
-      console.log("✅ Uploaded:", poUploadRes.data);
-    } catch (uploadErr) {
+     } catch (uploadErr) {
       console.error("❌ Failed to upload file:", file.name, uploadErr);
       toast.error(`Upload failed for: ${file.name}`);
     }
@@ -391,8 +386,7 @@ if (clientDetails.poCopy.length > 0) {
   const handleCancel = () => {
     navigate("/orders");
   };
-console.log("productList rendering:", productList);
-
+ 
   return (
     <>
       <InternalNavbar />

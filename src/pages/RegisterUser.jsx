@@ -13,8 +13,7 @@ const RegisterUser = () => {
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
-console.log("userss",users);
-
+ 
   const handleRegister = async (e) => {
     e.preventDefault();
     if (role === 'production' && productionSection.length === 0) {
@@ -104,9 +103,9 @@ console.log("userss",users);
               >
                 <option value="sales">Sales</option>
                 <option value="accounts">Accounts</option>
-                <option value="dispatch">Dispatch</option>
+                <option value="dispatch">EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section</option>
                 <option value="production">Production</option>
-                <option value="packaging">Packaging</option>
+                <option value="packaging">EPS/Thermocol Shape Molding, Packaging and Dispatch Section</option>
               </select>
             </div>
 {role === 'production' && (
@@ -175,7 +174,15 @@ console.log("userss",users);
                   <td className="px-4 py-2">{i + 1}</td>
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
-                  <td className="px-4 py-2 capitalize">{u.role}</td>
+<td className="px-4 py-2">
+  {{
+    sales: 'Sales',
+    accounts: 'Accounts',
+    dispatch: 'EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section',
+    production: 'Production',
+    packaging: 'EPS/Thermocol Shape Molding, Packaging and Dispatch Section',
+  }[u.role] || u.role}
+</td>
 <td className="px-4 py-2 capitalize">
   {Array.isArray(u.productionSection) && u.productionSection.length > 0
     ? u.productionSection.join(', ')

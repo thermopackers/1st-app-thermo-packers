@@ -34,8 +34,7 @@ const isKnownProduct = (name) => {
         const res = await axiosInstance.get("/products/all-backend-products", {
           headers: { Authorization: `Bearer ${user.token}` },
         });
-        console.log("ddadat", res.data);
-
+ 
         setAllProducts(res.data); // assuming array of products
       } catch (err) {
         console.error("Error fetching products:", err);

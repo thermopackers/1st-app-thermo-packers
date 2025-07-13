@@ -32,8 +32,7 @@ const handlePageChange = (page) => {
 
   }
 };
-console.log("ord",orders);
-
+ 
   const cardsRef = useRef([]);
   const navigate = useNavigate();
   const orderContainerRef = useRef(null);

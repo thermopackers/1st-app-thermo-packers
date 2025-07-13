@@ -1,3 +1,6 @@
+
+
+
 import React, { useEffect, useState } from "react";
 import { useToDo } from "../context/ToDoContext";
 import axiosInstance from "../axiosInstance";
@@ -19,8 +22,7 @@ const AdminDashboard = () => {
     currentPage,
     setCurrentPage,
   } = useToDo();
-  console.log("tasks", tasks);
-
+ 
   const [users, setUsers] = useState([]);
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [showAssignForm, setShowAssignForm] = useState(false);
@@ -224,12 +226,7 @@ useEffect(() => {
           ) : (
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {tasks.map((task) => {
-                console.log(
-                  "Task:",
-                  task.title,
-                  "isOrderFollowUp:",
-                  task.isOrderFollowUp
-                );
+                
 
                 return (
                   <div
@@ -458,6 +455,63 @@ useEffect(() => {
                         ))}
                       </div>
                     )}
+{/* Day-wise follow-up attendance */}
+{task.isOrderFollowUp && task.status !== "DONE" && (
+  <div className="mt-4 text-sm text-gray-700 bg-orange-50 p-3 rounded border border-orange-200">
+    <h4 className="font-semibold text-orange-600 mb-3">📅 Follow-Up Attendance</h4>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse text-xs md:text-sm">
+        <thead>
+          <tr className="bg-orange-100">
+            <th className="p-2 border">Day</th>
+            <th className="p-2 border">Date</th>
+            <th className="p-2 border text-center">✔ / ❌</th>
+            <th className="p-2 border">Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(() => {
+            const assignedDate = new Date(task.assignedOn);
+            const today = new Date();
+            const followUps = task.followUps || [];
+            const rows = [];
+
+           const startDate = new Date(assignedDate);
+startDate.setHours(0, 0, 0, 0);
+
+const endDate = new Date();
+endDate.setHours(0, 0, 0, 0);
+
+let i = 1;
+for (
+  let d = new Date(startDate);
+  d <= endDate;
+  d.setDate(d.getDate() + 1), i++
+) {
+  const match = followUps.find(
+    (f) =>
+      new Date(f.date).toLocaleDateString() === d.toLocaleDateString()
+  );
+
+  rows.push(
+    <tr key={d.toDateString()} className="text-xs md:text-sm">
+      <td className="p-2 border">Day {i}</td>
+      <td className="p-2 border">{d.toLocaleDateString()}</td>
+      <td className="p-2 border text-center">{match ? "✔️" : "❌"}</td>
+      <td className="p-2 border">{match ? match.response : "—"}</td>
+    </tr>
+  );
+}
+
+
+            return rows;
+          })()}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
 
                     <div className="mt-4 flex gap-3">
                        <button
@@ -483,6 +537,7 @@ useEffect(() => {
                   </div>
                 );
               })}
+              
             </div>
           )}
 

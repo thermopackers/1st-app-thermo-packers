@@ -36,8 +36,7 @@ export default function OrdersList() {
   const [slipType, setSlipType] = useState(null); // 'production' or 'dispatch'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeProductImage, setActiveProductImage] = useState(null);
-console.log("selectedRadioByOrder",selectedRadioByOrder);
-const [resolvedPOUrls, setResolvedPOUrls] = useState({});
+ const [resolvedPOUrls, setResolvedPOUrls] = useState({});
 const checkIfUrlExists = async (url) => {
   try {
     const res = await fetch(url, { method: "HEAD" });
@@ -138,18 +137,12 @@ const getSlipTypeFromSection = (requiredSections) => {
       : 0;
   };
   const [selectedSections, setSelectedSections] = useState({});
-  console.log("selectedSections", selectedSections);
-
+ 
 const handleSlipSubmit = async (payload) => {
   try {
     if (!selectedOrder) return;
 
-    console.log("🟡 Slip type:", slipType);
-    console.log("🟡 Selected order ID:", selectedOrder._id);
-    console.log("🟡 Full Payload:", payload);
-    console.log("✅ shapeFormData:", payload.shapeFormData);
-    console.log("✅ packagingFormData:", payload.packagingFormData);
-
+   
     const selectedSections = selectedOrder?.requiredSections || {};
 
     const slipTypeToHandler = {
@@ -455,8 +448,7 @@ const handleSlipSubmit = async (payload) => {
 const currentOrders = filteredOrders;
 
 
-  console.log("currentOrders", currentOrders);
-
+ 
 const groupedOrders = useMemo(() => {
   return groupOrdersByPO(filteredOrders);
 }, [filteredOrders]);
@@ -464,8 +456,7 @@ const groupedOrders = useMemo(() => {
   // ✅ Declare SweetAlert2 with Tailwind buttons globally
 
 const handleSectionRadioChange = async (orderId, selectedKey) => {
-    console.log("🔥 Radio changed:", selectedKey);
-
+ 
   const updatedSections = {};
 
   // Set only the selected section to true
@@ -502,8 +493,6 @@ const handleSectionRadioChange = async (orderId, selectedKey) => {
       ...prev,
       [orderId]: selectedKey,
     }));
-   console.log("✅ Updated localSections:", updatedOrder.requiredSections);
-    console.log("✅ Updated selectedRadioByOrder:", selectedKey);
     fetchOrders(currentPage);
   } catch (error) {
     console.error("Error updating section selection:", error);
@@ -529,8 +518,7 @@ const actuallySendToProduction = async (
   cuttingFormData,
   danaFormData
 ) => {
-  console.log("cuttocut😍", cuttingFormData);
-
+ 
   const freshOrder = orders.find((o) => o._id === orderId);
   if (!freshOrder) return;
 
@@ -694,8 +682,7 @@ const actuallySendToProduction = async (
       console.error("Error sending to Dispatch:", error);
     }
   };
-  console.log("DISABLED ORDERS:", disabledOrders);
-
+ 
   return (
     <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {uploadingPOCopy && (
@@ -1580,10 +1567,7 @@ if (isSectionAlreadySent) {
       return acc;
     }, {});
 
-    // ✅ Logging before state is set
-    console.log("✅ Selected Key:", selectedKey);
-    console.log("✅ Setting selectedSections to:", oneSelected);
-
+    
     // ✅ Set slip type
    setSlipType(sectionToSlipType[selectedKey] || "production");
 

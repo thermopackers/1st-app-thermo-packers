@@ -27,8 +27,7 @@ const currentPage = parseInt(searchParams.get("page")) || 1;
   const cardsRef = useRef([]);
   const navigate = useNavigate();
   const orderContainerRef = useRef(null);
-console.log("orders",orders);
-
+ 
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
       const po = order.po || "N/A";
