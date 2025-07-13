@@ -145,7 +145,7 @@ const handleViewTasks = async () => {
               Welcome 👋 to your Dashboard!
             </h2>)}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+<div className="flex flex-col gap-6 mt-6">
               {user.role === "driver" && (<>
   <div className="bg-teal-100 p-4 rounded-lg-lg">
     <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
@@ -172,77 +172,83 @@ const handleViewTasks = async () => {
   </>
 )}
 
-              {/* Your Orders */}
-                            {user.role !== "driver" &&
+        
+{["sales", "admin", "accounts"].includes(user.role) && (
+  <div className="bg-white p-4 rounded-lg-lg shadow-md">
+    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      SALES ORDERS
+    </h3>
 
-              <div className="bg-blue-100 p-4 rounded-lg-lg">
-                <h3 className="text-lg font-bold text-blue-800">Your Orders</h3>
-                <p className="text-sm text-blue-700 mt-2">
-                  View and manage the placed orders.
-                </p>
-                <NavLink to="/orders">
-                  <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                    View Orders
-                  </button>
-                </NavLink>
-              </div>}
+    {/* Make it single column always to ensure full width */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Add New Sales Order */}
+      <NavLink to="/add-order">
+        <button className="w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+          ➕ Add New Sales Order
+          <br />
+          <span className="text-xs font-normal">
+            (Check if customer exists before adding)
+          </span>
+        </button>
+      </NavLink>
+
+      {/* View Old/Existing Orders */}
+      <NavLink to="/orders">
+        <button className="w-full cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+          📂 View / Edit Sales Orders
+          <br />
+          <span className="text-xs font-normal">
+            (Manage old/existing orders)
+          </span>
+        </button>
+      </NavLink>
+    </div>
+  </div>
+)}
+
 
 
               {/* My Tasks */}
-              {user.role !== "admin" &&
-              <div className="bg-indigo-50 p-4 rounded-lg-lg">
-                <h3 className="text-lg font-bold text-indigo-800">My Tasks</h3>
-                <p className="text-sm text-indigo-700 mt-2">
-                  View and complete your assigned personal tasks.
-                </p>
-               <div className="relative inline-block mt-4">
-  <NavLink to="/my-tasks">
-   <button
-  onClick={handleViewTasks}
-  className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg"
->
-  View My Assigned ToDos
-</button>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+  {user.role !== "admin" && (
+    <div className="bg-indigo-50 p-4 rounded-lg-lg">
+      <h3 className="text-lg font-bold text-indigo-800">My Tasks</h3>
+      <p className="text-sm text-indigo-700 mt-2">
+        View and complete your assigned personal tasks.
+      </p>
+      <div className="relative inline-block mt-4">
+        <NavLink to="/my-tasks">
+          <button
+            onClick={handleViewTasks}
+            className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg"
+          >
+            View My Assigned ToDos
+          </button>
+        </NavLink>
+        {notifications.filter(n => !n.read).length > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg-full">
+            {notifications.filter(n => !n.read).length}
+          </span>
+        )}
+      </div>
+    </div>
+  )}
 
-  </NavLink>
-  {notifications.filter(n => !n.read).length > 0 && (
-    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg-full">
-      {notifications.filter(n => !n.read).length}
-    </span>
+  {(user.role === "dispatch" || user.role === "accounts") && (
+    <div className="bg-orange-100 p-4 rounded-lg-lg">
+      <h3 className="text-lg font-bold text-orange-800">Inventory Manager</h3>
+      <p className="text-sm text-orange-700 mt-2">
+        View and update current product stock levels.
+      </p>
+      <NavLink to="/inventory">
+        <button className="mt-4 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+          Manage Inventory
+        </button>
+      </NavLink>
+    </div>
   )}
 </div>
 
-
-              </div>}
-
-
-
-              {(user.role === "sales" || user.role === "admin" || user.role === "accounts") && (
-                <div className="bg-green-100 p-4 rounded-lg-lg">
-                  <h3 className="text-lg font-bold text-green-800">Add New Order</h3>
-                  <p className="text-sm text-green-700 mt-2">
-                    Create and submit a new customer/company order.
-                  </p>
-                  <NavLink to="/add-order">
-                    <button className="mt-4 cursor-pointer bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
-                      Add New Order
-                    </button>
-                  </NavLink>
-                </div>
-              )}
-{(user.role === "dispatch" || user.role === "accounts") && (
-                <div className="bg-orange-100 p-4 rounded-lg-lg">
-                  <h3 className="text-lg font-bold text-orange-800">Inventory Manager</h3>
-                  <p className="text-sm text-orange-700 mt-2">
-                    View and update current product stock levels.
-                  </p>
-                  <NavLink to="/inventory">
-                    <button className="mt-4 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
-                      Manage Inventory
-                    </button>
-                  </NavLink>
-                </div>
-              )}
             </div>
             {/* Production → Packaging → Dispatch Grid */}
        {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (

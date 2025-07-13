@@ -14,12 +14,18 @@ const [audioURL, setAudioURL] = useState("");
 const [isRecording, setIsRecording] = useState(false);
 
 const startRecording = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const newRecorder = new RecordRTC(stream, { type: "audio" });
-  newRecorder.startRecording();
-  setRecorder(newRecorder);
-  setIsRecording(true);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const newRecorder = new RecordRTC(stream, { type: "audio" });
+    newRecorder.startRecording();
+    setRecorder(newRecorder);
+    setIsRecording(true);
+  } catch (err) {
+    console.error("Microphone access denied or failed:", err);
+    toast.error("🎙️ Please allow microphone access to start recording.");
+  }
 };
+
 
 const stopRecording = async () => {
   recorder.stopRecording(() => {
