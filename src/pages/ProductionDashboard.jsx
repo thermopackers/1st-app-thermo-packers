@@ -98,7 +98,7 @@ if (user?.role === "accounts") {
       if (section === "shapeMoulding" && sections.includes("shapeMoulding")) {
         return !!o.shapeSlip?.url;
       }
-      if (section === "cncSection" && sections.includes("cncSection")) {
+      if (section === "cnc" && sections.includes("cnc")) {
         return true; // No slip required for CNC (optional)
       }
       return false;
