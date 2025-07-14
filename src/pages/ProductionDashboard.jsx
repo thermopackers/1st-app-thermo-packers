@@ -91,23 +91,26 @@ if (user?.role === "accounts") {
     const assignedSections = o.sentTo?.production || [];
     const userSections = user.productionSection;
 
-    const typeMatchesSlip =
-      typeFilter === "shape"
-        ? !!o.shapeSlip?.url
-        : typeFilter === "dana"
-        ? !!o.danaSlip?.url
-        : false;
+    if (typeFilter === "shape") {
+      return (
+        userSections.includes("shapeMoulding") &&
+        assignedSections.includes("shapeMoulding") &&
+        !!o.shapeSlip?.url
+      );
+    }
 
-    const userHasRelevantSection =
-      typeFilter === "shape"
-        ? userSections.includes("shapeMoulding") && assignedSections.includes("shapeMoulding")
-        : typeFilter === "dana"
-        ? userSections.includes("blockMoulding") && assignedSections.includes("blockMoulding")
-        : false;
+    if (typeFilter === "dana") {
+      return (
+        userSections.includes("blockMoulding") &&
+        assignedSections.includes("blockMoulding") &&
+        !!o.danaSlip?.url
+      );
+    }
 
-    return typeMatchesSlip && userHasRelevantSection;
+    return false; // fallback
   });
 }
+
 
 
 
