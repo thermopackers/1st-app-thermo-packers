@@ -104,7 +104,7 @@ if (user?.role === "accounts") {
     if (typeFilter === "dana") {
       return (
         userSections.includes("blockMoulding") &&
-        assignedSections.includes("blockMoulding") &&
+        assignedSections.includes("preExpander") &&
         !!o.danaSlip?.url
       );
     }
