@@ -88,16 +88,13 @@ params.append("sort", sortOrder); // ✅ new
 
     // Filter orders based on user.productionSection (if needed, can move to backend for further optimization)
 if (user && Array.isArray(user.productionSection)) {
-  enrichedOrders = enrichedOrders.filter((order) => {
-    if (user.productionSection.includes("shapeMoulding")) {
-      return order.requiredSections?.shapeMoulding === true;
-    }
-    if (user.productionSection.includes("blockMoulding")) {
-      return order.requiredSections?.shapeMoulding !== true;
-    }
-    return true;
-  });
+  enrichedOrders = enrichedOrders.filter((order) =>
+    order.sentTo?.production?.some(section =>
+      user.productionSection.includes(section)
+    )
+  );
 }
+
 
 
     setOrders(enrichedOrders);
