@@ -86,25 +86,29 @@ if (user?.role === "accounts") {
     (o.sentTo?.production?.length > 0) &&
     (o.shapeSlip?.url || o.danaSlip?.url)
   );
-} else if (user?.productionSection?.length > 0) {
+} else if (user?.productionSection?.length > 0 && typeFilter) {
   enrichedOrders = enrichedOrders.filter((o) => {
-    const sections = user.productionSection;
+    const assignedSections = o.sentTo?.production || [];
+    const userSections = user.productionSection;
 
-    // Match if any of user's production sections exist in the order
-    return o.sentTo?.production?.some((section) => {
-      if (section === "blockMoulding" && sections.includes("blockMoulding")) {
-        return !!o.danaSlip?.url;
-      }
-      if (section === "shapeMoulding" && sections.includes("shapeMoulding")) {
-        return !!o.shapeSlip?.url;
-      }
-      if (section === "cnc" && sections.includes("cnc")) {
-        return true; // No slip required for CNC (optional)
-      }
-      return false;
-    });
+    const typeMatchesSlip =
+      typeFilter === "shape"
+        ? !!o.shapeSlip?.url
+        : typeFilter === "dana"
+        ? !!o.danaSlip?.url
+        : false;
+
+    const userHasRelevantSection =
+      typeFilter === "shape"
+        ? userSections.includes("shapeMoulding") && assignedSections.includes("shapeMoulding")
+        : typeFilter === "dana"
+        ? userSections.includes("blockMoulding") && assignedSections.includes("blockMoulding")
+        : false;
+
+    return typeMatchesSlip && userHasRelevantSection;
   });
 }
+
 
 
 
