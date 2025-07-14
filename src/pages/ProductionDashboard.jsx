@@ -79,21 +79,22 @@ params.append("sort", sortOrder); // ✅ new
 
     let enrichedOrders = response.data.orders;
 
-  // ✅ Filter by slip type from URL
-    if (typeFilter === "shape") {
-      enrichedOrders = enrichedOrders.filter(o => o.shapeSlip?.url);
-    } else if (typeFilter === "dana") {
-      enrichedOrders = enrichedOrders.filter(o => o.danaSlip?.url);
-    }
-
-    // Filter orders based on user.productionSection (if needed, can move to backend for further optimization)
-if (user && Array.isArray(user.productionSection)) {
-  enrichedOrders = enrichedOrders.filter((order) =>
-    order.sentTo?.production?.some(section =>
-      user.productionSection.includes(section)
-    )
+// ✅ Filter by production section + matching slip
+if (user?.productionSection?.includes("shapeMoulding")) {
+  enrichedOrders = enrichedOrders.filter((o) =>
+    o.sentTo?.production?.includes("shapeMoulding") && o.shapeSlip?.url
+  );
+} else if (user?.productionSection?.includes("blockMoulding")) {
+  enrichedOrders = enrichedOrders.filter((o) =>
+    o.sentTo?.production?.includes("blockMoulding") && o.danaSlip?.url
+  );
+} else if (user?.role === "accounts") {
+  // ✅ Show all orders with any slip if user is accounts
+  enrichedOrders = enrichedOrders.filter((o) =>
+    o.shapeSlip?.url || o.danaSlip?.url
   );
 }
+
 
 
 
