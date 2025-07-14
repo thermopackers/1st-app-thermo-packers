@@ -82,7 +82,25 @@ params.append("sort", sortOrder); // ✅ new
     let enrichedOrders = response.data.orders;
 
 // ✅ Filter by production section + matching slip
-if (user?.productionSection?.length > 0 && typeFilter) {
+if (user?.role === "accounts") {
+  enrichedOrders = enrichedOrders.filter((o) => {
+    const assigned = o.sentTo?.production?.length > 0;
+
+    if (!assigned) return false;
+
+    if (typeFilter === "shape") {
+      return !!o.shapeSlip?.url;
+    }
+
+    if (typeFilter === "dana") {
+      return !!o.danaSlip?.url;
+    }
+
+    // fallback: if type is missing, show both
+    return o.shapeSlip?.url || o.danaSlip?.url;
+  });
+}
+ else if (user?.productionSection?.length > 0 && typeFilter) {
   enrichedOrders = enrichedOrders.filter((o) => {
     const assignedSections = o.sentTo?.production || [];
     const userSections = user.productionSection;
