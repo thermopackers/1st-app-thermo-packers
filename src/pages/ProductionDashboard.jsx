@@ -51,8 +51,10 @@ const groupOrdersByPO = (orders) => {
   const navigate = useNavigate();
 const handlePageChange = (newPage) => {
   if (newPage < 1 || newPage > totalPages) return;
-  setSearchParams({ page: newPage });
+  const currentParams = Object.fromEntries([...searchParams]);
+  setSearchParams({ ...currentParams, page: newPage });
 };
+
 
 const fetchOrders = async () => {
   try {
@@ -181,23 +183,31 @@ const currentOrders = orders;
   }, [currentPage, searchTerm, statusFilter, startDate, endDate, sortOrder, typeFilter]);
 const onSearchChange = (e) => {
   setSearchTerm(e.target.value);
-  setSearchParams({ page: 1 });
+  const currentParams = Object.fromEntries([...searchParams]);
+  setSearchParams({ ...currentParams, page: 1 });
 };
+
 
 const onStatusChange = (e) => {
   setStatusFilter(e.target.value);
-  setSearchParams({ page: 1 });
+  const currentParams = Object.fromEntries([...searchParams]);
+  setSearchParams({ ...currentParams, page: 1 });
 };
+
 
 const onStartDateChange = (e) => {
   setStartDate(e.target.value);
-  setSearchParams({ page: 1 });
+  const currentParams = Object.fromEntries([...searchParams]);
+  setSearchParams({ ...currentParams, page: 1 });
 };
+
 
 const onEndDateChange = (e) => {
   setEndDate(e.target.value);
-  setSearchParams({ page: 1 });
+  const currentParams = Object.fromEntries([...searchParams]);
+  setSearchParams({ ...currentParams, page: 1 });
 };
+
 
   return (
     <>
