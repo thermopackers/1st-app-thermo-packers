@@ -82,13 +82,7 @@ params.append("sort", sortOrder); // ✅ new
     let enrichedOrders = response.data.orders;
 
 // ✅ Filter by production section + matching slip
-if (user?.role === "accounts") {
-  // Show all orders with valid production slips
-  enrichedOrders = enrichedOrders.filter((o) =>
-    (o.sentTo?.production?.length > 0) &&
-    (o.shapeSlip?.url || o.danaSlip?.url)
-  );
-} else if (user?.productionSection?.length > 0 && typeFilter) {
+if (user?.productionSection?.length > 0 && typeFilter) {
   enrichedOrders = enrichedOrders.filter((o) => {
     const assignedSections = o.sentTo?.production || [];
     const userSections = user.productionSection;
