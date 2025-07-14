@@ -80,20 +80,32 @@ params.append("sort", sortOrder); // ✅ new
     let enrichedOrders = response.data.orders;
 
 // ✅ Filter by production section + matching slip
-if (user?.productionSection?.includes("shapeMoulding")) {
+if (user?.role === "accounts") {
+  // Show all orders with valid production slips
   enrichedOrders = enrichedOrders.filter((o) =>
-    o.sentTo?.production?.includes("shapeMoulding") && o.shapeSlip?.url
+    (o.sentTo?.production?.length > 0) &&
+    (o.shapeSlip?.url || o.danaSlip?.url)
   );
-} else if (user?.productionSection?.includes("blockMoulding")) {
-  enrichedOrders = enrichedOrders.filter((o) =>
-    o.sentTo?.production?.includes("blockMoulding") && o.danaSlip?.url
-  );
-} else if (user?.role === "accounts") {
-  // ✅ Show all orders with any slip if user is accounts
-  enrichedOrders = enrichedOrders.filter((o) =>
-    o.shapeSlip?.url || o.danaSlip?.url
-  );
+} else if (user?.productionSection?.length > 0) {
+  enrichedOrders = enrichedOrders.filter((o) => {
+    const sections = user.productionSection;
+
+    // Match if any of user's production sections exist in the order
+    return o.sentTo?.production?.some((section) => {
+      if (section === "blockMoulding" && sections.includes("blockMoulding")) {
+        return !!o.danaSlip?.url;
+      }
+      if (section === "shapeMoulding" && sections.includes("shapeMoulding")) {
+        return !!o.shapeSlip?.url;
+      }
+      if (section === "cncSection" && sections.includes("cncSection")) {
+        return true; // No slip required for CNC (optional)
+      }
+      return false;
+    });
+  });
 }
+
 
 
 
