@@ -121,14 +121,18 @@ const getSlipTypeFromSection = (requiredSections) => {
 };
 
 
-  const groupOrdersByPO = (orders) => {
-    return orders.reduce((groups, order) => {
-      const po = order.po || "N/A";
-      if (!groups[po]) groups[po] = [];
-      groups[po].push(order);
-      return groups;
-    }, {});
-  };
+const groupOrdersByPO = (orders) => {
+  // 👉 Sort orders by _id (newer first)
+  const sorted = [...orders].sort((a, b) => b._id.localeCompare(a._id));
+
+  return sorted.reduce((groups, order) => {
+    const po = order.po || "N/A";
+    if (!groups[po]) groups[po] = [];
+    groups[po].push(order);
+    return groups;
+  }, {});
+};
+
 
   const getStockForProduct = (productName) => {
     const product = products.find((p) => p.name === productName);
@@ -450,8 +454,18 @@ const currentOrders = filteredOrders;
 
  
 const groupedOrders = useMemo(() => {
-  return groupOrdersByPO(filteredOrders);
+  const grouped = groupOrdersByPO(filteredOrders);
+
+  // Sort PO groups by latest order._id inside them (descending)
+  const sortedPOs = Object.entries(grouped).sort(([, a], [, b]) => {
+    const latestA = a.reduce((max, curr) => (curr._id > max._id ? curr : max), a[0]);
+    const latestB = b.reduce((max, curr) => (curr._id > max._id ? curr : max), b[0]);
+    return latestB._id.localeCompare(latestA._id);
+  });
+
+  return sortedPOs;
 }, [filteredOrders]);
+
 
   // ✅ Declare SweetAlert2 with Tailwind buttons globally
 
@@ -996,8 +1010,7 @@ const actuallySendToProduction = async (
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
-                    {Object.entries(groupOrdersByPO(currentOrders)).map(
-                      ([poNumber, poOrders], index) => (
+                   {groupedOrders.map(([poNumber, poOrders], index) => (
                         <React.Fragment key={poNumber}>
                           <tr
                             className={`${

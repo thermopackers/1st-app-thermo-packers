@@ -25,6 +25,7 @@ import RegisterUser from "../pages/RegisterUser";
 import ProformaEditForm from "../pages/ProformaEditForm";
 import CNCDashboard from "../pages/CNCDashboard";
 import MileageChart from "../pages/MileageChart";
+import AttendanceLogs from "../pages/AttendanceLogs";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -179,7 +180,7 @@ export default function AppRoutes() {
 <Route
   path="/reports/packaging"
   element={
-    <ProtectedRoute allowedRoles={["packaging", "accounts","dispatch"]}>
+    <ProtectedRoute allowedRoles={["admin", "accounts", "production", "dispatch", "packaging"]}>
       <PageWrapper>
         <PackagingReport />
       </PageWrapper>
@@ -385,6 +386,16 @@ export default function AppRoutes() {
     <ProtectedRoute allowedRoles={["admin", "accounts"]}>
       <PageWrapper>
         <MileageChart />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/attendance-logs"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+      <PageWrapper>
+        <AttendanceLogs />
       </PageWrapper>
     </ProtectedRoute>
   }

@@ -123,6 +123,7 @@ const [newVehicle, setNewVehicle] = useState({
   vehicleNumber: "",
   driverEmail: "",
   driverName: "",
+    phone: "", // ✅ Add this
 });
 
 const handleVehicleRegister = async () => {
@@ -419,6 +420,18 @@ if (customerNames.length === 0 || customerNames.some((name) => !name.trim())) {
     value={newVehicle.gpsLink}
     onChange={(e) =>
       setNewVehicle((v) => ({ ...v, gpsLink: e.target.value }))
+    }
+  />
+</div>
+<div className="flex flex-col">
+  <label className="mb-1 font-medium text-sm text-gray-700">Driver Phone</label>
+  <input
+    type="tel"
+    placeholder="e.g. 9876543210"
+    className="border p-2 rounded"
+    value={newVehicle.phone || ""}
+    onChange={(e) =>
+      setNewVehicle((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '') }))
     }
   />
 </div>

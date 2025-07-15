@@ -134,7 +134,7 @@ const handlePageChange = (newPage) => {
                 <th className="p-3 border">Address</th>
                 <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
-                <th className="p-3 border">Added By</th>
+                <th className="p-3 border">Customer Handled / Managed By</th>
                 <th className="p-3 border text-center">Actions</th>
               </tr>
             </thead>

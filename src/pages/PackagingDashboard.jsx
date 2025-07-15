@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import axiosInstance from "../axiosInstance";
 import gsap from "gsap";
 import Swal from "sweetalert2";
-import { useSearchParams } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 const PackagingDashboard = () => {
+  const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
                        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -220,6 +222,15 @@ const handlePageChange = (page) => {
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
 EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
+  <div className="flex justify-center mb-6">
+      <NavLink to="/reports/packaging">
+        <button className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded-lg transition-all shadow-lg">
+          Daily Shape Moulding Section, Packaging & Dispatch Report
+        </button>
+      </NavLink>
+    </div>
+
+
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex flex-col">

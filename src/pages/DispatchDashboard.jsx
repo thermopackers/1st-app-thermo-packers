@@ -3,7 +3,7 @@ import axiosInstance from "../axiosInstance";
 import gsap from "gsap";
 import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 
 const DispatchDashboard = () => {
@@ -219,7 +219,14 @@ const currentOrders =
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
 EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
-
+{/* 📋 Packaging Report Button */}
+<div className="flex justify-center my-6">
+  <NavLink to="/reports/packaging" className="w-full md:w-auto">
+    <button className="px-6 py-3 bg-fuchsia-500 text-white rounded-lg hover:bg-fuchsia-600 transition shadow-lg w-full md:w-auto">
+      📋 Daily Shape Moulding, Packaging & Dispatch Report
+    </button>
+  </NavLink>
+</div>
         {/* Filters omitted for brevity — unchanged */}
 <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
   <div className="flex flex-col">

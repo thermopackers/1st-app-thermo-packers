@@ -1,17 +1,106 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import ReactWebcam from "react-webcam";
 import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import '../index.css';
+import Swal from "sweetalert2";
+
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 const [notifications, setNotifications] = useState([]);
 const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [capturing, setCapturing] = useState(false);
+const [type, setType] = useState(""); // "check-in" or "check-out"
+const webcamRef = useRef(null);
+
+  const handleCapture = (type) => {
+  setType(type);
+  setCapturing(true);
+};
+
+const compressImage = (base64Str, quality = 0.6) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const compressed = canvas.toDataURL("image/jpeg", quality);
+      resolve(compressed);
+    };
+    img.src = base64Str;
+  });
+};
+
+
+const saveAttendance = async () => {
+  setIsSaving(true);
+
+  try {
+    const imageSrc = webcamRef.current.getScreenshot();
+    if (!imageSrc) {
+      Swal.fire("Error", "No image captured", "error");
+      return;
+    }
+
+    const compressedImage = await compressImage(imageSrc, 0.5);
+
+    // 👇 Get GPS location
+    const getLocation = () =>
+      new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+          },
+          (err) => {
+            console.error("Location error:", err);
+            resolve(null); // Don't fail even if user blocks location
+          },
+          { timeout: 10000 }
+        );
+      });
+
+    const location = await getLocation();
+
+    const res = await axiosInstance.post(
+      "/attendance/mark",
+      {
+        type,
+        photo: compressedImage,
+        location, // 👈 Send location in request
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    Swal.fire("Success", `Successfully marked ${type}`, "success");
+    setCapturing(false);
+  } catch (err) {
+    console.error("❌ Attendance marking failed:", err);
+    Swal.fire("Error", err?.response?.data?.error || "Failed to mark attendance", "error");
+    setCapturing(false);
+  } finally {
+    setIsSaving(false);
+  }
+};
+
+
+
 useEffect(() => {
   if (!user) return;
   const fetchNotifications = async () => {
@@ -78,6 +167,31 @@ const handleViewTasks = async () => {
   return (
     <>
       <InternalNavbar />
+<div className="bg-white shadow-lg p-2 rounded-xl">
+  <h2 className="text-xl font-semibold text-center text-gray-800 mb-4">
+    📋 Mark Attendance
+  </h2>
+  <div className="flex flex-wrap justify-center gap-6">
+    <button
+      onClick={() => handleCapture("check-in")}
+      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full text-sm font-medium shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transition duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+    >
+      <span className="text-lg">✅</span> Check In
+    </button>
+
+    <button
+      onClick={() => handleCapture("check-out")}
+      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full text-sm font-medium shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+    >
+      <span className="text-lg">⏹️</span> Check Out
+    </button>
+  </div>
+</div>
+
+
+
+
+
       <div className="min-h-screen bg-gray-100 flex flex-col">
         <main className="flex-1 p-6 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
           <button
@@ -208,46 +322,7 @@ const handleViewTasks = async () => {
 
 
 
-              {/* My Tasks */}
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-  {user.role !== "admin" && (
-    <div className="bg-indigo-50 p-4 rounded-lg-lg">
-      <h3 className="text-lg font-bold text-indigo-800">My Tasks</h3>
-      <p className="text-sm text-indigo-700 mt-2">
-        View and complete your assigned personal tasks.
-      </p>
-      <div className="relative inline-block mt-4">
-        <NavLink to="/my-tasks">
-          <button
-            onClick={handleViewTasks}
-            className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg"
-          >
-            View My Assigned ToDos
-          </button>
-        </NavLink>
-        {notifications.filter(n => !n.read).length > 0 && (
-          <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-lg-full">
-            {notifications.filter(n => !n.read).length}
-          </span>
-        )}
-      </div>
-    </div>
-  )}
-
-  {(user.role === "dispatch" || user.role === "accounts") && (
-    <div className="bg-orange-100 p-4 rounded-lg-lg">
-      <h3 className="text-lg font-bold text-orange-800">Inventory Manager</h3>
-      <p className="text-sm text-orange-700 mt-2">
-        View and update current product stock levels.
-      </p>
-      <NavLink to="/inventory">
-        <button className="mt-4 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
-          Manage Inventory
-        </button>
-      </NavLink>
-    </div>
-  )}
-</div>
+      
 
             </div>
             {/* Production → Packaging → Dispatch Grid */}
@@ -265,7 +340,7 @@ const handleViewTasks = async () => {
           <NavLink to="/production-dashboard?type=dana" className="h-full">
             <div className="h-full">
               <button className="w-full h-full min-h-[80px] bg-indigo-600 hover:bg-indigo-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-                EPS/Thermocol Block Molding Production Section
+                EPS/Thermocol Block Molding/Dana/Beads Production Section
               </button>
             </div>
           </NavLink>
@@ -339,20 +414,50 @@ const handleViewTasks = async () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
   {/* Task Dashboard — only for admin and accounts */}
-  {["admin", "accounts","sales"].includes(user.role) && (
-    <div className="bg-indigo-100 p-4 rounded-lg-lg">
-      <h3 className="text-lg font-bold text-indigo-800">Task Dashboard</h3>
-      <p className="text-sm text-indigo-700 mt-2">
-        View, complete, and manage your assigned tasks.
-      </p>
+{!["driver", "packaging"].includes(user.role) && (
+  <div className="bg-white mt-6 p-4 rounded-xl shadow-md">
+    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      TASKS / TO DO / WORK GIVEN INFORMATION
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* View My Assigned Tasks */}
+     <div className="relative w-full">
+  <NavLink to="/my-tasks">
+    <button className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+      My Tasks / Assigned Work
+      <br />
+      <span className="text-xs font-normal">
+        View and complete assigned personal tasks
+      </span>
+    </button>
+  </NavLink>
+
+  {/* 🔔 Notification badge */}
+  {notifications.filter((n) => !n.read).length > 0 && (
+    <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow z-10">
+      {notifications.filter((n) => !n.read).length}
+    </span>
+  )}
+</div>
+
+
+      {/* Assign / View Task Dashboard */}
       <NavLink to="/task-dashboard">
-        <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
-          Go to ToDo Dashboard
+        <button className="w-full bg-red-500 hover:bg-red-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+          Task Dashboard
+          <br />
+          <span className="text-xs font-normal">
+            Assign tasks / View / Edit / Delete Task given
+          </span>
         </button>
       </NavLink>
     </div>
-  )}
-{["accounts", "packaging"].includes(user.role) && (
+  </div>
+)}
+
+
+{["admin", "accounts", "production", "dispatch", "packaging"].includes(user.role) && (
   <div className="bg-fuchsia-100 p-4 rounded-lg-lg">
     <h3 className="text-lg font-bold text-fuchsia-800">Daily Shape Moulding Section, Packaging & Dispatch Report</h3>
     <p className="text-sm text-fuchsia-700 mt-2">
@@ -494,6 +599,17 @@ const handleViewTasks = async () => {
       </button>
     </NavLink>
   </div>
+<div className="bg-green-100 p-4 rounded-lg mt-6">
+  <h3 className="text-lg font-bold text-green-800">Attendance Logs</h3>
+  <p className="text-sm text-green-700 mt-2">
+    View daily attendance records and check-ins.
+  </p>
+  <NavLink to="/attendance-logs">
+    <button className="mt-4 cursor-pointer bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+      Go to Attendance Logs
+    </button>
+  </NavLink>
+</div>
 
   <div className="bg-indigo-100 p-4 rounded-lg md:mt-6 mt-0">
     <h3 className="text-lg font-bold text-indigo-800">Vehicle Mileage Report</h3>
@@ -514,6 +630,49 @@ const handleViewTasks = async () => {
           </div>
         </main>
       </div>
+    
+ {capturing && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div className="relative bg-white w-full max-w-sm mx-4 p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in">
+
+      {/* Cancel Button (Top-right) */}
+      <button
+        className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold focus:outline-none"
+        onClick={() => setCapturing(false)}
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+      <h3 className="text-xl font-bold mb-4 text-gray-800 capitalize">
+        {type} - Capture Photo
+      </h3>
+
+      <ReactWebcam
+        audio={false}
+        ref={webcamRef}
+        screenshotFormat="image/jpeg"
+        className="rounded-lg shadow-md w-full h-auto max-w-full mb-4 border border-gray-300"
+      />
+
+      <button
+        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-sm font-semibold rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        onClick={saveAttendance}
+      >
+        📸 Save Attendance
+      </button>
+    </div>
+  </div>
+)}
+
+
+{isSaving && (
+  <div className="fixed inset-0 bg-[#000000ad] bg-opacity-50 flex justify-center items-center z-50">
+    <div className="loader border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin"></div>
+  </div>
+)}
+
+
     </>
   );
 }

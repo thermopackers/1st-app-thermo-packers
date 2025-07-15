@@ -9,6 +9,7 @@ const RegisterUser = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('sales');
+  const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
@@ -21,12 +22,13 @@ const [productionSection, setProductionSection] = useState([]);
   return;
 }
     try {
-      const res = await axiosInstance.post('/users/register', { name, email, role, productionSection  });
+      const res = await axiosInstance.post('/users/register', { name, email, phone, role, productionSection  });
       setMessage(res.data.message);
       setIsSuccess(true);
       setName('');
       setEmail('');
       setRole('sales');
+      setPhone('');
       toast.success('User registered successfully!');
       fetchUsers();
     } catch (err) {
@@ -93,6 +95,16 @@ const [productionSection, setProductionSection] = useState([]);
                 className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
               />
             </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+  <input
+    type="tel"
+    placeholder="e.g. 9876543210"
+    value={phone}
+  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} // Optional: allow only digits
+    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+  />
+</div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
@@ -165,6 +177,7 @@ const [productionSection, setProductionSection] = useState([]);
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Role</th>
                 <th className="px-4 py-2">Prod. Section</th>
+                <th className="px-4 py-2">Phone</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -187,6 +200,9 @@ const [productionSection, setProductionSection] = useState([]);
   {Array.isArray(u.productionSection) && u.productionSection.length > 0
     ? u.productionSection.join(', ')
     : '-'}
+</td>
+<td className="px-4 py-2 capitalize">
+ {u.phone? u.phone : "-"}
 </td>
                   <td className="px-4 py-2">
                     <button

@@ -18,6 +18,7 @@ export default function App() {
     "/login",
     "/proforma-invoice",
     "/register-user",
+    "/attendance-logs",
     "/mileage-chart",
     "/proforma-edit",
     "/proforma-dashboard",

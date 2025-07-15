@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import InternalNavbar from "../components/InternalNavbar";
-import { useSearchParams } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { gsap } from "gsap";
@@ -232,27 +232,35 @@ const onEndDateChange = (e) => {
 </h2>
 
         
- <div>
-       <div className="p-4 flex flex-col md:flex-row gap-4 justify-center">
-{(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
-          <button
-            onClick={() => navigate("/reports/shape-moulding")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            View Shape Moulding Production Report
-          </button>
-        )}
-{(user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
-          <button
-            onClick={() => navigate("/reports/block-moulding")}
-            className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            View Block Moulding Production Report
-          </button>
-        )}
-      </div>
-    </div>
-       <div className="mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 flex-wrap">
+<div className="flex justify-center mt-6">
+  <div className="p-4 bg-white rounded-xl shadow-md flex flex-col md:flex-row gap-4 items-center justify-center">
+    {type !== "dana" && (user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
+      <button
+        onClick={() => navigate("/reports/shape-moulding")}
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg w-full md:w-auto"
+      >
+        📦 View Shape Moulding Production Report
+      </button>
+    )}
+
+    {type !== "shape" && (user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
+      <button
+        onClick={() => navigate("/reports/block-moulding")}
+        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg w-full md:w-auto"
+      >
+        🧱 View Block Moulding Production Report
+      </button>
+    )}
+
+      <NavLink to="/reports/packaging" className="w-full md:w-auto">
+        <button className="px-6 py-3 bg-fuchsia-500 text-white rounded-lg hover:bg-fuchsia-600 transition shadow-lg w-full md:w-auto">
+          📋 Daily Shape Moulding, Packaging & Dispatch Report
+        </button>
+      </NavLink>
+  </div>
+</div>
+
+       <div className="mb-6 mt-2 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 flex-wrap">
   {/* Search Bar */}
   <div className="flex flex-col md:w-1/3 w-full">
     <label className="text-sm text-gray-600 mb-1">Search Orders:</label>
