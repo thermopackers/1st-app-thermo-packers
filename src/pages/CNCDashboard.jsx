@@ -1,6 +1,7 @@
 // CNC Dashboard.jsx
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
+import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -9,7 +10,9 @@ const CNCDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
+      const [activeProductImage, setActiveProductImage] = useState(null);
   const [endDate, setEndDate] = useState("");
+    const [products, setProducts] = useState([]);
   const [cncStatus, setCncStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -19,7 +22,12 @@ const CNCDashboard = () => {
   const navigate = useNavigate();
 
   const ordersPerPage = 10;
-
+ useEffect(() => {
+    axiosInstance
+      .get("/products/all-backend-products")
+      .then((res) => setProducts(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
+  }, []);
   useEffect(() => {
     setSearchParams({ page: 1 });
   }, [searchTerm, startDate, endDate]);
@@ -97,13 +105,6 @@ const updateCNCStatus = async (orderId, newStatus) => {
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
           EPS / Thermocol CNC Hot Wire/CNC Router Dashboard
         </h2>
-<div className="flex justify-center my-6">
-  <NavLink to="/reports/packaging" className="w-full md:w-auto">
-    <button className="px-6 py-3 bg-fuchsia-500 text-white rounded-lg hover:bg-fuchsia-600 transition shadow-lg w-full md:w-auto">
-      📋 Daily Shape Moulding, Packaging & Dispatch Report
-    </button>
-  </NavLink>
-</div>
 
         <div className="flex flex-wrap items-end gap-4 mb-6">
           <div className="flex flex-col">
@@ -185,9 +186,6 @@ const updateCNCStatus = async (orderId, newStatus) => {
     <th className="px-4 py-3">Product Name</th>
     <th className="px-4 py-3">Size</th>
     <th className="px-4 py-3">Quantity</th>
-    <th className="px-4 py-3">Price</th>
-    <th className="px-4 py-3">Freight</th>
-    <th className="px-4 py-3">Packaging Charge</th>
     <th className="px-4 py-3">Remarks</th>
     <th className="px-4 py-3">Slip</th>
     <th className="px-4 py-3">Status</th>
@@ -200,12 +198,29 @@ const updateCNCStatus = async (orderId, newStatus) => {
   <td className="px-4 py-2">{order.shortId}</td>
   <td className="px-4 py-2 capitalize">{order.customerName}</td>
   <td className="px-4 py-2 capitalize">{order.po}</td>
-  <td className="px-4 py-2">{order.product}</td>
+ <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+  <button
+    onClick={() => {
+      const product = products.find((p) => p.name === order.product);
+      if (product?.images?.length > 0) {
+        setActiveProductImage({
+          name: product.name,
+          images: product.images,
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "No Image",
+          text: "No images available for this product.",
+        });
+      }
+    }}
+  >
+    {order.product}
+  </button>
+</td> 
   <td className="px-4 py-2">{order.size}</td>
   <td className="px-4 py-2">{order.quantity}</td>
-  <td className="px-4 py-2">₹{order.price}</td>
-  <td className="px-4 py-2">{`${order.freight}: ₹${order.freightAmount}`}</td>
-  <td className="px-4 py-2">₹{order.packagingCharge || "0"}</td>
   <td className="px-4 py-2">{order.remarks}</td>
   <td className="px-4 py-2">
     {order.cncSlip?.url && (
@@ -246,6 +261,45 @@ const updateCNCStatus = async (orderId, newStatus) => {
                 ))}
               </tbody>
             </table>
+            {activeProductImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6"
+    onClick={() => setActiveProductImage(null)}
+  >
+    <div
+      className="bg-white rounded-lg p-4 max-w-4xl w-full overflow-y-auto max-h-[90vh] relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => setActiveProductImage(null)}
+        className="absolute top-2 right-3 text-2xl font-bold text-red-500 hover:text-red-700"
+      >
+        ✖
+      </button>
+      <h2 className="text-lg font-semibold mb-4">
+        {activeProductImage.name} - Images
+      </h2>
+      {activeProductImage.images.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {activeProductImage.images.map((img, i) => (
+            <img
+              key={i}
+              src={
+                img.startsWith("http")
+                  ? img
+                  : `${import.meta.env.VITE_REACT_APP_API_URL}${img}`
+              }
+              alt={`Image ${i + 1}`}
+              className="w-full h-48 object-cover rounded border"
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No images available.</p>
+      )}
+    </div>
+  </div>
+)}
           </div>
         )}
 
