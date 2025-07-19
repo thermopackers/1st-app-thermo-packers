@@ -67,13 +67,25 @@ const captureImageWithTimestamp = () => {
 useEffect(() => {
   const loadModels = async () => {
     try {
+      Swal.fire({
+        title: "⏳ Loading Face Recognition...",
+        text: "Please wait while models are being loaded.",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
         faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
         faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
       ]);
+
       console.log("✅ Face-api models loaded");
       setModelsLoaded(true);
+      Swal.close(); // ✅ Close once loaded
     } catch (err) {
       console.error("❌ Model load error:", err);
       Swal.fire("Error", "Failed to load face recognition models", "error");
@@ -82,6 +94,7 @@ useEffect(() => {
 
   loadModels();
 }, []);
+
 
 useEffect(() => {
   if (user?.name && modelsLoaded) {
@@ -133,6 +146,8 @@ const getDescriptor = async () => {
 
 
 const saveAttendance = async () => {
+  if (isSaving) return;
+
   if (!modelsLoaded) {
     Swal.fire("Please wait", "Face recognition models are still loading.", "info");
     return;
@@ -251,6 +266,8 @@ if (err.response?.data?.error?.includes("already marked")) {
 
 
 const saveFaceToServer = async () => {
+  if (isSaving) return;
+
   try {
 const imageSrc = await captureImageWithTimestamp();
     if (!imageSrc) return Swal.fire("Error", "No image captured", "error");
@@ -303,6 +320,7 @@ const handleCapture = (type) => {
     Swal.fire("Please wait", "Face recognition models are still loading.", "info");
     return;
   }
+  setIsSaving(true); // 👈 Show loader immediately
 
   const now = new Date();
   const formatted = now.toLocaleString("en-IN", {
@@ -313,19 +331,22 @@ const handleCapture = (type) => {
   setCaptureTimestamp(formatted);
   setType(type);
 
-  // ⏳ Wait for webcam to be ready
-  setTimeout(() => {
-    setCapturing(true); // now show webcam + controls
-  }, 500);
+ Swal.fire({
+  title: "📷 Initializing Webcam...",
+  text: "Please hold still and look at the camera.",
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  didOpen: () => Swal.showLoading(),
+});
+
+setTimeout(() => {
+  setCapturing(true);
+  Swal.close();
+  setIsSaving(false);
+}, 800);
+
 };
 
-  if (!modelsLoaded) {
-    return (
-      <div className="text-center p-6">
-        <p className="text-blue-600 font-semibold">⏳ Loading Face Recognition Models...</p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -336,10 +357,14 @@ const handleCapture = (type) => {
   </h2>
 
   <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-    <button
-      onClick={() => handleCapture("check-in")}
-      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full text-base font-semibold shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 w-full sm:w-auto justify-center"
-    >
+   <button
+  onClick={() => handleCapture("check-in")}
+  disabled={!modelsLoaded}
+  className={`flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full transition ${
+    !modelsLoaded ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+
       ✅ Check In
     </button>
 
@@ -351,7 +376,23 @@ const handleCapture = (type) => {
     </button>
 
     <button
-      onClick={() => setShowFaceRegistration(true)}
+onClick={() => {
+  setIsSaving(true);
+  Swal.fire({
+    title: "📷 Initializing Camera...",
+    text: "Please hold still...",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  setTimeout(() => {
+    setShowFaceRegistration(true);
+    setIsSaving(false);
+    Swal.close();
+  }, 800);
+}}
+
       className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full text-base font-semibold shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full sm:w-auto justify-center"
     >
       👤 Register My Face
