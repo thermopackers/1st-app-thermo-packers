@@ -54,228 +54,6 @@ export default function DriverDispatchDashboard() {
       .catch((err) => console.error("Failed to fetch customer details:", err));
   }, []);
 
-  const markCompleted = async (planId) => {
-    return new Promise((resolve) => {
-      let selectedFiles = [];
-
-      const renderImagePreview = () => {
-        const previewContainer = document.getElementById("image-preview");
-        if (!previewContainer) return;
-        previewContainer.innerHTML = "";
-
-        selectedFiles.forEach((file, index) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const wrapper = document.createElement("div");
-            wrapper.className = "relative inline-block m-2";
-
-            const img = document.createElement("img");
-            img.src = reader.result;
-            img.alt = `Image ${index + 1}`;
-            img.className = "w-24 h-24 object-cover rounded border";
-
-            const removeBtn = document.createElement("button");
-            removeBtn.textContent = "🗙";
-            removeBtn.className =
-              "absolute top-[-8px] right-[-8px] bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700 transition";
-            removeBtn.onclick = () => {
-              selectedFiles.splice(index, 1);
-              renderImagePreview();
-            };
-
-            wrapper.appendChild(img);
-            wrapper.appendChild(removeBtn);
-            previewContainer.appendChild(wrapper);
-          };
-          reader.readAsDataURL(file);
-        });
-      };
-
-      Swal.fire({
-        title: "Upload Images Before Completion",
-        html: `
-      <label for="kms-filled" class="block text-sm font-semibold text-gray-700 mb-1">
-    कृपया मान्य KM रीडिंग दर्ज करें
-  </label>
-  <input
-    type="number"
-    id="kms-filled"
-    placeholder="Enter KM reading (e.g., 5450)"
-    class="swal2-input mb-3"
-  />
-  
-  <label class="block text-sm font-semibold text-gray-700 mb-1">भरा हुआ डीजल (लीटर में)</label>
-  <input
-    type="number"
-    id="diesel-liters"
-    placeholder="Enter diesel quantity (e.g., 25)"
-    class="swal2-input mb-3"
-  />
-  <input type="file" id="image-upload" multiple accept="image/*" class="swal2-file" style="background-color: #e0f2fe; padding: 10px; border-radius: 8px;" />
-        <div id="image-preview" class="flex flex-wrap mt-3 gap-2"></div>
-        <p class="text-sm text-gray-500 mt-2">Upload images as proof before marking complete.</p>
-        <!-- ✅ Sample Images Section -->
-<div class="mt-4">
-  <p class="text-sm text-gray-700 mb-1 font-semibold">📸 Sample Images:</p>
-  <div id="sample-thumbnails" class="flex gap-2 flex-wrap justify-start">
-    <img src="./images/sample1.jpg" loading="lazy" alt="Sample 1" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample2.jpg" loading="lazy" alt="Sample 2" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample3.jpg" loading="lazy" alt="Sample 3" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample4.jpg" loading="lazy" alt="Sample 4" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample5.jpg" loading="lazy" alt="Sample 5" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample6.jpg" loading="lazy" alt="Sample 6" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-    <img src="./images/sample7.jpg" loading="lazy" alt="Sample 7" class="sample-thumb w-20 h-20 object-cover border rounded shadow" />
-  </div>
-</div>
-
-      `,
-        showCancelButton: true,
-        confirmButtonText: "Submit",
-        cancelButtonText: "Cancel",
-        didOpen: () => {
-          const fileInput = Swal.getPopup().querySelector("#image-upload");
-          fileInput.addEventListener("change", (e) => {
-            selectedFiles = [...selectedFiles, ...Array.from(e.target.files)];
-            renderImagePreview();
-          });
-
-          // ✅ Add zoom-on-click for sample images
-          const thumbs = Swal.getPopup().querySelectorAll(".sample-thumb");
-          thumbs.forEach((img) => {
-            img.addEventListener("click", () => {
-              Swal.fire({
-                imageUrl: img.src,
-                imageAlt: img.alt,
-                showCloseButton: true,
-                showConfirmButton: false,
-                width: "90%",
-                background: "#f9fafb",
-                customClass: {
-                  popup: "rounded-xl",
-                },
-              });
-            });
-          });
-        },
-
-        preConfirm: async () => {
-          const kmInput = document.getElementById("kms-filled").value;
-          const dieselInput = document.getElementById("diesel-liters").value;
-
-          const kmsAtDieselFilling = parseInt(kmInput, 10);
-          const dieselLiters = parseFloat(dieselInput);
-
-          if (!kmsAtDieselFilling || isNaN(kmsAtDieselFilling)) {
-            Swal.showValidationMessage("Please enter valid KM reading");
-            return false;
-          }
-          if (!dieselLiters || isNaN(dieselLiters)) {
-  Swal.showValidationMessage("Please enter diesel quantity");
-  return false;
-}
-          if (selectedFiles.length === 0) {
-            Swal.showValidationMessage("Please upload at least one image");
-            return false;
-          }
-
-          try {
-            setUploadingPlanId(planId);
-
-            const uploadedUrls = [];
-            const compressImage = (file, maxSize = 1024) => {
-              return new Promise((resolve) => {
-                const img = new Image();
-                const canvas = document.createElement("canvas");
-                const reader = new FileReader();
-
-                reader.onload = (e) => {
-                  img.src = e.target.result;
-                };
-
-                img.onload = () => {
-                  const scale = Math.min(
-                    maxSize / img.width,
-                    maxSize / img.height,
-                    1
-                  );
-                  const width = img.width * scale;
-                  const height = img.height * scale;
-
-                  canvas.width = width;
-                  canvas.height = height;
-
-                  const ctx = canvas.getContext("2d");
-                  ctx.drawImage(img, 0, 0, width, height);
-
-                  canvas.toBlob(
-                    (blob) => {
-                      resolve(blob);
-                    },
-                    "image/jpeg",
-                    0.7 // quality (0.1 – 1.0)
-                  );
-                };
-
-                reader.readAsDataURL(file);
-              });
-            };
-
-            for (let file of selectedFiles) {
-              const compressedBlob = await compressImage(file);
-
-              const formData = new FormData();
-              formData.append("file", compressedBlob);
-              formData.append("upload_preset", "todo_uploads");
-              formData.append("cloud_name", "dcr8k5amk");
-
-              const res = await fetch(
-                "https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload",
-                {
-                  method: "POST",
-                  body: formData,
-                }
-              );
-
-              const data = await res.json();
-              if (!res.ok)
-                throw new Error(data.error?.message || "Upload failed");
-
-              uploadedUrls.push(data.secure_url);
-            }
-
-            // Save uploaded URLs
-            await axiosInstance.patch(
-              `/dispatch-plans/${planId}/images`,
-              { imageUrls: uploadedUrls },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            // Then update status
-            await axiosInstance.patch(
-              `/dispatch-plans/${planId}/status`,
-              { status: "Completed", kmsAtDieselFilling, dieselLiters },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            Swal.fire(
-              "✅ Completed!",
-              "Plan marked as completed, images saved and KMs saved.",
-              "success"
-            );
-            fetchPlans(page);
-          } catch (err) {
-            console.error("Upload/Completion Error:", err);
-            Swal.showValidationMessage(
-              "Something went wrong during upload. Try again."
-            );
-          } finally {
-            setUploadingPlanId(null);
-          }
-        },
-      });
-    });
-  };
-
   const showImages = (urls) => {
     MySwal.fire({
       html: (
@@ -295,6 +73,165 @@ export default function DriverDispatchDashboard() {
       showCloseButton: true,
     });
   };
+const openDieselEntryModal = async (plan) => {
+  let locationText = "Location not available";
+
+  // Fetch location
+  try {
+     // ⏳ Show loading overlay
+    const loadingSwal = Swal.fire({
+      title: "Loading...",
+      html: "Please wait...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+    );
+    const { latitude, longitude } = pos.coords;
+try {
+  const geoRes = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=4668826883d64e78895168e889e48122`);
+  const geoData = await geoRes.json();
+  const formatted = geoData?.results?.[0]?.formatted;
+  locationText = formatted || `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+} catch {
+  locationText = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+}
+  } catch {
+    locationText = "Location unavailable";
+  }
+
+  const { value: formValues } = await Swal.fire({
+    title: "⛽ Add Diesel Entry",
+    html: `
+      <input id="diesel-date" type="date" class="swal2-input" value="${new Date().toISOString().slice(0, 10)}" />
+      <label for="kms-filled" class="block text-sm font-semibold text-gray-700 -mb-4">
+    कृपया मान्य KM रीडिंग दर्ज करें
+  </label>
+      <input id="kms-reading" type="number" class="swal2-input" placeholder="KM Reading" />
+       <label class="block text-sm font-semibold text-gray-700 -mb-4">भरा हुआ डीजल (लीटर में)</label>
+      <input id="diesel-liters" type="number" class="swal2-input" placeholder="Diesel in Liters (optional)" />
+      <video id="video" autoplay playsinline class="w-full mt-2 rounded shadow border" style="max-height: 200px;"></video>
+      <canvas id="canvas" style="display:none;"></canvas>
+      <button id="capture" class="swal2-confirm swal2-styled mt-3">📸 Capture Image</button>
+      <img id="preview" class="w-full mt-3 hidden border rounded" />
+      <p class="text-xs mt-2 text-gray-600">* Live camera only | Date, Time & Location will be embedded</p>
+    `,
+    didOpen: async () => {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const preview = document.getElementById("preview");
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      document.getElementById("capture").onclick = () => {
+        const ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        // Add overlay text
+        ctx.fillStyle = "white";
+        ctx.font = "24px sans-serif";
+        ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
+        ctx.fillText(`📍 ${locationText}`, 20, 80);
+
+        const imageData = canvas.toDataURL("image/jpeg", 0.8);
+        preview.src = imageData;
+        preview.classList.remove("hidden");
+        window._dieselImageData = imageData;
+      };
+    },
+    preConfirm: () => {
+      const date = document.getElementById("diesel-date").value;
+      const kmsReading = parseInt(document.getElementById("kms-reading").value);
+      const dieselInput = document.getElementById("diesel-liters").value;
+      const dieselLiters = dieselInput ? parseFloat(dieselInput) : null;
+      const imageData = window._dieselImageData;
+
+      if (!date || isNaN(kmsReading)) {
+        Swal.showValidationMessage("Please enter a valid date and KM reading");
+        return false;
+      }
+
+      if (!imageData) {
+        Swal.showValidationMessage("Please capture an image before submitting");
+        return false;
+      }
+
+const latLng = locationText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
+const lat = latLng ? parseFloat(latLng[1]) : null;
+const lng = latLng ? parseFloat(latLng[2]) : null;
+
+return { date, kmsReading, dieselLiters, imageData, lat, lng };
+    },
+    confirmButtonText: "Submit Entry",
+    showCancelButton: true,
+  });
+
+  if (formValues) {
+    try {
+      setLoading(true);
+      const { imageData, ...rest } = formValues;
+
+      const blob = await (await fetch(imageData)).blob();
+      const formData = new FormData();
+      formData.append("file", blob);
+      formData.append("upload_preset", "todo_uploads");
+      formData.append("cloud_name", "dcr8k5amk");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadRes = await res.json();
+      if (!uploadRes.secure_url) throw new Error("Upload failed");
+
+      await axiosInstance.post("/diesel/add", {
+        ...rest,
+        vehicleNumber: plan.vehicleNumber,
+        imageUrl: uploadRes.secure_url,
+         driverName: plan.driverName,      // optional, for human trace
+  planId: plan._id,                 // ✅ this is key
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      Swal.fire("✅ Entry Saved", "Diesel entry added successfully.", "success");
+    } catch (err) {
+      console.error("Failed to save diesel entry:", err);
+      Swal.fire("❌ Error", "Failed to save diesel entry", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+};
+
+const markCompleted = async (planId) => {
+  try {
+    setUploadingPlanId(planId);
+
+    // Only update the status — no image upload
+    await axiosInstance.patch(
+      `/dispatch-plans/${planId}/status`,
+      { status: "Completed" },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    Swal.fire("✅ Completed!", "Plan marked as completed.", "success");
+    fetchPlans(page);
+  } catch (err) {
+    console.error("Mark Completion Error:", err);
+    Swal.fire("❌ Error", "Failed to mark as completed", "error");
+  } finally {
+    setUploadingPlanId(null);
+  }
+};
+
 
   return (
     <>
@@ -303,6 +240,41 @@ export default function DriverDispatchDashboard() {
         <h2 className="text-3xl font-bold mb-6 text-center text-indigo-800">
           My Dispatch Plans
         </h2>
+<div className="mt-6">
+  <p className="text-sm text-gray-700 mb-2 font-semibold">📸 Sample Images:</p>
+  <div className="flex flex-wrap gap-3 justify-start">
+    {[
+      "./images/sample1.jpg",
+      "./images/sample2.jpg",
+      "./images/sample3.jpg",
+      "./images/sample4.jpg",
+      "./images/sample5.jpg",
+      "./images/sample6.jpg",
+      "./images/sample7.jpg",
+    ].map((src, i) => (
+      <img
+        key={i}
+        src={src}
+        loading="lazy"
+        alt={`Sample ${i + 1}`}
+        className="w-20 h-20 object-cover border border-gray-300 rounded-lg shadow cursor-pointer hover:scale-105 hover:shadow-lg transition-transform"
+        onClick={() => {
+          Swal.fire({
+            imageUrl: src,
+            imageAlt: `Sample ${i + 1}`,
+            showCloseButton: true,
+            showConfirmButton: false,
+            width: "90%",
+            background: "#f9fafb",
+            customClass: {
+              popup: "rounded-xl",
+            },
+          });
+        }}
+      />
+    ))}
+  </div>
+</div>
 
         {loading ? (
           <div className="flex justify-center items-center min-h-[200px] transition-opacity duration-300">
@@ -312,7 +284,7 @@ export default function DriverDispatchDashboard() {
             </span>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-10">
             {plans.map((plan) => (
               <div
                 key={plan._id}
@@ -476,6 +448,14 @@ export default function DriverDispatchDashboard() {
                       </div>
                     </div>
                   )}
+{plan.status !== "Completed" && (
+  <button
+    onClick={() => openDieselEntryModal(plan)}
+    className="bg-yellow-500 hover:bg-yellow-600 text-white font-medium px-4 py-2 rounded-xl transition-all shadow w-full"
+  >
+    ⛽ Add Diesel Entry
+  </button>
+)}
 
                   {/* Actions */}
                   <div className="flex flex-col gap-3">

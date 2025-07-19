@@ -4,7 +4,7 @@ import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
 
 const AttendanceLogs = () => {
-  const { token } = useUserContext();
+const { token, user } = useUserContext();
   const [logs, setLogs] = useState([]);
   const [groupedLogs, setGroupedLogs] = useState([]);
   const [dateFilter, setDateFilter] = useState("");
@@ -13,6 +13,7 @@ const AttendanceLogs = () => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+const isPrivileged = ["admin", "accounts"].includes(user?.role);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -81,42 +82,52 @@ const AttendanceLogs = () => {
     <>
       <InternalNavbar />
       <div className="p-4 max-w-7xl mx-auto bg-white shadow-lg rounded-xl">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Attendance Logs</h2>
+<h2 className="text-2xl font-bold mb-6 text-gray-800">
+  {isPrivileged ? "All Employee Attendance Logs" : "Your Attendance Logs"}
+</h2>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center mb-6">
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
-          />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
-          >
-            <option value="">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="sales">Sales</option>
-            <option value="production">Production</option>
-            <option value="dispatch">Dispatch</option>
-            <option value="accounts">Accounts</option>
-          </select>
-          <input
-  type="text"
-  placeholder="Search by Name"
-  value={userFilter}
-  onChange={(e) => setUserFilter(e.target.value)}
-  className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
-/>
-          <button
-            onClick={clearFilters}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
+     <div className="flex flex-wrap gap-3 items-center mb-6">
+  <input
+    type="date"
+    value={dateFilter}
+    onChange={(e) => setDateFilter(e.target.value)}
+    className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
+  />
+
+  {isPrivileged && (
+    <select
+      value={roleFilter}
+      onChange={(e) => setRoleFilter(e.target.value)}
+      className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
+    >
+      <option value="">All Roles</option>
+      <option value="admin">Admin</option>
+      <option value="sales">Sales</option>
+      <option value="production">Production</option>
+      <option value="dispatch">Dispatch</option>
+      <option value="accounts">Accounts</option>
+    </select>
+  )}
+
+  {isPrivileged && (
+    <input
+      type="text"
+      placeholder="Search by Name"
+      value={userFilter}
+      onChange={(e) => setUserFilter(e.target.value)}
+      className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
+    />
+  )}
+
+  <button
+    onClick={clearFilters}
+    className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
+  >
+    Clear Filters
+  </button>
+</div>
+
 
         {/* Table */}
         {loading ? (

@@ -327,8 +327,6 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                       <th className="px-4 py-3">Product</th>
                       <th className="px-4 py-3">Size</th>
                       <th className="px-4 py-3">Quantity</th>
-                      <th className="px-4 py-3">Price</th>
-                      <th className="px-4 py-3">Freight</th>
                       <th className="px-4 py-3">Remarks</th>
                       <th className="px-4 py-3">Slip</th>
                       <th className="px-4 py-3">Production Status</th>
@@ -380,8 +378,7 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
   </button>
 </td>                         <td className="px-4 py-3">{order.size}</td>
                         <td className="px-4 py-3">{order.quantity}</td>
-                        <td className="px-4 py-3">₹{order.price}</td>
-                        <td className="px-4 py-3">{`${order.freight}: ₹${order.freightAmount}`}</td>
+        
                         <td className="px-4 py-3">{order.remarks}</td>
                         <td className="px-4 py-3">
                           {order.packagingSlip?.url && (

@@ -219,14 +219,7 @@ const currentOrders =
 
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
 EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
-{/* 📋 Packaging Report Button */}
-<div className="flex justify-center my-6">
-  <NavLink to="/reports/packaging" className="w-full md:w-auto">
-    <button className="px-6 py-3 bg-fuchsia-500 text-white rounded-lg hover:bg-fuchsia-600 transition shadow-lg w-full md:w-auto">
-      📋 Daily Shape Moulding, Packaging & Dispatch Report
-    </button>
-  </NavLink>
-</div>
+
         {/* Filters omitted for brevity — unchanged */}
 <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
   <div className="flex flex-col">
@@ -316,9 +309,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                       <th className="px-4 py-3">Product Name</th>
                       <th className="px-4 py-3">Size</th>
                       <th className="px-4 py-3">Quantity</th>
-                      <th className="px-4 py-3">Price</th>
-                      <th className="px-4 py-3">Freight</th>
-                      <th className="px-4 py-3">Packaging Charge</th>
+                     
                       <th className="px-4 py-3">Remarks</th>
                       <th className="px-4 py-3">Slip</th>
                       <th className="px-4 py-3">Production Status</th>
@@ -366,9 +357,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 </td>  
                             <td className="px-4 py-3">{order.size}</td>
                             <td className="px-4 py-3">{order.quantity}</td>
-                            <td className="px-4 py-3">₹{order.price}</td>
-                            <td className="px-4 py-3">{`${order.freight}: ₹${order.freightAmount}`}</td>
-                            <td className="px-4 py-3">₹{order.packagingCharge}</td>
+                           
                             <td className="px-4 py-3">{order.remarks}</td>
                             <td className="px-4 py-3">
                               {order.cuttingSlip?.url && (

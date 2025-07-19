@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import InternalNavbar from '../components/InternalNavbar';
 import axiosInstance from '../axiosInstance';
@@ -8,35 +8,49 @@ import { useNavigate } from 'react-router-dom';
 const RegisterUser = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+const [editUserId, setEditUserId] = useState(null);
+const [allowAttendance, setAllowAttendance] = useState(false);
   const [role, setRole] = useState('sales');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
- 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (role === 'production' && productionSection.length === 0) {
-  toast.error('Please select at least one production section.');
-  return;
-}
-    try {
-      const res = await axiosInstance.post('/users/register', { name, email, phone, role, productionSection  });
-      setMessage(res.data.message);
-      setIsSuccess(true);
-      setName('');
-      setEmail('');
-      setRole('sales');
-      setPhone('');
+ const formRef = useRef(null);
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (role === 'production' && productionSection.length === 0) {
+    toast.error('Please select at least one production section.');
+    return;
+  }
+
+  try {
+const payload = { name, email, phone, role, productionSection, allowAttendance };
+
+    if (isEditing) {
+      await axiosInstance.put(`/users/update-user/${editUserId}`, payload);
+      toast.success('User updated successfully!');
+    } else {
+      await axiosInstance.post('/users/register', payload);
       toast.success('User registered successfully!');
-      fetchUsers();
-    } catch (err) {
-      setMessage(err.response?.data?.message || 'Something went wrong');
-      setIsSuccess(false);
-      toast.error('Failed to register user');
     }
-  };
+
+    // Reset form
+    setName('');
+    setEmail('');
+    setPhone('');
+    setRole('sales');
+    setProductionSection([]);
+    setIsEditing(false);
+    setEditUserId(null);
+    fetchUsers();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Operation failed');
+  }
+};
+
 
   const fetchUsers = async () => {
     try {
@@ -46,6 +60,30 @@ const [productionSection, setProductionSection] = useState([]);
       toast.error('Failed to fetch users');
     }
   };
+const handleEdit = (user) => {
+  setIsEditing(true);
+  setEditUserId(user._id);
+  setName(user.name);
+  setEmail(user.email);
+  setRole(user.role);
+  setPhone(user.phone?.replace('+91', '') || '');
+  setProductionSection(user.productionSection || []);
+  setAllowAttendance(user.allowAttendance || false);
+   // Scroll form into view
+  setTimeout(() => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, 100); // slight delay ensures UI updates first
+};
+const handleCancelEdit = () => {
+  setIsEditing(false);
+  setEditUserId(null);
+  setName('');
+  setEmail('');
+  setPhone('');
+  setRole('sales');
+  setProductionSection([]);
+  setAllowAttendance(false);
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
@@ -71,7 +109,12 @@ const [productionSection, setProductionSection] = useState([]);
             Register New User
           </h2>
 
-          <form onSubmit={handleRegister} className="space-y-5">
+<form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+           {isEditing && (
+  <div className="mb-4 text-blue-700 font-semibold text-sm">
+    ✏️ Editing user. Make changes and click "Update User" or cancel.
+  </div>
+)}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
               <input
@@ -145,14 +188,35 @@ const [productionSection, setProductionSection] = useState([]);
     </div>
   </div>
 )}
+<div className="flex items-center space-x-2">
+  <input
+    type="checkbox"
+    id="attendance"
+    checked={allowAttendance}
+    onChange={() => setAllowAttendance(!allowAttendance)}
+    className="w-4 h-4"
+  />
+  <label htmlFor="attendance" className="text-sm text-gray-700">Allow for Attendance</label>
+</div>
 
 
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              Register User
-            </button>
+          <button
+  type="submit"
+  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+>
+  {isEditing ? 'Update User' : 'Register User'}
+</button>
+{isEditing && (
+  <button
+    type="button"
+    onClick={handleCancelEdit}
+    className="w-full bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition"
+  >
+    Cancel Editing
+  </button>
+)}
+
+
           </form>
 
           {message && (
@@ -178,6 +242,7 @@ const [productionSection, setProductionSection] = useState([]);
                 <th className="px-4 py-2">Role</th>
                 <th className="px-4 py-2">Prod. Section</th>
                 <th className="px-4 py-2">Phone</th>
+                <th className="px-4 py-2">Attendance</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -204,15 +269,26 @@ const [productionSection, setProductionSection] = useState([]);
 <td className="px-4 py-2 capitalize">
  {u.phone? u.phone : "-"}
 </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => handleDelete(u._id)}
-                      className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                    >
-                      <Trash2 size={16} />
-                      Delete
-                    </button>
-                  </td>
+<td className="px-4 py-2">
+  {u.allowAttendance ? 'Yes' : 'No'}
+</td>
+
+
+                 <td className="px-4 py-2 space-x-2 flex items-center justify-between">
+  <button
+    onClick={() => handleEdit(u)}
+    className="text-blue-600 hover:text-blue-800"
+  >
+    ✏️ Edit
+  </button>
+  <button
+    onClick={() => handleDelete(u._id)}
+    className="text-red-600 hover:text-red-800"
+  >
+    🗑️ Delete
+  </button>
+</td>
+
                 </tr>
               ))}
               {users.length === 0 && (

@@ -451,16 +451,26 @@ useEffect(() => {
           <>
             <div className="space-y-6">
               {paginatedTasks.map((task) => (
-                <div 
-                  key={task._id}
-                      id={`task-${task._id}`} // 👈 Add this line
-                  className={`bg-white shadow-md rounded-xl p-4 border-l-4 ${
-                    task.isOrderFollowUp
-                      ? "border-orange-500"
-                      : "border-blue-500"
-                  } sm:flex sm:justify-between sm:items-center sm:space-x-4 relative`}
-                >
-                  <div className="flex-1">
+               <div 
+  key={task._id}
+  id={`task-${task._id}`}
+  className={`
+    relative rounded-2xl p-5 sm:flex sm:justify-between sm:items-center sm:space-x-4
+    transition-all duration-300 backdrop-blur-lg
+    shadow-lg ring-1 ring-white/10 border border-white/10
+    ${task.isOrderFollowUp ? "bg-orange-300/10" : "bg-blue-300/10"}
+    hover:scale-[1.01] hover:shadow-2xl
+  `}
+>
+   {/* Glowing Left Border */}
+  <div
+    className={`
+      absolute top-0 left-0 h-full w-1.5 rounded-l-xl 
+      ${task.isOrderFollowUp ? "bg-orange-500" : "bg-blue-500"}
+      blur-[1.5px] drop-shadow-yellow-400
+    `}
+  />
+           <div className="flex-1">
                     {task.isOrderFollowUp && (
                       <span className="text-orange-600 font-semibold p-1 bg-orange-200 text-sm ml-1">
                         Follow-up Task
@@ -780,6 +790,8 @@ return (
                       </div>
                     </div>
                   )}
+
+                  
                 </div>
               ))}
             </div>

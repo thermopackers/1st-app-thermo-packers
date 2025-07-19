@@ -4,6 +4,7 @@ import axiosInstance from "../axiosInstance";
 import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const CNCDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -63,13 +64,17 @@ const CNCDashboard = () => {
   }, [searchTerm, startDate, endDate, currentPage,sortOrder,cncStatus]);
 const updateCNCStatus = async (orderId, newStatus) => {
   try {
-    await axiosInstance.put(`/orders/cnc-status/${orderId}`, { cncStatus: newStatus });
+    await axiosInstance.put(`/orders/${orderId}/status`, {
+      status: newStatus,
+    });
     setOrders((prev) =>
       prev.map((o) =>
-        o._id === orderId ? { ...o, cncStatus: newStatus } : o
+        o._id === orderId ? { ...o, status: newStatus } : o
       )
     );
+    toast.success("CNC status updated successfully");
   } catch (err) {
+    toast.error("Failed to update CNC status");
     console.error("Failed to update CNC status:", err);
   }
 };
@@ -235,7 +240,7 @@ const updateCNCStatus = async (orderId, newStatus) => {
   </td>
 <td className="px-4 py-2">
   <select
-    value={order.cncStatus || "pending"}
+    value={order.status || "pending"}
     onChange={(e) => updateCNCStatus(order._id, e.target.value)}
     className="border border-gray-300 rounded px-2 py-1 text-sm"
   >
@@ -246,13 +251,13 @@ const updateCNCStatus = async (orderId, newStatus) => {
 </td>
 <td className="px-4 py-2 whitespace-nowrap">
   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-    order.cncStatus === "processed"
+    order.status === "processed"
       ? "bg-green-100 text-green-700"
-      : order.cncStatus === "in process"
+      : order.status === "in process"
       ? "bg-yellow-100 text-yellow-700"
       : "bg-red-100 text-red-700"
   }`}>
-    {order.cncStatus || "pending"}
+    {order.status || "pending"}
   </span>
 </td>
 

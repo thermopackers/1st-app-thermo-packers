@@ -239,7 +239,7 @@ const onEndDateChange = (e) => {
         onClick={() => navigate("/reports/shape-moulding")}
         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg w-full md:w-auto"
       >
-        📦 View Shape Moulding Production Report
+        📦 Daily Shape Moulding Production Report
       </button>
     )}
 
@@ -248,15 +248,11 @@ const onEndDateChange = (e) => {
         onClick={() => navigate("/reports/block-moulding")}
         className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg w-full md:w-auto"
       >
-        🧱 View Block Moulding Production Report
+        🧱 Daily Block Moulding Production Report
       </button>
     )}
 
-      <NavLink to="/reports/packaging" className="w-full md:w-auto">
-        <button className="px-6 py-3 bg-fuchsia-500 text-white rounded-lg hover:bg-fuchsia-600 transition shadow-lg w-full md:w-auto">
-          📋 Daily Shape Moulding, Packaging & Dispatch Report
-        </button>
-      </NavLink>
+    
   </div>
 </div>
 

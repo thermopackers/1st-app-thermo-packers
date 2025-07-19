@@ -53,30 +53,7 @@ export default function InternalNavbar() {
 
         {/* Desktop Menu (only on extra large screens and up) */}
         <div className="hidden xl:flex space-x-8 items-center">
-          {role === "accounts" && (
-            <>
-              <NavLink
-                to="/issue-asset"
-                className={({ isActive }) =>
-                  `nav-item text-base font-semibold ${
-                    isActive ? "text-yellow-300" : "hover:text-yellow-300"
-                  }`
-                }
-              >
-                📤 Issue Assets
-              </NavLink>
-              <NavLink
-                to="/asset-management"
-                className={({ isActive }) =>
-                  `nav-item text-base font-semibold ${
-                    isActive ? "text-yellow-300" : "hover:text-yellow-300"
-                  }`
-                }
-              >
-                💼 Manage Assets
-              </NavLink>
-            </>
-          )}
+          
           {role === "admin" && (
             <NavLink
               to="/inventory"
@@ -89,17 +66,6 @@ export default function InternalNavbar() {
               📦 Manage Inventory
             </NavLink>
           )}
-
-          <NavLink
-            to="/my-assets"
-            className={({ isActive }) =>
-              `nav-item text-base font-semibold ${
-                isActive ? "text-yellow-300" : "hover:text-yellow-300"
-              }`
-            }
-          >
-            🔐 My Assets
-          </NavLink>
 
           <NavLink
             to="/dashboard"
@@ -177,31 +143,8 @@ export default function InternalNavbar() {
             </NavLink>
           )}
 </>
-            {role === "accounts" && (
-              <>
-                <NavLink
-                  to="/issue-asset"
-                  onClick={closeMenu}
-                  className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-                >
-                  📤 Issue Assets
-                </NavLink>
-                <NavLink
-                  to="/asset-management"
-                  onClick={closeMenu}
-                  className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-                >
-                  💼 Manage Assets
-                </NavLink>
-              </>
-            )}
-            <NavLink
-              to="/my-assets"
-              onClick={closeMenu}
-              className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-            >
-              🔐 My Assets
-            </NavLink>
+          
+          
             <button
               onClick={() => {
                 closeMenu();

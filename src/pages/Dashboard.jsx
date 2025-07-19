@@ -1,103 +1,28 @@
 import { useEffect, useRef, useState } from "react";
-import ReactWebcam from "react-webcam";
 import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import '../index.css';
-import Swal from "sweetalert2";
+
 
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
+
 const [notifications, setNotifications] = useState([]);
 const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [capturing, setCapturing] = useState(false);
-const [type, setType] = useState(""); // "check-in" or "check-out"
-const webcamRef = useRef(null);
-
-  const handleCapture = (type) => {
-  setType(type);
-  setCapturing(true);
-};
-
-const compressImage = (base64Str, quality = 0.6) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      const compressed = canvas.toDataURL("image/jpeg", quality);
-      resolve(compressed);
-    };
-    img.src = base64Str;
-  });
-};
 
 
-const saveAttendance = async () => {
-  setIsSaving(true);
 
-  try {
-    const imageSrc = webcamRef.current.getScreenshot();
-    if (!imageSrc) {
-      Swal.fire("Error", "No image captured", "error");
-      return;
-    }
 
-    const compressedImage = await compressImage(imageSrc, 0.5);
 
-    // 👇 Get GPS location
-    const getLocation = () =>
-      new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            resolve({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            });
-          },
-          (err) => {
-            console.error("Location error:", err);
-            resolve(null); // Don't fail even if user blocks location
-          },
-          { timeout: 10000 }
-        );
-      });
 
-    const location = await getLocation();
 
-    const res = await axiosInstance.post(
-      "/attendance/mark",
-      {
-        type,
-        photo: compressedImage,
-        location, // 👈 Send location in request
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
-    );
 
-    Swal.fire("Success", `Successfully marked ${type}`, "success");
-    setCapturing(false);
-  } catch (err) {
-    console.error("❌ Attendance marking failed:", err);
-    Swal.fire("Error", err?.response?.data?.error || "Failed to mark attendance", "error");
-    setCapturing(false);
-  } finally {
-    setIsSaving(false);
-  }
-};
 
 
 
@@ -135,7 +60,10 @@ useEffect(() => {
         });
 
         setUser(res.data);
-        setLoading(false);
+
+
+setLoading(false);
+
       } catch (err) {
         console.error(
           "Failed to fetch user",
@@ -149,59 +77,47 @@ useEffect(() => {
     fetchUser();
   }, [navigate]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-lg-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg font-medium text-blue-700">Loading Dashboard...</p>
-        </div>
+if (loading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-lg-full animate-spin mx-auto mb-4"></div>
+        <p className="text-lg font-medium text-blue-700">Initializing Dashboard...</p>
       </div>
-    );
-  }
-const handleViewTasks = async () => {
-   navigate('/my-tasks');
+    </div>
+  );
+}
 
-};
 
   return (
     <>
       <InternalNavbar />
-<div className="bg-white shadow-lg p-2 rounded-xl">
-  <h2 className="text-xl font-semibold text-center text-gray-800 mb-4">
-    📋 Mark Attendance
-  </h2>
-  <div className="flex flex-wrap justify-center gap-6">
-    <button
-      onClick={() => handleCapture("check-in")}
-      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full text-sm font-medium shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transition duration-200 focus:outline-none focus:ring-2 focus:ring-green-400"
-    >
-      <span className="text-lg">✅</span> Check In
-    </button>
-
-    <button
-      onClick={() => handleCapture("check-out")}
-      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full text-sm font-medium shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
-    >
-      <span className="text-lg">⏹️</span> Check Out
-    </button>
+    {user.allowAttendance && (
+  <div className="bg-white shadow-lg p-4 rounded-xl">
+    <h2 className="text-xl font-semibold text-center text-gray-800 mb-4">
+      📋 Mark Attendance
+    </h2>
+    <div className="flex justify-center">
+      <button
+        onClick={() => navigate("/attendance")}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full text-sm font-medium shadow transition duration-200"
+      >
+        Go to Attendance Page
+      </button>
+    </div>
   </div>
-</div>
-
-
-
-
+)}
 
       <div className="min-h-screen bg-gray-100 flex flex-col">
         <main className="flex-1 p-6 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
           <button
-            className="absolute hidden md:block left-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-lg-md shadow-md hover:bg-blue-600 back-button"
+            className="absolute hidden md:block left-4 cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 back-button"
             onClick={() => navigate(-1)}
           >
             ↩️ Back
           </button>
 
-          <div className="bg-white md:mt-[8vh] shadow-md rounded-lg-lg p-6">
+          <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
                           {user.role !== "driver" && (
 
             <h2 className="text-xl font-semibold mb-4">
@@ -261,7 +177,7 @@ const handleViewTasks = async () => {
 
 <div className="flex flex-col gap-6 mt-6">
               {user.role === "driver" && (<>
-  <div className="bg-teal-100 p-4 rounded-lg-lg">
+  <div className="bg-teal-100 p-4 rounded-lg">
     <h3 className="text-lg font-bold text-teal-800">My Dispatch Plans</h3>
     <p className="text-sm text-teal-700 mt-2">
       View your assigned daily dispatch plans.
@@ -272,23 +188,13 @@ const handleViewTasks = async () => {
       </button>
     </NavLink>
   </div>
-  <div className="bg-pink-100 p-4 rounded-lg-lg">
-    <h3 className="text-lg font-bold text-pink-800">My Assets</h3>
-    <p className="text-sm text-pink-700 mt-2">
-      View your assigned assets.
-    </p>
-    <NavLink to="/my-assets">
-      <button className="mt-4 cursor-pointer bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg">
-        Go to My Assets
-      </button>
-    </NavLink>
-  </div>
   </>
 )}
 
-        
+ 
 {["sales", "admin", "accounts"].includes(user.role) && (
-  <div className="bg-white p-4 rounded-lg-lg shadow-md">
+       <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+  <>
     <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
       SALES ORDERS
     </h3>
@@ -317,17 +223,19 @@ const handleViewTasks = async () => {
         </button>
       </NavLink>
     </div>
-  </div>
+  </>
+</div>
 )}
-
 
 
       
 
             </div>
+
             {/* Production → Packaging → Dispatch Grid */}
        {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
-<div className="bg-white mt-6 p-4 rounded-lg-lg shadow-md">
+            <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+<>
   <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
     Go To All Type of Production / Dispatch Sections
   </h3>
@@ -389,15 +297,16 @@ const handleViewTasks = async () => {
       </NavLink>
     )}
   </div>
-</div>
+</>
 
+</div>
 )}
 
 
-
-            
             {user.role === "admin" && (
-              <div className="bg-yellow-100 p-4 rounded-lg-lg mt-6">
+           <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+ 
+              <>
                 <h3 className="text-lg font-bold text-yellow-800">Admin Tools</h3>
                 <p className="text-sm text-yellow-700 mt-2">
                   You have access to manage users and view all orders.
@@ -407,10 +316,11 @@ const handleViewTasks = async () => {
                     Go to Admin Panel
                   </button>
                 </NavLink>
-              </div>
+              </>
+</div>
             )}
 
-
+<div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
   {/* Task Dashboard — only for admin and accounts */}
@@ -456,70 +366,139 @@ const handleViewTasks = async () => {
   </div>
 )}
 
+<div className="bg-white p-6 rounded-2xl shadow-lg">
+  <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+    Assets of Thermo Packers
+  </h3>
 
-{["admin", "accounts", "production", "dispatch", "packaging"].includes(user.role) && (
-  <div className="bg-fuchsia-100 p-4 rounded-lg-lg">
-    <h3 className="text-lg font-bold text-fuchsia-800">Daily Shape Moulding Section, Packaging & Dispatch Report</h3>
-    <p className="text-sm text-fuchsia-700 mt-2">
-      View daily packaging status and packed stock details.
-    </p>
-    <NavLink to="/reports/packaging">
-      <button className="mt-4 cursor-pointer bg-fuchsia-500 hover:bg-fuchsia-600 text-white px-4 py-2 rounded-lg">
-        Go To Daily Shape Moulding Section, Packaging & Dispatch Report
-      </button>
-    </NavLink>
-  </div>
-)}
-  {/* Assign Dispatch Plan — visible to dispatch, packaging, admin, accounts */}
-  {["dispatch", "packaging", "admin", "accounts"].includes(user.role) && (
-    <div className="bg-sky-100 p-4 rounded-lg-lg">
-      <h3 className="text-lg font-bold text-sky-800">Assign Dispatch Plan</h3>
-      <p className="text-sm text-sky-700 mt-2">
-        Plan and assign dispatch tasks to specific drivers and vehicles.
-      </p>
-      <NavLink to="/assign-dispatch">
-        <button className="mt-4 cursor-pointer bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg">
-          Go to Assign Dispatch
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {/* My Assets */}
+    <div className="w-full">
+      <NavLink to="/my-assets">
+        <button className="w-full h-full bg-indigo-500 hover:bg-indigo-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+          My Assets
+          <br />
+          <span className="text-sm font-normal">
+            View assets assigned to you
+          </span>
         </button>
       </NavLink>
     </div>
-  )}
-  {["admin","sales","accounts","dispatch", "packaging","production"].includes(user.role) && (
+{["accounts"].includes(user.role) && (
   <>
+    {/* Issue Assets */}
+    <div className="w-full">
+      <NavLink to="/issue-asset">
+        <button className="w-full h-full bg-emerald-500 hover:bg-emerald-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+          Issue Assets to Employees
+          <br />
+          <span className="text-sm font-normal">
+            Click to issue assets to employees
+          </span>
+        </button>
+      </NavLink>
+    </div>
+
+    {/* Manage Assets */}
+    <div className="w-full">
+      <NavLink to="/asset-management">
+        <button className="w-full h-full bg-yellow-500 hover:bg-yellow-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+          Manage Assets
+          <br />
+          <span className="text-sm font-normal">
+            Click to manage all assets
+          </span>
+        </button>
+      </NavLink>
+    </div>
+    </>
+)}
+  </div>
+</div>
+
+    {["packaging", "admin", "accounts"].includes(user.role) && (
+
+<div className="bg-white p-6 rounded-2xl shadow-lg mt-6">
+  <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+    Dispatch and Mileage Dashboard
+  </h3>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {["packaging", "admin", "accounts"].includes(user.role) && (
+      <div className="w-full">
+        <NavLink to="/assign-dispatch">
+          <button className="w-full h-full bg-sky-500 hover:bg-sky-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+            Assign Dispatch Plan
+            <br />
+            <span className="text-sm font-normal">
+              Plan and assign tasks to drivers/vehicles
+            </span>
+          </button>
+        </NavLink>
+      </div>
+    )}
+
+    {["admin", "accounts"].includes(user.role) && (
+      <div className="w-full">
+        <NavLink to="/mileage-chart">
+          <button className="w-full h-full bg-indigo-500 hover:bg-indigo-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+            Vehicle Mileage Report
+            <br />
+            <span className="text-sm font-normal">
+              View KM/L for each vehicle
+            </span>
+          </button>
+        </NavLink>
+      </div>
+    )}
+  </div>
+</div>
+    )}
+{["admin", "sales", "accounts", "dispatch", "packaging", "production"].includes(user.role) && (
+  <div className="bg-white p-6 rounded-2xl shadow-lg mt-6">
+    <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+      Material Requisition
+    </h3>
+
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Submit Material Requisition */}
-      <div className="bg-rose-100 p-4 rounded-lg-lg">
-        <h3 className="text-lg font-bold text-rose-800">Material Requisition Form</h3>
-        <p className="text-sm text-rose-700 mt-2">
-          Fill and submit a new material requisition slip for raw materials.
-        </p>
+      {/* Requisition Form */}
+      <div className="w-full">
         <NavLink to="/material-requisition">
-          <button className="mt-4 cursor-pointer bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg">
-            Go to Requisition Form
+          <button className="w-full h-full bg-rose-500 hover:bg-rose-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+            Material Requisition Form
+            <br />
+            <span className="text-sm font-normal">
+              Submit a new requisition for raw materials
+            </span>
           </button>
         </NavLink>
       </div>
 
-      {/* View All Requisition Slips */}
-      <div className="bg-amber-100 p-4 rounded-lg-lg">
-        <h3 className="text-lg font-bold text-amber-800">Requisition Slips</h3>
-        <p className="text-sm text-amber-700 mt-2">
-          View and download all submitted requisition slip PDFs.
-        </p>
+      {/* Requisition Slips */}
+      <div className="w-full">
         <NavLink to="/requisition-slips">
-          <button className="mt-4 cursor-pointer bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg">
+          <button className="w-full h-full bg-amber-500 hover:bg-amber-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
             View Requisition Slips
+            <br />
+            <span className="text-sm font-normal">
+              View/download all requisition PDFs
+            </span>
           </button>
         </NavLink>
       </div>
     </div>
-  </>
+  </div>
 )}
 
+
 </div>
+</div>
+<div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
 {!["driver", "production", "dispatch", "packaging"].includes(user.role) && (
-  <div className="bg-white mt-6 p-4 rounded-lg-lg shadow-md">
+  <div className="bg-white mt-6 p-4 rounded-lg shadow-md">
     <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
       QUOTATION / PROFORMA INVOICE / ESTIMATE
     </h3>
@@ -541,10 +520,6 @@ const handleViewTasks = async () => {
     </div>
   </div>
 )}
-
-
-
-
 
 {["admin", "sales", "accounts"].includes(user.role) && (
   <div className="mt-6">
@@ -583,47 +558,57 @@ const handleViewTasks = async () => {
     </div>
   </div>
 )}
-
-
-
-{["admin", "accounts"].includes(user.role) && (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div className="bg-blue-50 p-4 rounded-lg mt-6">
-    <h3 className="text-lg font-bold text-blue-800">Register New User</h3>
-    <p className="text-sm text-blue-700 mt-2">
-      Add a new user by email, name and assign them a role.
-    </p>
-    <NavLink to="/register-user">
-      <button className="mt-4 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-        Register New User
-      </button>
-    </NavLink>
-  </div>
-<div className="bg-green-100 p-4 rounded-lg mt-6">
-  <h3 className="text-lg font-bold text-green-800">Attendance Logs</h3>
-  <p className="text-sm text-green-700 mt-2">
-    View daily attendance records and check-ins.
-  </p>
-  <NavLink to="/attendance-logs">
-    <button className="mt-4 cursor-pointer bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
-      Go to Attendance Logs
-    </button>
-  </NavLink>
+</div>
 </div>
 
-  <div className="bg-indigo-100 p-4 rounded-lg md:mt-6 mt-0">
-    <h3 className="text-lg font-bold text-indigo-800">Vehicle Mileage Report</h3>
-    <p className="text-sm text-indigo-700 mt-2">
-      View mileage (KM/L) per vehicle based on diesel filled and KM readings.
-    </p>
-    <NavLink to="/mileage-chart">
-      <button className="mt-4 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
-        Open Mileage Chart
-      </button>
-    </NavLink>
+<div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+
+    {/* Admin Tools */}
+    {["admin", "accounts"].includes(user.role) && (
+      <div className="p-6 rounded-2xl shadow-lg">
+        <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+          Admin Tools
+        </h3>
+
+        {/* Register New User */}
+        <div className="w-full">
+          <NavLink to="/register-user">
+            <button className="w-full h-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+              Register New User
+              <br />
+              <span className="text-sm font-normal">
+                Add new user by email and assign role
+              </span>
+            </button>
+          </NavLink>
+        </div>
+      </div>
+    )}
+
+    {/* Attendance Logs */}
+        {user.allowAttendance && (
+      <div className="p-6 rounded-2xl shadow-lg">
+        <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+          Attendance Logs
+        </h3>
+
+        <div className="w-full">
+          <NavLink to="/attendance-logs">
+            <button className="w-full h-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
+              Attendance Logs
+              <br />
+              <span className="text-sm font-normal">
+                View daily check-ins and attendance
+              </span>
+            </button>
+          </NavLink>
+        </div>
+      </div>
+        )}
+
   </div>
-  </div>
-)}
+</div>
 
 
 
@@ -631,47 +616,6 @@ const handleViewTasks = async () => {
         </main>
       </div>
     
- {capturing && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-    <div className="relative bg-white w-full max-w-sm mx-4 p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in">
-
-      {/* Cancel Button (Top-right) */}
-      <button
-        className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold focus:outline-none"
-        onClick={() => setCapturing(false)}
-        aria-label="Close"
-      >
-        ×
-      </button>
-
-      <h3 className="text-xl font-bold mb-4 text-gray-800 capitalize">
-        {type} - Capture Photo
-      </h3>
-
-      <ReactWebcam
-        audio={false}
-        ref={webcamRef}
-        screenshotFormat="image/jpeg"
-        className="rounded-lg shadow-md w-full h-auto max-w-full mb-4 border border-gray-300"
-      />
-
-      <button
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-sm font-semibold rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        onClick={saveAttendance}
-      >
-        📸 Save Attendance
-      </button>
-    </div>
-  </div>
-)}
-
-
-{isSaving && (
-  <div className="fixed inset-0 bg-[#000000ad] bg-opacity-50 flex justify-center items-center z-50">
-    <div className="loader border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin"></div>
-  </div>
-)}
-
 
     </>
   );

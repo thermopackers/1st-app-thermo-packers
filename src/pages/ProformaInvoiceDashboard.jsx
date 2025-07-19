@@ -76,6 +76,7 @@ const deleteInvoice = async (id) => {
                 <th className="px-3 py-2 text-center">Invoice</th>
                 <th className="px-3 py-2 text-center">Edit</th>
                 <th className="px-3 py-2 text-center">Delete</th>
+                <th className="px-3 py-2 text-center">Convert</th>
               </tr>
             </thead>
             <tbody>
@@ -115,6 +116,17 @@ const deleteInvoice = async (id) => {
     ❌
   </button>
 </td>
+<td className="px-3 py-2 text-center">
+  <button
+    onClick={() =>
+      navigate("/add-order", { state: { fromProforma: true, invoice: inv } })
+    }
+    className="bg-indigo-600 hover:bg-indigo-700 cursor-pointer text-white px-4 py-1 rounded shadow"
+  >
+    🔄 Convert to Order
+  </button>
+</td>
+
 
                 </tr>
               ))}

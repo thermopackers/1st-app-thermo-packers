@@ -750,7 +750,6 @@ setSearchTerm("");
                           <th className="p-3 font-medium border">Customers</th>
                           <th className="p-3 font-medium border">Remarks</th> {/* ✅ New */}
                     <th className="p-3 font-medium border">Status</th>
-                    <th className="p-3 font-medium border">KMs at Diesel Filling</th>
                     <th className="p-3 font-medium border">Images</th>
                     <th className="p-3 font-medium border">Actions</th>
                   </tr>
@@ -846,7 +845,6 @@ setSearchTerm("");
                           {plan.status}
                         </span>
                       </td>
-                      <td className="p-3 border">{plan.kmsAtDieselFilling || "—"} Km</td>
                   <td className="p-3 border align-top min-w-[300px] max-w-[400px]">
   <div className="flex gap-2 overflow-x-auto rounded-md py-1">
     {plan.imageUrls?.map((url, i) => (

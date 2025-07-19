@@ -26,6 +26,11 @@ import ProformaEditForm from "../pages/ProformaEditForm";
 import CNCDashboard from "../pages/CNCDashboard";
 import MileageChart from "../pages/MileageChart";
 import AttendanceLogs from "../pages/AttendanceLogs";
+import AttendancePage from "../pages/AttendancePage";
+import AllSuppliers from "../pages/AllSuppliers";
+import AddSupplier from "../pages/AddSupplier";
+import AllPurchaseProducts from "../pages/AllPurchaseProducts";
+import AddPurchaseProduct from "../pages/AddPurchaseProduct";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -393,10 +398,71 @@ export default function AppRoutes() {
 <Route
   path="/attendance-logs"
   element={
-    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
       <PageWrapper>
         <AttendanceLogs />
       </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/attendance"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
+      <PageWrapper>
+        <AttendancePage />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/add-purchase-product"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AddPurchaseProduct /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/purchase-products/edit/:id"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AddPurchaseProduct /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/all-purchase-products"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AllPurchaseProducts /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/add-supplier"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AddSupplier /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/suppliers/edit/:id"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AddSupplier /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/all-suppliers"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><AllSuppliers /></PageWrapper>
     </ProtectedRoute>
   }
 />

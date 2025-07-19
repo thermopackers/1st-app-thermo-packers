@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import Select from "react-select";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { toast } from "react-hot-toast";
@@ -8,7 +8,9 @@ import { toast } from "react-hot-toast";
 export default function AddOrder() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
-
+const location = useLocation();
+const [paymentTerms, setPaymentTerms] = useState("");
+const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [availableSizesList, setAvailableSizesList] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientDetails, setClientDetails] = useState({
@@ -45,33 +47,69 @@ export default function AddOrder() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
 
-  useEffect(() => {
-    const fetchProductSizes = async () => {
-      try {
-        const response = await axiosInstance.get("/products/all-backend-products");
+useEffect(() => {
+  const fetchProductSizes = async () => {
+    try {
+      const response = await axiosInstance.get("/products/all-backend-products");
+      setAllProducts(response.data);
+    } catch (error) {
+      console.error("Error fetching product sizes:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
-        setAllProducts(response.data);
-      } catch (error) {
-        console.error("Error fetching product sizes:", error);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
+  const fetchCustomers = async () => {
+    try {
+      const response = await axiosInstance.get("/customers/all/dropdown");
+      setAllCustomers(response.data);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
 
-    const fetchCustomers = async () => {
-      try {
-        const response = await axiosInstance.get("/customers/all/dropdown");
-        setAllCustomers(response.data);
-      } catch (error) {
-        console.error("Error fetching customers:", error);
-      } finally {
-        setLoadingCustomers(false);
-      }
-    };
+  fetchProductSizes();
+  fetchCustomers();
 
-    fetchProductSizes();
-    fetchCustomers();
-  }, []);
+  // ✅ Handle auto-fill from Proforma Invoice
+  const state = location.state;
+  if (state?.fromProforma && state.invoice) {
+    const invoice = state.invoice;
+
+    setClientDetails((prev) => ({
+      ...prev,
+      customerName: invoice.customerName || "",
+      billTo: invoice.billTo || "",
+      shipTo: invoice.shipTo || "",
+      sameAsBillTo: invoice.billTo === invoice.shipTo,
+      po: invoice.invoiceNo || "",
+      date: new Date().toISOString().split("T")[0],
+      remarks: invoice.remarks || "",
+    }));
+
+    if (Array.isArray(invoice.products)) {
+      const products = invoice.products.map((prod) => ({
+        product: prod.name || "",
+        customProduct: "",
+        size: "",
+        customSize: "",
+        quantity: prod.qty?.toString() || "",
+        price: prod.rate?.toString() || "",
+        density: "",
+        packagingCharge: "",
+        freight: "",
+        freightAmount: "",
+        productImages: [],
+        productRemarks: "",
+      }));
+      setProductList(products);
+    }
+  }
+}, [location]);
+
+
 
   const customerOptions = useMemo(() => {
     if (loadingCustomers) {
@@ -333,6 +371,10 @@ const handleSubmit = async (e) => {
     formData.append("products", JSON.stringify(modifiedProductList));
 formData.append("billTo", clientDetails.billTo);
 formData.append("shipTo", clientDetails.shipTo);
+formData.append(
+  "paymentTerms",
+  paymentTerms === "Other" ? customPaymentTerms : paymentTerms
+);
 
     const response = await axiosInstance.post("/orders/multi", formData, {
       headers: {
@@ -445,6 +487,46 @@ if (clientDetails.poCopy.length > 0) {
               required
               className="border border-gray-400 p-2 rounded w-full"
             />
+           <div className="mb-4">
+  <label className="block font-medium mb-1 text-gray-700">Payment Terms</label>
+  <select
+    className="w-full border border-gray-300 rounded px-3 py-2"
+    value={paymentTerms}
+    onChange={(e) => {
+      setPaymentTerms(e.target.value);
+      if (e.target.value !== "Other") setCustomPaymentTerms("");
+    }}
+  >
+   <option value="">-- Select Payment Terms --</option>
+<option value="Payment already came 100% Advance">
+  1) Payment already came 100% Advance
+</option>
+<option value="Cash on Delivery (Driver to get Cash payment on delivery)">
+  2) Cash on Delivery (Driver to get Cash payment on delivery)
+</option>
+<option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
+  3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
+</option>
+<option value="50% Came and Balance 50% on delivery">
+  4) 50% Came and Balance 50% on delivery
+</option>
+<option value="Credit (Udhaar): 45 Days">
+  5) Credit (Udhaar): 45 Days
+</option>
+    <option value="Other">6) Other (Write in remarks)</option>
+  </select>
+
+  {paymentTerms === "Other" && (
+    <input
+      type="text"
+      className="w-full mt-2 border border-gray-300 rounded px-3 py-2"
+      placeholder="Enter custom payment terms"
+      value={customPaymentTerms}
+      onChange={(e) => setCustomPaymentTerms(e.target.value)}
+    />
+  )}
+</div>
+
             </div>
            <input
   type="file"

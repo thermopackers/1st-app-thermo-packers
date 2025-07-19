@@ -966,6 +966,9 @@ const actuallySendToProduction = async (
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Freight
                       </th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+  Payments Terms
+</th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
                         Dispatch Time
                       </th>
@@ -1005,8 +1008,7 @@ const actuallySendToProduction = async (
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Dispatch Status
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
-                        CNC Status</th>
+                    
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
@@ -1115,6 +1117,9 @@ const actuallySendToProduction = async (
                                   {`${order.freight}: ₹${order.freightAmount}`}
                                 </td>
 
+<td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
+  {order.paymentTerms || "—"}
+</td>
                                 {/* ✅ Dispatch Date */}
                                 <td className="px-4 py-2 whitespace-nowrap max-w-[160px] truncate">
                                   {(() => {
@@ -1689,17 +1694,7 @@ if (isSectionAlreadySent) {
                                   </div>
                                    {" "}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
-  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-    order.cncStatus === "processed"
-      ? "bg-green-100 text-green-700"
-      : order.cncStatus === "in process"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-red-100 text-red-700"
-  }`}>
-    {order.cncStatus || "pending"}
-  </span>
-</td>
+                               
 
                               </tr>
                             );
