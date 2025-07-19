@@ -124,7 +124,9 @@ try {
       const canvas = document.getElementById("canvas");
       const preview = document.getElementById("preview");
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+const stream = await navigator.mediaDevices.getUserMedia({
+  video: { facingMode: { ideal: "environment" } },
+});
       video.srcObject = stream;
 
       document.getElementById("capture").onclick = () => {
