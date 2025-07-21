@@ -71,6 +71,9 @@ export default function AllSuppliers() {
                 <th className="p-2">GST</th>
                 <th className="p-2">Address</th>
                 <th className="p-2">Files</th>
+                <th className="p-2">Location</th>
+<th className="p-2">Bank</th>
+<th className="p-2">Cheque</th>
                 <th className="p-2">Actions</th>
               </tr>
             </thead>
@@ -159,6 +162,80 @@ export default function AllSuppliers() {
             <img
               src={fileUrl}
               alt={`file-${index}`}
+              className="object-cover w-full h-full rounded"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/broken-image.png";
+              }}
+            />
+          )}
+        </div>
+      );
+    })}
+  </div>
+</td>
+{/* Location */}
+<td className="p-2">
+  {supplier.locationLink ? (
+    <a
+      href={supplier.locationLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-600 hover:underline text-xs break-all"
+    >
+      📍 Map
+    </a>
+  ) : (
+    <span className="text-gray-500">–</span>
+  )}
+</td>
+
+{/* Bank Details */}
+<td className="p-2 text-xs text-left whitespace-normal">
+  <div><strong>Acc Name:</strong> {supplier.accountName || "–"}</div>
+  <div><strong>Acc No:</strong> {supplier.accountNumber || "–"}</div>
+  <div><strong>IFSC:</strong> {supplier.ifscCode || "–"}</div>
+</td>
+
+{/* Cheque Files */}
+<td className="p-2">
+  <div className="flex flex-wrap gap-2">
+    {supplier.chequeFiles?.map((file, index) => {
+      const url = file?.url || "";
+      const isPDF = url.toLowerCase().includes(".pdf");
+
+      return (
+        <div
+          key={index}
+          className="w-12 h-12 border rounded flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer"
+          onClick={() => {
+            if (isPDF) {
+              Swal.fire({
+                html: `<iframe src="${url}" width="100%" height="500px" style="border: none;"></iframe>`,
+                width: '90%',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: "#f9fafb",
+                customClass: { popup: "rounded-xl shadow-lg" },
+              });
+            } else {
+              Swal.fire({
+                imageUrl: url,
+                imageAlt: "Cheque Image",
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: "#f9fafb",
+                customClass: { popup: "rounded-xl shadow-lg" },
+              });
+            }
+          }}
+        >
+          {isPDF ? (
+            <span className="text-2xl text-red-600">📄</span>
+          ) : (
+            <img
+              src={url}
+              alt={`cheque-${index}`}
               className="object-cover w-full h-full rounded"
               onError={(e) => {
                 e.target.onerror = null;

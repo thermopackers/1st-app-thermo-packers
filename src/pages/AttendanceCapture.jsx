@@ -19,8 +19,6 @@ const [livenessCountdown, setLivenessCountdown] = useState(3);
   const [descriptorCache, setDescriptorCache] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [showFaceRegistration, setShowFaceRegistration] = useState(false);
-
 
 const captureImageWithTimestamp = () => {
   return new Promise((resolve, reject) => {
@@ -375,28 +373,7 @@ setTimeout(() => {
       ⏹️ Check Out
     </button>
 
-    <button
-onClick={() => {
-  setIsSaving(true);
-  Swal.fire({
-    title: "📷 Initializing Camera...",
-    text: "Please hold still...",
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    didOpen: () => Swal.showLoading(),
-  });
-
-  setTimeout(() => {
-    setShowFaceRegistration(true);
-    setIsSaving(false);
-    Swal.close();
-  }, 800);
-}}
-
-      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full text-base font-semibold shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full sm:w-auto justify-center"
-    >
-      👤 Register My Face
-    </button>
+   
   </div>
 </div>
 
@@ -485,31 +462,7 @@ onClick={() => {
   </div>
 )}
 
-{showFaceRegistration && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-    <div className="relative bg-white w-full max-w-sm mx-4 p-6 rounded-xl shadow-xl flex flex-col items-center">
-      <button
-        className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold"
-        onClick={() => setShowFaceRegistration(false)}
-      >
-        ×
-      </button>
-      <h3 className="text-lg font-bold mb-4">📷 Register Your Face</h3>
-      <ReactWebcam
-        ref={webcamRef}
-        audio={false}
-        screenshotFormat="image/jpeg"
-        className="rounded-lg shadow-md w-full max-w-full mb-4 border"
-      />
-      <button
-        onClick={saveFaceToServer}
-        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow"
-      >
-        💾 Save Face
-      </button>
-    </div>
-  </div>
-)}
+
 {showLivenessPrompt && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
     <div className="bg-white rounded-xl p-6 shadow-2xl text-center animate-fade-in w-full max-w-sm mx-4">

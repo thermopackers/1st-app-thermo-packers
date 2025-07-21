@@ -20,6 +20,7 @@ const [recording, setRecording] = useState(false);
   const [recorder, setRecorder] = useState(null);
   const [customerNames, setCustomerNames] = useState([""]);
 const [customerList, setCustomerList] = useState([]);
+const [dieselImagesMap, setDieselImagesMap] = useState({});
   const [formData, setFormData] = useState({
   vehicleNumber: "",
   remarks: "",
@@ -107,6 +108,8 @@ useEffect(() => {
 
   const [drivers, setDrivers] = useState([]);
   const [plans, setPlans] = useState([]);
+  console.log("plans", plans);
+  
 const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [page, setPage] = useState(1);
@@ -125,6 +128,67 @@ const [newVehicle, setNewVehicle] = useState({
   driverName: "",
     phone: "", // ✅ Add this
 });
+const fetchPlans = async () => {
+  setTableLoading(true);
+  try {
+    const query = new URLSearchParams({
+      page,
+      search: searchTerm,
+      date: filterDate,
+    });
+
+    // 🟦 FIRST: FETCH DIESEL ENTRIES
+    const dieselRes = await axiosInstance.get("/diesel/entries", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+   const dieselMap = {};
+dieselRes.data.forEach((entry) => {
+  if (entry.planId) {
+    if (!dieselMap[entry.planId]) dieselMap[entry.planId] = [];
+    dieselMap[entry.planId].push(entry); // full entries, not just images
+  }
+});
+
+
+    setDieselImagesMap(dieselMap); // Optional
+
+    // ✅ THEN: FETCH DISPATCH PLANS
+    const res = await axiosInstance.get(
+      `/dispatch-plans/paginated?${query}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    // ✅ NOW: MERGE DIESEL IMAGES INTO PLANS
+   const mergedPlans = res.data.plans.map((plan) => {
+  const matchedVehicle = registeredVehicles.find(
+    (v) => v.vehicleNumber === plan.vehicleNumber
+  );
+
+  const dispatchImages = plan.imageUrls || [];
+  const dieselEntries = dieselMap[plan._id] || [];
+
+  const dieselImages = dieselEntries.flatMap((d) => d.imageUrls || []);
+
+  return {
+    ...plan,
+    gpsLink: matchedVehicle?.gpsLink || null,
+    imageUrls: [...dispatchImages, ...dieselImages], // merged images
+    dieselEntries, // ✅ new field
+  };
+});
+
+
+    setPlans(mergedPlans);
+    setTotalPages(res.data.totalPages);
+  } catch (err) {
+    console.error("Error fetching plans:", err);
+  } finally {
+    setTableLoading(false);
+  }
+};
 
 const handleVehicleRegister = async () => {
   try {
@@ -215,35 +279,7 @@ const handleEditTripDate = async (planId, currentDate) => {
     }
   };
 
-  const fetchPlans = async () => {
-    setTableLoading(true);
-    try {
-      const query = new URLSearchParams({
-        page,
-  search: searchTerm, // ✅ unified search for customer or driver
-        date: filterDate,
-      });
-      const res = await axiosInstance.get(
-        `/dispatch-plans/paginated?${query}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-const mergedPlans = res.data.plans.map((plan) => {
-  const matchedVehicle = registeredVehicles.find(
-    (v) => v.vehicleNumber === plan.vehicleNumber
-  );
-  return { ...plan, gpsLink: matchedVehicle?.gpsLink || null };
-});
 
-setPlans(mergedPlans);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching plans:", err);
-    } finally {
-      setTableLoading(false);
-    }
-  };
 
 useEffect(() => {
   if (token && registeredVehicles.length > 0) {
@@ -361,6 +397,46 @@ if (customerNames.length === 0 || customerNames.some((name) => !name.trim())) {
   }
 };
 
+const handleEditDieselEntry = async (entry) => {
+  const { value: formValues } = await Swal.fire({
+    title: "Edit Diesel Entry",
+    html: `
+      <input type="number" id="dieselQuantity" class="swal2-input" placeholder="Diesel Quantity (in L)" value="${entry.dieselQuantity || ""}" />
+      <input type="number" id="reading" class="swal2-input" placeholder="Vehicle Reading" value="${entry.reading || ""}" />
+    `,
+    focusConfirm: false,
+    preConfirm: () => {
+      const dieselQuantity = document.getElementById("dieselQuantity").value;
+      const reading = document.getElementById("reading").value;
+
+      if (!dieselQuantity || isNaN(dieselQuantity)) {
+        Swal.showValidationMessage("Enter a valid diesel quantity.");
+        return false;
+      }
+
+      return {
+        dieselQuantity,
+        reading,
+      };
+    },
+    showCancelButton: true,
+    confirmButtonText: "Update",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!formValues) return;
+
+  try {
+    await axiosInstance.patch(`/diesel/update/${entry._id}`, formValues, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    toast.success("Diesel entry updated");
+    fetchPlans(); // refresh
+  } catch (err) {
+    toast.error("Failed to update diesel entry");
+    console.error("❌ Diesel update failed:", err);
+  }
+};
 
 
 
@@ -752,6 +828,7 @@ setSearchTerm("");
                     <th className="p-3 font-medium border">Status</th>
                     <th className="p-3 font-medium border">Images</th>
                     <th className="p-3 font-medium border">Actions</th>
+                    <th className="p-3 font-medium border">Fuels/Readings by Drivers</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -845,9 +922,9 @@ setSearchTerm("");
                           {plan.status}
                         </span>
                       </td>
-                  <td className="p-3 border align-top min-w-[300px] max-w-[400px]">
+        <td className="p-3 border align-top min-w-[300px] max-w-[400px]">
   <div className="flex gap-2 overflow-x-auto rounded-md py-1">
-    {plan.imageUrls?.map((url, i) => (
+{(plan.imageUrls || []).map((url, i) => (
       <img
         key={i}
         src={url}
@@ -865,15 +942,14 @@ setSearchTerm("");
             showConfirmButton: false,
             width: '90%',
             background: '#f9fafb',
-            customClass: {
-              popup: 'rounded-xl',
-            },
+            customClass: { popup: 'rounded-xl' },
           });
         }}
       />
     ))}
   </div>
 </td>
+
 
 
                       <td className="p-3 border">
@@ -884,6 +960,25 @@ setSearchTerm("");
                           Delete
                         </button>
                       </td>
+                      <td className="p-3 border text-xs leading-tight align-top">
+  {(plan.dieselEntries || []).length > 0 ? (
+    plan.dieselEntries.map((entry, i) => (
+      <div key={entry._id || i} className="mb-2 border-b pb-1">
+        <p><span className="font-semibold">Diesel:</span> {entry.dieselQuantity} L</p>
+        <p><span className="font-semibold">Reading:</span> {entry.reading || "—"}</p>
+        <button
+          onClick={() => handleEditDieselEntry(entry)}
+          className="text-blue-600 text-xs underline"
+        >
+          Edit
+        </button>
+      </div>
+    ))
+  ) : (
+    <p className="text-gray-400 italic">No diesel entries</p>
+  )}
+</td>
+
                     </tr>
                   ))}
                 </tbody>

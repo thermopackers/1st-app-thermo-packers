@@ -4,6 +4,7 @@ import InternalNavbar from '../components/InternalNavbar';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import FaceRegistrationModal from '../components/FaceRegistrationModal';
 
 const RegisterUser = () => {
   const [name, setName] = useState('');
@@ -13,6 +14,8 @@ const [editUserId, setEditUserId] = useState(null);
 const [allowAttendance, setAllowAttendance] = useState(false);
   const [role, setRole] = useState('sales');
   const [phone, setPhone] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+const [modalVisible, setModalVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
@@ -196,8 +199,11 @@ const handleCancelEdit = () => {
     onChange={() => setAllowAttendance(!allowAttendance)}
     className="w-4 h-4"
   />
-  <label htmlFor="attendance" className="text-sm text-gray-700">Allow for Attendance</label>
+  <label htmlFor="attendance" className="text-sm text-gray-700">
+    Allow for Attendance
+  </label>
 </div>
+
 
 
           <button
@@ -274,20 +280,61 @@ const handleCancelEdit = () => {
 </td>
 
 
-                 <td className="px-4 py-2 space-x-2 flex items-center justify-between">
-  <button
-    onClick={() => handleEdit(u)}
-    className="text-blue-600 hover:text-blue-800"
-  >
-    ✏️ Edit
-  </button>
-  <button
-    onClick={() => handleDelete(u._id)}
-    className="text-red-600 hover:text-red-800"
-  >
-    🗑️ Delete
-  </button>
+<td className="px-4 py-2">
+  <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+    <button
+      onClick={() => handleEdit(u)}
+      className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded shadow transition"
+    >
+      ✏️ Edit
+    </button>
+    <button
+      onClick={() => handleDelete(u._id)}
+      className="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded shadow transition"
+    >
+      🗑️ Delete
+    </button>
+    <button
+      onClick={() => {
+        setSelectedUser(u);
+        setModalVisible(true);
+      }}
+      className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded shadow transition"
+    >
+      👤 Register Face
+    </button>
+    {u.faceUrl && (
+      <button
+        onClick={async () => {
+          try {
+            const confirm = window.confirm("Are you sure you want to delete the registered face?");
+            if (!confirm) return;
+            await axiosInstance.post("/users/delete-face-url", { userId: u._id });
+            toast.success("Face deleted successfully");
+            fetchUsers();
+          } catch (err) {
+            toast.error(err.response?.data?.error || "Failed to delete face");
+          }
+        }}
+        className="text-sm text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded shadow transition"
+      >
+        ❌ Delete Face
+      </button>
+    )}
+  </div>
+
+  <div className="mt-2 text-sm text-gray-700">
+    {u.faceUrl ? (
+      <span className="text-green-600">✅ Face Registered</span>
+    ) : (
+      <span className="text-red-600">❌ Face Not Registered</span>
+    )}
+  </div>
 </td>
+
+
+
+
 
                 </tr>
               ))}
@@ -302,6 +349,12 @@ const handleCancelEdit = () => {
           </table>
         </div>
       </div>
+      <FaceRegistrationModal
+  visible={modalVisible}
+  onClose={() => setModalVisible(false)}
+  user={selectedUser}
+/>
+
     </>
   );
 };

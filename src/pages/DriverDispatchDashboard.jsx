@@ -119,71 +119,92 @@ try {
       <img id="preview" class="w-full mt-3 hidden border rounded" />
       <p class="text-xs mt-2 text-gray-600">* Live camera only | Date, Time & Location will be embedded</p>
     `,
-    didOpen: async () => {
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("canvas");
-      const preview = document.getElementById("preview");
+   didOpen: async () => {
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const previewContainer = document.createElement("div");
+  previewContainer.id = "preview-container";
+  previewContainer.classList.add("grid", "grid-cols-2", "gap-2", "mt-3");
 
-const stream = await navigator.mediaDevices.getUserMedia({
-  video: { facingMode: { ideal: "environment" } },
-});
-      video.srcObject = stream;
+  document.querySelector(".swal2-html-container").appendChild(previewContainer);
 
-      document.getElementById("capture").onclick = () => {
-        const ctx = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
 
-        // Add overlay text
-        ctx.fillStyle = "white";
-        ctx.font = "24px sans-serif";
-        ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
-        ctx.fillText(`📍 ${locationText}`, 20, 80);
+  window._dieselImages = []; // <-- support multiple
 
-        const imageData = canvas.toDataURL("image/jpeg", 0.8);
-        preview.src = imageData;
-        preview.classList.remove("hidden");
-        window._dieselImageData = imageData;
-      };
-    },
+  document.getElementById("capture").onclick = () => {
+    const ctx = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    // Overlay
+    ctx.fillStyle = "white";
+    ctx.font = "24px sans-serif";
+    ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
+    ctx.fillText(`📍 ${locationText}`, 20, 80);
+
+    const imageData = canvas.toDataURL("image/jpeg", 0.8);
+    window._dieselImages.push(imageData); // Add to array
+
+    // Preview
+    const img = document.createElement("img");
+    img.src = imageData;
+    img.classList.add("w-full", "max-h-40", "rounded", "border", "shadow");
+    previewContainer.appendChild(img);
+  };
+},
+
     preConfirm: () => {
-      const date = document.getElementById("diesel-date").value;
-      const kmsReading = parseInt(document.getElementById("kms-reading").value);
-      const dieselInput = document.getElementById("diesel-liters").value;
-      const dieselLiters = dieselInput ? parseFloat(dieselInput) : null;
-      const imageData = window._dieselImageData;
+  const date = document.getElementById("diesel-date").value;
+  const kmsReading = parseInt(document.getElementById("kms-reading").value);
+  const dieselInput = document.getElementById("diesel-liters").value;
+  const dieselLiters = dieselInput ? parseFloat(dieselInput) : null;
+  const images = window._dieselImages || [];
 
-      if (!date || isNaN(kmsReading)) {
-        Swal.showValidationMessage("Please enter a valid date and KM reading");
-        return false;
-      }
+  if (!date || isNaN(kmsReading)) {
+    Swal.showValidationMessage("Please enter a valid date and KM reading");
+    return false;
+  }
 
-      if (!imageData) {
-        Swal.showValidationMessage("Please capture an image before submitting");
-        return false;
-      }
+  if (images.length === 0) {
+    Swal.showValidationMessage("Please capture at least 1 image before submitting");
+    return false;
+  }
 
-const latLng = locationText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
-const lat = latLng ? parseFloat(latLng[1]) : null;
-const lng = latLng ? parseFloat(latLng[2]) : null;
+  const latLng = locationText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
+  const lat = latLng ? parseFloat(latLng[1]) : null;
+  const lng = latLng ? parseFloat(latLng[2]) : null;
 
-return { date, kmsReading, dieselLiters, imageData, lat, lng };
-    },
+  return { date, kmsReading, dieselLiters, lat, lng, images };
+},
+
     confirmButtonText: "Submit Entry",
     showCancelButton: true,
   });
 
-  if (formValues) {
-    try {
-      setLoading(true);
-      const { imageData, ...rest } = formValues;
+ if (formValues) {
+  try {
+    const { images, ...rest } = formValues;
 
-      const blob = await (await fetch(imageData)).blob();
+    // 🌀 Show loader overlay while uploading
+    const loadingSwal = Swal.fire({
+      title: "Uploading...",
+      html: "Please wait while we save your entry.",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    const uploadUrls = [];
+
+    for (const base64 of images) {
+      const blob = await (await fetch(base64)).blob();
       const formData = new FormData();
       formData.append("file", blob);
       formData.append("upload_preset", "todo_uploads");
-      formData.append("cloud_name", "dcr8k5amk");
 
       const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
         method: "POST",
@@ -191,26 +212,47 @@ return { date, kmsReading, dieselLiters, imageData, lat, lng };
       });
 
       const uploadRes = await res.json();
-      if (!uploadRes.secure_url) throw new Error("Upload failed");
+      console.log("📤 Cloudinary Upload Response:", uploadRes);
 
-      await axiosInstance.post("/diesel/add", {
+      if (uploadRes.secure_url) {
+        uploadUrls.push(uploadRes.secure_url);
+      }
+    }
+
+    if (uploadUrls.length === 0) throw new Error("No images uploaded");
+
+    await axiosInstance.post(
+      "/diesel/add",
+      {
         ...rest,
         vehicleNumber: plan.vehicleNumber,
-        imageUrl: uploadRes.secure_url,
-         driverName: plan.driverName,      // optional, for human trace
-  planId: plan._id,                 // ✅ this is key
-      }, {
+        imageUrls: uploadUrls,
+        driverName: plan.driverName,
+        planId: plan._id,
+      },
+      {
         headers: { Authorization: `Bearer ${token}` },
-      });
+      }
+    );
 
-      Swal.fire("✅ Entry Saved", "Diesel entry added successfully.", "success");
-    } catch (err) {
-      console.error("Failed to save diesel entry:", err);
-      Swal.fire("❌ Error", "Failed to save diesel entry", "error");
-    } finally {
-      setLoading(false);
-    }
+    // ✅ Close loading modal
+    Swal.close();
+
+    // ✅ Show success message
+    Swal.fire("✅ Entry Saved", "Diesel entry added successfully.", "success");
+  } catch (err) {
+    console.error("Failed to save diesel entry:", err);
+
+    // ❌ Make sure loader is closed before error
+    Swal.close();
+    Swal.fire("❌ Error", "Failed to save diesel entry", "error");
+  } finally {
+    setUploadingPlanId(null);
   }
+} else {
+  setUploadingPlanId(null);
+}
+
 };
 
 const markCompleted = async (planId) => {
@@ -461,14 +503,30 @@ const markCompleted = async (planId) => {
 
                   {/* Actions */}
                   <div className="flex flex-col gap-3">
-                    {plan.status === "Pending" && (
-                      <button
-                        onClick={() => markCompleted(plan._id)}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-2 rounded-xl transition-all shadow"
-                      >
-                        ✅ Mark Completed
-                      </button>
-                    )}
+                 {plan.status === "Pending" && (
+  <button
+    onClick={async () => {
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "Once marked completed, it cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#22c55e",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, mark as completed",
+        cancelButtonText: "Cancel",
+      });
+
+      if (result.isConfirmed) {
+        markCompleted(plan._id);
+      }
+    }}
+    className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-2 rounded-xl transition-all shadow"
+  >
+    ✅ Mark Completed
+  </button>
+)}
+
 
                     {plan.imageUrls?.length > 0 && (
                       <button
