@@ -318,7 +318,18 @@ const handleCapture = (type) => {
     Swal.fire("Please wait", "Face recognition models are still loading.", "info");
     return;
   }
-  setIsSaving(true); // 👈 Show loader immediately
+
+  // 🚫 Block if face is not registered
+  if (!user?.faceUrl) {
+    Swal.fire(
+      "Face Not Registered",
+      "Your face is not registered for attendance. Please contact Accounts/Admin.",
+      "error"
+    );
+    return;
+  }
+
+  setIsSaving(true); // Show loader
 
   const now = new Date();
   const formatted = now.toLocaleString("en-IN", {
@@ -329,21 +340,21 @@ const handleCapture = (type) => {
   setCaptureTimestamp(formatted);
   setType(type);
 
- Swal.fire({
-  title: "📷 Initializing Webcam...",
-  text: "Please hold still and look at the camera.",
-  allowOutsideClick: false,
-  allowEscapeKey: false,
-  didOpen: () => Swal.showLoading(),
-});
+  Swal.fire({
+    title: "📷 Initializing Webcam...",
+    text: "Please hold still and look at the camera.",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => Swal.showLoading(),
+  });
 
-setTimeout(() => {
-  setCapturing(true);
-  Swal.close();
-  setIsSaving(false);
-}, 800);
-
+  setTimeout(() => {
+    setCapturing(true);
+    Swal.close();
+    setIsSaving(false);
+  }, 800);
 };
+
 
 
   return (

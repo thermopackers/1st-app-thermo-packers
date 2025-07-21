@@ -21,6 +21,7 @@ const [modalVisible, setModalVisible] = useState(false);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
  const formRef = useRef(null);
+console.log("uusers",users);
 
 const handleSubmit = async (e) => {
   e.preventDefault();
