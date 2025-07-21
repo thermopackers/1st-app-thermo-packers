@@ -16,7 +16,19 @@ export default function DriverDispatchDashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 6; // or any number you want per page
- 
+ const [dieselEntries, setDieselEntries] = useState([]);
+
+const fetchDieselEntries = async () => {
+  try {
+    const res = await axiosInstance.get("/diesel/my-entries", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setDieselEntries(res.data);
+  } catch (err) {
+    console.error("Error fetching diesel entries:", err);
+  }
+};
+
   const fetchPlans = async (currentPage = 1) => {
     setLoading(true);
     try {
@@ -42,6 +54,7 @@ export default function DriverDispatchDashboard() {
 
   useEffect(() => {
     fetchPlans(1);
+  fetchDieselEntries(); // ← fetch diesel data too
 
     // Fetch customer details once
     axiosInstance
@@ -73,7 +86,7 @@ export default function DriverDispatchDashboard() {
       showCloseButton: true,
     });
   };
-const openDieselEntryModal = async (plan) => {
+const openDieselEntryModal = async (plan, existingEntry = null) => {
   let locationText = "Location not available";
 
   // Fetch location
@@ -106,20 +119,20 @@ try {
   const { value: formValues } = await Swal.fire({
     title: "⛽ Add Diesel Entry",
     html: `
-      <input id="diesel-date" type="date" class="swal2-input" value="${new Date().toISOString().slice(0, 10)}" />
+<input id="diesel-date" type="date" class="swal2-input" value="${existingEntry?.date?.slice(0, 10) || new Date().toISOString().slice(0, 10)}" />
       <label for="kms-filled" class="block text-sm font-semibold text-gray-700 -mb-4">
     कृपया मान्य KM रीडिंग दर्ज करें
   </label>
-      <input id="kms-reading" type="number" class="swal2-input" placeholder="KM Reading" />
+<input id="kms-reading" type="number" class="swal2-input" placeholder="KM Reading" value="${existingEntry?.kmsReading ?? ''}" />
        <label class="block text-sm font-semibold text-gray-700 -mb-4">भरा हुआ डीजल (लीटर में)</label>
-      <input id="diesel-liters" type="number" class="swal2-input" placeholder="Diesel in Liters (optional)" />
+<input id="diesel-liters" type="number" class="swal2-input" placeholder="Diesel in Liters (optional)" value="${existingEntry?.dieselLiters ?? ''}" />
       <video id="video" autoplay playsinline class="w-full mt-2 rounded shadow border" style="max-height: 200px;"></video>
       <canvas id="canvas" style="display:none;"></canvas>
       <button id="capture" class="swal2-confirm swal2-styled mt-3">📸 Capture Image</button>
       <img id="preview" class="w-full mt-3 hidden border rounded" />
       <p class="text-xs mt-2 text-gray-600">* Live camera only | Date, Time & Location will be embedded</p>
     `,
-   didOpen: async () => {
+ didOpen: async () => {
   const video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   const previewContainer = document.createElement("div");
@@ -128,34 +141,128 @@ try {
 
   document.querySelector(".swal2-html-container").appendChild(previewContainer);
 
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+let stream;
+try {
+  // Try to get back camera first
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" } }
+  });
+} catch (err1) {
+  console.warn("Back camera not available, falling back to front camera:", err1);
+  try {
+    // Fallback to front camera
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" }
+    });
+  } catch (err2) {
+    console.error("Failed to access any camera:", err2);
+    Swal.showValidationMessage("⚠️ Camera access denied or unavailable.");
+    return;
+  }
+}
+video.srcObject = stream;
   video.srcObject = stream;
 
-  window._dieselImages = []; // <-- support multiple
+  // 🧠 Setup image storage
+  window._dieselImages = [];
 
+  // ✅ 1. PRELOAD EXISTING IMAGES if editing
+  if (existingEntry?.imageUrls?.length > 0) {
+    for (const url of existingEntry.imageUrls) {
+      window._dieselImages.push(url);
+
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+      wrapper.style.maxHeight = "160px";
+      wrapper.style.border = "1px solid #ccc";
+      wrapper.style.borderRadius = "0.5rem";
+      wrapper.style.overflow = "hidden";
+      wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+      wrapper.style.marginBottom = "8px";
+
+      const img = document.createElement("img");
+      img.src = url;
+      img.style.width = "100%";
+      img.style.height = "auto";
+      img.style.objectFit = "contain";
+
+      const closeBtn = document.createElement("button");
+      closeBtn.innerHTML = "❌";
+      closeBtn.type = "button";
+      closeBtn.style.position = "absolute";
+      closeBtn.style.top = "4px";
+      closeBtn.style.right = "4px";
+      closeBtn.style.backgroundColor = "#dc2626";
+      closeBtn.style.color = "white";
+      closeBtn.style.fontSize = "12px";
+      closeBtn.style.padding = "2px 6px";
+      closeBtn.style.borderRadius = "9999px";
+      closeBtn.style.cursor = "pointer";
+      closeBtn.style.zIndex = "20";
+      closeBtn.onclick = () => {
+        wrapper.remove();
+        window._dieselImages = window._dieselImages.filter((img) => img !== url);
+      };
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(closeBtn);
+      previewContainer.appendChild(wrapper);
+    }
+  }
+
+  // ✅ 2. Handle New Image Capture
   document.getElementById("capture").onclick = () => {
     const ctx = canvas.getContext("2d");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
 
-    // Overlay
     ctx.fillStyle = "white";
     ctx.font = "24px sans-serif";
     ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
     ctx.fillText(`📍 ${locationText}`, 20, 80);
 
     const imageData = canvas.toDataURL("image/jpeg", 0.8);
-    window._dieselImages.push(imageData); // Add to array
+    window._dieselImages.push(imageData);
 
-    // Preview
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.maxHeight = "160px";
+    wrapper.style.border = "1px solid #ccc";
+    wrapper.style.borderRadius = "0.5rem";
+    wrapper.style.overflow = "hidden";
+    wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+    wrapper.style.marginBottom = "8px";
+
     const img = document.createElement("img");
     img.src = imageData;
-    img.classList.add("w-full", "max-h-40", "rounded", "border", "shadow");
-    previewContainer.appendChild(img);
+    img.style.width = "100%";
+    img.style.height = "auto";
+    img.style.objectFit = "contain";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.innerHTML = "❌";
+    closeBtn.type = "button";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "4px";
+    closeBtn.style.right = "4px";
+    closeBtn.style.backgroundColor = "#dc2626";
+    closeBtn.style.color = "white";
+    closeBtn.style.fontSize = "12px";
+    closeBtn.style.padding = "2px 6px";
+    closeBtn.style.borderRadius = "9999px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.zIndex = "20";
+    closeBtn.onclick = () => {
+      wrapper.remove();
+      window._dieselImages = window._dieselImages.filter((img) => img !== imageData);
+    };
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(closeBtn);
+    previewContainer.appendChild(wrapper);
   };
 },
-
     preConfirm: () => {
   const date = document.getElementById("diesel-date").value;
   const kmsReading = parseInt(document.getElementById("kms-reading").value);
@@ -198,42 +305,63 @@ try {
       },
     });
 
-    const uploadUrls = [];
+   const uploadUrls = [];
 
-    for (const base64 of images) {
-      const blob = await (await fetch(base64)).blob();
-      const formData = new FormData();
-      formData.append("file", blob);
-      formData.append("upload_preset", "todo_uploads");
+for (const img of images) {
+  if (img.startsWith("http")) {
+    // ✅ Already uploaded, no need to upload again
+    uploadUrls.push(img);
+    continue;
+  }
 
-      const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
-        method: "POST",
-        body: formData,
-      });
+  const blob = await (await fetch(img)).blob();
+  const formData = new FormData();
+  formData.append("file", blob);
+  formData.append("upload_preset", "todo_uploads");
 
-      const uploadRes = await res.json();
-      console.log("📤 Cloudinary Upload Response:", uploadRes);
+  const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
+    method: "POST",
+    body: formData,
+  });
 
-      if (uploadRes.secure_url) {
-        uploadUrls.push(uploadRes.secure_url);
-      }
-    }
+  const uploadRes = await res.json();
+  if (uploadRes.secure_url) {
+    uploadUrls.push(uploadRes.secure_url);
+  }
+}
+
 
     if (uploadUrls.length === 0) throw new Error("No images uploaded");
 
-    await axiosInstance.post(
-      "/diesel/add",
-      {
-        ...rest,
-        vehicleNumber: plan.vehicleNumber,
-        imageUrls: uploadUrls,
-        driverName: plan.driverName,
-        planId: plan._id,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+  if (existingEntry?._id) {
+  // UPDATE
+  await axiosInstance.patch(
+    `/diesel/update/${existingEntry._id}`,
+    {
+      ...rest,
+    imageUrls: uploadUrls, // ✅ send only final image array (old + new, deduplicated)
+    },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+} else {
+  // NEW ENTRY
+  await axiosInstance.post(
+    "/diesel/add",
+    {
+      ...rest,
+      vehicleNumber: plan.vehicleNumber,
+      imageUrls: uploadUrls,
+      driverName: plan.driverName,
+      planId: plan._id,
+    },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+}
+
 
     // ✅ Close loading modal
     Swal.close();
@@ -329,7 +457,9 @@ const markCompleted = async (planId) => {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-10">
-            {plans.map((plan) => (
+            {plans.map((plan) => {
+                                      const dieselEntry = dieselEntries.find((entry) => entry.planId === plan._id);
+              return(
               <div
                 key={plan._id}
                 className="relative backdrop-blur-md bg-white/80 shadow-xl border border-gray-200 rounded-3xl p-6 pt-14 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl overflow-hidden"
@@ -365,6 +495,7 @@ const markCompleted = async (planId) => {
                         const detail = customerDetails.find(
                           (c) => c.name === customerName
                         );
+
                         return (
                           <div
                             key={i}
@@ -492,9 +623,46 @@ const markCompleted = async (planId) => {
                       </div>
                     </div>
                   )}
+                 {dieselEntries
+  .filter((entry) => entry.planId === plan._id)
+  .map((dieselEntry, index) => (
+    <div
+      key={dieselEntry._id || index}
+      className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-sm mt-3 space-y-1"
+    >
+      <p>
+        <strong>🧾 KM Reading:</strong> {dieselEntry.kmsReading}
+      </p>
+      <p>
+        <strong>⛽ Diesel Liters:</strong>{" "}
+        {dieselEntry.dieselLiters ?? "—"}
+      </p>
+      <p>
+        <strong>📍 Location:</strong> {dieselEntry.location}
+      </p>
+
+      {dieselEntry.imageUrls?.length > 0 && (
+        <button
+          onClick={() => showImages(dieselEntry.imageUrls)}
+          className="text-blue-600 underline font-medium text-sm block mt-2"
+        >
+          🖼️ View Images ({dieselEntry.imageUrls.length})
+        </button>
+      )}
+
+      <button
+        onClick={() => openDieselEntryModal(plan, dieselEntry)}
+        className="text-indigo-600 underline font-medium text-sm block mt-1"
+      >
+        ✏️ Edit This Entry
+      </button>
+    </div>
+))}
+
+
 {plan.status !== "Completed" && (
   <button
-    onClick={() => openDieselEntryModal(plan)}
+onClick={() => openDieselEntryModal(plan)}
     className="bg-yellow-500 hover:bg-yellow-600 text-white font-medium px-4 py-2 rounded-xl transition-all shadow w-full"
   >
     ⛽ Add Diesel Entry
@@ -539,7 +707,7 @@ const markCompleted = async (planId) => {
                   </div>
                 </div>
               </div>
-            ))}
+)})}
           </div>
         )}
 

@@ -11,8 +11,10 @@ import toast from "react-hot-toast";
 export default function AssignDispatchPlanForm() {
   const { user, loading, token } = useUserContext();
   const [submitting, setSubmitting] = useState(false);
+  const [showVehicles, setShowVehicles] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [audioBlob, setAudioBlob] = useState(null);
+  
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
 const [recording, setRecording] = useState(false);
@@ -397,6 +399,40 @@ if (customerNames.length === 0 || customerNames.some((name) => !name.trim())) {
   }
 };
 
+const handleEditVehicle = async (vehicle) => {
+  const { value: updatedValues } = await Swal.fire({
+    title: "Edit Vehicle",
+    html: `
+      <input type="text" id="vehicleNumber" class="swal2-input" placeholder="Vehicle Number" value="${vehicle.vehicleNumber}" disabled />
+      <input type="email" id="driverEmail" class="swal2-input" placeholder="Driver Email" value="${vehicle.driverEmail}" />
+      <input type="tel" id="phone" class="swal2-input" placeholder="Phone" value="${vehicle.phone || ""}" />
+      <input type="url" id="gpsLink" class="swal2-input" placeholder="GPS Link" value="${vehicle.gpsLink || ""}" />
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    preConfirm: () => {
+      return {
+        driverEmail: document.getElementById("driverEmail").value,
+        phone: document.getElementById("phone").value,
+        gpsLink: document.getElementById("gpsLink").value,
+      };
+    },
+  });
+
+  if (!updatedValues) return;
+
+  try {
+    await axiosInstance.patch(`/vehicles/update/${vehicle._id}`, updatedValues, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    toast.success("Vehicle updated");
+    fetchRegisteredVehicles(); // Refresh list
+  } catch (err) {
+    console.error("❌ Error updating vehicle:", err);
+    toast.error(err.response?.data?.message || "Update failed");
+  }
+};
+
 const handleEditDieselEntry = async (entry) => {
   const { value: formValues } = await Swal.fire({
     title: "Edit Diesel Entry",
@@ -414,10 +450,11 @@ const handleEditDieselEntry = async (entry) => {
         return false;
       }
 
-      return {
-        dieselQuantity,
-        reading,
-      };
+  return {
+  dieselLiters: parseFloat(dieselQuantity),
+  kmsReading: parseInt(reading),
+};
+
     },
     showCancelButton: true,
     confirmButtonText: "Update",
@@ -521,6 +558,49 @@ const handleEditDieselEntry = async (entry) => {
     Register Vehicle
   </button>
 </div>
+
+<div className="flex justify-center mt-4">
+  <button
+    onClick={() => setShowVehicles((prev) => !prev)}
+    className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition"
+  >
+    {showVehicles ? "Hide Registered Vehicles" : "Show Registered Vehicles"}
+  </button>
+</div>
+
+
+
+<div
+  className={`overflow-hidden transition-all duration-500 ease-in-out transform ${
+    showVehicles
+      ? "max-h-[1000px] opacity-100 scale-100"
+      : "max-h-0 opacity-0 scale-95"
+  }`}
+>
+  <div className="mt-6">
+    <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
+    <ul className="space-y-2">
+      {registeredVehicles.map((vehicle) => (
+        <li
+          key={vehicle._id}
+          className="flex justify-between items-center border p-2 rounded shadow-sm"
+        >
+          <div>
+            <p className="font-medium">{vehicle.vehicleNumber}</p>
+            <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
+          </div>
+          <button
+            className="text-blue-600 underline text-sm"
+            onClick={() => handleEditVehicle(vehicle)}
+          >
+            ✏️ Edit
+          </button>
+        </li>
+      ))}
+    </ul>
+  </div>
+</div>
+
 
 
 
@@ -964,9 +1044,9 @@ setSearchTerm("");
   {(plan.dieselEntries || []).length > 0 ? (
     plan.dieselEntries.map((entry, i) => (
       <div key={entry._id || i} className="mb-2 border-b pb-1">
-        <p><span className="font-semibold">Diesel:</span> {entry.dieselQuantity} L</p>
-        <p><span className="font-semibold">Reading:</span> {entry.reading || "—"}</p>
-        <button
+        <p><span className="font-semibold">Diesel:</span> {entry.dieselQuantity ?? "Not recorded"} L</p>
+<p><span className="font-semibold">Reading:</span> {entry.reading ?? "Not recorded"}</p>
+<button
           onClick={() => handleEditDieselEntry(entry)}
           className="text-blue-600 text-xs underline"
         >
