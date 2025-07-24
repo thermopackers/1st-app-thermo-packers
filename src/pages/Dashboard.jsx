@@ -16,16 +16,6 @@ const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-
-
-
-
-
-
-
-
-
-
 useEffect(() => {
   if (!user) return;
   const fetchNotifications = async () => {
@@ -323,48 +313,52 @@ if (loading) {
 <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+<div className="w-full px-4 sm:px-6 lg:px-8 py-4">
   {/* Task Dashboard — only for admin and accounts */}
-{!["driver", "packaging"].includes(user.role) && (
-  <div className="bg-white mt-6 p-4 rounded-xl shadow-md">
+  <div className="bg-white p-4 rounded-xl shadow-md">
     <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
       TASKS / TO DO / WORK GIVEN INFORMATION
     </h3>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* View My Assigned Tasks */}
-     <div className="relative w-full">
-  <NavLink to="/my-tasks">
-    <button className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-      My Tasks / Assigned Work
-      <br />
-      <span className="text-xs font-normal">
-        View and complete assigned personal tasks
-      </span>
-    </button>
-  </NavLink>
+      <div className="relative w-full">
+        <NavLink to="/my-tasks">
+          <button className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+            My Tasks / Assigned Work
+            <br />
+            <span className="text-xs font-normal">
+              View and complete assigned personal tasks
+            </span>
+          </button>
+        </NavLink>
 
-  {/* 🔔 Notification badge */}
-  {notifications.filter((n) => !n.read).length > 0 && (
-    <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow z-10">
-      {notifications.filter((n) => !n.read).length}
-    </span>
-  )}
-</div>
-
-
-      {/* Assign / View Task Dashboard */}
-      <NavLink to="/task-dashboard">
-        <button className="w-full bg-red-500 hover:bg-red-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-          Task Dashboard
-          <br />
-          <span className="text-xs font-normal">
-            Assign tasks / View / Edit / Delete Task given
+        {/* 🔔 Notification badge */}
+        {notifications.filter((n) => !n.read).length > 0 && (
+          <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow z-10">
+            {notifications.filter((n) => !n.read).length}
           </span>
-        </button>
-      </NavLink>
+        )}
+      </div>
+
+      {/* Assign / View Task Dashboard — visible to accounts */}
+      {["accounts"].includes(user.role) && (
+        <div className="w-full">
+          <NavLink to="/task-dashboard">
+            <button className="w-full bg-red-500 hover:bg-red-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+              Task Dashboard
+              <br />
+              <span className="text-xs font-normal">
+                Assign tasks / View / Edit / Delete Task given
+              </span>
+            </button>
+          </NavLink>
+        </div>
+      )}
     </div>
   </div>
-)}
+</div>
+
 
 <div className="bg-white p-6 rounded-2xl shadow-lg">
   <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
@@ -498,27 +492,43 @@ if (loading) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
 {!["driver", "production", "dispatch", "packaging"].includes(user.role) && (
-  <div className="bg-white mt-6 p-4 rounded-lg shadow-md">
-    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
-      QUOTATION / PROFORMA INVOICE / ESTIMATE
-    </h3>
+<div className="bg-white mt-6 p-6 rounded-2xl shadow-lg">
+  <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+    QUOTATION / PROFORMA INVOICE / ESTIMATE
+  </h3>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-      {/* Proforma Invoice Section */}
-     
-            <NavLink to="/proforma-invoice">
-                          <button className="w-full bg-green-500 hover:bg-green-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-                Make New Quotation / Proforma Invoice / Estimate
-              </button>
-            </NavLink>
-            <NavLink to="/proforma-dashboard">
-                                      <button className="w-full bg-gray-500 hover:bg-gray-600 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-                View Old Quotation / Proforma Invoice / Estimate
-              </button>
-            </NavLink>
-        
-    </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    {/* Make New Quotation */}
+    <NavLink to="/proforma-invoice">
+      <button className="w-full bg-green-500 hover:bg-green-600 text-white py-6 px-4 rounded-xl shadow-md text-base font-semibold transition-all duration-200">
+        Make New Quotation / Proforma Invoice / Estimate
+      </button>
+    </NavLink>
+
+    {/* View Old Quotations */}
+    <NavLink to="/proforma-dashboard">
+      <button className="w-full bg-gray-500 hover:bg-gray-600 text-white py-6 px-4 rounded-xl shadow-md text-base font-semibold transition-all duration-200">
+        View Old Quotation / Proforma Invoice / Estimate
+      </button>
+    </NavLink>
   </div>
+  {/* {["accounts"].includes(user.role) && (
+<>
+<h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+    Purchase Product / Suppliers
+  </h3>
+  <div className="flex justify-center">
+    <button
+      onClick={() => navigate("/purchase-products-suppliers")}
+      className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl shadow-md text-base font-semibold transition-all duration-200"
+    >
+      Purchase Product / Suppliers
+    </button>
+  </div>
+  </>
+  )} */}
+</div>
+
 )}
 
 {["admin", "sales", "accounts"].includes(user.role) && (
