@@ -162,36 +162,7 @@ useEffect(() => {
   };
 
 
-const currentOrders = [...filteredOrders].sort((a, b) => {
-  const getPackagingPriority = (order) => {
-    const status = order.packagingStatus?.toLowerCase();
-    if (status === "unpackaged") return 1;
-    if (status === "packaged") return 2;
-    return 3;
-  };
-
-  const getDispatchPriority = (order) => {
-    const status = order.dispatchStatus?.toLowerCase();
-    if (status === "not dispatched") return 1;
-    if (status === "ready to dispatch") return 2;
-    if (status === "dispatched") return 3;
-    return 4;
-  };
-
-  // ⬇️ Custom priority sorting always applied first
-  const packagingDiff = getPackagingPriority(a) - getPackagingPriority(b);
-  if (packagingDiff !== 0) return packagingDiff;
-
-  const dispatchDiff = getDispatchPriority(a) - getDispatchPriority(b);
-  if (dispatchDiff !== 0) return dispatchDiff;
-
-  // ⬇️ Then apply date sorting
-  if (sortOrder === "newest") return new Date(b.createdAt) - new Date(a.createdAt);
-  if (sortOrder === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
-
-  // fallback
-  return 0;
-});
+const currentOrders = filteredOrders;
 
 
 
