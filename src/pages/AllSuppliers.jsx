@@ -12,6 +12,7 @@ export default function AllSuppliers() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+console.log("suppliers",suppliers);
 
   useEffect(() => {
     fetchSuppliers();
@@ -65,6 +66,7 @@ export default function AllSuppliers() {
             <thead>
               <tr className="bg-gray-100">
                 <th className="p-2">Name</th>
+                <th className="p-2">Category</th>
                 <th className="p-2">Company</th>
                 <th className="p-2">Phone</th>
                 <th className="p-2">Email</th>
@@ -81,6 +83,7 @@ export default function AllSuppliers() {
               {suppliers.map((supplier) => (
                 <tr key={supplier._id} className="border-t align-top text-center">
                   <td className="p-2">{supplier.name}</td>
+                  <td className="p-2">{supplier.vendorCategory || "–"}</td>
                   <td className="p-2">{supplier.company}</td>
                   <td className="p-2">{supplier.phone}</td>
                   <td className="p-2">{supplier.email}</td>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
+import imageCompression from "browser-image-compression";
 
 Modal.setAppElement("#root");
 
@@ -36,6 +37,7 @@ const inputClass = (field, base = "") =>
   `w-full border rounded-md px-4 py-3 ${base} ${
     missingFields.includes(field) ? "border-red-500" : "border-gray-300"
   }`;
+const [drawingFiles, setDrawingFiles] = useState([]);
 
   const [cuttingFormData, setCuttingFormData] = useState({
   productName: "",
@@ -165,9 +167,13 @@ const handleSubmit = async (e) => {
     checkMissing(["size", "density", "quantity", "remarks"], cuttingFormData);
   } else if (type === "cnc-slip") {
     checkMissing(
-      ["productName", "size", "quantity", "drawingName", "remarks"],
+      ["productName", "size", "quantity", "remarks"],
       cncFormData
     );
+
+    if (drawingFiles.length === 0) {
+      missing.push("drawingFiles");
+    }
   } else if (type === "packaging" || type === "shape-packaging") {
     checkMissing(["quantity", "remarks"], packagingFormData);
   }
@@ -199,7 +205,48 @@ const handleSubmit = async (e) => {
     } else if (type === "dispatch") {
       await onSubmit({ cuttingFormData });
     } else if (type === "cnc-slip") {
-      await onSubmit({ cncFormData });
+     const uploadedUrls = [];
+
+for (const file of drawingFiles) {
+  let compressedFile = file;
+
+  // ✅ Compress if image
+  if (file.type.startsWith("image/")) {
+    try {
+      compressedFile = await imageCompression(file, {
+        maxSizeMB: 1, // Max 1MB (adjust if needed)
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      });
+    } catch (err) {
+      console.warn("⚠️ Image compression failed, uploading original file.");
+    }
+  }
+
+  const formData = new FormData();
+  formData.append("file", compressedFile); // ✅ Use compressed version
+  formData.append("upload_preset", "cnc_upload_preset");
+  formData.append("folder", "cnc_drawings");
+  formData.append("cloud_name", "dcr8k5amk");
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/dcr8k5amk/auto/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (data.secure_url) {
+    uploadedUrls.push(data.secure_url);
+  }
+}
+
+
+      await onSubmit({
+        cncFormData: {
+          ...cncFormData,
+          drawingFiles: uploadedUrls,
+        },
+      });
     } else if (type === "packaging" || type === "shape-packaging") {
       await onSubmit({ packagingFormData });
     }
@@ -227,8 +274,9 @@ const handleSubmit = async (e) => {
       size: "",
       quantity: "",
       drawingName: "",
+            remarks: "",
     });
-
+    setDrawingFiles([]); // ✅ Reset drawing files
     onClose();
   } catch (error) {
     console.error("❌ Error submitting form:", error);
@@ -254,6 +302,14 @@ const handleSubmit = async (e) => {
   setDanaFormData((prev) => ({ ...prev, [field]: value }));
 };
 
+const handleDrawingFileChange = (e) => {
+  const files = Array.from(e.target.files || []);
+  setDrawingFiles((prev) => [...prev, ...files]);
+};
+
+const handleRemoveDrawingFile = (index) => {
+  setDrawingFiles((prev) => prev.filter((_, i) => i !== index));
+};
 
   return (
     <>
@@ -591,6 +647,30 @@ const handleSubmit = async (e) => {
   onChange={(e) => handleCNCChange("drawingName", e.target.value)}
   className={inputClass("drawingName")}
 />
+<label className="font-bold text-xl">Upload Drawings:</label>
+<input
+  type="file"
+  multiple
+  accept="*"
+  onChange={handleDrawingFileChange}
+  className="w-full border border-gray-300 rounded-md px-4 py-3"
+/>
+
+{/* Preview UI */}
+<div className="flex flex-wrap gap-2 mt-2">
+  {drawingFiles.map((file, idx) => (
+    <div key={idx} className="relative border p-2 rounded bg-gray-100">
+      <span
+        onClick={() => handleRemoveDrawingFile(idx)}
+        className="absolute top-0 right-1 text-red-600 cursor-pointer text-xl font-bold"
+      >
+        ×
+      </span>
+      <p className="text-sm max-w-[120px] truncate">{file.name}</p>
+    </div>
+  ))}
+</div>
+
     <label className="font-bold text-xl">Remarks:</label>
 <textarea
   value={cncFormData.remarks}

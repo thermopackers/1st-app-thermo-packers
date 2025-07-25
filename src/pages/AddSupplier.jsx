@@ -8,10 +8,15 @@ import imageCompression from "browser-image-compression";
 export default function AddSupplier() {
 const [form, setForm] = useState({
   name: "", company: "", phone: "", email: "", address: "", gstNumber: "",
-  locationLink: "", accountName: "", accountNumber: "", ifscCode: ""
+  locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
+  vendorCategory: ""
 });
+
 const [chequeFiles, setChequeFiles] = useState([]);
 const [chequePreviewUrls, setChequePreviewUrls] = useState([]);
+const [frequentProducts, setFrequentProducts] = useState([]);
+const [currentPage, setCurrentPage] = useState(1);
+const [totalPages, setTotalPages] = useState(1);
 
   const [files, setFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
@@ -24,19 +29,40 @@ const [chequePreviewUrls, setChequePreviewUrls] = useState([]);
   useEffect(() => {
     if (id) {
       fetchSupplier();
+          fetchPaginatedProducts(1); // ensure initial paginated data
     }
   }, [id]);
 
   const fetchSupplier = async () => {
     try {
       const res = await axiosInstance.get(`/suppliers/${id}`);
-      setForm(res.data);
-      setExistingCloudFiles(res.data.files || []);
-      setPreviewUrls(res.data.files?.map(f => f.url || f) || []);
-    } catch (err) {
+setForm(res.data);
+setExistingCloudFiles(res.data.files || []);
+setPreviewUrls(res.data.files?.map(f => f.url || f) || []);
+
+// ✅ Fetch frequently purchased items
+try {
+  const freqRes = await axiosInstance.get(`/purchase-orders/frequent-products/${id}?page=1&limit=5`);
+setFrequentProducts(freqRes.data.data);
+setTotalPages(freqRes.data.totalPages);
+setCurrentPage(1);
+} catch (err) {
+  console.warn("Failed to load frequent products", err);
+}
+ } catch (err) {
       toast.error("Failed to load supplier data");
     }
   };
+const fetchPaginatedProducts = async (page) => {
+  try {
+    const res = await axiosInstance.get(`/purchase-orders/frequent-products/${id}?page=${page}&limit=5`);
+    setFrequentProducts(res.data.data);
+    setTotalPages(res.data.totalPages);
+    setCurrentPage(page);
+  } catch (err) {
+    console.warn("❌ Failed to paginate frequent products", err);
+  }
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -205,6 +231,27 @@ const handleChequeFileChange = (e) => {
       ))}
     </div>
   )}
+
+  <div>
+  <label className="block font-semibold mb-1">Vendor Category</label>
+  <select
+    name="vendorCategory"
+    value={form.vendorCategory}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+    required
+  >
+    <option value="">Select Category</option>
+    <option value="wood">Wood</option>
+    <option value="polythene bags">Polythene Bags</option>
+    <option value="hardware">Hardware</option>
+    <option value="raw materials">Raw Materials</option>
+    <option value="iron sheets">Iron Sheets</option>
+    <option value="aluminium casting/sheets">Aluminium Casting/Sheets</option>
+    <option value="boiler materials">Boiler Materials</option>
+  </select>
+</div>
+
   <div>
     <label className="block font-semibold mb-1">Address</label>
     <textarea name="address"  placeholder="Enter full address"
@@ -293,6 +340,58 @@ const handleChequeFileChange = (e) => {
 </form>
 
       </div>
+      {frequentProducts.length > 0 && (
+  <div className="mt-6">
+    <h3 className="text-lg font-semibold mb-2 text-blue-700">📦 Frequently Purchased Products</h3>
+    <div className="overflow-x-auto border rounded">
+      <table className="min-w-full table-auto border-collapse text-sm">
+        <thead className="bg-gray-100 text-left">
+          <tr>
+            <th className="px-4 py-2 border">Last Ordered</th>
+            <th className="px-4 py-2 border">Product Name</th>
+            <th className="px-4 py-2 border">Price</th>
+            <th className="px-4 py-2 border">Remarks</th>
+            <th className="px-4 py-2 border">Times Ordered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {frequentProducts.map((item, i) => (
+            <tr key={i}>
+              <td className="px-4 py-2 border">{new Date(item.lastOrdered).toLocaleDateString()}</td>
+              <td className="px-4 py-2 border">{item.productName}</td>
+              <td className="px-4 py-2 border">₹ {item.price}</td>
+              <td className="px-4 py-2 border">{item.remarks || "-"}</td>
+              <td className="px-4 py-2 border text-center">{item.timesOrdered}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {totalPages > 1 && (
+  <div className="flex justify-center items-center gap-2 p-3">
+    <button
+      disabled={currentPage === 1}
+      onClick={() => fetchPaginatedProducts(currentPage - 1)}
+      className="px-3 py-1 border rounded disabled:opacity-50"
+    >
+      ◀ Prev
+    </button>
+    <span className="text-sm text-gray-700">
+      Page {currentPage} of {totalPages}
+    </span>
+    <button
+      disabled={currentPage === totalPages}
+      onClick={() => fetchPaginatedProducts(currentPage + 1)}
+      className="px-3 py-1 border rounded disabled:opacity-50"
+    >
+      Next ▶
+    </button>
+  </div>
+)}
+
+    </div>
+  </div>
+)}
+
     </>
   );
 }

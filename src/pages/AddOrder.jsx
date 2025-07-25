@@ -77,6 +77,7 @@ useEffect(() => {
   const state = location.state;
   if (state?.fromProforma && state.invoice) {
     const invoice = state.invoice;
+console.log("invoice",invoice);
 
     setClientDetails((prev) => ({
       ...prev,
@@ -88,6 +89,25 @@ useEffect(() => {
       date: new Date().toISOString().split("T")[0],
       remarks: invoice.remarks || "",
     }));
+// ✅ Auto-map payment terms from Proforma
+if (invoice.customPaymentTerm) {
+  setPaymentTerms("Other");
+  setCustomPaymentTerms(invoice.customPaymentTerm); // ✅ shows "544"
+} else if (Array.isArray(invoice.paymentTerms)) {
+  const term = invoice.paymentTerms[0]?.toString().toLowerCase();
+  if (term.includes("100%")) {
+    setPaymentTerms("Payment already came 100% Advance");
+  } else if (term.includes("credit")) {
+    setPaymentTerms("Credit (Udhaar): 45 Days");
+  } else if (term.includes("cheque") || term.includes("pdc")) {
+    setPaymentTerms(
+      "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material"
+    );
+  } else {
+    setPaymentTerms(invoice.paymentTerms[0]); // fallback
+  }
+}
+
 
     if (Array.isArray(invoice.products)) {
       const products = invoice.products.map((prod) => ({
@@ -489,14 +509,30 @@ if (clientDetails.poCopy.length > 0) {
             />
            <div className="mb-4">
   <label className="block font-medium mb-1 text-gray-700">Payment Terms</label>
-  <select
-    className="w-full border border-gray-300 rounded px-3 py-2"
-    value={paymentTerms}
-    onChange={(e) => {
-      setPaymentTerms(e.target.value);
-      if (e.target.value !== "Other") setCustomPaymentTerms("");
-    }}
-  >
+ <select
+  className="w-full border border-gray-300 rounded px-3 py-2"
+  value={
+    paymentTerms &&
+    ![
+      "Payment already came 100% Advance",
+      "Cash on Delivery (Driver to get Cash payment on delivery)",
+      "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
+      "50% Came and Balance 50% on delivery",
+      "Credit (Udhaar): 45 Days"
+    ].includes(paymentTerms)
+      ? "Other"
+      : paymentTerms
+  }
+  onChange={(e) => {
+    setPaymentTerms(e.target.value);
+    if (e.target.value === "Other") {
+      setCustomPaymentTerms(paymentTerms); // set previous value into input
+    } else {
+      setCustomPaymentTerms(""); // clear custom input
+    }
+  }}
+>
+
    <option value="">-- Select Payment Terms --</option>
 <option value="Payment already came 100% Advance">
   1) Payment already came 100% Advance

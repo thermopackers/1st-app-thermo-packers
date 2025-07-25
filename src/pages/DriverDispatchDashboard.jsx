@@ -115,7 +115,7 @@ try {
   } catch {
     locationText = "Location unavailable";
   }
-
+let video;
   const { value: formValues } = await Swal.fire({
     title: "⛽ Add Diesel Entry",
     html: `
@@ -133,7 +133,7 @@ try {
       <p class="text-xs mt-2 text-gray-600">* Live camera only | Date, Time & Location will be embedded</p>
     `,
  didOpen: async () => {
-  const video = document.getElementById("video");
+  video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   const previewContainer = document.createElement("div");
   previewContainer.id = "preview-container";
@@ -211,57 +211,108 @@ video.srcObject = stream;
   }
 
   // ✅ 2. Handle New Image Capture
-  document.getElementById("capture").onclick = () => {
-    const ctx = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
+ document.getElementById("capture").onclick = async () => {
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-    ctx.fillStyle = "white";
-    ctx.font = "24px sans-serif";
-    ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
-    ctx.fillText(`📍 ${locationText}`, 20, 80);
+  // 🧭 Fetch fresh location
+  let freshLocationText = "Location not available";
+  let lat = null, lng = null;
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.8);
-    window._dieselImages.push(imageData);
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      })
+    );
+    lat = pos.coords.latitude;
+    lng = pos.coords.longitude;
 
-    const wrapper = document.createElement("div");
-    wrapper.style.position = "relative";
-    wrapper.style.maxHeight = "160px";
-    wrapper.style.border = "1px solid #ccc";
-    wrapper.style.borderRadius = "0.5rem";
-    wrapper.style.overflow = "hidden";
-    wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
-    wrapper.style.marginBottom = "8px";
+    try {
+      const geoRes = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=4668826883d64e78895168e889e48122`
+      );
+      const geoData = await geoRes.json();
+      freshLocationText =
+        geoData?.results?.[0]?.formatted ||
+        `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+    } catch {
+      freshLocationText = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+    }
+  } catch (err) {
+    console.warn("⛔ Location fetch failed:", err);
+    freshLocationText = "Location unavailable";
+  }
 
-    const img = document.createElement("img");
-    img.src = imageData;
-    img.style.width = "100%";
-    img.style.height = "auto";
-    img.style.objectFit = "contain";
+  // 🖼️ Draw image
+  ctx.drawImage(video, 0, 0);
+  ctx.fillStyle = "white";
+  ctx.font = "24px sans-serif";
+  ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
+  ctx.fillText(`📍 ${freshLocationText}`, 20, 80);
 
-    const closeBtn = document.createElement("button");
-    closeBtn.innerHTML = "❌";
-    closeBtn.type = "button";
-    closeBtn.style.position = "absolute";
-    closeBtn.style.top = "4px";
-    closeBtn.style.right = "4px";
-    closeBtn.style.backgroundColor = "#dc2626";
-    closeBtn.style.color = "white";
-    closeBtn.style.fontSize = "12px";
-    closeBtn.style.padding = "2px 6px";
-    closeBtn.style.borderRadius = "9999px";
-    closeBtn.style.cursor = "pointer";
-    closeBtn.style.zIndex = "20";
-    closeBtn.onclick = () => {
-      wrapper.remove();
-      window._dieselImages = window._dieselImages.filter((img) => img !== imageData);
-    };
+  const imageData = canvas.toDataURL("image/jpeg", 0.8);
+window._dieselImages.push(imageData);
 
-    wrapper.appendChild(img);
-    wrapper.appendChild(closeBtn);
-    previewContainer.appendChild(wrapper);
+// ✅ Store the matching location (lat, lng) for this image
+if (!window._dieselLocations) window._dieselLocations = [];
+window._dieselLocations.push({
+  lat,
+  lng,
+  text: freshLocationText,
+});
+
+
+  // 🖼️ Preview box
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "relative";
+  wrapper.style.maxHeight = "160px";
+  wrapper.style.border = "1px solid #ccc";
+  wrapper.style.borderRadius = "0.5rem";
+  wrapper.style.overflow = "hidden";
+  wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+  wrapper.style.marginBottom = "8px";
+
+  const img = document.createElement("img");
+  img.src = imageData;
+  img.style.width = "100%";
+  img.style.height = "auto";
+  img.style.objectFit = "contain";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.innerHTML = "❌";
+  closeBtn.type = "button";
+  closeBtn.style.position = "absolute";
+  closeBtn.style.top = "4px";
+  closeBtn.style.right = "4px";
+  closeBtn.style.backgroundColor = "#dc2626";
+  closeBtn.style.color = "white";
+  closeBtn.style.fontSize = "12px";
+  closeBtn.style.padding = "2px 6px";
+  closeBtn.style.borderRadius = "9999px";
+  closeBtn.style.cursor = "pointer";
+  closeBtn.style.zIndex = "20";
+  closeBtn.onclick = () => {
+    wrapper.remove();
+    window._dieselImages = window._dieselImages.filter((img) => img !== imageData);
   };
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(closeBtn);
+  document.getElementById("preview-container").appendChild(wrapper);
+};
+
+  Swal.getPopup().addEventListener("swalClose", () => {
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+  }
+});
+
 },
     preConfirm: () => {
   const date = document.getElementById("diesel-date").value;
@@ -280,11 +331,10 @@ video.srcObject = stream;
     return false;
   }
 
-  const latLng = locationText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
-  const lat = latLng ? parseFloat(latLng[1]) : null;
-  const lng = latLng ? parseFloat(latLng[2]) : null;
+const locationObj = (window._dieselLocations && window._dieselLocations.at(-1)) || {};
+const { lat, lng } = locationObj; // ❌ Don't send .text
 
-  return { date, kmsReading, dieselLiters, lat, lng, images };
+return { date, kmsReading, dieselLiters, lat, lng, location: locationText, images };
 },
 
     confirmButtonText: "Submit Entry",
@@ -365,6 +415,11 @@ for (const img of images) {
 
     // ✅ Close loading modal
     Swal.close();
+    if (video.srcObject) {
+  video.srcObject.getTracks().forEach((track) => track.stop());
+  video.srcObject = null;
+}
+
 
     // ✅ Show success message
     Swal.fire("✅ Entry Saved", "Diesel entry added successfully.", "success");

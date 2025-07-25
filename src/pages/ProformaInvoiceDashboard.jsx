@@ -2,14 +2,16 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
+import { Eye, Mail, MessageCircle } from "lucide-react";
 
 export default function ProformaInvoiceDashboard() {
   const [invoices, setInvoices] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const limit = 10;  
 const navigate=useNavigate();
   const fetchInvoices = async () => {
     try {
@@ -26,6 +28,32 @@ const navigate=useNavigate();
   useEffect(() => {
     fetchInvoices();
   }, [page, search]);
+
+const handleEmailShare = async (invoice) => {
+  const { value: toEmail } = await Swal.fire({
+    title: "Send Invoice via Email",
+    input: 'email',
+    inputLabel: 'Customer Email',
+    inputValue: invoice.customerEmail || 'example@example.com',
+    showCancelButton: true,
+    confirmButtonText: 'Send Email',
+    inputPlaceholder: 'Enter customer email'
+  });
+
+  if (!toEmail) return;
+
+  try {
+    await axiosInstance.post(`/proforma/${invoice._id}/share-email`, {
+      to: toEmail,
+      message: `P/I No: ${invoice.invoiceNo}`
+    });
+
+    toast.success("Email sent successfully");
+  } catch (err) {
+    console.error("❌ Error sending email", err);
+    toast.error("Failed to send email");
+  }
+};
 
   const totalPages = Math.ceil(total / limit);
 const deleteInvoice = async (id) => {
@@ -89,16 +117,39 @@ const deleteInvoice = async (id) => {
                   <td className="px-3 py-2">{inv.billTo}</td>
                   <td className="px-3 py-2">{inv.shipTo}</td>
                   <td className="px-3 py-2 text-center">{inv.products?.length}</td>
-                  <td className="px-3 py-2 text-center">
-                    <a
-                      href={inv.pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-medium"
-                    >
-                      View
-                    </a>
-                  </td>
+                 <td className="px-3 py-2 text-center space-y-1">
+  {/* View PDF */}
+  <a
+    href={inv.pdfUrl}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition"
+  >
+    <Eye size={16} />
+    View Invoice
+  </a>
+
+  {/* Share via Email */}
+  <button
+    onClick={() => handleEmailShare(inv)}
+    className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded transition"
+  >
+    <Mail size={16} />
+    Email Customer
+  </button>
+
+  {/* Share via WhatsApp */}
+  <a
+    href={`https://wa.me/${inv.contact.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, please find your Proforma Invoice:\n${inv.pdfUrl}`)}`}
+    target="_blank"
+    className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded transition"
+  >
+    <MessageCircle size={16} />
+    WhatsApp Customer
+  </a>
+</td>
+
+
                   <td className="px-3 py-2 text-center">
   <button
     onClick={() => navigate(`/proforma-edit/${inv._id}`)}
@@ -123,7 +174,7 @@ const deleteInvoice = async (id) => {
     }
     className="bg-indigo-600 hover:bg-indigo-700 cursor-pointer text-white px-4 py-1 rounded shadow"
   >
-    🔄 Convert to Order
+    🔄 Convert to Sales Order
   </button>
 </td>
 

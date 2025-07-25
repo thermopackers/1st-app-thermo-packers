@@ -578,30 +578,37 @@ useEffect(() => {
 
                    {task.isOrderFollowUp &&
   task.assignedBy?.role === "accounts" && (() => {
-  const followUps = task.followUps || [];
+ const followUps = task.followUps || [];
 const today = new Date().toISOString().slice(0, 10);
 const todayFollowUp = followUps.find(
   (entry) => new Date(entry.date).toISOString().slice(0, 10) === today
 );
 const lastFollowUp = followUps[followUps.length - 1];
 
-const continueStatuses = [
+const continueResponses = [
   "No Response / Call Not Answered",
   "Number Unreachable / Switched Off",
   "Follow-up Requested – Call Scheduled for Later"
 ];
+
+const lastResponse = lastFollowUp?.response?.trim();
+const lastSource = lastFollowUp?.source?.trim();
+
+const shouldShowFollowUpForm =
+  !todayFollowUp ||
+  continueResponses.includes(lastResponse) ||
+  (lastResponse === "Other (Mention comments in Box)" && lastSource !== "close");
+
 if (
   task.isOrderFollowUp &&
-  !todayFollowUp &&
-  lastFollowUp &&
+  shouldShowFollowUpForm &&
   !notifiedTasks.includes(task._id)
 ) {
   toast.success("🔁 This follow-up task was updated. Please submit again.");
   setNotifiedTasks((prev) => [...prev, task._id]);
 }
 
-// ✅ Show the follow-up form if no follow-up for today or it requires continuation
-if (!todayFollowUp || continueStatuses.includes(lastFollowUp?.response)) {
+if (shouldShowFollowUpForm) {
   return (
     <SalesFollowUpForm
       taskId={task._id}
@@ -615,6 +622,8 @@ return (
     ✅ This order follow-up was completed based on the last response.
   </p>
 );
+
+
 
   })()}
 

@@ -512,7 +512,7 @@ if (loading) {
       </button>
     </NavLink>
   </div>
-  {/* {["accounts"].includes(user.role) && (
+  {["accounts"].includes(user.role) && (
 <>
 <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
     Purchase Product / Suppliers
@@ -526,7 +526,7 @@ if (loading) {
     </button>
   </div>
   </>
-  )} */}
+  )}
 </div>
 
 )}

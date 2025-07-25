@@ -30,8 +30,11 @@ export default function ProformaInvoiceForm() {
     products: [],
      paymentTerms: [],         // ⬅️ Array of selected terms
   customPaymentTerm: "",    // ⬅️ Dynamic input field
+    customerEmail: "",         // ✅ add this field silently
   });
 const [customers, setCustomers] = useState([]);
+console.log("cus", customers);
+
 useEffect(() => {
   axiosInstance.get("/customers/all/dropdown")
     .then(res => {
@@ -201,6 +204,7 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
        setForm(f => ({
   ...f,
   customerName: customer.name || "", // ✅ Add this line
+      customerEmail: customer.email || "", // ✅ silently include email
   contact: customer.phone || "",
   billTo: customer.address || "",
   shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",

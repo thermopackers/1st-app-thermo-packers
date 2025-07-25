@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import GoogleLoginComponent from "../components/GoogleLoginComponent";
+import OTPLogin from "../components/OTPLogin";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -38,6 +39,10 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <GoogleLoginComponent setLoading={setLoading} />
+
+
+  <div className="text-center text-gray-500 text-sm">OR LOGIN WITH OTP</div>
+  <OTPLogin setLoading={setLoading} />
 
           <button
             onClick={() => navigate("/")}

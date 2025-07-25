@@ -31,6 +31,9 @@ import AllSuppliers from "../pages/AllSuppliers";
 import AddSupplier from "../pages/AddSupplier";
 import AllPurchaseProducts from "../pages/AllPurchaseProducts";
 import AddPurchaseProduct from "../pages/AddPurchaseProduct";
+import PurchaseProductSuppliers from "../pages/PurchaseProductSuppliers";
+import PurchaseOrderForm from "../pages/PurchaseOrderForm";
+import PurchaseOrdersList from "../pages/PurchaseOrdersList";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -463,6 +466,38 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["accounts"]}>
       <PageWrapper><AllSuppliers /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/purchase-products-suppliers"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><PurchaseProductSuppliers /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/create-purchase-order"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><PurchaseOrderForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/purchase-orders"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><PurchaseOrdersList /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/purchase-orders/edit/:id"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><PurchaseOrderForm /></PageWrapper>
     </ProtectedRoute>
   }
 />

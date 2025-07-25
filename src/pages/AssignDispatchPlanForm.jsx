@@ -14,7 +14,8 @@ export default function AssignDispatchPlanForm() {
   const [showVehicles, setShowVehicles] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [audioBlob, setAudioBlob] = useState(null);
-  
+    const [uploadingPlanId, setUploadingPlanId] = useState(null);
+
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
 const [recording, setRecording] = useState(false);
@@ -191,7 +192,387 @@ dieselRes.data.forEach((entry) => {
     setTableLoading(false);
   }
 };
+const openDieselEntryModal = async (plan, existingEntry = null) => {
+  let locationText = "Location not available";
 
+  // Fetch location
+  try {
+     // ⏳ Show loading overlay
+    const loadingSwal = Swal.fire({
+      title: "Loading...",
+      html: "Please wait...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+    );
+    const { latitude, longitude } = pos.coords;
+try {
+  const geoRes = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=4668826883d64e78895168e889e48122`);
+  const geoData = await geoRes.json();
+  const formatted = geoData?.results?.[0]?.formatted;
+  locationText = formatted || `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+} catch {
+  locationText = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+}
+  } catch {
+    locationText = "Location unavailable";
+  }
+let video;
+  const { value: formValues } = await Swal.fire({
+    title: "⛽ Add Diesel Entry",
+    html: `
+<input id="diesel-date" type="date" class="swal2-input" value="${existingEntry?.date?.slice(0, 10) || new Date().toISOString().slice(0, 10)}" />
+      <label for="kms-filled" class="block text-sm font-semibold text-gray-700 -mb-4">
+    कृपया मान्य KM रीडिंग दर्ज करें
+  </label>
+<input id="kms-reading" type="number" class="swal2-input" placeholder="KM Reading" value="${existingEntry?.kmsReading ?? ''}" />
+       <label class="block text-sm font-semibold text-gray-700 -mb-4">भरा हुआ डीजल (लीटर में)</label>
+<input id="diesel-liters" type="number" class="swal2-input" placeholder="Diesel in Liters (optional)" value="${existingEntry?.dieselLiters ?? ''}" />
+      <video id="video" autoplay playsinline class="w-full mt-2 rounded shadow border" style="max-height: 200px;"></video>
+      <canvas id="canvas" style="display:none;"></canvas>
+      <button id="capture" class="swal2-confirm swal2-styled mt-3">📸 Capture Image</button>
+      <img id="preview" class="w-full mt-3 hidden border rounded" />
+      <p class="text-xs mt-2 text-gray-600">* Live camera only | Date, Time & Location will be embedded</p>
+      <label for="gallery-upload" class="swal2-input cursor-pointer bg-blue-100 text-blue-700 text-center hover:bg-blue-200 transition">
+  📁 Choose from Gallery
+</label>
+<input id="gallery-upload" type="file" accept="image/*" multiple style="display:none;" />
+    `,
+ didOpen: async () => {
+  video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const previewContainer = document.createElement("div");
+  previewContainer.id = "preview-container";
+  previewContainer.classList.add("grid", "grid-cols-2", "gap-2", "mt-3");
+
+  document.querySelector(".swal2-html-container").appendChild(previewContainer);
+
+let stream;
+try {
+  // Try to get back camera first
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" } }
+  });
+} catch (err1) {
+  console.warn("Back camera not available, falling back to front camera:", err1);
+  try {
+    // Fallback to front camera
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" }
+    });
+  } catch (err2) {
+    console.error("Failed to access any camera:", err2);
+    Swal.showValidationMessage("⚠️ Camera access denied or unavailable.");
+    return;
+  }
+}
+video.srcObject = stream;
+  video.srcObject = stream;
+
+  // 🧠 Setup image storage
+  window._dieselImages = [];
+
+  // ✅ 1. PRELOAD EXISTING IMAGES if editing
+  if (existingEntry?.imageUrls?.length > 0) {
+    for (const url of existingEntry.imageUrls) {
+      window._dieselImages.push(url);
+
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+      wrapper.style.maxHeight = "160px";
+      wrapper.style.border = "1px solid #ccc";
+      wrapper.style.borderRadius = "0.5rem";
+      wrapper.style.overflow = "hidden";
+      wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+      wrapper.style.marginBottom = "8px";
+
+      const img = document.createElement("img");
+      img.src = url;
+      img.style.width = "100%";
+      img.style.height = "auto";
+      img.style.objectFit = "contain";
+
+      const closeBtn = document.createElement("button");
+      closeBtn.innerHTML = "❌";
+      closeBtn.type = "button";
+      closeBtn.style.position = "absolute";
+      closeBtn.style.top = "4px";
+      closeBtn.style.right = "4px";
+      closeBtn.style.backgroundColor = "#dc2626";
+      closeBtn.style.color = "white";
+      closeBtn.style.fontSize = "12px";
+      closeBtn.style.padding = "2px 6px";
+      closeBtn.style.borderRadius = "9999px";
+      closeBtn.style.cursor = "pointer";
+      closeBtn.style.zIndex = "20";
+      closeBtn.onclick = () => {
+        wrapper.remove();
+        window._dieselImages = window._dieselImages.filter((img) => img !== url);
+      };
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(closeBtn);
+      previewContainer.appendChild(wrapper);
+    }
+  }
+
+  // ✅ 2. Handle New Image Capture
+  document.getElementById("capture").onclick = () => {
+    const ctx = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    ctx.fillStyle = "white";
+    ctx.font = "24px sans-serif";
+    ctx.fillText(`📅 ${new Date().toLocaleString()}`, 20, 40);
+    ctx.fillText(`📍 ${locationText}`, 20, 80);
+
+    const imageData = canvas.toDataURL("image/jpeg", 0.8);
+    window._dieselImages.push(imageData);
+
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.maxHeight = "160px";
+    wrapper.style.border = "1px solid #ccc";
+    wrapper.style.borderRadius = "0.5rem";
+    wrapper.style.overflow = "hidden";
+    wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+    wrapper.style.marginBottom = "8px";
+
+    const img = document.createElement("img");
+    img.src = imageData;
+    img.style.width = "100%";
+    img.style.height = "auto";
+    img.style.objectFit = "contain";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.innerHTML = "❌";
+    closeBtn.type = "button";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "4px";
+    closeBtn.style.right = "4px";
+    closeBtn.style.backgroundColor = "#dc2626";
+    closeBtn.style.color = "white";
+    closeBtn.style.fontSize = "12px";
+    closeBtn.style.padding = "2px 6px";
+    closeBtn.style.borderRadius = "9999px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.zIndex = "20";
+    closeBtn.onclick = () => {
+      wrapper.remove();
+      window._dieselImages = window._dieselImages.filter((img) => img !== imageData);
+    };
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(closeBtn);
+    previewContainer.appendChild(wrapper);
+  };
+const galleryInput = document.getElementById("gallery-upload");
+galleryInput.addEventListener("change", async (event) => {
+  const files = Array.from(event.target.files);
+
+  for (const file of files) {
+    const imgElement = document.createElement("img");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      imgElement.src = reader.result;
+
+      imgElement.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800; // compress width
+        const scaleSize = MAX_WIDTH / imgElement.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = imgElement.height * scaleSize;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+
+        // Compress to JPEG with 70% quality
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+
+        window._dieselImages.push(compressedDataUrl);
+
+        // Preview
+        const wrapper = document.createElement("div");
+        wrapper.style.position = "relative";
+        wrapper.style.maxHeight = "160px";
+        wrapper.style.border = "1px solid #ccc";
+        wrapper.style.borderRadius = "0.5rem";
+        wrapper.style.overflow = "hidden";
+        wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+        wrapper.style.marginBottom = "8px";
+
+        const img = document.createElement("img");
+        img.src = compressedDataUrl;
+        img.style.width = "100%";
+        img.style.height = "auto";
+        img.style.objectFit = "contain";
+
+        const closeBtn = document.createElement("button");
+        closeBtn.innerHTML = "❌";
+        closeBtn.type = "button";
+        closeBtn.style.position = "absolute";
+        closeBtn.style.top = "4px";
+        closeBtn.style.right = "4px";
+        closeBtn.style.backgroundColor = "#dc2626";
+        closeBtn.style.color = "white";
+        closeBtn.style.fontSize = "12px";
+        closeBtn.style.padding = "2px 6px";
+        closeBtn.style.borderRadius = "9999px";
+        closeBtn.style.cursor = "pointer";
+        closeBtn.style.zIndex = "20";
+        closeBtn.onclick = () => {
+          wrapper.remove();
+          window._dieselImages = window._dieselImages.filter((img) => img !== compressedDataUrl);
+        };
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(closeBtn);
+        previewContainer.appendChild(wrapper);
+      };
+    };
+
+    reader.readAsDataURL(file);
+  }
+});
+
+Swal.getPopup().addEventListener("swalClose", () => {
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+  }
+});
+
+},
+    preConfirm: () => {
+  const date = document.getElementById("diesel-date").value;
+  const kmsReading = parseInt(document.getElementById("kms-reading").value);
+  const dieselInput = document.getElementById("diesel-liters").value;
+  const dieselLiters = dieselInput ? parseFloat(dieselInput) : null;
+  const images = window._dieselImages || [];
+
+  if (!date || isNaN(kmsReading)) {
+    Swal.showValidationMessage("Please enter a valid date and KM reading");
+    return false;
+  }
+
+  if (images.length === 0) {
+    Swal.showValidationMessage("Please capture at least 1 image before submitting");
+    return false;
+  }
+
+  const latLng = locationText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
+  const lat = latLng ? parseFloat(latLng[1]) : null;
+  const lng = latLng ? parseFloat(latLng[2]) : null;
+
+  return { date, kmsReading, dieselLiters, lat, lng, images };
+},
+
+    confirmButtonText: "Submit Entry",
+    showCancelButton: true,
+  });
+
+ if (formValues) {
+  try {
+    const { images, ...rest } = formValues;
+
+    // 🌀 Show loader overlay while uploading
+    const loadingSwal = Swal.fire({
+      title: "Uploading...",
+      html: "Please wait while we save your entry.",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+   const uploadUrls = [];
+
+for (const img of images) {
+  if (img.startsWith("http")) {
+    // ✅ Already uploaded, no need to upload again
+    uploadUrls.push(img);
+    continue;
+  }
+
+  const blob = await (await fetch(img)).blob();
+  const formData = new FormData();
+  formData.append("file", blob);
+  formData.append("upload_preset", "todo_uploads");
+
+  const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const uploadRes = await res.json();
+  if (uploadRes.secure_url) {
+    uploadUrls.push(uploadRes.secure_url);
+  }
+}
+
+
+    if (uploadUrls.length === 0) throw new Error("No images uploaded");
+
+  if (existingEntry?._id) {
+  // UPDATE
+  await axiosInstance.patch(
+    `/diesel/update/${existingEntry._id}`,
+    {
+      ...rest,
+    imageUrls: uploadUrls, // ✅ send only final image array (old + new, deduplicated)
+    },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+} else {
+  // NEW ENTRY
+  await axiosInstance.post(
+    "/diesel/add",
+    {
+      ...rest,
+      vehicleNumber: plan.vehicleNumber,
+      imageUrls: uploadUrls,
+      driverName: plan.driverName,
+      planId: plan._id,
+    },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+}
+
+
+    // ✅ Close loading modal
+    Swal.close();
+if (video.srcObject) {
+  video.srcObject.getTracks().forEach((track) => track.stop());
+  video.srcObject = null;
+}
+
+    // ✅ Show success message
+    Swal.fire("✅ Entry Saved", "Diesel entry added successfully.", "success");
+  } catch (err) {
+    console.error("Failed to save diesel entry:", err);
+
+    // ❌ Make sure loader is closed before error
+    Swal.close();
+    Swal.fire("❌ Error", "Failed to save diesel entry", "error");
+  } finally {
+    setUploadingPlanId(null);
+  }
+} else {
+  setUploadingPlanId(null);
+}
+
+};
 const handleVehicleRegister = async () => {
   try {
     const res = await axiosInstance.post("/vehicles/register", newVehicle, {
@@ -901,7 +1282,7 @@ setSearchTerm("");
                     <th className="p-3 font-medium border">Sr No</th>
                           <th className="p-3 font-medium border">Date of Trip</th> {/* ✅ New */}
                     <th className="p-3 font-medium border">Vehicle</th>
-                    <th className="p-3 font-medium border">GPS Link</th>
+                    <th className="p-3 font-medium border">LIVE location /(GPS Link for Tempo/Tracking)</th>
                     <th className="p-3 font-medium border">Driver</th>
                           <th className="p-3 font-medium border">Customers</th>
                           <th className="p-3 font-medium border">Remarks</th> {/* ✅ New */}
@@ -1040,13 +1421,13 @@ setSearchTerm("");
                           Delete
                         </button>
                       </td>
-                      <td className="p-3 border text-xs leading-tight align-top">
+                     <td className="p-3 border text-xs leading-tight align-top">
   {(plan.dieselEntries || []).length > 0 ? (
     plan.dieselEntries.map((entry, i) => (
       <div key={entry._id || i} className="mb-2 border-b pb-1">
-        <p><span className="font-semibold">Diesel:</span> {entry.dieselQuantity ?? "Not recorded"} L</p>
-<p><span className="font-semibold">Reading:</span> {entry.reading ?? "Not recorded"}</p>
-<button
+        <p><span className="font-semibold">Diesel:</span> {entry.dieselLiters ?? entry.dieselQuantity ?? "Not recorded"} L</p>
+        <p><span className="font-semibold">Reading:</span> {entry.kmsReading ?? entry.reading ?? "Not recorded"}</p>
+        <button
           onClick={() => handleEditDieselEntry(entry)}
           className="text-blue-600 text-xs underline"
         >
@@ -1057,7 +1438,16 @@ setSearchTerm("");
   ) : (
     <p className="text-gray-400 italic">No diesel entries</p>
   )}
+
+  {/* ✅ Add Button to open modal for ADD/EDIT diesel manually */}
+  <button
+    onClick={() => openDieselEntryModal(plan)}
+    className="mt-2 inline-block bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-2 py-1 rounded"
+  >
+    ➕ Add Entry
+  </button>
 </td>
+
 
                     </tr>
                   ))}
