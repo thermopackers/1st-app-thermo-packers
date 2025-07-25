@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 export default function EditCustomer() {
+  const {user} = useUserContext();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -242,6 +244,7 @@ export default function EditCustomer() {
               className="w-full border p-2 rounded"
             />
           </div>
+      {!["sales"].includes(user.role) && (    
 <div>
   <label className="block mb-1 font-semibold">Customer Handled/Managed by</label>
   <select
@@ -260,7 +263,7 @@ export default function EditCustomer() {
       </option>
     ))}
   </select>
-</div>
+</div>)}
 
           <div>
             <label className="block mb-1 font-semibold">Google Maps Link</label>
