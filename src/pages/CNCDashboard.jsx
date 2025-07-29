@@ -5,8 +5,10 @@ import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 const CNCDashboard = () => {
+  const { setShouldRefetchOrders } = useUserContext();
   const [orders, setOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -29,9 +31,17 @@ const CNCDashboard = () => {
       .then((res) => setProducts(res.data))
       .catch((err) => console.error("Error fetching products:", err));
   }, []);
-  useEffect(() => {
-    setSearchParams({ page: 1 });
-  }, [searchTerm, startDate, endDate]);
+useEffect(() => {
+  // Instead of resetting the page silently,
+  // reset it only if the current page is NOT 1.
+  if (currentPage !== 1) {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.set("page", 1);
+      return params;
+    });
+  }
+}, [searchTerm, startDate, endDate]);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -84,6 +94,33 @@ const updateCNCStatus = async (orderId, newStatus) => {
       setSearchParams({ page });
     }
   };
+
+  const handleDeleteCNC = async (orderId) => {
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "This will remove the order from CNC Dashboard (not from main Order List).",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, remove",
+    cancelButtonText: "Cancel",
+  });
+
+  if (confirm.isConfirmed) {
+    try {
+      const token = localStorage.getItem("token");
+      await axiosInstance.delete(`/orders/remove-from-cnc/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      toast.success("Order removed from CNC Dashboard.");
+      setShouldRefetchOrders(true); // 👈 this will trigger OrderList to refresh
+    } catch (err) {
+      console.error("Error deleting CNC entry:", err);
+      toast.error("Failed to remove order.");
+    }
+  }
+};
 
   if (loading) {
     return (
@@ -195,6 +232,7 @@ const updateCNCStatus = async (orderId, newStatus) => {
     <th className="px-4 py-3">Slip</th>
     <th className="px-4 py-3">Status</th>
     <th className="px-4 py-3">CNC Status</th>
+                      <th className="px-4 py-3">Delete This order from here</th>
   </tr>
 </thead>
               <tbody>
@@ -259,6 +297,14 @@ const updateCNCStatus = async (orderId, newStatus) => {
   }`}>
     {order.status || "pending"}
   </span>
+</td>
+<td className="px-4 py-2">
+  <button
+    onClick={() => handleDeleteCNC(order._id)}
+    className="text-red-600 hover:text-red-800 underline"
+  >
+    ❌ Delete
+  </button>
 </td>
 
 </tr>

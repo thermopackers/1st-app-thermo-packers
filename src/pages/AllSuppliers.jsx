@@ -67,7 +67,6 @@ console.log("suppliers",suppliers);
               <tr className="bg-gray-100">
                 <th className="p-2">Name</th>
                 <th className="p-2">Category</th>
-                <th className="p-2">Company</th>
                 <th className="p-2">Phone</th>
                 <th className="p-2">Email</th>
                 <th className="p-2">GST</th>
@@ -84,7 +83,6 @@ console.log("suppliers",suppliers);
                 <tr key={supplier._id} className="border-t align-top text-center">
                   <td className="p-2">{supplier.name}</td>
                   <td className="p-2">{supplier.vendorCategory || "–"}</td>
-                  <td className="p-2">{supplier.company}</td>
                   <td className="p-2">{supplier.phone}</td>
                   <td className="p-2">{supplier.email}</td>
                   <td className="p-2">{supplier.gstNumber}</td>

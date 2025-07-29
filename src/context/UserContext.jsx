@@ -8,6 +8,7 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
+const [shouldRefetchOrders, setShouldRefetchOrders] = useState(false);
 
 
   useEffect(() => {
@@ -36,7 +37,8 @@ setToken(token);
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, setUser, loading, token }}>
+    <UserContext.Provider value={{ user, setUser, loading, token, shouldRefetchOrders,
+  setShouldRefetchOrders, }}>
       {children}
     </UserContext.Provider>
   );

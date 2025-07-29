@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 const ITEMS_PER_PAGE = 15;
 
 const ProductionDashboard = () => {
+  const { setShouldRefetchOrders } = useUserContext();
   const { user, loading: userLoading } = useUserContext();
                      const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
   const [orders, setOrders] = useState([]);
@@ -220,6 +221,40 @@ const onEndDateChange = (e) => {
   setSearchParams({ ...currentParams, page: 1 });
 };
 
+const handleRemoveFromProduction = async (order) => {
+  const type = order.shapeSlip?.url ? "shape" : order.danaSlip?.url ? "dana" : null;
+  if (!type) return toast.error("No slip found for removal");
+
+  const confirm = await Swal.fire({
+    title: "Remove from Production?",
+    text: "This will remove the slip and allow re-sending from OrderList.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, remove it",
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  try {
+    await axiosInstance.put(
+      `/orders/${order._id}/remove-from-production?type=${type}`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
+
+    toast.success("Removed from production!");
+    setOrders((prev) => prev.filter((o) => o._id !== order._id));
+    setShouldRefetchOrders(true); // 🚀 trigger refresh in OrderList
+  } catch (err) {
+    console.error("Error removing from production", err);
+    toast.error("Failed to remove");
+  }
+};
+
+
+
 
   return (
     <>
@@ -363,6 +398,8 @@ const onEndDateChange = (e) => {
                     Production Status
                   </th>
                   <th className="px-6 py-4 text-left font-medium">Actions</th>
+                                      <th className="px-4 py-3">Delete This order from here</th>
+
                 </tr>
               </thead>
               <tbody>
@@ -455,9 +492,18 @@ const onEndDateChange = (e) => {
                           <option value="processed">Processed</option>
                         </select>
 
-                        
                       </div>
                     </td>
+                                        <td className="px-6 py-4 flex items-center">
+
+                      {/* 🗑 Delete Slip Button */}
+<button
+  className="mt-2 sm:mt-0 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
+  onClick={() => handleRemoveFromProduction(order)}
+>
+  🗑 Remove from Production
+</button>
+ </td>
                   </tr>
     ))}
   </React.Fragment>

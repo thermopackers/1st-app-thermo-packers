@@ -7,7 +7,7 @@ import imageCompression from "browser-image-compression";
 
 export default function AddSupplier() {
 const [form, setForm] = useState({
-  name: "", company: "", phone: "", email: "", address: "", gstNumber: "",
+  name: "", phone: "", email: "", address: "", gstNumber: "",
   locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
   vendorCategory: ""
 });
@@ -177,12 +177,6 @@ const handleChequeFileChange = (e) => {
     <label className="block font-semibold mb-1">Supplier Name</label>
     <input name="name"  placeholder="Enter supplier name"
  value={form.name} onChange={handleChange} className="w-full border p-2 rounded" required />
-  </div>
-
-  <div>
-    <label className="block font-semibold mb-1">Company Name</label>
-    <input name="company"  placeholder="Enter company name"
- value={form.company} onChange={handleChange} className="w-full border p-2 rounded" />
   </div>
 
   <div>

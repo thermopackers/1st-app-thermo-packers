@@ -5,8 +5,10 @@ import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useUserContext } from "../context/UserContext";
 
 const DispatchDashboard = () => {
+  const { setShouldRefetchOrders } = useUserContext();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -317,6 +319,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                       <th className="px-4 py-3">Update Packaging Status</th>
                       <th className="px-4 py-3">Dispatch Status</th>
                       <th className="px-4 py-3">Update Dispatch Status</th>
+                      <th className="px-4 py-3">Delete this order from here</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -434,6 +437,49 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                                 <option value="dispatched">Dispatched</option>
                               </select>
                             </td>
+                             <td className="px-4 py-3">
+  {order.cuttingSlip?.url && (
+    <button
+      className="text-red-600 underline hover:text-red-800"
+      onClick={async () => {
+        const result = await Swal.fire({
+          title: "Are you sure?",
+          text: "This will remove the Cutting Slip and free the order for re-sending.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Yes, delete it!",
+          cancelButtonText: "Cancel",
+        });
+
+        if (result.isConfirmed) {
+          try {
+            await axiosInstance.put(
+              `/orders/remove-from-dispatch/${order._id}`,
+              {},
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            toast.success("Removed from dispatch successfully!");
+
+            setOrders((prev) => prev.filter((o) => o._id !== order._id));
+               // ✅ Trigger order list refresh
+      setShouldRefetchOrders(true); // <--- HERE
+          } catch (error) {
+            console.error("Error removing from dispatch:", error);
+            toast.error("Failed to remove from dispatch.");
+          }
+        }
+      }}
+    >
+      ❌ Delete
+    </button>
+  )}
+</td>
+                           
                           </tr>
                         ))}
                       </React.Fragment>

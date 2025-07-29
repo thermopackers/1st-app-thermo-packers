@@ -90,6 +90,11 @@ export default function AddPurchaseProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+  if (!form.hsnCode || form.hsnCode.length < 6 || form.hsnCode.length > 8 || isNaN(form.hsnCode)) {
+  toast.error("HSN Code must be a number with 6 to 8 digits");
+  return;
+}
+
     try {
       toast.loading("Uploading files...");
       const uploaded = await uploadToCloudinary();
@@ -119,86 +124,101 @@ export default function AddPurchaseProduct() {
           {isEdit ? "✏️ Edit Purchase Product" : "➕ Add Purchase Product"}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {["name", "unit", "hsnCode", "gstPercent", "price"].map((field) => (
-            <input
-              key={field}
-              name={field}
-              value={form[field]}
-              onChange={handleChange}
-              placeholder={field.toUpperCase()}
-              className="w-full border p-2 rounded"
-              required
-            />
-          ))}
+       <form onSubmit={handleSubmit} className="space-y-4">
+  {["name", "unit", "hsnCode", "gstPercent", "price"].map((field) => (
+    <div key={field}>
+      <label className="block font-semibold mb-1 capitalize" htmlFor={field}>
+        {field === "hsnCode" ? "HSN Code" : field === "gstPercent" ? "GST (%)" : field.charAt(0).toUpperCase() + field.slice(1)}
+      </label>
+      <input
+        id={field}
+        name={field}
+        value={form[field]}
+        onChange={handleChange}
+        placeholder={field.toUpperCase()}
+        className="w-full border p-2 rounded"
+        required
+      />
+    </div>
+  ))}
 
-          <textarea
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            placeholder="Description"
-            className="w-full border p-2 rounded"
-          />
+  <div>
+    <label className="block font-semibold mb-1" htmlFor="description">
+      Description
+    </label>
+    <textarea
+      id="description"
+      name="description"
+      value={form.description}
+      onChange={handleChange}
+      placeholder="Description"
+      className="w-full border p-2 rounded"
+    />
+  </div>
 
-          <div>
-            <label className="block font-semibold mb-1">Upload Files (Images or PDFs)</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              onChange={handleFileChange}
-              className="w-full border p-2 rounded"
-            />
+  <div>
+    <label className="block font-semibold mb-1" htmlFor="fileInput">
+      Upload Files (Images or PDFs)
+    </label>
+    <input
+      id="fileInput"
+      type="file"
+      multiple
+      accept="image/*,.pdf"
+      onChange={handleFileChange}
+      className="w-full border p-2 rounded"
+    />
 
-            {/* Existing uploaded files */}
-            {existingFiles.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-3">
-                {existingFiles.map((file, i) => (
-                  <div key={i} className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden">
-                    {file.url.toLowerCase().includes(".pdf") ? (
-                      <span className="text-3xl text-red-600">📄</span>
-                    ) : (
-                      <img src={file.url} alt={`file-${i}`} className="object-cover w-full h-full" />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveExistingFile(i)}
-                      className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+    {/* Existing uploaded files */}
+    {existingFiles.length > 0 && (
+      <div className="flex flex-wrap gap-3 mt-3">
+        {existingFiles.map((file, i) => (
+          <div key={i} className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden">
+            {file.url.toLowerCase().includes(".pdf") ? (
+              <span className="text-3xl text-red-600">📄</span>
+            ) : (
+              <img src={file.url} alt={`file-${i}`} className="object-cover w-full h-full" />
             )}
-
-            {/* New file previews */}
-            {previewUrls.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-3">
-                {previewUrls.map((preview, i) => (
-                  <div key={i} className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden">
-                    {preview === "pdf" || files[i]?.type?.includes("pdf") ? (
-                      <span className="text-3xl text-red-600">📄</span>
-                    ) : (
-                      <img src={preview} alt={`file-${i}`} className="object-cover w-full h-full" />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(i)}
-                      className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => handleRemoveExistingFile(i)}
+              className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+            >
+              ×
+            </button>
           </div>
+        ))}
+      </div>
+    )}
 
-          <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-            {isEdit ? "💾 Update Product" : "✅ Submit Purchase Product"}
-          </button>
-        </form>
+    {/* New file previews */}
+    {previewUrls.length > 0 && (
+      <div className="flex flex-wrap gap-3 mt-3">
+        {previewUrls.map((preview, i) => (
+          <div key={i} className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden">
+            {preview === "pdf" || files[i]?.type?.includes("pdf") ? (
+              <span className="text-3xl text-red-600">📄</span>
+            ) : (
+              <img src={preview} alt={`file-${i}`} className="object-cover w-full h-full" />
+            )}
+            <button
+              type="button"
+              onClick={() => handleRemoveFile(i)}
+              className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+    {isEdit ? "💾 Update Product" : "✅ Submit Purchase Product"}
+  </button>
+</form>
+
       </div>
     </>
   );

@@ -172,6 +172,62 @@ const handlePageChange = (page) => {
   }
 };
 
+const handleDeleteOrder = async (orderId) => {
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "This will remove the order from Packaging Dashboard (not from main Order List).",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it",
+    cancelButtonText: "Cancel",
+  });
+
+  if (confirm.isConfirmed) {
+    try {
+      const token = localStorage.getItem("token");
+      await axiosInstance.delete(`/orders/soft-delete/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      setFilteredOrders((prev) => prev.filter((o) => o._id !== orderId));
+      toast.success("Order removed from Packaging Dashboard.");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Failed to remove order.");
+    }
+  }
+};
+const handleDeleteFromPackaging = async (orderId) => {
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "This will delete the Packaging Slip and remove the order from this dashboard (but not from main Order List).",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it",
+    cancelButtonText: "Cancel",
+  });
+
+  if (confirm.isConfirmed) {
+    try {
+      const token = localStorage.getItem("token");
+      await axiosInstance.delete(`/orders/remove-packaging/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // ✅ Frontend: remove the order from dashboard view
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      setFilteredOrders((prev) => prev.filter((o) => o._id !== orderId));
+
+      toast.success("Order removed from Packaging Dashboard.");
+    } catch (err) {
+      console.error("Error removing from packaging:", err);
+      toast.error("Failed to remove order.");
+    }
+  }
+};
+
+
 
   if (loading) {
     return (
@@ -309,6 +365,7 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                       <th className="px-4 py-3">Update Packaging Status</th>
                       <th className="px-4 py-3">Dispatch Status</th>
                       <th className="px-4 py-3">Update Dispatch Status</th>
+                      <th className="px-4 py-3">Delete This order from here</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -426,6 +483,15 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                             <option value="dispatched">Dispatched</option>
                           </select>
                         </td>
+                        <td className="px-4 py-3">
+  <button
+    onClick={() => handleDeleteFromPackaging(order._id)}
+    className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+  >
+    ❌ Delete
+  </button>
+</td>
+
                       </tr>
     ))}
   </React.Fragment>
