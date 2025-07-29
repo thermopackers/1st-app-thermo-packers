@@ -1291,16 +1291,11 @@ const actuallySendToProduction = async (
                                     <td className="px-4 py-2 whitespace-nowrap">
                                       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                         <button
-                                          className={`flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm shadow-md transition 
-    ${
-      isSent
-        ? "bg-gray-400 text-white cursor-not-allowed"
-        : "bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"
-    }
-  `}
-                                          disabled={isSent}
+                                               className="flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm shadow-md transition bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"
+
+                                          disabled={false}
                                           onClick={() => {
-                                            if (isSent) return;
+                                           
                                             setEditOrder(order);
                                           }}
                                         >
