@@ -9,7 +9,7 @@ export default function AddSupplier() {
 const [form, setForm] = useState({
   name: "", phone: "", email: "", address: "", gstNumber: "",
   locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
-  vendorCategory: ""
+   bankName: "", vendorCategory: ""
 });
 
 const [chequeFiles, setChequeFiles] = useState([]);
@@ -268,6 +268,16 @@ const handleChequeFileChange = (e) => {
       <input name="accountName"  placeholder="Account holder's name"
  value={form.accountName || ""} onChange={handleChange} className="w-full border p-2 rounded" />
     </div>
+<div>
+  <label className="block font-semibold mb-1">Bank Name</label>
+  <input
+    name="bankName"
+    placeholder="Enter bank name"
+    value={form.bankName || ""}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+  />
+</div>
 
     <div>
       <label className="block font-semibold mb-1">Account Number</label>

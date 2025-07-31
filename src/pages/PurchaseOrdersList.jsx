@@ -7,8 +7,11 @@ import { useNavigate } from "react-router-dom";
 export default function PurchaseOrdersList() {
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
+  const [suppliers, setSuppliers] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+  console.log("suppliers",suppliers.data);
+  
 const navigate = useNavigate();
   // Fetch orders with pagination and search
   const fetchOrders = async (page = 1, search = "") => {
@@ -23,9 +26,18 @@ const navigate = useNavigate();
     }
   };
 
-  useEffect(() => {
-    fetchOrders(page, search);
-  }, [page, search]);
+// Fetch orders whenever page/search changes
+useEffect(() => {
+  fetchOrders(page, search);
+}, [page, search]);
+
+// Fetch suppliers ONCE on initial mount
+useEffect(() => {
+  axiosInstance.get("/suppliers").then((res) => {
+    setSuppliers(res.data.data || []);
+  });
+}, []);
+
 
   // Delete PO and its corresponding PDF from Cloudinary
  const handleDelete = async (orderId) => {
@@ -63,7 +75,39 @@ const navigate = useNavigate();
     }
   }
 };
+const getSupplierContact = (supplierId) => {
+  const supplier = suppliers.find((s) => s._id === supplierId);
+  return {
+    email: supplier?.email || "",
+    phone: supplier?.phone || "",
+  };
+};
 
+  const handleSendEmail = async (order) => {
+  const { email } = getSupplierContact(order.supplier?._id);
+  if (!email) return Swal.fire("❌ No email", "Supplier email not found", "error");
+
+  try {
+    await axiosInstance.post("/suppliers/send-po-email", {
+      email,
+      poNumber: order.poNumber,
+      pdfUrl: order.pdfUrl,
+    });
+    Swal.fire("📧 Email Sent", `PO sent to ${email}`, "success");
+  } catch (err) {
+    console.error(err);
+    Swal.fire("❌ Error", "Failed to send email", "error");
+  }
+};
+
+const handleSendWhatsApp = (order) => {
+  const { phone } = getSupplierContact(order.supplier?._id);
+  if (!phone) return Swal.fire("❌ No phone", "Supplier phone not found", "error");
+
+  const message = `Hello,\nPlease find the Purchase Order (${order.poNumber}) here:\n${order.pdfUrl}`;
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, "_blank");
+};
 
   return (
     <>
@@ -116,20 +160,36 @@ const navigate = useNavigate();
                         View PDF
                       </a>
                     </td>
-                   <td className="border px-4 py-2 text-center space-x-4">
-  <button
-    onClick={() => handleDelete(order._id)}
-    className="text-red-600 hover:underline"
-  >
-    Delete
-  </button>
-  <button
-    onClick={() => navigate(`/purchase-orders/edit/${order._id}`)}
-    className="text-blue-600 hover:underline"
-  >
-    Edit
-  </button>
+                 <td className="border px-2 py-2 text-center">
+  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2">
+    <button
+      onClick={() => handleDelete(order._id)}
+      className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm transition"
+    >
+      🗑 Delete
+    </button>
+    <button
+      onClick={() => navigate(`/purchase-orders/edit/${order._id}`)}
+      className="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm transition"
+    >
+      ✏️ Edit
+    </button>
+    <button
+      onClick={() => handleSendEmail(order)}
+      className="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 text-sm transition"
+    >
+      📧 Email
+    </button>
+    <button
+      onClick={() => handleSendWhatsApp(order)}
+      className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded hover:bg-emerald-200 text-sm transition"
+    >
+      📱 WhatsApp
+    </button>
+  </div>
 </td>
+
+
 
                   </tr>
                 ))}

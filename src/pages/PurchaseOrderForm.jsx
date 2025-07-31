@@ -29,6 +29,7 @@ const { id } = useParams(); // Get PO ID if editing
       unit: "",
       price: "",
       gstPercent: "",
+       description: "", // ✅ added
       remarks: "",
       imageUrls: [], // Store all image URLs
     },
@@ -82,6 +83,7 @@ useEffect(() => {
       unit: p.unit || masterProduct?.unit || "", // ✅ fallback to master product's unit
             price: p.rate || masterProduct?.price || "",
             gstPercent: p.gst || masterProduct?.gstPercent?.toString() || "0",
+                description: masterProduct?.description || "", // ✅ added
             remarks: p.remarks || "",
             imageUrls: masterProduct?.files || [], // ✅ now this works!
           };
@@ -118,6 +120,7 @@ const handleGeneratePDF = async () => {
     // Check for required fields
   for (let i = 0; i < productEntries.length; i++) {
     const item = productEntries[i];
+console.log("item",item);
 
       // Validate required fields
     if (!item.name || !item.qty || !item.price || !item.gstPercent) {
@@ -150,6 +153,7 @@ if (!requiredDate) {
 const bodyRows = [
   [
     { text: "SL.NO", bold: true, fontSize: 8 },
+        { text: "Description", bold: true, fontSize: 8 },
     { text: "Product Name", bold: true, fontSize: 8 },
     { text: "Qty (Kg)", bold: true, fontSize: 8 },
      { text: "Unit", bold: true, fontSize: 8 }, // ✅ Add this
@@ -173,6 +177,12 @@ let grandTotal = 0;
 
    bodyRows.push([
   { text: i + 1, fontSize: 8 },
+{
+  text: item.description || "-",
+  fontSize: 8,
+  alignment: "left",
+  noWrap: false,
+},
   { text: item.name, fontSize: 8 },
   { text: item.qty, fontSize: 8 },
     { text: item.unit || "-", fontSize: 8 }, // ✅ Add this
@@ -208,11 +218,11 @@ for (let j = 0; j < imageUrls.length; j++) {
 // Add the row with one cell that spans all 8 columns
 bodyRows.push([
   {
-    colSpan: 8,
+    colSpan: 9,
     columns: imageRow,
     margin: [0, 5, 0, 5],
   },
-  {}, {}, {}, {}, {}, {}, {}, // Fill remaining cells for colSpan: 8
+  {}, {}, {}, {}, {}, {}, {}, {}, // Fill remaining cells for colSpan: 8
 ]);
 
 
@@ -225,7 +235,7 @@ bodyRows.push([
   }
 
   bodyRows.push([
-  { text: "", colSpan: 6 }, {}, {}, {}, {}, {},
+  { text: "", colSpan: 7 }, {}, {}, {}, {}, {}, {},
   { text: "Subtotal", bold: true, fontSize: 8 },
   { text: `₹ ${grandTotal.toFixed(2)}`, bold: true, fontSize: 8 },
 ]);
@@ -240,54 +250,75 @@ bodyRows.push([
             [
               {
                 stack: [
-                  { text: "THERMO PACKERS", style: "header", alignment: "center", fontSize: 12 },
-                  {
-                    text:
-                      "KAPURTHALA ROAD, VILLAGE SANGAL SOHAL, JALANDHAR\n" +
-                      "www.thermopackers.com | thermopackers@gmail.com\n" +
-                      "M: 9216860160, 9216562160, 9878165432\n" +
-                      "GST NO. : 03AACFT3599H1Z1",
-                    style: "subheader",
-                    alignment: "center",
-                    margin: [0, 0, 0, 20],
-                    fontSize: 8,
-                  },
-                   {
-  columns: [
+              {
+  image: "logoImage",
+  absolutePosition: { x: 470, y: 20 },
+  fit: [100, 100]
+},
+{
+  stack: [
+    { text: "THERMO PACKERS", style: "header", alignment: "center", fontSize: 12 },
     {
-      width: "*",
-      stack: [
-        { text: "PURCHASE ORDER", bold: true, fontSize: 12, alignment: "left", margin: [0, 10, 0, 5] },
-      ]
-    },
-    {
-      width: "auto",
-      image: "logoImage", // 👈 placeholder key to be filled at runtime
-      fit: [80, 80],
-      alignment: "right",
-      margin: [0, 0, 0, 5]
+      text:
+        "KAPURTHALA ROAD, VILLAGE SANGAL SOHAL, JALANDHAR\n" +
+        "www.thermopackers.com | thermopackers@gmail.com\n" +
+        "M: 9216860160, 9216562160, 9878165432\n" +
+        "GST NO. : 03AACFT3599H1Z1",
+      style: "subheader",
+      alignment: "center",
+      fontSize: 8,
+      margin: [0, 0, 0, 10]
     }
   ]
 },
 
-                  {
-                    columns: [
-                      [
-                        { text: `To:`, bold: true, fontSize: 9 },
-                        { text: selectedSupplier?.name, fontSize: 8 },
-                        { text: selectedSupplier?.address, fontSize: 8 },
-                        { text: `GST No: ${selectedSupplier?.gstNumber}`, fontSize: 8 },
-                        { text: `Bank: ${selectedSupplier?.bankName || "-"}`, fontSize: 8 },
-{ text: `A/C No: ${selectedSupplier?.accountNumber || "-"}`, fontSize: 8 },
-{ text: `IFSC: ${selectedSupplier?.ifscCode || "-"}`, fontSize: 8 },
-                      ],
-                      [
-                        { text: `P.O. Number: ${poNumber}`, alignment: "right", fontSize: 8 },
-                        { text: `P.O. Date: ${new Date().toLocaleDateString("en-GB")}`, alignment: "right", fontSize: 8 },
-                      ],
-                    ],
-                    margin: [0, 0, 0, 20],
-                  },
+
+
+        { text: "PURCHASE ORDER", bold: true, fontSize: 12, alignment: "center", margin: [0, 10, 0, 5] },
+    ,
+
+                {
+  columns: [
+    {
+      width: "*",
+      stack: [
+        { text: "To:", bold: true, fontSize: 9 },
+        { text: selectedSupplier?.name, fontSize: 8 },
+        { text: selectedSupplier?.address, fontSize: 8 },
+        { text: `GST No: ${selectedSupplier?.gstNumber}`, fontSize: 8 },
+        { text: `P.O. Number: ${poNumber}`, fontSize: 8 },
+        { text: `P.O. Date: ${new Date().toLocaleDateString("en-GB")}`, fontSize: 8 },
+      ]
+    },
+   {
+  table: {
+    widths: ['*'],
+    body: [
+      [{ text: "Supplier/Vendor Bank Details", bold: true, fontSize: 9, alignment: "left" }],
+      [{ text: `Account Name: ${selectedSupplier?.accountName || "-"}`, fontSize: 8, alignment: "left" }],
+      [{ text: `Bank Name: ${selectedSupplier?.bankName || "-"}`, fontSize: 8, alignment: "left" }],
+      [{ text: `A/C No: ${selectedSupplier?.accountNumber || "-"}`, fontSize: 8, alignment: "left" }],
+      [{ text: `IFSC: ${selectedSupplier?.ifscCode || "-"}`, fontSize: 8, alignment: "left" }],
+    ]
+  },
+  layout: {
+    hLineWidth: () => 1,
+    vLineWidth: () => 1,
+    hLineColor: () => 'black',
+    vLineColor: () => 'black',
+    paddingLeft: () => 5,
+    paddingRight: () => 5
+  },
+  alignment: "right",  // Aligns the whole table to the right side of the page
+  margin: [0, 0, 0, 10],
+  width: 250
+}
+
+
+  ],
+  margin: [0, 0, 0, 20]
+}
+,
                {
   columns: [
     { width: "*", stack: [{ text: `Freight: ${freightOption || freightComment || "-"}`, fontSize: 8 , bold: true, }] },
@@ -299,7 +330,7 @@ bodyRows.push([
                   {
                     table: {
                       headerRows: 1,
-widths: [20, "*", 40, 40, 50, 40, 50, "*"], // ✅ 7 total now
+widths: [20, 40, "*", 40, 40, 50, 40, 50, "*"], // 120 for description column
                       body: bodyRows,
                     },
                     layout: "lightHorizontalLines",
@@ -558,6 +589,7 @@ await axiosInstance.post("/purchase-orders/save", {
                     updated[index].price = p?.price || "";
                     updated[index].gstPercent = p?.gstPercent || "";
                       updated[index].unit = p?.unit || ""; // ✅ Auto-fill unit
+                        updated[index].description = p?.description || ""; // ✅ Add this line
                     updated[index].imageUrls = p?.files || []; // Get all image URLs from files
                     setProductEntries(updated);
                   }}
@@ -586,7 +618,25 @@ await axiosInstance.post("/purchase-orders/save", {
               )}
               </div>
 
-              
+              {/* Description */}
+<div>
+  <label htmlFor={`description-${index}`} className="block font-medium mb-1">
+    Description
+  </label>
+  <input
+    id={`description-${index}`}
+    type="text"
+    placeholder="Enter product description"
+    className="border p-2 rounded w-full"
+    value={item.description}
+    onChange={(e) => {
+      const updated = [...productEntries];
+      updated[index].description = e.target.value;
+      setProductEntries(updated);
+    }}
+  />
+</div>
+
 
                 {/* Qty */}
       <div>
@@ -657,6 +707,7 @@ await axiosInstance.post("/purchase-orders/save", {
           placeholder="GST"
           className="border p-2 rounded w-full"
           value={item.gstPercent}
+          readOnly
           onChange={(e) => {
             const updated = [...productEntries];
             updated[index].gstPercent = e.target.value;

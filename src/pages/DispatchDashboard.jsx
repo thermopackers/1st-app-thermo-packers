@@ -207,6 +207,33 @@ const currentOrders =
       </div>
     );
   }
+const handleProductionStatusChange = async (orderId, newStatus) => {
+  try {
+    await axiosInstance.put(
+      `/orders/${orderId}/status`,
+      { status: newStatus },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    toast.success(`Production: ${newStatus}`);
+    setOrders((prev) =>
+      prev.map((order) =>
+        order._id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+    setFilteredOrders((prev) =>
+      prev.map((order) =>
+        order._id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+  } catch (err) {
+    console.error("Error updating production status:", err);
+    toast.error("Failed to update production status.");
+  }
+};
 
   return (
     <>
@@ -315,6 +342,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                       <th className="px-4 py-3">Remarks</th>
                       <th className="px-4 py-3">Slip</th>
                       <th className="px-4 py-3">Production Status</th>
+                      <th className="px-4 py-3">Update Production Status</th>
                       <th className="px-4 py-3">Packaging Status</th>
                       <th className="px-4 py-3">Update Packaging Status</th>
                       <th className="px-4 py-3">Dispatch Status</th>
@@ -390,6 +418,19 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                                 </span>
                               </div>
                             </td>
+                            <td className="px-4 py-2">
+  <select
+    value={order.status || ""}
+    onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+    className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  >
+    <option value="" disabled>Select</option>
+    <option value="pending">Pending</option>
+    <option value="in process">In Process</option>
+    <option value="processed">Processed</option>
+  </select>
+</td>
+
                              <td className="px-4 py-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-semibold ${

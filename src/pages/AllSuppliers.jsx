@@ -194,6 +194,7 @@ console.log("suppliers",suppliers);
 {/* Bank Details */}
 <td className="p-2 text-xs text-left whitespace-normal">
   <div><strong>Acc Name:</strong> {supplier.accountName || "–"}</div>
+  <div><strong>Bank Name:</strong> {supplier.bankName || "–"}</div>
   <div><strong>Acc No:</strong> {supplier.accountNumber || "–"}</div>
   <div><strong>IFSC:</strong> {supplier.ifscCode || "–"}</div>
 </td>

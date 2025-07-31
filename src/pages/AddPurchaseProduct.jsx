@@ -125,11 +125,25 @@ export default function AddPurchaseProduct() {
         </h2>
 
        <form onSubmit={handleSubmit} className="space-y-4">
-  {["name", "unit", "hsnCode", "gstPercent", "price"].map((field) => (
-    <div key={field}>
-      <label className="block font-semibold mb-1 capitalize" htmlFor={field}>
-        {field === "hsnCode" ? "HSN Code" : field === "gstPercent" ? "GST (%)" : field.charAt(0).toUpperCase() + field.slice(1)}
-      </label>
+{["name", "unit", "specifications/description of product", "hsnCode", "gstPercent", "price"].map((field) => (
+  <div key={field}>
+    <label className="block font-semibold mb-1 capitalize" htmlFor={field}>
+      {field === "hsnCode"
+        ? "HSN Code"
+        : field === "gstPercent"
+        ? "GST (%)"
+        : field.charAt(0).toUpperCase() + field.slice(1)}
+    </label>
+    {field === "description" ? (
+      <textarea
+        id={field}
+        name={field}
+        value={form[field]}
+        onChange={handleChange}
+        placeholder="Description"
+        className="w-full border p-2 rounded"
+      />
+    ) : (
       <input
         id={field}
         name={field}
@@ -139,22 +153,11 @@ export default function AddPurchaseProduct() {
         className="w-full border p-2 rounded"
         required
       />
-    </div>
-  ))}
-
-  <div>
-    <label className="block font-semibold mb-1" htmlFor="description">
-      Description
-    </label>
-    <textarea
-      id="description"
-      name="description"
-      value={form.description}
-      onChange={handleChange}
-      placeholder="Description"
-      className="w-full border p-2 rounded"
-    />
+    )}
   </div>
+))}
+
+
 
   <div>
     <label className="block font-semibold mb-1" htmlFor="fileInput">
