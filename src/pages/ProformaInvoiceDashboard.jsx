@@ -5,8 +5,10 @@ import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import { Eye, Mail, MessageCircle } from "lucide-react";
+import { useUserContext } from "../context/UserContext";
 
 export default function ProformaInvoiceDashboard() {
+  const { user } =useUserContext();
   const [invoices, setInvoices] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -29,31 +31,41 @@ const navigate=useNavigate();
     fetchInvoices();
   }, [page, search]);
 
-const handleEmailShare = async (invoice) => {
+const handleEmailShare = async (invoice, user) => {
   const { value: toEmail } = await Swal.fire({
     title: "Send Invoice via Email",
     input: 'email',
     inputLabel: 'Customer Email',
     inputValue: invoice.customerEmail || 'example@example.com',
     showCancelButton: true,
-    confirmButtonText: 'Send Email',
+    confirmButtonText: 'Open Email App',
     inputPlaceholder: 'Enter customer email'
   });
 
   if (!toEmail) return;
 
-  try {
-    await axiosInstance.post(`/proforma/${invoice._id}/share-email`, {
-      to: toEmail,
-      message: `P/I No: ${invoice.invoiceNo}`
-    });
+  const subject = encodeURIComponent(`Proforma Invoice - ${invoice.invoiceNo}`);
+  const body = encodeURIComponent(
+    `Dear Customer,
 
-    toast.success("Email sent successfully");
-  } catch (err) {
-    console.error("❌ Error sending email", err);
-    toast.error("Failed to send email");
-  }
+Please find your Proforma Invoice and Statement below:
+
+Proforma Invoice: ${invoice.pdfUrl}
+Statement: ${invoice.statementUrl || 'Not available'}
+
+Let us know in case of any questions.
+
+Best regards,
+${user.name}
+(${user.email})`
+  );
+
+  const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${body}`;
+
+  // Open user's email client
+  window.location.href = mailtoLink;
 };
+
 
   const totalPages = Math.ceil(total / limit);
 const deleteInvoice = async (id) => {
@@ -131,7 +143,7 @@ const deleteInvoice = async (id) => {
 
   {/* Share via Email */}
   <button
-    onClick={() => handleEmailShare(inv)}
+    onClick={() => handleEmailShare(inv, user)}
     className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded transition"
   >
     <Mail size={16} />

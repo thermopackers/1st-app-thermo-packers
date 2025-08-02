@@ -114,6 +114,15 @@ if (loading) {
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
               <span className="capitalize">({user.role})</span>
             </h2>)}
+
+
+
+
+
+{user.role !== "suppliers" && (
+  <>
+
+
             {notifications.length > 0 && (
   <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-6">
     <h3 className="text-md font-bold text-yellow-800 mb-2">🔔 Follow-Up Reminders</h3>
@@ -222,7 +231,6 @@ if (loading) {
 
             </div>
 
-            {/* Production → Packaging → Dispatch Grid */}
        {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
             <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
 <>
@@ -410,7 +418,7 @@ if (loading) {
   </div>
 </div>
 
-    {["packaging", "admin", "accounts"].includes(user.role) && (
+    {["packaging", "admin", "accounts","driver"].includes(user.role) && (
 
 <div className="bg-white p-6 rounded-2xl shadow-lg mt-6">
   <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
@@ -418,7 +426,7 @@ if (loading) {
   </h3>
 
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    {["packaging", "admin", "accounts"].includes(user.role) && (
+    {["packaging", "admin", "accounts","driver"].includes(user.role) && (
       <div className="w-full">
         <NavLink to="/assign-dispatch">
           <button className="w-full h-full bg-sky-500 hover:bg-sky-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center transition duration-200">
@@ -622,6 +630,36 @@ if (loading) {
 
 
 
+</> )}
+{user.role === "suppliers" && (
+    <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 p-6 rounded-2xl shadow-lg transition hover:shadow-xl">
+      <h3 className="text-xl font-bold text-orange-800 mb-4 text-center">
+        📝 Submit Drawing / Order Information
+      </h3>
+      <div className="flex justify-center">
+        <button
+          onClick={() => navigate('/drawing-upload-form')}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg shadow font-medium transition"
+        >
+          ➕ Go to Drawing Upload Form
+        </button>
+      </div>
+    </div>)}
+{/* {(user.role === "suppliers" || user.role === "accounts" ) && (
+    <div className="mt-6 bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 p-6 rounded-2xl shadow-lg transition hover:shadow-xl">
+      <h3 className="text-xl font-bold text-teal-800 mb-4 text-center">
+        📄 View Order Information
+      </h3>
+      <div className="flex justify-center">
+        <button
+          onClick={() => navigate("/drawing-orders-table")}
+          className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg shadow font-medium transition"
+        >
+          📊 Go to Orders Table
+        </button>
+      </div>
+    </div>
+)} */}
           </div>
         </main>
       </div>

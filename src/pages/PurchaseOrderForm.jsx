@@ -153,8 +153,8 @@ if (!requiredDate) {
 const bodyRows = [
   [
     { text: "SL.NO", bold: true, fontSize: 8 },
-        { text: "Description", bold: true, fontSize: 8 },
     { text: "Product Name", bold: true, fontSize: 8 },
+        { text: "Description", bold: true, fontSize: 8 },
     { text: "Qty (Kg)", bold: true, fontSize: 8 },
      { text: "Unit", bold: true, fontSize: 8 }, // ✅ Add this
     { text: "Rate Rs/unit", bold: true, fontSize: 8 },
@@ -177,13 +177,14 @@ let grandTotal = 0;
 
    bodyRows.push([
   { text: i + 1, fontSize: 8 },
+  { text: item.name, fontSize: 8 },
 {
   text: item.description || "-",
   fontSize: 8,
   alignment: "left",
   noWrap: false,
 },
-  { text: item.name, fontSize: 8 },
+  
   { text: item.qty, fontSize: 8 },
     { text: item.unit || "-", fontSize: 8 }, // ✅ Add this
   { text: item.price, fontSize: 8 },
@@ -330,7 +331,7 @@ bodyRows.push([
                   {
                     table: {
                       headerRows: 1,
-widths: [20, 40, "*", 40, 40, 50, 40, 50, "*"], // 120 for description column
+widths: [20, "*", 40, 40, 40, 50, 40, 50, "*"], // 120 for description column
                       body: bodyRows,
                     },
                     layout: "lightHorizontalLines",

@@ -34,6 +34,9 @@ import AddPurchaseProduct from "../pages/AddPurchaseProduct";
 import PurchaseProductSuppliers from "../pages/PurchaseProductSuppliers";
 import PurchaseOrderForm from "../pages/PurchaseOrderForm";
 import PurchaseOrdersList from "../pages/PurchaseOrdersList";
+import SendRFQ from "../pages/SendRFQ";
+import DrawingUploadForm from "../components/DrawingUploadForm ";
+import DrawingOrdersTable from "../pages/DrawingOrdersTable";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -101,7 +104,7 @@ export default function AppRoutes() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","suppliers"]}>
                   <PageWrapper><Dashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -304,8 +307,24 @@ export default function AppRoutes() {
 <Route
   path="/assign-dispatch"
   element={
-    <ProtectedRoute allowedRoles={["admin", "accounts","dispatch","packaging"]}>
+    <ProtectedRoute allowedRoles={["admin", "accounts","dispatch","packaging","driver"]}>
       <PageWrapper><AssignDispatchPlanForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/drawing-upload-form"
+  element={
+    <ProtectedRoute allowedRoles={["suppliers","accounts"]}>
+      <PageWrapper><DrawingUploadForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/drawing-orders-table"
+  element={
+    <ProtectedRoute allowedRoles={["suppliers","accounts"]}>
+      <PageWrapper><DrawingOrdersTable /></PageWrapper>
     </ProtectedRoute>
   }
 />
@@ -498,6 +517,14 @@ path="/purchase-orders/edit/:id"
 element={
     <ProtectedRoute allowedRoles={["accounts"]}>
       <PageWrapper><PurchaseOrderForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/send-rfq"
+element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><SendRFQ /></PageWrapper>
     </ProtectedRoute>
   }
 />

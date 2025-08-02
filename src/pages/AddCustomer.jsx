@@ -8,6 +8,7 @@ import { useUserContext } from "../context/UserContext";
 export default function AddCustomer() {
     const { user } = useUserContext();
   const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
+const [gstError, setGstError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -48,14 +49,30 @@ const uploadToCloudinary = async (files) => {
   return Promise.all(uploads);
 };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  if (name === "company") {
+    if (value.length !== 15) {
+      setGstError("GST number must be exactly 15 characters.");
+    } else {
+      setGstError("");
+    }
+  }
+
+  setFormData((prev) => ({ ...prev, [name]: value }));
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
       setSubmitting(true);
+if (formData.company.length !== 15) {
+  setGstError("GST number must be exactly 15 characters.");
+  toast.error("GST number must be exactly 15 characters.");
+  setSubmitting(false);
+  return;
+}
 
     try {
           let uploadedUrls = [];
@@ -114,16 +131,24 @@ await axiosInstance.post("/customers", payload);
               />
             </div>
 
-            <div>
-              <label className="block mb-1 font-medium text-gray-700">GST No.</label>
-              <input
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="GST No."
-              />
-            </div>
+          <div>
+  <label className="block mb-1 font-medium text-gray-700">GST No.</label>
+  <input
+    name="company"
+    value={formData.company}
+    onChange={handleChange}
+    className={`w-full px-4 py-2 border ${
+      gstError ? "border-red-500" : "border-gray-300"
+    } rounded-md focus:outline-none focus:ring-2 ${
+      gstError ? "focus:ring-red-400" : "focus:ring-blue-400"
+    }`}
+    placeholder="GST No."
+  />
+  {gstError && (
+    <p className="text-red-500 text-sm mt-1">{gstError}</p>
+  )}
+</div>
+
 <div>
   <label className="block mb-1 font-medium text-gray-700">
     GST Documents (Images or PDFs)

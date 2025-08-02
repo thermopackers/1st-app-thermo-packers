@@ -9,6 +9,7 @@ export default function EditCustomer() {
   const {user} = useUserContext();
   const { id } = useParams();
   const navigate = useNavigate();
+const [gstError, setGstError] = useState("");
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,10 +60,19 @@ export default function EditCustomer() {
     fetchCustomer();
   }, [id, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCustomer((prev) => ({ ...prev, [name]: value }));
-  };
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  if (name === "company") {
+    if (value.length !== 15) {
+      setGstError("GST number must be exactly 15 characters.");
+    } else {
+      setGstError("");
+    }
+  }
+
+  setCustomer((prev) => ({ ...prev, [name]: value }));
+};
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -103,6 +113,12 @@ export default function EditCustomer() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+if (customer.company.length !== 15) {
+  setGstError("GST number must be exactly 15 characters.");
+  toast.error("GST number must be exactly 15 characters.");
+  setSubmitting(false);
+  return;
+}
 
     try {
       let uploadedUrls = [];
@@ -201,16 +217,20 @@ export default function EditCustomer() {
             />
           </div>
 
-          <div>
-            <label className="block mb-1 font-semibold">GST No.</label>
-            <input
-              type="text"
-              name="company"
-              value={customer.company || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
-            />
-          </div>
+       <div>
+  <label className="block mb-1 font-semibold">GST No.</label>
+  <input
+    type="text"
+    name="company"
+    value={customer.company || ""}
+    onChange={handleChange}
+    className={`w-full border p-2 rounded ${
+      gstError ? "border-red-500 focus:ring-red-400" : ""
+    }`}
+  />
+  {gstError && <p className="text-red-500 text-sm mt-1">{gstError}</p>}
+</div>
+
 
           <div>
             <label className="block mb-1 font-semibold">Phone</label>

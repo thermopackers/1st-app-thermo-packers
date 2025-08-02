@@ -19,6 +19,7 @@ const GoogleLoginComponent = ({ setLoading }) => {
       case 'dispatch':
       case 'packaging':
       case 'production':
+      case 'suppliers':
         case 'driver':
         navigate('/dashboard');
         break;
@@ -46,7 +47,7 @@ const GoogleLoginComponent = ({ setLoading }) => {
           localStorage.setItem('token', token);
 
           const decoded = jwtDecode(token);
-          const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging','driver'];
+          const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging','driver','suppliers'];
           if (!validRoles.includes(decoded.role)) {
             throw new Error('Unauthorized user role');
           }

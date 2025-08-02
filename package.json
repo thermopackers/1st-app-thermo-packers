@@ -18,6 +18,7 @@
     "chart.js": "^4.4.9",
     "dayjs": "^1.11.13",
     "face-api.js": "^0.22.2",
+    "ffmpeg.js": "^4.2.9003",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.9.0",
     "gsap": "^3.12.7",
@@ -50,6 +51,7 @@
     "sweetalert2": "^11.6.13",
     "sweetalert2-react-content": "^5.1.0",
     "swiper": "^11.2.6",
+    "uuid": "^11.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

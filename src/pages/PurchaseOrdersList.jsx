@@ -3,8 +3,10 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
+import { useUserContext } from "../context/UserContext";
 
 export default function PurchaseOrdersList() {
+  const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [suppliers, setSuppliers] = useState([]);
@@ -83,22 +85,32 @@ const getSupplierContact = (supplierId) => {
   };
 };
 
-  const handleSendEmail = async (order) => {
-  const { email } = getSupplierContact(order.supplier?._id);
-  if (!email) return Swal.fire("❌ No email", "Supplier email not found", "error");
+const handleSendEmail = (order) => {
+  const to = getSupplierContact(order.supplier?._id)?.email;
+  const from = user?.email; // Only shown in body
+  const poNumber = order?.poNumber || "PO-0001";
+  const pdfUrl = order?.pdfUrl || "https://example.com/sample-po.pdf";
 
-  try {
-    await axiosInstance.post("/suppliers/send-po-email", {
-      email,
-      poNumber: order.poNumber,
-      pdfUrl: order.pdfUrl,
-    });
-    Swal.fire("📧 Email Sent", `PO sent to ${email}`, "success");
-  } catch (err) {
-    console.error(err);
-    Swal.fire("❌ Error", "Failed to send email", "error");
+  if (!to) {
+    return Swal.fire("❌ No email", "Supplier email not found", "error");
   }
+
+  const subject = `Purchase Order ${poNumber}`;
+  const body = encodeURIComponent(`
+Dear Vendor,
+
+Please find the Purchase Order ${poNumber} at the following link:
+
+${pdfUrl}
+
+Sent by: ${from}
+  `);
+
+  const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${body}`;
+  window.location.href = mailtoLink;
 };
+
+
 
 const handleSendWhatsApp = (order) => {
   const { phone } = getSupplierContact(order.supplier?._id);

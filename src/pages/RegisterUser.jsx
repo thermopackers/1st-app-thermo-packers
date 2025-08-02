@@ -21,7 +21,6 @@ const [modalVisible, setModalVisible] = useState(false);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
  const formRef = useRef(null);
-console.log("uusers",users);
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -165,6 +164,7 @@ const handleCancelEdit = () => {
                 <option value="dispatch">EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section</option>
                 <option value="production">Production</option>
                 <option value="packaging">EPS/Thermocol Shape Molding, Packaging and Dispatch Section</option>
+                  <option value="suppliers">Vendors/Suppliers</option> {/* ✅ NEW */}
               </select>
             </div>
 {role === 'production' && (
@@ -192,18 +192,22 @@ const handleCancelEdit = () => {
     </div>
   </div>
 )}
-<div className="flex items-center space-x-2">
-  <input
-    type="checkbox"
-    id="attendance"
-    checked={allowAttendance}
-    onChange={() => setAllowAttendance(!allowAttendance)}
-    className="w-4 h-4"
-  />
-  <label htmlFor="attendance" className="text-sm text-gray-700">
-    Allow for Attendance
-  </label>
-</div>
+
+{role !== 'suppliers' && (
+  <div className="flex items-center space-x-2">
+    <input
+      type="checkbox"
+      id="attendance"
+      checked={allowAttendance}
+      onChange={() => setAllowAttendance(!allowAttendance)}
+      className="w-4 h-4"
+    />
+    <label htmlFor="attendance" className="text-sm text-gray-700">
+      Allow for Attendance
+    </label>
+  </div>
+)}
+
 
 
 
@@ -266,6 +270,7 @@ const handleCancelEdit = () => {
     dispatch: 'EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section',
     production: 'Production',
     packaging: 'EPS/Thermocol Shape Molding, Packaging and Dispatch Section',
+        suppliers: 'Vendors/Suppliers', // ✅ ADD THIS
   }[u.role] || u.role}
 </td>
 <td className="px-4 py-2 capitalize">
@@ -295,6 +300,8 @@ const handleCancelEdit = () => {
     >
       🗑️ Delete
     </button>
+   {u.role !== "suppliers" && (
+  <>
     <button
       onClick={() => {
         setSelectedUser(u);
@@ -322,7 +329,11 @@ const handleCancelEdit = () => {
         ❌ Delete Face
       </button>
     )}
+  </>
+)}
+
   </div>
+   {u.role !== "suppliers" && (
 
   <div className="mt-2 text-sm text-gray-700">
     {u.faceUrl ? (
@@ -330,7 +341,8 @@ const handleCancelEdit = () => {
     ) : (
       <span className="text-red-600">❌ Face Not Registered</span>
     )}
-  </div>
+  </div>)}
+  
 </td>
 
 

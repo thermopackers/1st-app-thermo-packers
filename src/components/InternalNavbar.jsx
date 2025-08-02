@@ -52,52 +52,57 @@ export default function InternalNavbar() {
         </div>
 
         {/* Desktop Menu (only on extra large screens and up) */}
-        <div className="hidden xl:flex space-x-8 items-center">
-          
-          {role === "admin" && (
-            <NavLink
-              to="/inventory"
-              className={({ isActive }) =>
-                `nav-item text-base font-semibold ${
-                  isActive ? "text-yellow-300" : "hover:text-yellow-300"
-                }`
-              }
-            >
-              📦 Manage Inventory
-            </NavLink>
-          )}
+     <div className="hidden xl:flex space-x-8 items-center">
+  {role !== "suppliers" && role === "admin" && (
+    <NavLink
+      to="/inventory"
+      className={({ isActive }) =>
+        `nav-item text-base font-semibold ${
+          isActive ? "text-yellow-300" : "hover:text-yellow-300"
+        }`
+      }
+    >
+      📦 Manage Inventory
+    </NavLink>
+  )}
 
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `nav-item text-base font-semibold ${
-                isActive ? "text-yellow-300" : "hover:text-yellow-300"
-              }`
-            }
-          > {role !== "driver" ?
-            "🖥️ Manage Orders" :
-            "🖥️ Dashboard"}
-          </NavLink>
- {role !== "driver" && (
+ <NavLink
+  to="/dashboard"
+  className={({ isActive }) =>
+    `nav-item text-base font-semibold ${
+      isActive ? "text-yellow-300" : "hover:text-yellow-300"
+    }`
+  }
+>
+  {role === "driver"
+    ? "🖥️ Dashboard"
+    : role === "suppliers"
+    ? "🖥️ Dashboard"
+    : "🖥️ Manage Orders"}
+</NavLink>
 
-          <NavLink
-            to="/orders"
-            className={({ isActive }) =>
-              `nav-item text-base font-semibold ${
-                isActive ? "text-yellow-300" : "hover:text-yellow-300"
-              }`
-            }
-          >
-            📄 Orders
-          </NavLink>)}
 
-          <button
-            onClick={handleLogout}
-            className="bg-gradient-to-r cursor-pointer from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300"
-          >
-            🚪 Logout
-          </button>
-        </div>
+  {role !== "driver" && role !== "suppliers" && (
+    <NavLink
+      to="/orders"
+      className={({ isActive }) =>
+        `nav-item text-base font-semibold ${
+          isActive ? "text-yellow-300" : "hover:text-yellow-300"
+        }`
+      }
+    >
+      📄 Orders
+    </NavLink>
+  )}
+
+  <button
+    onClick={handleLogout}
+    className="bg-gradient-to-r cursor-pointer from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300"
+  >
+    🚪 Logout
+  </button>
+</div>
+
 
         {/* Mobile / Tablet / Laptop Hamburger Icon */}
         <div className="xl:hidden flex items-center">
@@ -111,51 +116,53 @@ export default function InternalNavbar() {
         </div>
 
         {/* Mobile / Tablet / Laptop Dropdown Menu */}
-        {menuOpen && (
-          <div className="absolute top-16 right-6 w-56 bg-white rounded-lg shadow-lg py-4 flex flex-col items-start text-gray-800 animate-fade-in z-50">
-            {role === "admin" && (
-              <NavLink
-                to="/inventory"
-                className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-                onClick={closeMenu}
-              >
-                📦 Manage Inventory
-              </NavLink>
-            )}
-<>
+       {menuOpen && (
+  <div className="absolute top-16 right-6 w-56 bg-white rounded-lg shadow-lg py-4 flex flex-col items-start text-gray-800 animate-fade-in z-50">
+    {role !== "suppliers" && role === "admin" && (
+      <NavLink
+        to="/inventory"
+        className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
+        onClick={closeMenu}
+      >
+        📦 Manage Inventory
+      </NavLink>
+    )}
 
-            <NavLink
-              to="/dashboard"
-              onClick={closeMenu}
-              className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-            >
-               {role !== "driver" ?
-              "🖥️ Manage Orders" : "🖥️ Dashboard"}
-            </NavLink>
-                         {role !== "driver" && (
+ <NavLink
+  to="/dashboard"
+  onClick={closeMenu}
+  className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
+>
+  {role === "driver"
+    ? "🖥️ Dashboard"
+    : role === "suppliers"
+    ? "🖥️ Dashboard"
+    : "🖥️ Manage Orders"}
+</NavLink>
 
-            <NavLink
-              to="/orders"
-              onClick={closeMenu}
-              className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
-            >
-              📄 Orders
-            </NavLink>
-          )}
-</>
-          
-          
-            <button
-              onClick={() => {
-                closeMenu();
-                handleLogout();
-              }}
-              className="px-4 py-2 w-full text-left hover:bg-red-100 font-medium text-red-600"
-            >
-              🚪 Logout
-            </button>
-          </div>
-        )}
+
+    {role !== "driver" && role !== "suppliers" && (
+      <NavLink
+        to="/orders"
+        onClick={closeMenu}
+        className="px-4 py-2 w-full hover:bg-blue-100 font-medium"
+      >
+        📄 Orders
+      </NavLink>
+    )}
+
+    <button
+      onClick={() => {
+        closeMenu();
+        handleLogout();
+      }}
+      className="px-4 py-2 w-full text-left hover:bg-red-100 font-medium text-red-600"
+    >
+      🚪 Logout
+    </button>
+  </div>
+)}
+
       </div>
     </nav>
   );

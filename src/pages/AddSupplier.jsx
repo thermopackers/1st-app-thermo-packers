@@ -11,6 +11,7 @@ const [form, setForm] = useState({
   locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
    bankName: "", vendorCategory: ""
 });
+const [gstError, setGstError] = useState("");
 
 const [chequeFiles, setChequeFiles] = useState([]);
 const [chequePreviewUrls, setChequePreviewUrls] = useState([]);
@@ -64,10 +65,20 @@ const fetchPaginatedProducts = async (page) => {
   }
 };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  if (name === "gstNumber") {
+    if (value.length !== 15) {
+      setGstError("GST number must be exactly 15 characters.");
+    } else {
+      setGstError("");
+    }
+  }
+
+  setForm(prev => ({ ...prev, [name]: value }));
+};
+
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -130,6 +141,12 @@ const fetchPaginatedProducts = async (page) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.gstNumber.length !== 15) {
+  setGstError("GST number must be exactly 15 characters.");
+  toast.error("GST number must be exactly 15 characters.");
+  return;
+}
+
     try {
       toast.loading(id ? "Updating..." : "Uploading files...");
      const { gstUploads, chequeUploads } = await uploadToCloudinary();
@@ -191,11 +208,17 @@ const handleChequeFileChange = (e) => {
  name="email" value={form.email} onChange={handleChange} className="w-full border p-2 rounded" />
   </div>
 
-  <div>
-    <label className="block font-semibold mb-1">GST Number</label>
-    <input name="gstNumber"  placeholder="Enter GST number"
- value={form.gstNumber} onChange={handleChange} className="w-full border p-2 rounded" />
-  </div>
+<div>
+  <label className="block font-semibold mb-1">GST Number</label>
+  <input
+    name="gstNumber"
+    placeholder="Enter GST number"
+    value={form.gstNumber}
+    onChange={handleChange}
+    className={`w-full border p-2 rounded ${gstError ? "border-red-500 focus:ring-red-400" : ""}`}
+  />
+  {gstError && <p className="text-red-500 text-sm mt-1">{gstError}</p>}
+</div>
 
 
 

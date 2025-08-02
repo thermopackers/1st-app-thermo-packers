@@ -61,6 +61,20 @@ const fetchRegisteredVehicles = async () => {
   }
 };
 
+useEffect(() => {
+  if (user.role === "driver") {
+    const driverVehicle = registeredVehicles.find(
+      (v) => v.driverEmail === user.email
+    );
+    if (driverVehicle) {
+      setFormData((prev) => ({
+        ...prev,
+        vehicleNumber: driverVehicle.vehicleNumber,
+        driverName: user.name || driverVehicle.driverName || "",
+      }));
+    }
+  }
+}, [user, registeredVehicles]);
 
 
 const startRecording = async () => {
@@ -875,6 +889,9 @@ const handleEditDieselEntry = async (entry) => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {user.role !== "dispatch" && user.role !== "packaging" && (
           <>
+           {user.role !== "driver" && (
+            <>
+
         <div className="bg-white shadow p-4 rounded mb-6 max-w-3xl mx-auto">
   <h3 className="font-bold text-lg mb-2">Register New Vehicle</h3>
 
@@ -939,6 +956,7 @@ const handleEditDieselEntry = async (entry) => {
     Register Vehicle
   </button>
 </div>
+          
 
 <div className="flex justify-center mt-4">
   <button
@@ -948,8 +966,8 @@ const handleEditDieselEntry = async (entry) => {
     {showVehicles ? "Hide Registered Vehicles" : "Show Registered Vehicles"}
   </button>
 </div>
-
-
+</>
+ )}
 
 <div
   className={`overflow-hidden transition-all duration-500 ease-in-out transform ${
@@ -1008,34 +1026,44 @@ const handleEditDieselEntry = async (entry) => {
 
   <div className="flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Number</label>
-    <select
-      name="vehicleNumber"
-      value={formData.vehicleNumber}
-      onChange={handleChange}
-      className="w-full p-2 border rounded shadow-sm"
-    >
+   <select
+  name="vehicleNumber"
+  value={formData.vehicleNumber}
+  onChange={handleChange}
+  className="w-full p-2 border rounded shadow-sm"
+  disabled={user.role === "driver"}
+>
+
       <option value="">Select Vehicle</option>
-      {registeredVehicles.map((v) => (
-        <option key={v._id} value={v.vehicleNumber}>
-          {v.vehicleNumber}
-        </option>
-      ))}
+    {registeredVehicles
+  .filter((v) =>
+    user.role === "driver"
+      ? v.driverEmail === user.email // only their vehicle
+      : true // show all for others
+  )
+  .map((v) => (
+    <option key={v._id} value={v.vehicleNumber}>
+      {v.vehicleNumber}
+    </option>
+))}
+
     </select>
   </div>
 
   <div className="flex flex-col">
     <label className="mb-1 font-medium text-sm text-gray-700">Driver Name</label>
-    <input
-      type="text"
-      name="driverName"
-      value={formData.driverName || ""}
-      onChange={(e) =>
-        setFormData((prev) => ({ ...prev, driverName: e.target.value }))
-      }
-      placeholder="Enter Driver Name"
-      required
-      className="w-full p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    />
+   <input
+  type="text"
+  name="driverName"
+  // value={formData.driverName || ""}
+  onChange={(e) =>
+    setFormData((prev) => ({ ...prev, driverName: e.target.value }))
+  }
+  placeholder="Enter Driver Name"
+  required
+  className="w-full p-2 border rounded shadow-sm"
+/>
+
   </div>
 
 <div className="md:col-span-2">
@@ -1229,6 +1257,7 @@ const handleEditDieselEntry = async (entry) => {
 </form>
 </>
         )}
+            {user.role !== "driver" && (
 
         <div className="max-w-7xl mx-auto mt-10 px-4">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
@@ -1477,6 +1506,7 @@ setSearchTerm("");
             </button>
           </div>
         </div>
+            )}
       </main>
     </div>
   );
