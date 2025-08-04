@@ -28,7 +28,7 @@ const { id } = useParams(); // Get PO ID if editing
       qty: "",
       unit: "",
       price: "",
-      gstPercent: "",
+      gstPercent: "0",
        description: "", // ✅ added
       remarks: "",
       imageUrls: [], // Store all image URLs
@@ -118,8 +118,10 @@ useEffect(() => {
 
 const handleGeneratePDF = async () => {
     // Check for required fields
-  for (let i = 0; i < productEntries.length; i++) {
-    const item = productEntries[i];
+for (let i = 0; i < productEntries.length; i++) {
+  const item = productEntries[i];
+  item.gstPercent = item.gstPercent || "0"; // ✅ Add this line
+
 console.log("item",item);
 
       // Validate required fields
@@ -167,8 +169,10 @@ const bodyRows = [
 let grandTotal = 0;
 
   // Add product entries to the body rows
-  for (let i = 0; i < productEntries.length; i++) {
-    const item = productEntries[i];
+for (let i = 0; i < productEntries.length; i++) {
+  const item = productEntries[i];
+  item.gstPercent = item.gstPercent || "0"; // ✅ Add this line
+
     const product = products.find((p) => p.name === item.name);
     const imageUrls = product?.files || []; // Get the full files array
 
@@ -410,7 +414,7 @@ if (id && existingPdfUrl) {
     name: p.name,
     qty: p.qty,
     price: p.price,
-    gstPercent: p.gstPercent,
+gstPercent: p.gstPercent || "0",
     remarks: p.remarks,
   })),
   freightOption,
@@ -430,7 +434,7 @@ await axiosInstance.post("/purchase-orders/save", {
     name: p.name,
     qty: p.qty,
     price: p.price,
-    gstPercent: p.gstPercent,
+gstPercent: p.gstPercent || "0",
     remarks: p.remarks,
   })),
   freightOption,
