@@ -113,7 +113,7 @@ const handleChange = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-if (customer.company.length !== 15) {
+  if (customer.company && customer.company.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   setSubmitting(false);

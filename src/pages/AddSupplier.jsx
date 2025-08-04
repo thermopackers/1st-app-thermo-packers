@@ -69,7 +69,7 @@ const handleChange = (e) => {
   const { name, value } = e.target;
 
   if (name === "gstNumber") {
-    if (value.length !== 15) {
+    if (value && value.length !== 15) {
       setGstError("GST number must be exactly 15 characters.");
     } else {
       setGstError("");
@@ -141,7 +141,7 @@ const handleChange = (e) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.gstNumber.length !== 15) {
+  if (form.gstNumber && form.gstNumber.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   return;
