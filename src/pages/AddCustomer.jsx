@@ -67,12 +67,16 @@ const handleChange = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
       setSubmitting(true);
-  if (formData.company && formData.company.length !== 15) {
+  if (formData.company && formData.company !== "URN" && formData.company.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   setSubmitting(false);
   return;
 }
+  // 🔥 Auto-fill URN
+  if (!formData.company || formData.company.trim() === "") {
+    formData.company = "URN";
+  }
 
     try {
           let uploadedUrls = [];
@@ -142,7 +146,7 @@ await axiosInstance.post("/customers", payload);
     } rounded-md focus:outline-none focus:ring-2 ${
       gstError ? "focus:ring-red-400" : "focus:ring-blue-400"
     }`}
-    placeholder="GST No."
+    placeholder={formData.company?.trim() === "" ? "URN (If no GST No.)" : "GST No."}
   />
   {gstError && (
     <p className="text-red-500 text-sm mt-1">{gstError}</p>

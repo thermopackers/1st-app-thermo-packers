@@ -125,13 +125,15 @@ export default function AddPurchaseProduct() {
         </h2>
 
        <form onSubmit={handleSubmit} className="space-y-4">
-{["name", "unit", "specifications/description of product", "hsnCode", "gstPercent", "price"].map((field) => (
+{["name", "unit", "description", "hsnCode", "gstPercent", "price"].map((field) => (
   <div key={field}>
     <label className="block font-semibold mb-1 capitalize" htmlFor={field}>
       {field === "hsnCode"
         ? "HSN Code"
         : field === "gstPercent"
         ? "GST (%)"
+        : field === "description"
+        ? "Specifications / Description of Product"
         : field.charAt(0).toUpperCase() + field.slice(1)}
     </label>
     {field === "description" ? (
@@ -140,7 +142,7 @@ export default function AddPurchaseProduct() {
         name={field}
         value={form[field]}
         onChange={handleChange}
-        placeholder="Description"
+        placeholder="Enter description"
         className="w-full border p-2 rounded"
       />
     ) : (

@@ -113,11 +113,15 @@ const handleChange = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-  if (customer.company && customer.company.length !== 15) {
+if (customer.company && customer.company !== "URN" && customer.company.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   setSubmitting(false);
   return;
+}
+// 🔥 Auto-fill URN
+if (!customer.company || customer.company.trim() === "") {
+  customer.company = "URN";
 }
 
     try {
@@ -227,6 +231,8 @@ const handleChange = (e) => {
     className={`w-full border p-2 rounded ${
       gstError ? "border-red-500 focus:ring-red-400" : ""
     }`}
+        placeholder={customer.company?.trim() === "" ? "URN (If no GST No.)" : "GST No."}
+
   />
   {gstError && <p className="text-red-500 text-sm mt-1">{gstError}</p>}
 </div>
