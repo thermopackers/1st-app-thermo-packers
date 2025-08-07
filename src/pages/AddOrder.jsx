@@ -435,11 +435,6 @@ if (clientDetails.poCopy.length > 0) {
 
   } catch (err) {
     console.error("Order submission error:", err);
-    if (err.response?.data?.message === "PO number already exists") {
-      toast.error("This P/O Number already exists. Please use a different one.");
-    } else {
-      toast.error("Failed to submit order");
-    }
   } finally {
     setIsSubmitting(false);
   }

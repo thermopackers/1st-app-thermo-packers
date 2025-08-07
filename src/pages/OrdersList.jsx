@@ -90,7 +90,7 @@ useEffect(() => {
   });
 
 const sectionsList = [
-  { key: "preExpander", label: "EPS/Thermocol Block Molding/Dana/Beads Production Section" },
+  { key: "preExpander", label: "EPS/Thermocol Block Molding Production Section" },
   { key: "shapeMoulding", label: "EPS/Thermocol Shape Molding Production Section" },
   { key: "sheetCutting", label: "EPS/Thermocol Sheet Cutting & Dispatch Section" },
   { key: "shapePackaging", label: "EPS/Thermocol Shape Molding Packaging & Dispatch Section" },
@@ -104,7 +104,7 @@ const sectionsList = [
   const [ordersFetched, setOrdersFetched] = useState(false);
   const location = useLocation();
 
-  const ordersPerPage = 8;
+  const ordersPerPage = 20;
 
   // 🔁 Maps section keys to slip types
 const sectionToSlipType = {
@@ -277,15 +277,22 @@ const handleSlipSubmit = async (payload) => {
       const decoded = JSON.parse(atob(token.split(".")[1]));
       setRole(decoded.role);
 
-      const params = {
-        page,
-        limit: ordersPerPage,
-        ...filters,
-        search: searchTerm, // ✅ send to backend
-        sort: sortOrder,
-        status: statusFilter,
-        dispatchStatus: dispatchStatusFilter,
-      };
+     const params = {
+  page,
+  limit: ordersPerPage,
+  ...filters,
+  search: searchTerm,
+  sort: ["newest", "oldest"].includes(sortOrder) ? sortOrder : "newest",
+  status: statusFilter,
+  dispatchStatus: dispatchStatusFilter,
+};
+
+// ✅ Add ageFilter only if it's one of the new options
+if (
+  ["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)
+) {
+  params.ageFilter = sortOrder;
+}
 
       let url = "/orders";
   
@@ -705,7 +712,12 @@ const actuallySendToProduction = async (
     }
   };
  
+  const sortedOrders = useMemo(() => {
+  return [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}, [orders]);
+
   return (
+    
     <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {uploadingPOCopy && (
         <div className="fixed inset-0 bg-[#000000af] bg-opacity-50 flex items-center justify-center z-50">
@@ -863,14 +875,18 @@ const actuallySendToProduction = async (
   <label className="block text-sm font-semibold text-gray-700 mb-1">
     🕒 Sort By
   </label>
-  <select
-    value={sortOrder}
-    onChange={(e) => setSortOrder(e.target.value)}
-    className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="newest">Newest First</option>
-    <option value="oldest">Oldest First</option>
-  </select>
+<select
+  value={sortOrder}
+  onChange={(e) => setSortOrder(e.target.value)}
+  className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="newest">Newest First</option>
+  <option value="olderThan10">Older Than 10 Days</option>
+  <option value="olderThan20">Older Than 20 Days</option>
+  <option value="olderThan30">Older Than 30 Days</option>
+  <option value="moreThan30">More Than 30 Days</option>
+</select>
+
 </div>
 
 {/* Status Filter */}
@@ -1020,31 +1036,7 @@ const actuallySendToProduction = async (
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
-                   {groupedOrders.map(([poNumber, poOrders], index) => (
-                        <React.Fragment key={poNumber}>
-                          <tr
-                            className={`${
-                              index % 2 === 0 ? "bg-blue-100" : "bg-purple-100"
-                            } text-left`}
-                          >
-                            <td
-                              colSpan="100%"
-                              className="px-4 py-2 font-bold text-gray-800"
-                            >
-                              📄 <strong>PO:</strong> {poNumber} —{" "}
-                              {poOrders.length} order
-                              {poOrders.length > 1 ? "s" : ""}
-                            </td>
-                          </tr>
-
-                          {poOrders.map((order) => {
-
-                            const isSent =
-                              order.packagingSlip ||
-                              order.cuttingSlip ||
-                              order.shapeSlip ||
-                              order.danaSlip;
-                            const productKey = order.product.toLowerCase();
+{sortedOrders.map((order, index) => {
                             return (
                               <tr key={order._id} className="order-row">
                                 <td className="px-4 py-2 text-sm text-gray-800">
@@ -1701,9 +1693,7 @@ if (isSectionAlreadySent) {
 
                               </tr>
                             );
-                          })}
-                        </React.Fragment>
-                      )
+                          }
                     )}
                   </tbody>
                 </table>

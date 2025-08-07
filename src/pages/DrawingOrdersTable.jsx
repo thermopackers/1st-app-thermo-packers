@@ -14,10 +14,21 @@ const DrawingOrdersTable = () => {
     const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
+  const [convertedOrderIds, setConvertedOrderIds] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
 const [isUploading, setIsUploading] = useState(false);
 const [isDeleting, setIsDeleting] = useState(false);
+const [showConvertModal, setShowConvertModal] = useState(false);
+const [selectedOrder, setSelectedOrder] = useState(null);
+const [conversionData, setConversionData] = useState({
+  drawingDimension: '',
+  shrinkage: '',
+  margin: '',
+  finalDimension: '',
+  weight: ''
+});
+
 const isSupplierLocked = (order) =>
   user.role === 'suppliers' && order.priceConfirmedStatus === 'confirmed';
 
@@ -260,6 +271,49 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
   }
 };
 
+const openConvertModal = (order) => {
+  setSelectedOrder(order);
+  setConversionData({
+    drawingDimension: '',
+    shrinkage: '',
+    margin: '',
+    finalDimension: '',
+    weight: ''
+  });
+  setShowConvertModal(true);
+};
+
+const submitConversion = async () => {
+  if (!selectedOrder) return;
+
+  try {
+    const payload = {
+      ...conversionData,
+      customer: selectedOrder.customerName,
+      drawingName: selectedOrder.drawingName,
+      drawingId: selectedOrder._id
+    };
+
+  await axiosInstance.post('/final-orders', payload);
+
+// ✅ Update original drawing order as converted
+await axiosInstance.put(`/drawing-orders/${selectedOrder._id}`, { converted: true });
+
+// Optional: update state directly if you want to reflect it instantly without waiting for refetch
+setOrders(prev =>
+  prev.map(order =>
+    order._id === selectedOrder._id ? { ...order, converted: true } : order
+  )
+);
+
+    toast.success('Converted to order successfully!');
+    setShowConvertModal(false);
+  } catch (err) {
+    console.error(err);
+    toast.error('Conversion failed');
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -277,7 +331,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
 )}
 
       <div className="max-w-full overflow-x-auto p-6 bg-gradient-to-br from-white to-blue-50 min-h-screen transition-all duration-300 ease-in-out">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-6 tracking-tight">My Orders</h1>
+        <h1 className="text-3xl font-extrabold text-gray-800 mb-6 tracking-tight">{user.role === "suppliers" ? "My Orders" : "All Orders By Customers" }</h1>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <input
@@ -308,13 +362,16 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
             </button>
           </div>
         </div>
+<p className="text-sm text-gray-600 mb-2 italic">
+  <span className="font-semibold text-red-600">Note:</span> Once you confirm the order, all the fields will be locked.
+</p>
 
         <div className="overflow-auto rounded-lg shadow-lg">
           <table className="min-w-[1200px] w-full text-sm border-collapse bg-white rounded-lg">
             <thead className="bg-gray-100 text-gray-700 text-left">
               <tr>
                 {[
-                  'S. No', 'Date', 'Drawing Name', 'Video of Drawing', 'Margin', 'Shrinkage Allowance',
+                  'S. No', 'Date', 'Customer', 'Drawing Name', 'Video of Drawing', 'Margin', 'Shrinkage Allowance',
                   '3D Model (STEP)', 'Customer Remarks', 'Price Quoted', 'Customer Price Status',
                   'Thermo Packers Remarks', 'Status', 'Finished Product Image'
                 ].map((header, i) => (
@@ -336,6 +393,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
                   <tr key={order._id} className="hover:bg-gray-50 transition-all">
                     <td className="px-4 py-3 border-b">{index + 1}</td>
                     <td className="px-4 py-3 border-b">{order.date}</td>
+                    <td className="px-4 py-3 border-b">{order.user.name || '—'}</td>
 <td className="px-4 py-3 border-b">
   {user.role === 'suppliers' && !isSupplierLocked(order) ? (
     <input
@@ -476,7 +534,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
   ) : order.customerRemarks || '—'}
 </td>
 <td className="px-3 py-2 border">
-  {user.role === 'accounts' ? (
+{['accounts', 'production'].includes(user.role) ? (
     <input
       type="text"
       value={order.priceQuoted || ''}
@@ -518,7 +576,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
 
 
 <td className="px-4 py-3 border-b">
-  {user.role === 'accounts' ? (
+{['accounts', 'production'].includes(user.role) ? (
     <textarea
       value={order.thermoRemarks || ''}
       onChange={(e) => handleFieldChange(order._id, 'thermoRemarks', e.target.value)}
@@ -527,7 +585,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
   ) : order.thermoRemarks || '—'}
 </td>
                  <td className="px-4 py-3 border-b">
-  {user.role === 'accounts' ? (
+{['accounts', 'production'].includes(user.role) ? (
     <select
       value={order.status || ''}
       onChange={(e) => handleFieldChange(order._id, 'status', e.target.value)}
@@ -550,7 +608,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
 </td>
 
           <td className="px-4 py-3 border-b">
-  {user.role === 'accounts' ? (
+{['accounts', 'production'].includes(user.role) ? (
     <div className="flex flex-col gap-2">
       {Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -606,6 +664,22 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
 </td>
 
 
+{['accounts', 'production'].includes(user.role) && (
+  <td className="px-4 py-3 border-b">
+    <button
+      onClick={() => openConvertModal(order)}
+      className={`text-xs px-3 py-1 rounded ${
+        order.converted
+          ? 'bg-gray-400 text-white cursor-not-allowed'
+          : 'bg-green-600 text-white hover:bg-green-700'
+      }`}
+      disabled={order.converted}
+    >
+      {order.converted ? 'Converted' : 'Convert to Order'}
+    </button>
+  </td>
+)}
+
 
 
 
@@ -614,6 +688,41 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
               )}
             </tbody>
           </table>
+          {showConvertModal && (
+  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="bg-white p-6 rounded-md w-[90%] max-w-lg space-y-4 shadow-lg">
+      <h2 className="text-xl font-semibold mb-4">Convert to Final Order</h2>
+
+      {['drawingDimension', 'shrinkage', 'margin', 'finalDimension', 'weight'].map((field) => (
+        <div key={field}>
+          <label className="block font-medium capitalize">{field.replace(/([A-Z])/g, ' $1')}:</label>
+          <input
+            type="text"
+            className="w-full border rounded px-3 py-1 mt-1"
+            value={conversionData[field]}
+            onChange={(e) => setConversionData(prev => ({ ...prev, [field]: e.target.value }))}
+          />
+        </div>
+      ))}
+
+      <div className="flex justify-end gap-4 pt-4">
+        <button
+          onClick={() => setShowConvertModal(false)}
+          className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={submitConversion}
+          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
         </div>
       </div>
     </>

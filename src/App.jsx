@@ -17,6 +17,7 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/send-rfq",
+    "/final-orders",
     "/drawing-upload-form",
     "/drawing-orders-table",
     "/proforma-invoice",

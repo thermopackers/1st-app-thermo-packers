@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 const categories = [
   "wood", "polythene bags", "hardware", "raw materials",
-  "iron sheets", "aluminium casting/sheets", "boiler materials"
+  "iron sheets", "aluminium casting/sheets", "boiler materials", "Kraft Paper"
 ];
 
 export default function SendRFQ() {

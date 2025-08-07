@@ -170,10 +170,7 @@ const handleSubmit = async (e) => {
       ["productName", "size", "quantity", "remarks"],
       cncFormData
     );
-
-    if (drawingFiles.length === 0) {
-      missing.push("drawingFiles");
-    }
+    
   } else if (type === "packaging" || type === "shape-packaging") {
     checkMissing(["quantity", "remarks"], packagingFormData);
   }

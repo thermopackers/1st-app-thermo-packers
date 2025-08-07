@@ -35,8 +35,9 @@ import PurchaseProductSuppliers from "../pages/PurchaseProductSuppliers";
 import PurchaseOrderForm from "../pages/PurchaseOrderForm";
 import PurchaseOrdersList from "../pages/PurchaseOrdersList";
 import SendRFQ from "../pages/SendRFQ";
-import DrawingUploadForm from "../components/DrawingUploadForm ";
 import DrawingOrdersTable from "../pages/DrawingOrdersTable";
+import FinalOrdersTable from "../pages/FinalOrdersTable";
+import DrawingUploadForm from "../components/DrawingUploadForm";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -323,7 +324,7 @@ export default function AppRoutes() {
 <Route
   path="/drawing-orders-table"
   element={
-    <ProtectedRoute allowedRoles={["suppliers","accounts"]}>
+    <ProtectedRoute allowedRoles={["suppliers","accounts","production"]}>
       <PageWrapper><DrawingOrdersTable /></PageWrapper>
     </ProtectedRoute>
   }
@@ -525,6 +526,14 @@ path="/send-rfq"
 element={
     <ProtectedRoute allowedRoles={["accounts","admin"]}>
       <PageWrapper><SendRFQ /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/final-orders"
+element={
+    <ProtectedRoute allowedRoles={["accounts","suppliers","production"]}>
+      <PageWrapper><FinalOrdersTable /></PageWrapper>
     </ProtectedRoute>
   }
 />

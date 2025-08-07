@@ -144,9 +144,26 @@ const updateCNCStatus = async (orderId, newStatus) => {
           ↩ Back
         </button>
 
-        <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center text-black">
-          EPS / Thermocol CNC Hot Wire/CNC Router Dashboard
-        </h2>
+       <div className="mb-6 flex flex-col md:flex-row md:justify-between items-center gap-4">
+  <h2 className="text-3xl md:text-4xl font-bold text-center text-black">
+    EPS / Thermocol CNC Hot Wire/CNC Router Dashboard
+  </h2>
+  <div className="flex gap-4">
+    <button
+      onClick={() => navigate('/drawing-orders-table')}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow"
+    >
+      📐 Drawing Orders
+    </button>
+    <button
+      onClick={() => navigate('/final-orders')}
+      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow"
+    >
+      ✅ Final Orders
+    </button>
+  </div>
+</div>
+
 
         <div className="flex flex-wrap items-end gap-4 mb-6">
           <div className="flex flex-col">

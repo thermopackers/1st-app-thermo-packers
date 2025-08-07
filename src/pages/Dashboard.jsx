@@ -112,8 +112,9 @@ if (loading) {
 
             <h2 className="text-xl font-semibold mb-4">
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
-              <span className="capitalize">({user.role})</span>
-            </h2>)}
+  {user.role !== "suppliers" && (
+      <span className="capitalize">({user.role})</span>
+    )}            </h2>)}
 
 
 
@@ -631,35 +632,45 @@ if (loading) {
 
 
 </> )}
-{user.role === "suppliers" && (
-    <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 p-6 rounded-2xl shadow-lg transition hover:shadow-xl">
-      <h3 className="text-xl font-bold text-orange-800 mb-4 text-center">
-        📝 Submit Drawing / Order Information
-      </h3>
-      <div className="flex justify-center">
+
+{(user.role === "suppliers" || user.role === "accounts") && (
+  <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+    <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+      Drawing Orders & Supplier Tools
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Supplier: Upload Drawing */}
+      {user.role === "suppliers" && (
         <button
           onClick={() => navigate('/drawing-upload-form')}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg shadow font-medium transition"
+          className="w-full h-full bg-orange-500 hover:bg-orange-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
         >
-          ➕ Go to Drawing Upload Form
+          📝 Submit Drawing / Order Information
         </button>
-      </div>
-    </div>)}
-{/* {(user.role === "suppliers" || user.role === "accounts" ) && (
-    <div className="mt-6 bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 p-6 rounded-2xl shadow-lg transition hover:shadow-xl">
-      <h3 className="text-xl font-bold text-teal-800 mb-4 text-center">
-        📄 View Order Information
-      </h3>
-      <div className="flex justify-center">
+      )}
+
+      {/* Supplier or Accounts: View Drawing Orders */}
+      <button
+        onClick={() => navigate("/drawing-orders-table")}
+        className="w-full h-full bg-teal-500 hover:bg-teal-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
+      >
+        📊 View Drawing/Pattern Orders Table
+      </button>
+
+      {/* Accounts only: Final Orders Table */}
+      {user.role === "accounts" && (
         <button
-          onClick={() => navigate("/drawing-orders-table")}
-          className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg shadow font-medium transition"
+          onClick={() => navigate("/final-orders")}
+          className="w-full h-full bg-yellow-500 hover:bg-yellow-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
         >
-          📊 Go to Orders Table
+          📁 Final Drawing/Pattern Orders Overview
         </button>
-      </div>
+      )}
     </div>
-)} */}
+  </div>
+)}
+
           </div>
         </main>
       </div>
