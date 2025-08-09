@@ -17,7 +17,7 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
       } else {
         // Immediately log out non-suppliers
         localStorage.removeItem('token');
-        toast.error('This portal is for suppliers only. Please use the employee login.');
+        toast.error('This portal is for customers only. Please use the employee login.');
         return;
       }
     } else {
@@ -63,7 +63,7 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
           // STRICT frontend validation
           if (supplierMode && decoded.role !== 'suppliers') {
             localStorage.removeItem('token');
-            throw new Error('supplier_only');
+            throw new Error('customers_only');
           }
 
           if (!supplierMode && decoded.role === 'suppliers') {
@@ -82,8 +82,8 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
         } catch (err) {
           console.error('Login error:', err);
           const errorMessage = 
-            err.message === 'supplier_only' ? 'This portal is for suppliers only' :
-            err.message === 'employee_portal_only' ? 'Suppliers must use the supplier portal' :
+            err.message === 'customers_only' ? 'This portal is for customers only' :
+            err.message === 'employee_portal_only' ? 'Customers must use the customers portal' :
             err.response?.data?.message || 'Login failed';
             
           toast.error(errorMessage);
