@@ -5,27 +5,40 @@ import toast from 'react-hot-toast';
 import axiosInstance from '../axiosInstance';
 import { useUserContext } from '../context/UserContext';
 
-const GoogleLoginComponent = ({ setLoading }) => {
+const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
   const navigate = useNavigate();
   const { setUser } = useUserContext();
 
   const redirectToDashboard = (role) => {
-    switch (role) {
-      case 'admin':
-        navigate('/admin-dashboard');
-        break;
-      case 'sales':
-      case 'accounts':
-      case 'dispatch':
-      case 'packaging':
-      case 'production':
-      case 'suppliers':
-        case 'driver':
+    if (supplierMode) {
+      // STRICT supplier validation
+      if (role === 'suppliers') {
         navigate('/dashboard');
-        break;
-      default:
-        toast.error('You do not have permission to access this application.');
-        break;
+      } else {
+        // Immediately log out non-suppliers
+        localStorage.removeItem('token');
+        toast.error('This portal is for suppliers only. Please use the employee login.');
+        return;
+      }
+    } else {
+      // Regular employee handling (existing logic)
+      switch (role) {
+        case 'admin':
+          navigate('/admin-dashboard');
+          break;
+        case 'sales':
+        case 'accounts':
+        case 'dispatch':
+        case 'packaging':
+        case 'production':
+        case 'driver':
+          navigate('/dashboard');
+          break;
+        default:
+          localStorage.removeItem('token');
+          toast.error('You do not have permission to access this application.');
+          break;
+      }
     }
   };
 
@@ -38,33 +51,42 @@ const GoogleLoginComponent = ({ setLoading }) => {
             throw new Error('Missing credential token from Google');
           }
 
-          // Send token to backend
           const res = await axiosInstance.post('/users/login/google', {
             token: credentialResponse.credential,
+            isSupplierLogin: supplierMode // Send mode to backend
           });
 
           const { token } = res.data;
           localStorage.setItem('token', token);
-
           const decoded = jwtDecode(token);
-          const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging','driver','suppliers'];
-          if (!validRoles.includes(decoded.role)) {
-            throw new Error('Unauthorized user role');
+
+          // STRICT frontend validation
+          if (supplierMode && decoded.role !== 'suppliers') {
+            localStorage.removeItem('token');
+            throw new Error('supplier_only');
+          }
+
+          if (!supplierMode && decoded.role === 'suppliers') {
+            localStorage.removeItem('token');
+            throw new Error('employee_portal_only');
           }
 
           const userRes = await axiosInstance.get('/users/me', {
             headers: { Authorization: `Bearer ${token}` },
           });
+          
           setUser(userRes.data);
-          toast.success('Google Login Success!');
+          toast.success('Login successful!');
           redirectToDashboard(userRes.data.role);
+          
         } catch (err) {
           console.error('Login error:', err);
-          toast.error(
-            err.response?.data?.message ||
-              err.message ||
-              'Google login failed or unauthorized access'
-          );
+          const errorMessage = 
+            err.message === 'supplier_only' ? 'This portal is for suppliers only' :
+            err.message === 'employee_portal_only' ? 'Suppliers must use the supplier portal' :
+            err.response?.data?.message || 'Login failed';
+            
+          toast.error(errorMessage);
         } finally {
           setLoading(false);
         }

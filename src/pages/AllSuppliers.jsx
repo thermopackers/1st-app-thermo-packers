@@ -62,16 +62,7 @@ console.log("suppliers",suppliers);
         </div>
 
         <div className="overflow-x-auto">
-          <div className="flex justify-end mb-4">
-  <button
-    onClick={() => navigate("/send-rfq")}
-    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-  >
-    🛒 Send RFQ
-  </button>
-</div>
-
-          <table className="min-w-full table-auto border text-sm">
+           <table className="min-w-full table-auto border text-sm">
             <thead>
               <tr className="bg-gray-100">
                 <th className="p-2">Name</th>

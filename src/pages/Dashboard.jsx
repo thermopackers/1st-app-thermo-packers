@@ -636,8 +636,8 @@ if (loading) {
 {(user.role === "suppliers" || user.role === "accounts") && (
   <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
     <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-      Drawing Orders & Supplier Tools
-    </h3>
+Pattern Orders & Status    
+</h3>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Supplier: Upload Drawing */}
@@ -646,7 +646,7 @@ if (loading) {
           onClick={() => navigate('/drawing-upload-form')}
           className="w-full h-full bg-orange-500 hover:bg-orange-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
         >
-          📝 Submit Drawing / Order Information
+          📝 Submit New Drawing for making EPS/Thermocol Pattern
         </button>
       )}
 
@@ -655,7 +655,7 @@ if (loading) {
         onClick={() => navigate("/drawing-orders-table")}
         className="w-full h-full bg-teal-500 hover:bg-teal-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
       >
-        📊 View Drawing/Pattern Orders Table
+        📊 View Old Patterns Orders Quotation & Price Finalization Real Time Status of Orders
       </button>
 
       {/* Accounts only: Final Orders Table */}

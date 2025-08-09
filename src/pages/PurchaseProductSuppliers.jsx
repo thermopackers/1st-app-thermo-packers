@@ -1,20 +1,36 @@
 // src/pages/PurchaseProductSuppliers.jsx
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
 
 export default function PurchaseProductSuppliers() {
     const { user } = useUserContext();
+    const navigate = useNavigate();
   return (
     <>
     <InternalNavbar />
+
+
     {["accounts"].includes(user.role) && (
 
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Purchase Product / Suppliers</h1>
       <p>Here you can manage purchased products and suppliers.</p>
-
+  <div className="flex justify-end gap-2 mb-4 mt-6">
+  <button
+    onClick={() => navigate("/send-rfq")}
+    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+  >
+    📩 Make RFQ
+  </button>
+  <button
+    onClick={() => navigate("/view-rfqs")}
+    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+  >
+    📜 View Old RFQs
+  </button>
+</div>
      {["admin", "accounts"].includes(user.role) && (
   <div className="mt-6">
     {/* Purchase - Products / Services */}

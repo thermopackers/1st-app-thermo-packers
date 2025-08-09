@@ -13,9 +13,12 @@ const MySwal = withReactContent(Swal);
 const DrawingOrdersTable = () => {
     const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);  // This line should already exist in your code
+  const [editingStates, setEditingStates] = useState({});
+const [tempValues, setTempValues] = useState({});
   const [page, setPage] = useState(1);
-  const [convertedOrderIds, setConvertedOrderIds] = useState([]);
-  const [totalPages, setTotalPages] = useState(1);
+const [convertedOrderIds, setConvertedOrderIds] = useState([]);
+const [expandedRemarks, setExpandedRemarks] = useState({}); // Add this line  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
 const [isUploading, setIsUploading] = useState(false);
 const [isDeleting, setIsDeleting] = useState(false);
@@ -29,6 +32,13 @@ const [conversionData, setConversionData] = useState({
   weight: ''
 });
 
+// Toggle function for remarks visibility
+const toggleRemarks = (orderId, field) => {
+  setExpandedRemarks(prev => ({
+    ...prev,
+    [`${orderId}_${field}`]: !prev[`${orderId}_${field}`]
+  }));
+};
 const isSupplierLocked = (order) =>
   user.role === 'suppliers' && order.priceConfirmedStatus === 'confirmed';
 
@@ -42,6 +52,52 @@ const compressImage = async (file) => {
   return await imageCompression(file, options);
 };
 
+   // Helper functions for remarks
+const handleAddRemark = async (orderId, field, remarkText) => {
+    try {
+        const response = await axiosInstance.post(
+            `/drawing-orders/${orderId}/${field}-remarks`,
+            { remark: remarkText }
+        );
+        
+        // Update local state with the complete response from the server
+        setOrders(prev => 
+            prev.map(order => 
+                order._id === orderId 
+                    ? response.data  // Use the complete updated order from server
+                    : order
+            )
+        );
+        
+        toast.success('Remark added successfully');
+    } catch (err) {
+        console.error(`Failed to add ${field} remark:`, err);
+        toast.error(`Failed to add ${field} remark`);
+    }
+};
+
+const showRemarksInSwal = (remarks, title) => {
+    MySwal.fire({
+        title: title,
+        html: `
+            <div class="max-h-[60vh] overflow-y-auto">
+                ${remarks.map((remark, idx) => `
+                    <div class="mb-4 p-3 ${remark.addedBy?._id === user.id 
+                        ? 'bg-blue-50 border border-blue-100' 
+                        : 'bg-gray-50'} rounded">
+                        <p class="whitespace-pre-wrap">${remark.text}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            ${remark.addedBy?.name || 'System'} • ${new Date(remark.createdAt).toLocaleString()}
+                        </p>
+                    </div>
+                `).join('')}
+            </div>
+        `,
+        width: '800px',
+        showConfirmButton: false,
+        showCloseButton: true
+    });
+};
 // Compress video using ffmpeg.js would require setup, alternatively skip or limit file size
 const compressVideo = async (file) => {
   if (file.size > 10 * 1024 * 1024) {
@@ -51,19 +107,45 @@ const compressVideo = async (file) => {
   return file; // or integrate ffmpeg.js if necessary
 };
 
+const startEditing = (orderId, fieldName, currentValue) => {
+  setEditingStates(prev => ({ ...prev, [orderId]: fieldName }));
+  setTempValues(prev => ({ ...prev, [`${orderId}_${fieldName}`]: currentValue }));
+};
+
+const cancelEditing = (orderId) => {
+  setEditingStates(prev => ({ ...prev, [orderId]: null }));
+};
+
+const handleTempChange = (orderId, fieldName, value) => {
+  setTempValues(prev => ({ ...prev, [`${orderId}_${fieldName}`]: value }));
+};
+
+const saveField = async (orderId, fieldName) => {
+  try {
+    const value = tempValues[`${orderId}_${fieldName}`];
+    await handleFieldChange(orderId, fieldName, value);
+    cancelEditing(orderId);
+  } catch (err) {
+    console.error('Failed to save:', err);
+    toast.error('Failed to save changes');
+  }
+};
+
   const fetchOrders = async (pageNum = 1, searchText = '') => {
-    try {
-      const res = await axiosInstance.get('/drawing-orders', {
-        params: { page: pageNum, limit: 10, search: searchText }
-      });
-      setOrders(res.data.orders);
-      setTotalPages(res.data.totalPages);
-      setPage(res.data.page);
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-      setOrders([]);
-    }
-  };
+  try {
+    const res = await axiosInstance.get('/drawing-orders', {
+      params: { page: pageNum, limit: 10, search: searchText }
+    });
+    setOrders(res.data.orders);
+    setTotalPages(res.data.totalPages || 1);  // Added fallback
+    setPage(res.data.page || 1);  // Added fallback
+  } catch (error) {
+    console.error('Failed to fetch orders:', error);
+    setOrders([]);
+    setTotalPages(1);  // Reset to default on error
+    setPage(1);  // Reset to default on error
+  }
+};
 
   useEffect(() => {
     fetchOrders();
@@ -313,6 +395,114 @@ setOrders(prev =>
     toast.error('Conversion failed');
   }
 };
+    // Update the customer remarks cell in the table
+const renderCustomerRemarksCell = (order) => (
+    <td className="px-4 py-3 border-b">
+        <div className="space-y-2 max-w-xs">
+            {/* Clickable remarks summary */}
+            <div 
+                className="cursor-pointer hover:bg-gray-50 p-1 rounded"
+                onClick={() => showRemarksInSwal(order.customerRemarks || [], 'Customer Remarks')}
+            >
+                <span className="text-sm font-medium">
+                    {order.customerRemarks?.length || 0} remarks
+                </span>
+                <span className="text-xs text-green-500 ml-2">(click to view)</span>
+            </div>
+            
+            {/* Add new remark input (for suppliers AND customers) */}
+            {(user.role === 'suppliers' || user.role === 'customers') && (
+                <div className="mt-2">
+                    <textarea
+                        placeholder="Add new remark..."
+                        value={tempValues[`${order._id}_newCustomerRemark`] || ''}
+                        onChange={(e) => handleTempChange(order._id, 'newCustomerRemark', e.target.value)}
+                        className="border p-2 rounded w-full text-sm"
+                        rows={2}
+                    />
+                    <button
+                        onClick={() => {
+                            const newRemark = tempValues[`${order._id}_newCustomerRemark`];
+                            if (newRemark) {
+                                handleAddRemark(order._id, 'customer', newRemark);
+                                handleTempChange(order._id, 'newCustomerRemark', '');
+                            }
+                        }}
+                        className="mt-1 text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                        Add Remark
+                    </button>
+                </div>
+            )}
+        </div>
+    </td>
+);
+
+
+    // Update the thermo remarks cell in the table
+const renderThermoRemarksCell = (order) => (
+    <td className="px-4 py-3 border-b">
+        <div className="space-y-2 max-w-xs">
+            {/* Clickable remarks summary */}
+            <div 
+                className="cursor-pointer hover:bg-gray-50 p-1 rounded"
+                onClick={() => showRemarksInSwal(order.thermoRemarks || [], 'Thermo Remarks')}
+            >
+                <span className="text-sm font-medium">
+                    {order.thermoRemarks?.length || 0} remarks
+                </span>
+                <span className="text-xs text-green-500 ml-2">(click to view)</span>
+            </div>
+            
+            {/* Add new remark input (for accounts/production) */}
+            {['accounts', 'production'].includes(user.role) && (
+                <div className="mt-2">
+                    <textarea
+                        placeholder="Add new remark..."
+                        value={tempValues[`${order._id}_newThermoRemark`] || ''}
+                        onChange={(e) => handleTempChange(order._id, 'newThermoRemark', e.target.value)}
+                        className="border p-2 rounded w-full text-sm"
+                        rows={2}
+                    />
+                    <button
+                        onClick={() => {
+                            const newRemark = tempValues[`${order._id}_newThermoRemark`];
+                            if (newRemark) {
+                                handleAddRemark(order._id, 'thermo', newRemark);
+                                handleTempChange(order._id, 'newThermoRemark', '');
+                            }
+                        }}
+                        className="mt-1 text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                        Add Remark
+                    </button>
+                </div>
+            )}
+        </div>
+    </td>);
+
+    const handleDeleteOrder = async (orderId) => {
+  try {
+    const result = await MySwal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      await axiosInstance.delete(`/drawing-orders/${orderId}`);
+      toast.success('Order deleted successfully');
+      fetchOrders(page, search); // Refresh the list
+    }
+  } catch (err) {
+    console.error('Failed to delete order:', err);
+    toast.error(err.response?.data?.error || 'Failed to delete order');
+  }
+};
 
   return (
     <>
@@ -365,46 +555,82 @@ setOrders(prev =>
 <p className="text-sm text-gray-600 mb-2 italic">
   <span className="font-semibold text-red-600">Note:</span> Once you confirm the order, all the fields will be locked.
 </p>
+<p className="text-sm text-gray-600 mb-2 italic">
+  <span className="font-semibold text-red-600">Note:</span> Submit Remarks (Remarks would be freezed once submitted but you can submit new Remarks again).
+</p>
 
         <div className="overflow-auto rounded-lg shadow-lg">
           <table className="min-w-[1200px] w-full text-sm border-collapse bg-white rounded-lg">
             <thead className="bg-gray-100 text-gray-700 text-left">
-              <tr>
-                {[
-                  'S. No', 'Date', 'Customer', 'Drawing Name', 'Video of Drawing', 'Margin', 'Shrinkage Allowance',
-                  '3D Model (STEP)', 'Customer Remarks', 'Price Quoted', 'Customer Price Status',
-                  'Thermo Packers Remarks', 'Status', 'Finished Product Image'
-                ].map((header, i) => (
-                  <th key={i} className="px-4 py-3 border-b font-semibold">
-                    {header}
-                  </th>
-                ))}
-              </tr>
+             <tr>
+  {[
+    'S. No', 'Date', 'Customer',  'Product Name', 'Drawing Name', 'Video of Drawing', 'Margin', 'Shrinkage Allowance',
+    '3D Model (STEP)', 'Customer Remarks', 'Price Quoted', 'Customer Price Status',
+    'Thermo Packers Remarks', 'Status', 'Finished Product Image', 
+    user.role === 'suppliers' ? 'Actions' : ''
+  ].filter(Boolean).map((header, i) => (
+    <th key={i} className="px-4 py-3 border-b font-semibold">
+      {header}
+    </th>
+  ))}
+</tr>
             </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr>
-                  <td colSpan="13" className="text-center py-6 text-gray-500">
-                    No orders found.
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order, index) => (
-                  <tr key={order._id} className="hover:bg-gray-50 transition-all">
-                    <td className="px-4 py-3 border-b">{index + 1}</td>
-                    <td className="px-4 py-3 border-b">{order.date}</td>
-                    <td className="px-4 py-3 border-b">{order.user.name || '—'}</td>
-<td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-    <input
-      type="text"
-      value={order.drawingName || ''}
-      onChange={(e) => handleFieldChange(order._id, 'drawingName', e.target.value)}
-      className="border p-1 rounded w-40"
-    />
-  ) : order.drawingName || '—'}
+           <tbody>
+  {orders.length === 0 ? (
+    <tr>
+      <td colSpan="13" className="text-center py-6 text-gray-500">
+        No orders found.
+      </td>
+    </tr>
+  ) : (
+    orders.map((order, index) => (
+      <tr key={order._id} className="hover:bg-gray-50 transition-all">
+        <td className="px-4 py-3 border-b">{index + 1}</td>
+        <td className="px-4 py-3 border-b">{order.date}</td>
+        <td className="px-4 py-3 border-b">{order.user.name || '—'}</td>
+        <td className="px-4 py-3 border-b">
+  {order.productType || '—'}
 </td>
-              <td className="px-4 py-3 border-b min-w-[240px]">
+        {/* Drawing Name */}
+        <td className="px-4 py-3 border-b">
+          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            editingStates[order._id] === 'drawingName' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tempValues[`${order._id}_drawingName`] || ''}
+                  onChange={(e) => handleTempChange(order._id, 'drawingName', e.target.value)}
+                  className="border p-1 rounded w-40"
+                />
+                <button 
+                  onClick={() => saveField(order._id, 'drawingName')}
+                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => cancelEditing(order._id)}
+                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span>{order.drawingName || '—'}</span>
+                <button
+                  onClick={() => startEditing(order._id, 'drawingName', order.drawingName)}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                >
+                  Edit
+                </button>
+              </div>
+            )
+          ) : order.drawingName || '—'}
+        </td>
+
+        {/* Drawing Video (keep existing) */}
+       <td className="px-4 py-3 border-b min-w-[240px]">
   {user.role === 'suppliers' && !isSupplierLocked(order) && (
     <input
       type="file"
@@ -447,30 +673,84 @@ setOrders(prev =>
     </div>
   ) : '—'}
 </td>
+  {/* Margin */}
+        <td className="px-4 py-3 border-b">
+          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            editingStates[order._id] === 'margin' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tempValues[`${order._id}_margin`] || ''}
+                  onChange={(e) => handleTempChange(order._id, 'margin', e.target.value)}
+                  className="border p-1 rounded w-32"
+                />
+                <button 
+                  onClick={() => saveField(order._id, 'margin')}
+                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => cancelEditing(order._id)}
+                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span>{order.margin || '—'}</span>
+                <button
+                  onClick={() => startEditing(order._id, 'margin', order.margin)}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                >
+                  Edit
+                </button>
+              </div>
+            )
+          ) : order.margin || '—'}
+        </td>
 
+        {/* Shrinkage Allowance */}
+        <td className="px-4 py-3 border-b">
+          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            editingStates[order._id] === 'shrinkageAllowance' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tempValues[`${order._id}_shrinkageAllowance`] || ''}
+                  onChange={(e) => handleTempChange(order._id, 'shrinkageAllowance', e.target.value)}
+                  className="border p-1 rounded w-32"
+                />
+                <button 
+                  onClick={() => saveField(order._id, 'shrinkageAllowance')}
+                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => cancelEditing(order._id)}
+                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span>{order.shrinkageAllowance || '—'}</span>
+                <button
+                  onClick={() => startEditing(order._id, 'shrinkageAllowance', order.shrinkageAllowance)}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                >
+                  Edit
+                </button>
+              </div>
+            )
+          ) : order.shrinkageAllowance || '—'}
+        </td>
 
-
-<td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-    <input
-      type="text"
-      value={order.margin || ''}
-      onChange={(e) => handleFieldChange(order._id, 'margin', e.target.value)}
-      className="border p-1 rounded w-32"
-    />
-  ) : order.margin || '—'}
-</td>
-<td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-    <input
-      type="text"
-      value={order.shrinkageAllowance || ''}
-      onChange={(e) => handleFieldChange(order._id, 'shrinkageAllowance', e.target.value)}
-      className="border p-1 rounded w-32"
-    />
-  ) : order.shrinkageAllowance || '—'}
-</td>
-             <td className="px-4 py-3 border-b">
+        {/* STEP File (keep existing) */}
+       <td className="px-4 py-3 border-b">
   {user.role === 'suppliers' && !isSupplierLocked(order) && (
     <input
       type="file"
@@ -521,32 +801,51 @@ setOrders(prev =>
     '—'
   )}
 </td>
-
-
-
-<td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-    <textarea
-      value={order.customerRemarks || ''}
-      onChange={(e) => handleFieldChange(order._id, 'customerRemarks', e.target.value)}
-      className="border p-1 rounded w-40"
-    />
-  ) : order.customerRemarks || '—'}
-</td>
-<td className="px-3 py-2 border">
-{['accounts', 'production'].includes(user.role) ? (
-    <input
-      type="text"
-      value={order.priceQuoted || ''}
-      onChange={(e) => handleFieldChange(order._id, 'priceQuoted', e.target.value)}
-      className="border p-1 rounded w-28"
-    />
-  ) : (
-    order.priceQuoted || '—'
-  )}
+  {/* Customer Remarks */}
+       <td className="px-4 py-3 border-b">
+  {renderCustomerRemarksCell(order)}
 </td>
 
-                <td className="px-4 py-3 border-b">
+        {/* Price Quoted (Accounts/Production) */}
+        <td className="px-3 py-2 border">
+          {['accounts', 'production'].includes(user.role) ? (
+            editingStates[order._id] === 'priceQuoted' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tempValues[`${order._id}_priceQuoted`] || ''}
+                  onChange={(e) => handleTempChange(order._id, 'priceQuoted', e.target.value)}
+                  className="border p-1 rounded w-28"
+                />
+                <button 
+                  onClick={() => saveField(order._id, 'priceQuoted')}
+                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={() => cancelEditing(order._id)}
+                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span>{order.priceQuoted || '—'}</span>
+                <button
+                  onClick={() => startEditing(order._id, 'priceQuoted', order.priceQuoted)}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                >
+                  Edit
+                </button>
+              </div>
+            )
+          ) : order.priceQuoted || '—'}
+        </td>
+
+        {/* Price Confirmed Status (keep existing) */}
+        <td className="px-4 py-3 border-b">
   {user.role === 'suppliers' ? (
     order.priceQuoted ? (
       <select
@@ -573,18 +872,13 @@ setOrders(prev =>
       : '—'
   )}
 </td>
-
-
-<td className="px-4 py-3 border-b">
-{['accounts', 'production'].includes(user.role) ? (
-    <textarea
-      value={order.thermoRemarks || ''}
-      onChange={(e) => handleFieldChange(order._id, 'thermoRemarks', e.target.value)}
-      className="border p-1 rounded w-40"
-    />
-  ) : order.thermoRemarks || '—'}
+  {/* Thermo Remarks (Accounts/Production) */}
+      <td className="px-4 py-3 border-b">
+ {renderThermoRemarksCell(order)}
 </td>
-                 <td className="px-4 py-3 border-b">
+
+        {/* Status (keep existing dropdown) */}
+        <td className="px-4 py-3 border-b">
 {['accounts', 'production'].includes(user.role) ? (
     <select
       value={order.status || ''}
@@ -606,7 +900,6 @@ setOrders(prev =>
       : '—'
   )}
 </td>
-
           <td className="px-4 py-3 border-b">
 {['accounts', 'production'].includes(user.role) ? (
     <div className="flex flex-col gap-2">
@@ -679,14 +972,21 @@ setOrders(prev =>
     </button>
   </td>
 )}
+{user.role === 'suppliers' && order.priceConfirmedStatus !== 'confirmed' && (
+  <td className="px-4 py-3 border-b">
+    <button
+      onClick={() => handleDeleteOrder(order._id)}
+      className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+    >
+      Delete Order
+    </button>
+  </td>
+)}
+  </tr>
+    ))
+  )}
+</tbody>
 
-
-
-
-                  </tr>
-                ))
-              )}
-            </tbody>
           </table>
           {showConvertModal && (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">

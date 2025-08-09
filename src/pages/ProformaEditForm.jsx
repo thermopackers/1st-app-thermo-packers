@@ -94,6 +94,7 @@ if (form.freightType === 'Billed' && (!form.freight || Number(form.freight) <= 0
         remarks: form.remarks, // ✅ explicitly preserve
       products: form.products.map((p, i) => ({
         ...p,
+            productRemarks: p.narration || "",              // ✅ include this
         images: selectedImages[i] || [],
           narrationImages: p.narrationImages || [] // ✅ Add this line
 

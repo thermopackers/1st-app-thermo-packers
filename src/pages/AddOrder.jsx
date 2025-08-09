@@ -46,6 +46,8 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [allCustomers, setAllCustomers] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+console.log("allProducts",allProducts);
+console.log("productList",productList);
 
 useEffect(() => {
   const fetchProductSizes = async () => {
@@ -108,24 +110,59 @@ if (invoice.customPaymentTerm) {
   }
 }
 
+    const freightType = (invoice.freightType || "").toLowerCase().trim();
 
     if (Array.isArray(invoice.products)) {
-      const products = invoice.products.map((prod) => ({
-        product: prod.name || "",
-        customProduct: "",
-        size: "",
-        customSize: "",
-        quantity: prod.qty?.toString() || "",
-        price: prod.rate?.toString() || "",
-        density: "",
-        packagingCharge: "",
-        freight: "",
-        freightAmount: "",
-        productImages: [],
-        productRemarks: "",
-      }));
-      setProductList(products);
-    }
+  const products = invoice.products.map((prod) => ({
+    product: prod.name || "",
+    customProduct: "",
+    size: "",
+    customSize: "",
+    quantity: prod.qty?.toString() || "",
+    price: prod.rate?.toString() || "",
+    density: "",
+    packagingCharge: invoice.packagingCharge || "",
+
+    // ✅ Freight logic based on freightType
+
+freight:
+  freightType === "paid" || freightType === "freight paid"
+    ? "Freight Paid"
+    : freightType === "self pickup" || freightType === "self dispatch"
+    ? "Self Dispatch"
+    : freightType === "to pay"
+    ? "To pay"
+    : freightType === "billed"
+    ? "Billed in Invoice"
+    : "",
+
+freightAmount:
+  freightType === "billed" || freightType === "to pay"
+    ? invoice.freight || ""
+    : "",
+
+
+    // ✅ Product images
+    productImages:
+      Array.isArray(prod.productImages) && prod.productImages.length > 0
+        ? prod.productImages
+        : Array.isArray(prod.images) && prod.images.length > 0
+        ? prod.images
+        : [],
+
+    // ✅ Remarks
+    productRemarks: prod.narration || prod.remarks || "",
+
+    // ✅ Narration images
+    narrationImages:
+      Array.isArray(prod.narrationImages) && prod.narrationImages.length > 0
+        ? prod.narrationImages
+        : [],
+  }));
+
+  setProductList(products);
+}
+
   }
 }, [location]);
 

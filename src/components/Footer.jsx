@@ -113,19 +113,39 @@ export default function Footer() {
           © {new Date().getFullYear()} <span className="text-white font-medium">Thermo Packers</span>. All rights reserved.
         </p>
 
-        {/* Login Button */}
-        <div className="mt-6 text-center">
-  <p className="text-sm text-gray-400 mt-2 italic tracking-wide">
-    For Employees Only
+       {/* Login Section */}
+<div className="mt-6 text-center">
+  <p className="text-sm text-gray-400 mb-4 italic tracking-wide">
+    Access your dedicated portal
   </p>
 
-  <button
-    onClick={handleLoginClick}
-    className="relative cursor-pointer inline-flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-full text-lg transition-all duration-300 group shadow-lg hover:shadow-xl"
-  >
-    Login
-    
-  </button>
+  <div className="flex flex-col sm:flex-row justify-center gap-4">
+    {/* Employee Login Button */}
+    <button
+      onClick={() => navigate('/login')}
+      className="relative cursor-pointer inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-2 px-6 rounded-full text-sm sm:text-base transition-all duration-300 shadow-md hover:shadow-lg"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+      Employee Login
+    </button>
+
+    {/* Supplier Login Button */}
+    <button
+      onClick={() => navigate('/login?mode=customer')}
+      className="relative cursor-pointer inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-2 px-6 rounded-full text-sm sm:text-base transition-all duration-300 shadow-md hover:shadow-lg"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM12 16v3m0 0l-3-3m3 3l3-3m-5-4h6a2 2 0 012 2v3m0 0a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 012-2z" />
+      </svg>
+      Customer Login
+    </button>
+  </div>
+
+  <p className="text-xs text-gray-500 mt-4">
+    Please select the appropriate login for your account type
+  </p>
 </div>
 
       </div>

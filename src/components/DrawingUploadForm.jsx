@@ -10,6 +10,7 @@ const DrawingUploadForm = () => {
   const [formData, setFormData] = useState({
   date: new Date().toISOString().split("T")[0],
     drawingName: '',
+        productType: 'CNC EPS/THERMOCOL PATTERN WITHOUT BLACK COATING', // Default value
     drawingVideo: [],
     margin: '',
     shrinkageAllowance: '',
@@ -110,7 +111,24 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
       <div className="max-w-4xl mx-auto px-6 py-8 bg-white shadow-xl rounded-2xl mt-6 mb-10 transition-all duration-300">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-tight">Drawing & Order Submission</h1>
         <form onSubmit={handleSubmit} className="space-y-8">
-
+    {/* Product Type Dropdown */}
+      <div>
+        <label className="block text-sm font-semibold mb-1">Product Name</label>
+        <select
+          name="productType"
+          value={formData.productType}
+          onChange={handleChange}
+          className="border border-gray-300 focus:ring-2 focus:ring-blue-500 p-3 rounded-md w-full"
+          required
+        >
+          <option value="CNC EPS/THERMOCOL PATTERN WITHOUT BLACK COATING">
+            CNC EPS/THERMOCOL PATTERN WITHOUT BLACK COATING
+          </option>
+          <option value="CNC EPS/THERMOCOL PATTERN WITH BLACK COATING">
+            CNC EPS/THERMOCOL PATTERN WITH BLACK COATING
+          </option>
+        </select>
+      </div>
           {/* Date & Drawing Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

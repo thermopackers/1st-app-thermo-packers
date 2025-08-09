@@ -38,6 +38,7 @@ import SendRFQ from "../pages/SendRFQ";
 import DrawingOrdersTable from "../pages/DrawingOrdersTable";
 import FinalOrdersTable from "../pages/FinalOrdersTable";
 import DrawingUploadForm from "../components/DrawingUploadForm";
+import ViewRFQs from "../pages/viewRFQs";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -534,6 +535,22 @@ path="/final-orders"
 element={
     <ProtectedRoute allowedRoles={["accounts","suppliers","production"]}>
       <PageWrapper><FinalOrdersTable /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/view-rfqs"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><ViewRFQs /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/edit-rfq/:id"
+element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><SendRFQ /></PageWrapper>
     </ProtectedRoute>
   }
 />

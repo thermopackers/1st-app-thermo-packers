@@ -685,7 +685,7 @@ gstPercent: p.gstPercent || "0",
       {/* Rate */}
       <div>
         <label htmlFor={`rate-${index}`} className="block font-medium mb-1">
-          Rate (Rs/Kg)
+         Basic Price
         </label>
         <input
           id={`rate-${index}`}
