@@ -560,434 +560,464 @@ const renderThermoRemarksCell = (order) => (
 </p>
 
         <div className="overflow-auto rounded-lg shadow-lg">
-          <table className="min-w-[1200px] w-full text-sm border-collapse bg-white rounded-lg">
-            <thead className="bg-gray-100 text-gray-700 text-left">
-             <tr>
-  {[
-    'S. No', 'Date', 'Customer',  'Product Name', 'Drawing Name', 'Video of Drawing', 'Margin', 'Shrinkage Allowance',
-    '3D Model (STEP)', 'Customer Remarks', 'Price Quoted', 'Customer Price Status',
-    'Thermo Packers Remarks', 'Status', 'Finished Product Image', 
-    user.role === 'suppliers' ? 'Actions' : ''
-  ].filter(Boolean).map((header, i) => (
-    <th key={i} className="px-4 py-3 border-b font-semibold">
-      {header}
-    </th>
-  ))}
-</tr>
-            </thead>
-           <tbody>
-  {orders.length === 0 ? (
+        <table className="min-w-[1200px] w-full text-sm border-collapse bg-white rounded-lg border border-gray-200">
+  <thead className="bg-gray-100 text-gray-700 text-left">
     <tr>
-      <td colSpan="13" className="text-center py-6 text-gray-500">
-        No orders found.
-      </td>
-    </tr>
-  ) : (
-    orders.map((order, index) => (
-      <tr key={order._id} className="hover:bg-gray-50 transition-all">
-        <td className="px-4 py-3 border-b">{index + 1}</td>
-        <td className="px-4 py-3 border-b">{order.date}</td>
-        <td className="px-4 py-3 border-b">{order.user.name || '—'}</td>
-        <td className="px-4 py-3 border-b">
-  {order.productType || '—'}
-</td>
-        {/* Drawing Name */}
-        <td className="px-4 py-3 border-b">
-          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-            editingStates[order._id] === 'drawingName' ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tempValues[`${order._id}_drawingName`] || ''}
-                  onChange={(e) => handleTempChange(order._id, 'drawingName', e.target.value)}
-                  className="border p-1 rounded w-40"
-                />
-                <button 
-                  onClick={() => saveField(order._id, 'drawingName')}
-                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => cancelEditing(order._id)}
-                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span>{order.drawingName || '—'}</span>
-                <button
-                  onClick={() => startEditing(order._id, 'drawingName', order.drawingName)}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
-                >
-                  Edit
-                </button>
-              </div>
-            )
-          ) : order.drawingName || '—'}
-        </td>
-
-        {/* Drawing Video (keep existing) */}
-       <td className="px-4 py-3 border-b min-w-[240px]">
-  {user.role === 'suppliers' && !isSupplierLocked(order) && (
-    <input
-      type="file"
-      accept="video/*"
-      onChange={(e) => {
-        if (e.target.files[0]) handleVideoUpload(e.target.files[0], order._id);
-      }}
-      className="text-xs mb-2"
-    />
-  )}
-  
-  {Array.isArray(order.drawingVideo) && order.drawingVideo.length > 0 ? (
-    <div className="flex gap-2 flex-wrap">
-      {order.drawingVideo.map((videoObj, idx) => (
-        <div key={idx} className="relative w-40">
-         <div
-  onClick={() => handleFilePreview(videoObj)}
-  className="cursor-pointer relative group"
->
-  <video
-    src={videoObj.url}
-    className="w-full h-auto max-h-32 rounded shadow border pointer-events-none"
-  />
-  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-medium rounded">
-    Click to preview
-  </div>
-</div>
-
-          {user.role === 'suppliers' && !isSupplierLocked(order) && (
-            <button
-              type="button"
-              onClick={() => handleDeleteVideo(order._id, videoObj.public_id)}
-              className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
-            >
-              ×
-            </button>
-          )}
-        </div>
+      {[
+        'S. No', 'Date', 'Customer',  'Product Name', 'Drawing Name', 'Video of Drawing', 'Voice Instructions', 'Margin', 'Shrinkage Allowance',
+        '3D Model (STEP)', 'Customer Remarks', 'Price Quoted by Supplier in Rs (GST 18% Extra)', 'Price Confirmed by Customer',
+        'Thermo Packers Remarks', 'Status', 'Finished Product Image', 
+        user.role === 'suppliers' ? 'Actions' : ''
+      ].filter(Boolean).map((header, i) => (
+        <th key={i} className="px-4 py-3 border border-gray-200 font-semibold">
+          {header}
+        </th>
       ))}
-    </div>
-  ) : '—'}
-</td>
-  {/* Margin */}
-        <td className="px-4 py-3 border-b">
-          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-            editingStates[order._id] === 'margin' ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tempValues[`${order._id}_margin`] || ''}
-                  onChange={(e) => handleTempChange(order._id, 'margin', e.target.value)}
-                  className="border p-1 rounded w-32"
-                />
-                <button 
-                  onClick={() => saveField(order._id, 'margin')}
-                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => cancelEditing(order._id)}
-                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span>{order.margin || '—'}</span>
-                <button
-                  onClick={() => startEditing(order._id, 'margin', order.margin)}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
-                >
-                  Edit
-                </button>
-              </div>
-            )
-          ) : order.margin || '—'}
+    </tr>
+  </thead>
+  <tbody>
+    {orders.length === 0 ? (
+      <tr>
+        <td colSpan="13" className="text-center py-6 text-gray-500 border border-gray-200">
+          No orders found.
         </td>
-
-        {/* Shrinkage Allowance */}
-        <td className="px-4 py-3 border-b">
-          {user.role === 'suppliers' && !isSupplierLocked(order) ? (
-            editingStates[order._id] === 'shrinkageAllowance' ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tempValues[`${order._id}_shrinkageAllowance`] || ''}
-                  onChange={(e) => handleTempChange(order._id, 'shrinkageAllowance', e.target.value)}
-                  className="border p-1 rounded w-32"
-                />
-                <button 
-                  onClick={() => saveField(order._id, 'shrinkageAllowance')}
-                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => cancelEditing(order._id)}
-                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span>{order.shrinkageAllowance || '—'}</span>
-                <button
-                  onClick={() => startEditing(order._id, 'shrinkageAllowance', order.shrinkageAllowance)}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
-                >
-                  Edit
-                </button>
-              </div>
-            )
-          ) : order.shrinkageAllowance || '—'}
-        </td>
-
-        {/* STEP File (keep existing) */}
-       <td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' && !isSupplierLocked(order) && (
-    <input
-      type="file"
-      accept="*"
-      onChange={(e) => {
-        if (e.target.files[0]) handleStepUpload(e.target.files[0], order._id);
-      }}
-      className="text-xs mb-2"
-    />
-  )}
-
-  {Array.isArray(order.stepFile) && order.stepFile.length > 0 ? (
-    <ul className="flex flex-wrap gap-4">
-    {order.stepFile.map((file, idx) => {
-  const isVideo = file.url.match(/\.(mp4|webm|ogg)$/i);
-  const isImage = file.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-  return (
-    <li
-      key={idx}
-      className="relative bg-gray-100 rounded-md p-2 shadow-md cursor-pointer"
-      onClick={() => handleFilePreview(file)}
-    >
-      {isVideo ? (
-        <video src={file.url} className="w-40 rounded pointer-events-none" />
-      ) : isImage ? (
-        <img src={file.url} alt={`Preview ${idx + 1}`} className="w-40 rounded pointer-events-none" />
-      ) : (
-        <div className="text-blue-600 underline">View File {idx + 1}</div>
-      )}
-      {user.role === 'suppliers' && !isSupplierLocked(order) && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent triggering preview
-            handleStepDelete(order._id, file.public_id);
-          }}
-          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow hover:bg-red-700"
-        >
-          ×
-        </button>
-      )}
-    </li>
-  );
-})}
-
-    </ul>
-  ) : (
-    '—'
-  )}
-</td>
-  {/* Customer Remarks */}
-       <td className="px-4 py-3 border-b">
-  {renderCustomerRemarksCell(order)}
-</td>
-
-        {/* Price Quoted (Accounts/Production) */}
-        <td className="px-3 py-2 border">
-          {['accounts', 'production'].includes(user.role) ? (
-            editingStates[order._id] === 'priceQuoted' ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tempValues[`${order._id}_priceQuoted`] || ''}
-                  onChange={(e) => handleTempChange(order._id, 'priceQuoted', e.target.value)}
-                  className="border p-1 rounded w-28"
-                />
-                <button 
-                  onClick={() => saveField(order._id, 'priceQuoted')}
-                  className="text-xs px-2 py-1 bg-green-500 text-white rounded"
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => cancelEditing(order._id)}
-                  className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span>{order.priceQuoted || '—'}</span>
-                <button
-                  onClick={() => startEditing(order._id, 'priceQuoted', order.priceQuoted)}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
-                >
-                  Edit
-                </button>
-              </div>
-            )
-          ) : order.priceQuoted || '—'}
-        </td>
-
-        {/* Price Confirmed Status (keep existing) */}
-        <td className="px-4 py-3 border-b">
-  {user.role === 'suppliers' ? (
-    order.priceQuoted ? (
-      <select
-        value={order.priceConfirmedStatus || ''}
-        onChange={(e) => handleFieldChange(order._id, 'priceConfirmedStatus', e.target.value)}
-        className="border p-1 rounded w-40"
-        disabled={order.priceConfirmedStatus === 'confirmed'} // Disable if already confirmed
-      >
-        <option value="">Select</option>
-        <option value="confirmed">✅ Confirm as per Quotated Price</option>
-        <option value="not_confirmed">❌ Not Confirm as per Quotated Price</option>
-        <option value="high">⚠️ Price is High as per Quotated Price</option>
-      </select>
+      </tr>
     ) : (
-      <span className="italic text-gray-500">Quote pending</span>
-    )
-  ) : (
-    order.priceConfirmedStatus === 'confirmed'
-      ? '✅ Confirmed'
-      : order.priceConfirmedStatus === 'not_confirmed'
-      ? '❌ Not Confirmed'
-      : order.priceConfirmedStatus === 'high'
-      ? '⚠️ Price is High'
-      : '—'
-  )}
-</td>
-  {/* Thermo Remarks (Accounts/Production) */}
-      <td className="px-4 py-3 border-b">
- {renderThermoRemarksCell(order)}
-</td>
+      orders.map((order, index) => (
+        <tr key={order._id} className="hover:bg-gray-50 transition-all">
+          <td className="px-4 py-3 border border-gray-200">{index + 1}</td>
+          <td className="px-4 py-3 border border-gray-200">
+            {order.date
+              ? new Date(order.date)
+                  .toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                  })
+                  .replace(/\//g, '-')
+              : '—'}
+          </td>
+          <td className="px-4 py-3 border border-gray-200">{order.user.name || '—'}</td>
+          <td className="px-4 py-3 border border-gray-200">
+            {order.productType || '—'}
+          </td>
+          {/* Drawing Name */}
+          <td className="px-4 py-3 border border-gray-200">
+            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+              editingStates[order._id] === 'drawingName' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tempValues[`${order._id}_drawingName`] || ''}
+                    onChange={(e) => handleTempChange(order._id, 'drawingName', e.target.value)}
+                    className="border p-1 rounded w-40"
+                  />
+                  <button 
+                    onClick={() => saveField(order._id, 'drawingName')}
+                    className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => cancelEditing(order._id)}
+                    className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>{order.drawingName || '—'}</span>
+                  <button
+                    onClick={() => startEditing(order._id, 'drawingName', order.drawingName)}
+                    className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            ) : order.drawingName || '—'}
+          </td>
 
-        {/* Status (keep existing dropdown) */}
-        <td className="px-4 py-3 border-b">
-{['accounts', 'production'].includes(user.role) ? (
-    <select
-      value={order.status || ''}
-      onChange={(e) => handleFieldChange(order._id, 'status', e.target.value)}
-      className="border p-1 rounded w-40"
-    >
-      <option value="">Select</option>
-      <option value="not_processed">Not Processed</option>
-      <option value="in_process">In Process</option>
-      <option value="ready_to_dispatch">Ready to Dispatch</option>
-    </select>
-  ) : (
-    order.status === 'not_processed'
-      ? 'Not Processed'
-      : order.status === 'in_process'
-      ? 'In Process'
-      : order.status === 'ready_to_dispatch'
-      ? 'Ready to Dispatch'
-      : '—'
-  )}
-</td>
-          <td className="px-4 py-3 border-b">
-{['accounts', 'production'].includes(user.role) ? (
-    <div className="flex flex-col gap-2">
-      {Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {order.finishedProductImage.map((img, idx) => (
-            <div key={idx} className="relative cursor-pointer" onClick={() => handleImagePreview(img)}>
-              <img
-                src={img}
-                alt={`Finished ${idx + 1}`}
-                className="w-20 h-16 object-cover rounded border"
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation(); // prevent preview when clicking delete
-                  handleFinishedImageDelete(order._id, img);
+          {/* Drawing Video (keep existing) */}
+          <td className="px-4 py-3 border border-gray-200 min-w-[240px]">
+            {user.role === 'suppliers' && !isSupplierLocked(order) && (
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => {
+                  if (e.target.files[0]) handleVideoUpload(e.target.files[0], order._id);
                 }}
-                className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow hover:bg-red-700"
-              >
-                ×
-              </button>
+                className="text-xs mb-2"
+              />
+            )}
+            
+            {Array.isArray(order.drawingVideo) && order.drawingVideo.length > 0 ? (
+              <div className="flex gap-2 flex-wrap">
+                {order.drawingVideo.map((videoObj, idx) => (
+                  <div key={idx} className="relative w-40">
+                    <div
+                      onClick={() => handleFilePreview(videoObj)}
+                      className="cursor-pointer relative group"
+                    >
+                      <video
+                        src={videoObj.url}
+                        className="w-full h-auto max-h-32 rounded shadow border pointer-events-none"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-medium rounded">
+                        Click to preview
+                      </div>
+                    </div>
+
+                    {user.role === 'suppliers' && !isSupplierLocked(order) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVideo(order._id, videoObj.public_id)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : '—'}
+          </td>
+            {/* Voice Recording Cell */}
+        <td className="px-4 py-3 border border-gray-200 min-w-[240px]">
+          {order.voiceRecording ? (
+            <div className="relative">
+              <audio
+                src={order.voiceRecording.url}
+                controls
+                className="w-full max-w-xs"
+              />
+              {user.role === 'suppliers' && !isSupplierLocked(order) && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteVoiceRecording(order._id, order.voiceRecording.public_id)}
+                  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow hover:bg-red-700"
+                >
+                  ×
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      ) : (
-        <span className="text-gray-500">No images</span>
-      )}
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => {
-          const files = Array.from(e.target.files);
-          if (files.length > 0) handleMultipleImageUpload(files, order._id);
-        }}
-        className="text-xs"
-      />
-    </div>
-  ) : (
-    Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
-      <div className="flex flex-wrap gap-2">
-        {order.finishedProductImage.map((img, idx) => (
-          <img
-            key={idx}
-            src={img}
-            alt={`Finished ${idx + 1}`}
-            className="w-20 h-16 object-cover rounded border cursor-pointer"
-            onClick={() => handleImagePreview(img)}
-          />
-        ))}
-      </div>
-    ) : '—'
-  )}
-</td>
+          ) : (
+            '—'
+          )}
+        </td>
+          {/* Margin */}
+          <td className="px-4 py-3 border border-gray-200">
+            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+              editingStates[order._id] === 'margin' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tempValues[`${order._id}_margin`] || ''}
+                    onChange={(e) => handleTempChange(order._id, 'margin', e.target.value)}
+                    className="border p-1 rounded w-32"
+                  />
+                  <button 
+                    onClick={() => saveField(order._id, 'margin')}
+                    className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => cancelEditing(order._id)}
+                    className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>{order.margin || '—'}</span>
+                  <button
+                    onClick={() => startEditing(order._id, 'margin', order.margin)}
+                    className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            ) : order.margin || '—'}
+          </td>
 
+          {/* Shrinkage Allowance */}
+          <td className="px-4 py-3 border border-gray-200">
+            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+              editingStates[order._id] === 'shrinkageAllowance' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tempValues[`${order._id}_shrinkageAllowance`] || ''}
+                    onChange={(e) => handleTempChange(order._id, 'shrinkageAllowance', e.target.value)}
+                    className="border p-1 rounded w-32"
+                  />
+                  <button 
+                    onClick={() => saveField(order._id, 'shrinkageAllowance')}
+                    className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => cancelEditing(order._id)}
+                    className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>{order.shrinkageAllowance || '—'}</span>
+                  <button
+                    onClick={() => startEditing(order._id, 'shrinkageAllowance', order.shrinkageAllowance)}
+                    className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            ) : order.shrinkageAllowance || '—'}
+          </td>
 
-{['accounts', 'production'].includes(user.role) && (
-  <td className="px-4 py-3 border-b">
-    <button
-      onClick={() => openConvertModal(order)}
-      className={`text-xs px-3 py-1 rounded ${
-        order.converted
-          ? 'bg-gray-400 text-white cursor-not-allowed'
-          : 'bg-green-600 text-white hover:bg-green-700'
-      }`}
-      disabled={order.converted}
-    >
-      {order.converted ? 'Converted' : 'Convert to Order'}
-    </button>
-  </td>
-)}
-{user.role === 'suppliers' && order.priceConfirmedStatus !== 'confirmed' && (
-  <td className="px-4 py-3 border-b">
-    <button
-      onClick={() => handleDeleteOrder(order._id)}
-      className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-    >
-      Delete Order
-    </button>
-  </td>
-)}
-  </tr>
-    ))
-  )}
-</tbody>
+          {/* STEP File (keep existing) */}
+          <td className="px-4 py-3 border border-gray-200">
+            {user.role === 'suppliers' && !isSupplierLocked(order) && (
+              <input
+                type="file"
+                accept="*"
+                onChange={(e) => {
+                  if (e.target.files[0]) handleStepUpload(e.target.files[0], order._id);
+                }}
+                className="text-xs mb-2"
+              />
+            )}
 
-          </table>
+            {Array.isArray(order.stepFile) && order.stepFile.length > 0 ? (
+              <ul className="flex flex-wrap gap-4">
+                {order.stepFile.map((file, idx) => {
+                  const isVideo = file.url.match(/\.(mp4|webm|ogg)$/i);
+                  const isImage = file.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                  return (
+                    <li
+                      key={idx}
+                      className="relative bg-gray-100 rounded-md p-2 shadow-md cursor-pointer"
+                      onClick={() => handleFilePreview(file)}
+                    >
+                      {isVideo ? (
+                        <video src={file.url} className="w-40 rounded pointer-events-none" />
+                      ) : isImage ? (
+                        <img src={file.url} alt={`Preview ${idx + 1}`} className="w-40 rounded pointer-events-none" />
+                      ) : (
+                        <div className="text-blue-600 underline">View File {idx + 1}</div>
+                      )}
+                      {user.role === 'suppliers' && !isSupplierLocked(order) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering preview
+                            handleStepDelete(order._id, file.public_id);
+                          }}
+                          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow hover:bg-red-700"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              '—'
+            )}
+          </td>
+          {/* Customer Remarks */}
+          <td className="px-4 py-3 border border-gray-200">
+            {renderCustomerRemarksCell(order)}
+          </td>
+
+          {/* Price Quoted (Accounts/Production) */}
+          <td className="px-3 py-2 border border-gray-200">
+            {['accounts', 'production'].includes(user.role) ? (
+              editingStates[order._id] === 'priceQuoted' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tempValues[`${order._id}_priceQuoted`] || ''}
+                    onChange={(e) => handleTempChange(order._id, 'priceQuoted', e.target.value)}
+                    className="border p-1 rounded w-28"
+                  />
+                  <button 
+                    onClick={() => saveField(order._id, 'priceQuoted')}
+                    className="text-xs px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => cancelEditing(order._id)}
+                    className="text-xs px-2 py-1 bg-gray-500 text-white rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>{order.priceQuoted || '—'}</span>
+                  <button
+                    onClick={() => startEditing(order._id, 'priceQuoted', order.priceQuoted)}
+                    className="text-xs px-2 py-1 bg-blue-500 text-white rounded"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )
+            ) : order.priceQuoted || '—'}
+          </td>
+
+          {/* Price Confirmed Status (keep existing) */}
+          <td className="px-4 py-3 border border-gray-200">
+            {user.role === 'suppliers' ? (
+              order.priceQuoted ? (
+                <select
+                  value={order.priceConfirmedStatus || ''}
+                  onChange={(e) => handleFieldChange(order._id, 'priceConfirmedStatus', e.target.value)}
+                  className="border p-1 rounded w-40"
+                  disabled={order.priceConfirmedStatus === 'confirmed'} // Disable if already confirmed
+                >
+                  <option value="">Select</option>
+                  <option value="confirmed">✅ Confirm as per Quotated Price</option>
+                  <option value="not_confirmed">❌ Not Confirm as per Quotated Price</option>
+                  <option value="high">⚠️ Price is High as per Quotated Price</option>
+                </select>
+              ) : (
+                <span className="italic text-gray-500">Quote pending</span>
+              )
+            ) : (
+              order.priceConfirmedStatus === 'confirmed'
+                ? '✅ Confirmed'
+                : order.priceConfirmedStatus === 'not_confirmed'
+                ? '❌ Not Confirmed'
+                : order.priceConfirmedStatus === 'high'
+                ? '⚠️ Price is High'
+                : '—'
+            )}
+          </td>
+          {/* Thermo Remarks (Accounts/Production) */}
+          <td className="px-4 py-3 border border-gray-200">
+            {renderThermoRemarksCell(order)}
+          </td>
+
+          {/* Status (keep existing dropdown) */}
+          <td className="px-4 py-3 border border-gray-200">
+            {['accounts', 'production'].includes(user.role) ? (
+              <select
+                value={order.status || ''}
+                onChange={(e) => handleFieldChange(order._id, 'status', e.target.value)}
+                className="border p-1 rounded w-40"
+              >
+                <option value="">Select</option>
+                <option value="not_processed">Not Processed</option>
+                <option value="in_process">In Process</option>
+                <option value="ready_to_dispatch">Ready to Dispatch</option>
+              </select>
+            ) : (
+              order.status === 'not_processed'
+                ? 'Not Processed'
+                : order.status === 'in_process'
+                ? 'In Process'
+                : order.status === 'ready_to_dispatch'
+                ? 'Ready to Dispatch'
+                : '—'
+            )}
+          </td>
+          <td className="px-4 py-3 border border-gray-200">
+            {['accounts', 'production'].includes(user.role) ? (
+              <div className="flex flex-col gap-2">
+                {Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {order.finishedProductImage.map((img, idx) => (
+                      <div key={idx} className="relative cursor-pointer" onClick={() => handleImagePreview(img)}>
+                        <img
+                          src={img}
+                          alt={`Finished ${idx + 1}`}
+                          className="w-20 h-16 object-cover rounded border"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // prevent preview when clicking delete
+                            handleFinishedImageDelete(order._id, img);
+                          }}
+                          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow hover:bg-red-700"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-500">No images</span>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) handleMultipleImageUpload(files, order._id);
+                  }}
+                  className="text-xs"
+                />
+              </div>
+            ) : (
+              Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {order.finishedProductImage.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`Finished ${idx + 1}`}
+                      className="w-20 h-16 object-cover rounded border cursor-pointer"
+                      onClick={() => handleImagePreview(img)}
+                    />
+                  ))}
+                </div>
+              ) : '—'
+            )}
+          </td>
+
+          {['accounts', 'production'].includes(user.role) && (
+            <td className="px-4 py-3 border border-gray-200">
+              <button
+                onClick={() => openConvertModal(order)}
+                className={`text-xs px-3 py-1 rounded ${
+                  order.converted
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+                disabled={order.converted}
+              >
+                {order.converted ? 'Converted' : 'Convert to Order'}
+              </button>
+            </td>
+          )}
+          {user.role === 'suppliers' && order.priceConfirmedStatus !== 'confirmed' && (
+            <td className="px-4 py-3 border border-gray-200">
+              <button
+                onClick={() => handleDeleteOrder(order._id)}
+                className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Delete Order
+              </button>
+            </td>
+          )}
+        </tr>
+      ))
+    )}
+  </tbody>
+</table>
           {showConvertModal && (
   <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
     <div className="bg-white p-6 rounded-md w-[90%] max-w-lg space-y-4 shadow-lg">

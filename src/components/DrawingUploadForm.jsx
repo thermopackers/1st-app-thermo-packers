@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import InternalNavbar from './InternalNavbar';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-
+import RecordRTC from 'recordrtc';
 const DrawingUploadForm = () => {
   const [formData, setFormData] = useState({
   date: new Date().toISOString().split("T")[0],
@@ -16,9 +16,15 @@ const DrawingUploadForm = () => {
     shrinkageAllowance: '',
     stepFile: [],
     customerRemarks: '',
+        voiceRecording: null, // Add voice recording to form data
   });
 
   const [uploading, setUploading] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState(null);
+  const recorderRef = useRef(null);
+  const audioRef = useRef(null);
+
 const navigate=useNavigate();
 const handleUpload = async (file, folder) => {
   const data = new FormData();
@@ -96,6 +102,60 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
     }
   };
 
+  // Add voice recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorderRef.current = new RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/wav',
+      });
+      recorderRef.current.startRecording();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error starting recording:', err);
+      toast.error('Failed to start recording');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recorderRef.current) return;
+    
+    setIsRecording(false);
+    
+    return new Promise((resolve) => {
+      recorderRef.current.stopRecording(async () => {
+        const blob = recorderRef.current.getBlob();
+        const audioURL = URL.createObjectURL(blob);
+        
+        // Create audio file from blob
+        const audioFile = new File([blob], 'voice-note.wav', {
+          type: 'audio/wav',
+          lastModified: Date.now(),
+        });
+        
+        setRecordedAudio(audioURL);
+        
+        // Upload the recording immediately
+        const uploaded = await handleUpload(audioFile, 'voice_notes');
+        if (uploaded) {
+          setFormData(prev => ({ ...prev, voiceRecording: uploaded }));
+        }
+        
+        // Stop all tracks
+        const stream = recorderRef.current.getInternalRecorder().stream;
+        stream.getTracks().forEach(track => track.stop());
+        
+        resolve();
+      });
+    });
+  };
+
+  const removeRecording = () => {
+    setRecordedAudio(null);
+    setFormData(prev => ({ ...prev, voiceRecording: null }));
+  };
+
   return (
     <>
       <InternalNavbar />
@@ -166,7 +226,6 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
               multiple
               onChange={(e) => handleMultipleFilesChange(e, 'drawingVideo', 'drawing_videos')}
               className="mb-2"
-              required
             />
             {formData.drawingVideo.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-4">
@@ -201,7 +260,6 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
                 placeholder="e.g. 5 mm"
                 value={formData.margin}
                 onChange={handleChange}
-                required
                 className="border border-gray-300 focus:ring-2 focus:ring-blue-500 p-3 rounded-md w-full"
               />
             </div>
@@ -274,6 +332,48 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
 
               </ul>
             )}
+          </div>
+
+            {/* Add Voice Recording Section */}
+          <div>
+            <label className="block text-sm font-semibold mb-1">Voice Instructions</label>
+            <div className="flex flex-col space-y-4">
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`px-4 py-2 rounded-md text-white font-medium ${
+                    isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {isRecording ? 'Stop Recording' : 'Start Recording'}
+                </button>
+                
+                {recordedAudio && (
+                  <button
+                    type="button"
+                    onClick={removeRecording}
+                    className="px-4 py-2 rounded-md bg-red-600 text-white font-medium hover:bg-red-700"
+                  >
+                    Remove Recording
+                  </button>
+                )}
+              </div>
+              
+              {recordedAudio && (
+                <div className="relative">
+                  <audio
+                    ref={audioRef}
+                    src={recordedAudio}
+                    controls
+                    className="w-full"
+                  />
+                  <span className="text-xs text-gray-500 mt-1">
+                    Voice note recorded. It will be uploaded with your submission.
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Customer Remarks */}

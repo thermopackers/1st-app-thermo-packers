@@ -4,11 +4,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { toast } from "react-hot-toast";
+import imageCompression from 'browser-image-compression';
 
 export default function AddOrder() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 const location = useLocation();
+const [isUploading, setIsUploading] = useState(false);
 const [paymentTerms, setPaymentTerms] = useState("");
 const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [availableSizesList, setAvailableSizesList] = useState([]);
@@ -38,7 +40,8 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
       freightAmount: "",
           productImages: [], // ✅ ensure this is initialized
     productRemarks: "", // 💬 new field
-
+        narration: "", // ✅ New field for narration text
+    narrationImages: [], // Add this line
     },
   ]);
   const [allProducts, setAllProducts] = useState([]);
@@ -152,7 +155,7 @@ freightAmount:
 
     // ✅ Remarks
     productRemarks: prod.narration || prod.remarks || "",
-
+    narration: prod.narration || "", // ✅ Auto-fill narration text
     // ✅ Narration images
     narrationImages:
       Array.isArray(prod.narrationImages) && prod.narrationImages.length > 0
@@ -417,6 +420,8 @@ const handleSubmit = async (e) => {
         prod.freight === "To pay" || prod.freight === "Billed in Invoice"
           ? prod.freightAmount
           : 0,
+           narration: prod.narration || "", // ✅ Ensure narration is sent
+  narrationImages: prod.narrationImages || [], // ✅ Ensure narrationImages are sent
     }));
 
     // ✅ Submit order first (without file)
@@ -939,6 +944,7 @@ if (clientDetails.poCopy.length > 0) {
         rows={2}
       />
     </div>
+   
 
     {/* 🖼 Image Preview */}
     {Array.isArray(prod.productImages) && prod.productImages.length > 0 && (
@@ -962,6 +968,106 @@ if (clientDetails.poCopy.length > 0) {
       </div>
     )}
 
+{/* 📝 Narration Images */}
+<div className="col-span-2">
+  <label className="mb-1 font-medium text-gray-700">Narration Images</label>
+  <input
+    type="file"
+    multiple
+    accept="image/*"
+   onChange={async (e) => {
+  const files = Array.from(e.target.files);
+  const updated = [...productList];
+  
+  setIsUploading(true); // Show loader
+
+  const options = {
+    maxSizeMB: 0.4,
+    maxWidthOrHeight: 800,
+    useWebWorker: true,
+    fileType: 'image/jpeg',
+    initialQuality: 0.6,
+  };
+
+  try {
+    for (const file of files) {
+      if (!file.type.match('image.*')) continue;
+
+      const compressedFile = await imageCompression(file, options);
+      
+      const formData = new FormData();
+      formData.append("file", compressedFile);
+      formData.append("upload_preset", "narration_upload_preset");
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await res.json();
+
+      if (data.secure_url) {
+        updated[index].narrationImages = [
+          ...updated[index].narrationImages,
+          data.secure_url
+        ];
+      }
+    }
+  } catch (err) {
+    toast.error(`Upload failed: ${err.message}`);
+  } finally {
+    setIsUploading(false); // Hide loader
+    setProductList(updated);
+  }
+}}
+    className="w-full border border-gray-400 p-2 rounded"
+  />
+  {/* Simple Loader Overlay */}
+{isUploading && (
+  <div className="fixed inset-0 bg-[#0000008f] flex items-center justify-center z-50">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+  </div>
+)}
+
+{modalImage && (
+  <div
+    className="fixed inset-0 bg-[#0000008f] flex items-center justify-center z-50"
+    onClick={() => setModalImage(null)}
+  >
+    <img
+      src={modalImage}
+      alt="Full view"
+      className="max-w-full max-h-full rounded shadow-lg"
+    />
+  </div>
+)}
+  {/* Rest of the image preview code remains the same */}
+  {prod.narrationImages.length > 0 && (
+    <div className="flex flex-wrap gap-4 mt-2">
+      {prod.narrationImages.map((img, i) => (
+        <div key={i} className="relative border p-2 rounded">
+          <img
+            src={img}
+            alt={`Narration ${i + 1}`}
+            onClick={() => setModalImage(img)}
+            className="w-24 h-24 object-cover rounded cursor-pointer hover:scale-105 transition"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const updated = [...productList];
+              updated[index].narrationImages.splice(i, 1);
+              setProductList(updated);
+            }}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
   {/* ❌ Remove Button */}
 <button
   type="button"

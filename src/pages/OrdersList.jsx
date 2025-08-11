@@ -715,6 +715,7 @@ const actuallySendToProduction = async (
   const sortedOrders = useMemo(() => {
   return [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }, [orders]);
+console.log("sortedOrders",sortedOrders);
 
   return (
     
@@ -959,6 +960,12 @@ const actuallySendToProduction = async (
                         Product Name
                       </th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+                        Narration
+                      </th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+                        Narration Images
+                      </th>
+                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
                         Bill To</th>
                       <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
   Ship To</th>
@@ -1074,6 +1081,41 @@ const actuallySendToProduction = async (
                                     {order.product}
                                   </button>
                                 </td>
+                                 {/* ✅ Narration text */}
+                            <td className="px-4 py-2 whitespace-nowrap">
+  {order.narration ? (
+    <span>
+      <strong>Narration:</strong> {order.narration}
+    </span>
+  ) : (
+    <span>-</span>
+  )}
+</td>
+
+
+
+    {/* ✅ Narration images */}
+   
+                            <td className="px-4 py-2 whitespace-nowrap">
+          <strong>Narration Images:</strong>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "5px" }}>
+            {order.narrationImages?.map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt={`Narration ${i + 1}`}
+                style={{
+                  width: "100px",
+                  height: "100px",
+                  objectFit: "cover",
+                  borderRadius: "4px",
+                  cursor: "pointer"
+                }}
+                onClick={() => window.open(img, "_blank")}
+              />
+            ))}
+          </div>
+        </td>
 <td className="px-4 py-2 whitespace-pre-wrap max-w-[250px] text-sm text-gray-800">
   <strong>Bill To:</strong><br />
   {order.billTo || "—"}
