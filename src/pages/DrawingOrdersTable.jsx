@@ -17,30 +17,12 @@ const DrawingOrdersTable = () => {
   const [editingStates, setEditingStates] = useState({});
 const [tempValues, setTempValues] = useState({});
   const [page, setPage] = useState(1);
-const [convertedOrderIds, setConvertedOrderIds] = useState([]);
-const [expandedRemarks, setExpandedRemarks] = useState({}); // Add this line  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
 const [isUploading, setIsUploading] = useState(false);
 const [isDeleting, setIsDeleting] = useState(false);
-const [showConvertModal, setShowConvertModal] = useState(false);
-const [selectedOrder, setSelectedOrder] = useState(null);
-const [conversionData, setConversionData] = useState({
-  drawingDimension: '',
-  shrinkage: '',
-  margin: '',
-  finalDimension: '',
-  weight: ''
-});
 
-// Toggle function for remarks visibility
-const toggleRemarks = (orderId, field) => {
-  setExpandedRemarks(prev => ({
-    ...prev,
-    [`${orderId}_${field}`]: !prev[`${orderId}_${field}`]
-  }));
-};
 const isSupplierLocked = (order) =>
-  user.role === 'suppliers' && order.priceConfirmedStatus === 'confirmed';
+  (user.role === 'suppliers' || user.role === 'viewer') && order.priceConfirmedStatus === 'confirmed';
 
 // Compress image file
 const compressImage = async (file) => {
@@ -353,48 +335,7 @@ const handleFinishedImageDelete = async (orderId, imageUrl) => {
   }
 };
 
-const openConvertModal = (order) => {
-  setSelectedOrder(order);
-  setConversionData({
-    drawingDimension: '',
-    shrinkage: '',
-    margin: '',
-    finalDimension: '',
-    weight: ''
-  });
-  setShowConvertModal(true);
-};
 
-const submitConversion = async () => {
-  if (!selectedOrder) return;
-
-  try {
-    const payload = {
-      ...conversionData,
-      customer: selectedOrder.customerName,
-      drawingName: selectedOrder.drawingName,
-      drawingId: selectedOrder._id
-    };
-
-  await axiosInstance.post('/final-orders', payload);
-
-// ✅ Update original drawing order as converted
-await axiosInstance.put(`/drawing-orders/${selectedOrder._id}`, { converted: true });
-
-// Optional: update state directly if you want to reflect it instantly without waiting for refetch
-setOrders(prev =>
-  prev.map(order =>
-    order._id === selectedOrder._id ? { ...order, converted: true } : order
-  )
-);
-
-    toast.success('Converted to order successfully!');
-    setShowConvertModal(false);
-  } catch (err) {
-    console.error(err);
-    toast.error('Conversion failed');
-  }
-};
     // Update the customer remarks cell in the table
 const renderCustomerRemarksCell = (order) => (
     <td className="px-4 py-3 border-b">
@@ -411,7 +352,7 @@ const renderCustomerRemarksCell = (order) => (
             </div>
             
             {/* Add new remark input (for suppliers AND customers) */}
-            {(user.role === 'suppliers' || user.role === 'customers') && (
+            {(user.role === 'suppliers' || user.role === 'viewer') && (
                 <div className="mt-2">
                     <textarea
                         placeholder="Add new remark..."
@@ -567,7 +508,7 @@ const renderThermoRemarksCell = (order) => (
         'S. No', 'Date', 'Customer',  'Product Name', 'Drawing Name', 'Video of Drawing', 'Voice Instructions', 'Margin', 'Shrinkage Allowance',
         '3D Model (STEP)', 'Customer Remarks', 'Price Quoted by Supplier in Rs (GST 18% Extra)', 'Price Confirmed by Customer',
         'Thermo Packers Remarks', 'Status', 'Finished Product Image', 
-        user.role === 'suppliers' ? 'Actions' : ''
+        (user.role === 'suppliers' || user.role === 'viewer') ? 'Actions' : ''
       ].filter(Boolean).map((header, i) => (
         <th key={i} className="px-4 py-3 border border-gray-200 font-semibold">
           {header}
@@ -603,7 +544,7 @@ const renderThermoRemarksCell = (order) => (
           </td>
           {/* Drawing Name */}
           <td className="px-4 py-3 border border-gray-200">
-            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'drawingName' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -641,7 +582,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Drawing Video (keep existing) */}
           <td className="px-4 py-3 border border-gray-200 min-w-[240px]">
-            {user.role === 'suppliers' && !isSupplierLocked(order) && (
+            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
               <input
                 type="file"
                 accept="video/*"
@@ -669,7 +610,8 @@ const renderThermoRemarksCell = (order) => (
                       </div>
                     </div>
 
-                    {user.role === 'suppliers' && !isSupplierLocked(order) && (
+                    {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order)
+ && (
                       <button
                         type="button"
                         onClick={() => handleDeleteVideo(order._id, videoObj.public_id)}
@@ -692,7 +634,8 @@ const renderThermoRemarksCell = (order) => (
                 controls
                 className="w-full max-w-xs"
               />
-              {user.role === 'suppliers' && !isSupplierLocked(order) && (
+              {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order)
+ && (
                 <button
                   type="button"
                   onClick={() => handleDeleteVoiceRecording(order._id, order.voiceRecording.public_id)}
@@ -708,7 +651,7 @@ const renderThermoRemarksCell = (order) => (
         </td>
           {/* Margin */}
           <td className="px-4 py-3 border border-gray-200">
-            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'margin' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -746,7 +689,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Shrinkage Allowance */}
           <td className="px-4 py-3 border border-gray-200">
-            {user.role === 'suppliers' && !isSupplierLocked(order) ? (
+            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'shrinkageAllowance' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -784,7 +727,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* STEP File (keep existing) */}
           <td className="px-4 py-3 border border-gray-200">
-            {user.role === 'suppliers' && !isSupplierLocked(order) && (
+            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
               <input
                 type="file"
                 accept="*"
@@ -813,7 +756,7 @@ const renderThermoRemarksCell = (order) => (
                       ) : (
                         <div className="text-blue-600 underline">View File {idx + 1}</div>
                       )}
-                      {user.role === 'suppliers' && !isSupplierLocked(order) && (
+                      {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -878,7 +821,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Price Confirmed Status (keep existing) */}
           <td className="px-4 py-3 border border-gray-200">
-            {user.role === 'suppliers' ? (
+            {(user.role === 'suppliers' || user.role === 'viewer') ? (
               order.priceQuoted ? (
                 <select
                   value={order.priceConfirmedStatus || ''}
@@ -988,70 +931,24 @@ const renderThermoRemarksCell = (order) => (
             )}
           </td>
 
-          {['accounts', 'production'].includes(user.role) && (
-            <td className="px-4 py-3 border border-gray-200">
-              <button
-                onClick={() => openConvertModal(order)}
-                className={`text-xs px-3 py-1 rounded ${
-                  order.converted
-                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-                disabled={order.converted}
-              >
-                {order.converted ? 'Converted' : 'Convert to Order'}
-              </button>
-            </td>
-          )}
-          {user.role === 'suppliers' && order.priceConfirmedStatus !== 'confirmed' && (
-            <td className="px-4 py-3 border border-gray-200">
-              <button
-                onClick={() => handleDeleteOrder(order._id)}
-                className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Delete Order
-              </button>
-            </td>
-          )}
+        
+        {(['accounts', 'production'].includes(user.role) || 
+ ((user.role === 'suppliers' || user.role === 'viewer') && order.priceConfirmedStatus !== 'confirmed')) && (
+  <td className="px-4 py-3 border border-gray-200">
+    <button
+      onClick={() => handleDeleteOrder(order._id)}
+      className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+    >
+      Delete Order
+    </button>
+  </td>
+)}
         </tr>
       ))
     )}
   </tbody>
 </table>
-          {showConvertModal && (
-  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-    <div className="bg-white p-6 rounded-md w-[90%] max-w-lg space-y-4 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4">Convert to Final Order</h2>
-
-      {['drawingDimension', 'shrinkage', 'margin', 'finalDimension', 'weight'].map((field) => (
-        <div key={field}>
-          <label className="block font-medium capitalize">{field.replace(/([A-Z])/g, ' $1')}:</label>
-          <input
-            type="text"
-            className="w-full border rounded px-3 py-1 mt-1"
-            value={conversionData[field]}
-            onChange={(e) => setConversionData(prev => ({ ...prev, [field]: e.target.value }))}
-          />
-        </div>
-      ))}
-
-      <div className="flex justify-end gap-4 pt-4">
-        <button
-          onClick={() => setShowConvertModal(false)}
-          className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={submitConversion}
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-        >
-          Submit
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        
 
         </div>
       </div>

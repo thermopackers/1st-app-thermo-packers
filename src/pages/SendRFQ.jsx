@@ -24,11 +24,13 @@ export default function SendRFQ() {
     requiredByDate: "",
     size: "",
     remarks: "",
-    category: ""
+    category: "",
+    unit:"",
   });
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-console.log("form",form);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 const normalizeImg = (img) => {
   if (!img) return { url: "" };
   if (typeof img === "string") return { url: img };
@@ -41,16 +43,17 @@ const normalizeImg = (img) => {
   const editData = location.state?.rfq;
   const isEditing = Boolean(editData || location.pathname.startsWith("/edit-rfq/"));
 
+  const fetchProducts = async (searchTerm = "") => {
+try {
+  const res = await axiosInstance.get(`/purchase-products?search=${encodeURIComponent(searchTerm)}`);
+  setProducts(res.data.data || []);
+} catch (err) {
+  console.error(err);
+  toast.error("Failed to load products");
+}
+};
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await axiosInstance.get("/purchase-products");
-        setProducts(res.data.data || []);
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to load products");
-      }
-    };
+
 
    const prefillForm = (data) => {
   // Handle images differently for edit vs create
@@ -81,7 +84,8 @@ const normalizeImg = (img) => {
     requiredByDate: data.requiredByDate?.split("T")[0] || "",
     size: data.size || "",
     remarks: data.remarks || "",
-    category: data.category || ""
+    category: data.category || "",
+      unit: data.unit || "" // ✅
   });
 };
 
@@ -100,9 +104,22 @@ const normalizeImg = (img) => {
       }
     };
 
-    fetchProducts();
     fetchRFQIfEditing();
   }, [editData, location.pathname]);
+
+// ✅ Keep your existing useEffect for typing search
+useEffect(() => {
+  if (!productSearch.trim()) {
+    setProducts([]); // hide if empty and not focused
+    return;
+  }
+
+  const delayDebounce = setTimeout(() => {
+    fetchProducts(productSearch);
+  }, 300);
+
+  return () => clearTimeout(delayDebounce);
+}, [productSearch]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -128,6 +145,7 @@ const handleProductSelect = async (e) => {
         ? product.files.map(normalizeImg) 
         : [],
       category: product.category || "",
+        unit: product.unit || "" // ✅ fetch from API
     }));
   } catch (err) {
     console.error(err);
@@ -188,6 +206,7 @@ if (form.img.length > 0) {
   // Filter out any that failed to load
   productImagesBase64 = productImagesBase64.filter(Boolean);
 }
+const rfqDate = new Date().toLocaleDateString("en-GB");
 
     // Build full invoice table
 const docDefinition = {
@@ -239,7 +258,7 @@ const docDefinition = {
           // Row 3 - RFQ Heading
           [
             {
-              text: "RFQ",
+              text: "RFQ (Request For Quotation)",
               fontSize: 14,
               bold: true,
               alignment: "center",
@@ -248,7 +267,10 @@ const docDefinition = {
             },
             {}
           ],
-
+  [
+            { text: "Date", bold: true },
+            { text: rfqDate }
+          ],
           // Row 4 - Product Image
     [
   productImagesBase64.length > 0
@@ -354,20 +376,73 @@ const docDefinition = {
 
         <form onSubmit={handleSubmit} className="space-y-4">
     {/* Product Dropdown */}
-          <label className="block font-semibold">Select Product</label>
-          <select
-            name="productId"
-            className="w-full border p-2 rounded bg-white"
-            value={form.productId}
-            onChange={handleProductSelect}
-          >
-            <option value="">-- Select Product --</option>
-            {products.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+         <label className="block font-semibold">Select Product</label>
+<div className="relative">
+<input
+  type="text"
+  placeholder="Search and select product..."
+  className="w-full border p-2 rounded"
+  value={productSearch}
+  onChange={(e) => setProductSearch(e.target.value)}
+  onFocus={() => {
+    setIsInputFocused(true);
+    if (!productSearch.trim()) {
+      fetchProducts(""); // fetch all products when empty & focused
+    }
+  }}
+  onBlur={() => {
+    // Small delay so click on dropdown still works
+    setTimeout(() => {
+      setIsInputFocused(false);
+      setProducts([]);
+    }, 200);
+  }}
+/>
+{isInputFocused && products.length > 0 && (
+  <ul className="absolute z-10 bg-white border rounded w-full max-h-48 overflow-y-auto">
+    {products.map((p) => (
+      <li
+        key={p._id}
+        className="p-2 hover:bg-blue-100 cursor-pointer"
+        onClick={() => {
+          handleProductSelect({ target: { value: p._id } });
+          setProductSearch(p.name);
+          setProducts([]);
+          setIsInputFocused(false);
+        }}
+      >
+        {p.name}
+      </li>
+    ))}
+  </ul>
+)}
+  {products.length > 0 && (
+    <ul className="absolute z-10 bg-white border rounded w-full max-h-48 overflow-y-auto">
+      {products.map((p) => (
+        <li
+          key={p._id}
+          className="p-2 hover:bg-blue-100 cursor-pointer"
+          onClick={() => {
+            handleProductSelect({ target: { value: p._id } });
+            setProductSearch(p.name); // fill input with selected name
+            setProducts([]); // hide list
+          }}
+        >
+          {p.name}
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
+
+<label className="block font-semibold">Unit</label>
+<input
+  type="text"
+  name="unit"
+  readOnly
+  className="w-full border p-2 rounded bg-gray-100"
+  value={form.unit}
+/>
 
           {/* Auto-filled fields */}
           <label className="block font-semibold">Description</label>

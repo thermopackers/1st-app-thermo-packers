@@ -53,7 +53,7 @@ export default function InternalNavbar() {
 
         {/* Desktop Menu (only on extra large screens and up) */}
      <div className="hidden xl:flex space-x-8 items-center">
-  {role !== "suppliers" && role === "admin" && (
+  {role !== "suppliers" && role === "admin" &&  (
     <NavLink
       to="/inventory"
       className={({ isActive }) =>
@@ -76,13 +76,13 @@ export default function InternalNavbar() {
 >
   {role === "driver"
     ? "🖥️ Dashboard"
-    : role === "suppliers"
+: role === "suppliers" || role === "viewer"
     ? "🖥️ Dashboard"
     : "🖥️ Manage Orders"}
 </NavLink>
 
 
-  {role !== "driver" && role !== "suppliers" && (
+  {role !== "driver" && role !== "suppliers" && role !== "viewer" && (
     <NavLink
       to="/orders"
       className={({ isActive }) =>
@@ -135,13 +135,13 @@ export default function InternalNavbar() {
 >
   {role === "driver"
     ? "🖥️ Dashboard"
-    : role === "suppliers"
+    : role === "suppliers" || role === "viewer"
     ? "🖥️ Dashboard"
     : "🖥️ Manage Orders"}
 </NavLink>
 
 
-    {role !== "driver" && role !== "suppliers" && (
+{role !== "driver" && role !== "suppliers" && role !== "viewer" && (
       <NavLink
         to="/orders"
         onClick={closeMenu}

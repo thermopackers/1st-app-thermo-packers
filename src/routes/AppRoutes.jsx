@@ -36,7 +36,6 @@ import PurchaseOrderForm from "../pages/PurchaseOrderForm";
 import PurchaseOrdersList from "../pages/PurchaseOrdersList";
 import SendRFQ from "../pages/SendRFQ";
 import DrawingOrdersTable from "../pages/DrawingOrdersTable";
-import FinalOrdersTable from "../pages/FinalOrdersTable";
 import DrawingUploadForm from "../components/DrawingUploadForm";
 import ViewRFQs from "../pages/viewRFQs";
 
@@ -61,6 +60,9 @@ const Unauthorized = React.lazy(() => import("../pages/Unauthorized"));
 const PackagingDashboard = React.lazy(() => import("../pages/PackagingDashboard"));
 const EmployeeDashboard = React.lazy(() => import("../pages/EmployeeDashboard"));
 const AdminDashboard = React.lazy(() => import("../pages/AdminDashboard"));
+const AssistantRegistrationPage = React.lazy(() => import("../pages/AssistantRegistrationPage"));
+// const AssistantDashboard = React.lazy(() => import("../components/"));
+// const ManageAssistants = React.lazy(() => import("../pages/ManageAssistants"));
 
 export default function AppRoutes() {
   const { user, loading } = useUserContext();
@@ -73,7 +75,7 @@ export default function AppRoutes() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        Loading user...
+        Loading Please Wait...
       </div>
     );
   }
@@ -106,7 +108,7 @@ export default function AppRoutes() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","suppliers"]}>
+                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","suppliers",'viewer', 'editor', 'manager']} mustBeMainAccount={true}>
                   <PageWrapper><Dashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -317,7 +319,7 @@ export default function AppRoutes() {
 <Route
   path="/drawing-upload-form"
   element={
-    <ProtectedRoute allowedRoles={["suppliers","accounts"]}>
+    <ProtectedRoute allowedRoles={["suppliers","accounts","viewer"]}>
       <PageWrapper><DrawingUploadForm /></PageWrapper>
     </ProtectedRoute>
   }
@@ -325,7 +327,7 @@ export default function AppRoutes() {
 <Route
   path="/drawing-orders-table"
   element={
-    <ProtectedRoute allowedRoles={["suppliers","accounts","production"]}>
+    <ProtectedRoute allowedRoles={["suppliers","accounts","production","viewer"]}>
       <PageWrapper><DrawingOrdersTable /></PageWrapper>
     </ProtectedRoute>
   }
@@ -530,14 +532,7 @@ element={
     </ProtectedRoute>
   }
 />
-<Route
-path="/final-orders"
-element={
-    <ProtectedRoute allowedRoles={["accounts","suppliers","production"]}>
-      <PageWrapper><FinalOrdersTable /></PageWrapper>
-    </ProtectedRoute>
-  }
-/>
+
 <Route
 path="/view-rfqs"
 element={
@@ -554,7 +549,20 @@ element={
     </ProtectedRoute>
   }
 />
+  <Route 
+              path="/register/assistant" 
+              element={<PageWrapper><AssistantRegistrationPage /></PageWrapper>} 
+            />           
 
+            {/* Assistant-specific Dashboard */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["suppliers","viewer"]} isAssistantRoute={true}>
+                  <PageWrapper><Dashboard /></PageWrapper>
+                </ProtectedRoute>
+              }
+            />
 
           </Routes>
         </Suspense>

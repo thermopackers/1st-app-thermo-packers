@@ -17,20 +17,27 @@ export default function PurchaseProductSuppliers() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Purchase Product / Suppliers</h1>
       <p>Here you can manage purchased products and suppliers.</p>
-  <div className="flex justify-end gap-2 mb-4 mt-6">
-  <button
-    onClick={() => navigate("/send-rfq")}
-    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-  >
-    📩 Make RFQ
-  </button>
-  <button
-    onClick={() => navigate("/view-rfqs")}
-    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
-  >
-    📜 View Old RFQs
-  </button>
+ {/* RFQ Section */}
+<div className="bg-white rounded-lg shadow-md p-4 mb-6">
+  <h3 className="text-xl font-bold text-gray-800 text-center mb-4">
+    RFQ (Request for Quotation)
+  </h3>
+  <div className="grid grid-cols-1 gap-4">
+    <button
+      onClick={() => navigate("/send-rfq")}
+      className="w-full bg-blue-500 hover:bg-blue-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer font-semibold"
+    >
+      📩 Raise New RFQ
+    </button>
+    <button
+      onClick={() => navigate("/view-rfqs")}
+      className="w-full bg-green-500 hover:bg-green-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer font-semibold"
+    >
+      📜 View/Edit/Delete/Share OLD RFQ
+    </button>
+  </div>
 </div>
+
      {["admin", "accounts"].includes(user.role) && (
   <div className="mt-6">
     {/* Purchase - Products / Services */}

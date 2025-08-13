@@ -19,7 +19,7 @@ export default function App() {
     "/send-rfq",
     "/view-rfqs",
     "/edit-rfq",
-    "/final-orders",
+    "/register/assistant",
     "/drawing-upload-form",
     "/drawing-orders-table",
     "/proforma-invoice",

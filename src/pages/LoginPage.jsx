@@ -3,22 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import GoogleLoginComponent from "../components/GoogleLoginComponent";
 import OTPLogin from "../components/OTPLogin";
-import { FiUser, FiTruck, FiAlertTriangle } from "react-icons/fi"; // Added missing imports
+import AssistantLoginForm from "../components/AssistantLoginForm";
+import { FiUser, FiTruck, FiAlertTriangle } from "react-icons/fi";
+import toast from "react-hot-toast";
+import axiosInstance from "../axiosInstance";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const formRef = useRef(null);
   const [loading, setLoading] = useState(false);
-const [isSupplierLogin, setIsSupplierLogin] = useState(
-  new URLSearchParams(window.location.search).get('mode') === 'customer'
-);
+  const [isSupplierLogin, setIsSupplierLogin] = useState(
+    new URLSearchParams(window.location.search).get('mode') === 'customer'
+  );
+
+  // Check for existing token
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      navigate("/dashboard");
+      axiosInstance.get('/users/me')
+        .then(() => navigate("/dashboard"))
+        .catch(() => localStorage.removeItem("token"));
     }
   }, [navigate]);
 
+  // Animation on mount
   useEffect(() => {
     gsap.from(formRef.current, {
       y: 50,
@@ -28,22 +36,28 @@ const [isSupplierLogin, setIsSupplierLogin] = useState(
     });
   }, []);
 
+  const handleModeChange = (supplierMode) => {
+    setIsSupplierLogin(supplierMode);
+    // Clear any existing errors when switching modes
+    toast.dismiss();
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 px-4">
-      {/* LOGIN FORM */}
+      {/* Login Form Container */}
       <div
         ref={formRef}
         className="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-lg w-full max-w-md transition-all"
       >
         <h2 className="text-3xl font-extrabold text-center mb-6 text-gray-800">
-          {isSupplierLogin ? "Customer Login" : "Employee Login"}
+          {isSupplierLogin ? "Customer Portal" : "Employee Portal"}
         </h2>
 
         <div className="space-y-4">
-          {/* Mode selector with clear labels */}
+          {/* Portal Selection Toggle */}
           <div className="flex justify-center gap-4 mb-6">
             <button
-              onClick={() => setIsSupplierLogin(false)}
+              onClick={() => handleModeChange(false)}
               className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
                 !isSupplierLogin
                   ? "bg-blue-600 text-white shadow-lg"
@@ -52,11 +66,11 @@ const [isSupplierLogin, setIsSupplierLogin] = useState(
             >
               <div className="flex items-center gap-2">
                 <FiUser className="text-lg" />
-                Employee Portal
+                Employee Login
               </div>
             </button>
             <button
-              onClick={() => setIsSupplierLogin(true)}
+              onClick={() => handleModeChange(true)}
               className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
                 isSupplierLogin
                   ? "bg-green-600 text-white shadow-lg"
@@ -65,12 +79,12 @@ const [isSupplierLogin, setIsSupplierLogin] = useState(
             >
               <div className="flex items-center gap-2">
                 <FiTruck className="text-lg" />
-                Customer Portal
+                Customer Login
               </div>
             </button>
           </div>
 
-          {/* Warning message for suppliers */}
+          {/* Customer Portal Notice */}
           {isSupplierLogin && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
               <div className="flex">
@@ -86,22 +100,28 @@ const [isSupplierLogin, setIsSupplierLogin] = useState(
             </div>
           )}
 
+          {/* Login Options */}
           {isSupplierLogin ? (
-            // Supplier-specific login components
             <>
               <GoogleLoginComponent 
                 setLoading={setLoading} 
                 supplierMode={true} 
+                key="supplier-google"
               />
               <div className="text-center text-gray-500 text-sm">
-                OR LOGIN WITH OTP
+                OR LOGIN WITH
               </div>
-              <OTPLogin setLoading={setLoading} supplierMode={true} />
+              <div className="flex flex-col gap-4">
+                <OTPLogin setLoading={setLoading} supplierMode={true} />
+                <AssistantLoginForm setLoading={setLoading} />
+              </div>
             </>
           ) : (
-            // Regular employee login components
             <>
-              <GoogleLoginComponent setLoading={setLoading} />
+              <GoogleLoginComponent 
+                setLoading={setLoading}
+                key="employee-google" 
+              />
               <div className="text-center text-gray-500 text-sm">
                 OR LOGIN WITH OTP
               </div>
@@ -111,35 +131,20 @@ const [isSupplierLogin, setIsSupplierLogin] = useState(
 
           <button
             onClick={() => navigate("/")}
-            className="w-full cursor-pointer bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-xl"
+            className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-xl"
           >
-            Home
+            Return to Homepage
           </button>
         </div>
       </div>
 
-      {/* Loading overlay remains the same */}
+      {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00000094] bg-opacity-40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="flex flex-col items-center space-y-2">
-            <svg className="animate-spin h-8 w-8 text-white" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
             <span className="text-white font-semibold text-lg">
-              Logging in...
+              Authenticating...
             </span>
           </div>
         </div>

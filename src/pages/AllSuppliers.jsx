@@ -83,8 +83,21 @@ console.log("suppliers",suppliers);
                 <tr key={supplier._id} className="border-t align-top text-center">
                   <td className="p-2">{supplier.name}</td>
                   <td className="p-2">{supplier.vendorCategory || "–"}</td>
-                  <td className="p-2">{supplier.phone}</td>
-                  <td className="p-2">{supplier.email}</td>
+<td className="p-2 text-center">
+  <div className="space-y-1">
+    {supplier.phone && (
+      <div
+>        {supplier.phone}
+      </div>
+    )}
+    {supplier.phone2 && (
+      <div
+>        {supplier.phone2}
+      </div>
+    )}
+    {!supplier.phone && !supplier.phone2 && "–"}
+  </div>
+</td>                  <td className="p-2">{supplier.email}</td>
                   <td className="p-2">{supplier.gstNumber}</td>
                   <td className="p-2">{supplier.address}</td>
             <td className="p-2">

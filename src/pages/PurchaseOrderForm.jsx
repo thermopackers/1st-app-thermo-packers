@@ -8,7 +8,9 @@ import { useParams } from "react-router-dom";
 import { useUserContext } from "../context/UserContext"; // or your correct path
 
 export default function PurchaseOrderForm() {
-  const { user } = useUserContext(); // user.name should be available
+const { user } = useUserContext();
+const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.thermopackers@gmail.com"].includes(user?.email);
+const [status, setStatus] = useState("pending");
 
   const [suppliers, setSuppliers] = useState([]);
   const [freightOption, setFreightOption] = useState("");
@@ -265,7 +267,17 @@ export default function PurchaseOrderForm() {
 
     const docDefinition = {
       content: [
-        {
+       {
+  text: status === "approved" ? "PO APPROVED" : "PO NOT APPROVED",
+  absolutePosition: { x: 50, y: 150 }, // Adjusted starting position
+  fontSize: 80, // Larger font size
+  color: status === "approved" ? "green" : "red",
+  opacity: 0.15, // More subtle opacity
+  bold: true,
+  rotation: -45, // More pronounced diagonal angle
+  alignment: 'center'
+},
+      {
           table: {
             widths: ["100%"],
             body: [
@@ -472,6 +484,13 @@ export default function PurchaseOrderForm() {
                           fontSize: 7,
                           italics: true,
                         },
+                         status === "approved" && {
+      text: `Approved by: ${user?.name || "-"} on ${new Date().toLocaleDateString()}`,
+      alignment: "right",
+      fontSize: 7,
+      italics: true,
+      color: "green"
+    }
                       ],
                       margin: [0, 30, 0, 0],
                     },
@@ -554,6 +573,11 @@ export default function PurchaseOrderForm() {
               paymentTerm,
               paymentComment,
               requiredDate,
+              status,
+    approvedBy: status === "approved" ? user._id : null,
+    approvedAt: status === "approved" ? new Date() : null,
+      createdBy: user._id,  // Add this line
+        status: status || "pending"
             });
             toast.success("PO updated successfully!");
           } else {
@@ -574,6 +598,12 @@ export default function PurchaseOrderForm() {
               paymentTerm,
               paymentComment,
               requiredDate,
+              status,
+    approvedBy: status === "approved" ? user._id : null,
+    approvedAt: status === "approved" ? new Date() : null,
+      createdBy: user._id,  // Add this line
+        status: status || "pending"
+
             });
 
             toast.success("PO saved successfully!");
@@ -612,7 +642,58 @@ export default function PurchaseOrderForm() {
         <h2 className="text-2xl font-bold mb-6 text-center">
           {id ? "✏️ Editing Purchase Order" : "📝 Create Purchase Order"}
         </h2>
-
+{id && (
+  <div className="mb-4 p-3 rounded-md bg-blue-50 border border-blue-200">
+    <p className="font-semibold text-blue-800">
+      Current Status:{" "}
+      <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
+        status === "approved" 
+          ? "bg-green-100 text-green-800" 
+          : status === "rejected" 
+            ? "bg-red-100 text-red-800" 
+            : "bg-yellow-100 text-yellow-800"
+      }`}>
+        {status || "pending"}
+      </span>
+    </p>
+  {canApprove && (
+  <div className="mt-2 flex gap-2">
+   <button
+  onClick={async () => {
+    try {
+      await axiosInstance.put(`/purchase-orders/${id}/approve`, {
+        approvedBy: user._id
+      });
+      setStatus("approved");
+      toast.success("PO approved successfully!");
+    } catch (err) {
+      toast.error("Failed to approve PO");
+    }
+  }}
+  className="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 text-sm"
+>
+  Mark as Approved
+</button>
+<button
+  onClick={async () => {
+    try {
+      await axiosInstance.put(`/purchase-orders/${id}/reject`, {
+        approvedBy: user._id
+      });
+      setStatus("rejected");
+      toast.success("PO rejected!");
+    } catch (err) {
+      toast.error("Failed to reject PO");
+    }
+  }}
+  className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm"
+>
+  Mark as Rejected
+</button>
+  </div>
+)}
+  </div>
+)}
         <div className="mb-6">
           <label className="block font-semibold mb-2">Select Supplier</label>
           <select

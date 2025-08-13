@@ -3,6 +3,7 @@ import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import '../index.css';
+import AssistantInvitationForm from "../components/AssistantInvitationForm";
 
 
 
@@ -10,11 +11,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [invitationLink, setInvitationLink] = useState(null);
 const [notifications, setNotifications] = useState([]);
 const [page, setPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+console.log("user",user);
 
 useEffect(() => {
   if (!user) return;
@@ -112,7 +115,7 @@ if (loading) {
 
             <h2 className="text-xl font-semibold mb-4">
               Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
-  {user.role !== "suppliers" && (
+  {(user.role !== "suppliers" && user.role !== "viewer") && (
       <span className="capitalize">({user.role})</span>
     )}            </h2>)}
 
@@ -120,7 +123,7 @@ if (loading) {
 
 
 
-{user.role !== "suppliers" && (
+{(user.role !== "suppliers" && user.role !== "viewer") && (
   <>
 
 
@@ -633,15 +636,36 @@ if (loading) {
 
 </> )}
 
-{(user.role === "suppliers" || user.role === "accounts") && (
+{(user.role === "suppliers" || user.role === "accounts" || user.role === "viewer") && (
   <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
     <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
 Pattern Orders & Status    
 </h3>
+<div className="mt-8">
+  {user.role === "suppliers" && (
+    <div className="flex flex-col items-center gap-4 bg-white shadow-md rounded-xl p-6 border border-gray-200">
+      <button
+        onClick={() => setShowInviteForm(!showInviteForm)}
+        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg shadow transition-all duration-200"
+      >
+        {showInviteForm ? 'Cancel' : 'Invite Assistant'}
+      </button>
+
+      {showInviteForm && (
+        <div className="w-full mt-2">
+          <AssistantInvitationForm 
+            supplierId={user._id} 
+            onInviteSent={(link) => setInvitationLink(link)}
+          />
+        </div>
+      )}
+    </div>
+  )}
+</div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Supplier: Upload Drawing */}
-      {user.role === "suppliers" && (
+{(user.role === "suppliers" || user.role === "viewer") && (
         <button
           onClick={() => navigate('/drawing-upload-form')}
           className="w-full h-full bg-orange-500 hover:bg-orange-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
@@ -658,15 +682,7 @@ Pattern Orders & Status
         📊 View Old Patterns Orders Quotation & Price Finalization Real Time Status of Orders
       </button>
 
-      {/* Accounts only: Final Orders Table */}
-      {user.role === "accounts" && (
-        <button
-          onClick={() => navigate("/final-orders")}
-          className="w-full h-full bg-yellow-500 hover:bg-yellow-600 text-white py-6 px-4 rounded-xl shadow-md text-base text-center font-semibold transition"
-        >
-          📁 Final Drawing/Pattern Orders Overview
-        </button>
-      )}
+   
     </div>
   </div>
 )}

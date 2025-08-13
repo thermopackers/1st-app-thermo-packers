@@ -525,7 +525,7 @@ if (clientDetails.poCopy.length > 0) {
             />
 
             {/* Manual Input for custom customer */}
-            {!customerOptions.some((opt) => opt.value === clientDetails.customerName) && (
+            {/* {!customerOptions.some((opt) => opt.value === clientDetails.customerName) && (
               <input
                 name="customerName"
                 placeholder="Enter Customer Name"
@@ -534,7 +534,7 @@ if (clientDetails.poCopy.length > 0) {
                 required
                 className="border border-gray-400 p-2 rounded w-full"
               />
-            )}
+            )} */}
 
             <input
               name="po"
