@@ -577,7 +577,7 @@ const [status, setStatus] = useState("pending");
     approvedBy: status === "approved" ? user._id : null,
     approvedAt: status === "approved" ? new Date() : null,
       createdBy: user._id,  // Add this line
-        status: status || "pending"
+       
             });
             toast.success("PO updated successfully!");
           } else {
@@ -602,7 +602,6 @@ const [status, setStatus] = useState("pending");
     approvedBy: status === "approved" ? user._id : null,
     approvedAt: status === "approved" ? new Date() : null,
       createdBy: user._id,  // Add this line
-        status: status || "pending"
 
             });
 

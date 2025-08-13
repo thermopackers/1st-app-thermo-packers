@@ -45,7 +45,25 @@ const AssistantRegistrationPage = () => {
       toast.success('Registration complete!');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+    console.error('Registration error details:', {
+      status: err.response?.status,
+      data: err.response?.data,
+      config: {
+        url: err.config?.url,
+        method: err.config?.method
+      }
+    });
+    
+    let errorMessage = 'Registration failed';
+    if (err.response) {
+      if (err.response.status === 400) {
+        errorMessage = err.response.data.message || 'Invalid invitation';
+      } else if (err.response.status === 500) {
+        errorMessage = 'Server error, please try again later';
+      }
+    }
+    
+    toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
