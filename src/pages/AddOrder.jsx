@@ -1042,7 +1042,7 @@ if (clientDetails.poCopy.length > 0) {
   </div>
 )}
   {/* Rest of the image preview code remains the same */}
-  {prod.narrationImages.length > 0 && (
+  {prod.narrationImages?.length > 0 && (
     <div className="flex flex-wrap gap-4 mt-2">
       {prod.narrationImages.map((img, i) => (
         <div key={i} className="relative border p-2 rounded">

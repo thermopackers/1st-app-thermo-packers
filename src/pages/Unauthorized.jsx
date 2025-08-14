@@ -16,6 +16,9 @@ const Unauthorized = () => {
         <p className="mt-4 text-xl text-gray-600">
           You do not have permission to access this page. Please contact your administrator if you believe this is an error.
         </p>
+        <p className="mt-3 text-md text-orange-500 font-medium">
+          💡 Please click the Home button and refresh the page.
+        </p>
         <div className="mt-6">
           <button
             onClick={handleRedirect}

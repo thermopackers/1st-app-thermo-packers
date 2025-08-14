@@ -117,7 +117,7 @@ export default function AppRoutes() {
             <Route
               path="/add-order"
               element={
-                <ProtectedRoute allowedRoles={["admin", "sales","accounts"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales","accounts","production"]}>
                   <PageWrapper><AddOrder /></PageWrapper>
                 </ProtectedRoute>
               }

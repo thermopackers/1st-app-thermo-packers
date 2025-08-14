@@ -195,39 +195,38 @@ if (loading) {
 )}
 
  
-{["sales", "admin", "accounts"].includes(user.role) && (
-       <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
-  <>
-    <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
-      SALES ORDERS
-    </h3>
+{(["sales", "admin", "accounts"].includes(user.role) || 
+  (user.role === "production" && user.productionSection?.some(section => ["blockMoulding", "cnc"].includes(section)))) && (
+  <div className="mt-10 bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-2xl p-6 shadow-xl border border-gray-200">
+    <>
+      <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+        SALES ORDERS
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Add New Sales Order */}
+        <NavLink to="/add-order">
+          <button className="w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+            ➕ Add New Sales Order
+            <br />
+            <span className="text-xs font-normal">
+              (Check if customer exists before adding)
+            </span>
+          </button>
+        </NavLink>
 
-    {/* Make it single column always to ensure full width */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Add New Sales Order */}
-      <NavLink to="/add-order">
-        <button className="w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-          ➕ Add New Sales Order
-          <br />
-          <span className="text-xs font-normal">
-            (Check if customer exists before adding)
-          </span>
-        </button>
-      </NavLink>
-
-      {/* View Old/Existing Orders */}
-      <NavLink to="/orders">
-        <button className="w-full cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
-          📂 View / Edit Sales Orders
-          <br />
-          <span className="text-xs font-normal">
-            (Manage old/existing orders)
-          </span>
-        </button>
-      </NavLink>
-    </div>
-  </>
-</div>
+        {/* View Old/Existing Orders */}
+        <NavLink to="/orders">
+          <button className="w-full cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+            📂 View / Edit Sales Orders
+            <br />
+            <span className="text-xs font-normal">
+              (Manage old/existing orders)
+            </span>
+          </button>
+        </NavLink>
+      </div>
+    </>
+  </div>
 )}
 
 
