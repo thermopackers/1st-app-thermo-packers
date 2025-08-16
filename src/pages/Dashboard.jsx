@@ -74,7 +74,10 @@ if (loading) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-lg-full animate-spin mx-auto mb-4"></div>
+<div className="flex flex-col items-center">
+  <div className="h-16 w-16 rounded-full bg-gray-200 mb-4 animate-pulse"></div>
+  <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-lg-full animate-spin mx-auto mb-4"></div>
+</div>
         <p className="text-lg font-medium text-blue-700">Initializing Dashboard...</p>
       </div>
     </div>
@@ -113,11 +116,30 @@ if (loading) {
           <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
                           {user.role !== "driver" && (
 
-            <h2 className="text-xl font-semibold mb-4">
-              Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
-  {(user.role !== "suppliers" && user.role !== "viewer") && (
-      <span className="capitalize">({user.role})</span>
-    )}            </h2>)}
+            <div className="flex items-center gap-4 mb-4">
+  {user.profilePicture ? (
+    <img 
+      src={user.profilePicture} 
+      alt="Profile" 
+      className="h-16 w-16 rounded-full object-cover border-2 border-blue-200"
+    />
+  ) : (
+    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
+      <span className="text-2xl font-bold text-blue-600">
+        {user.name.charAt(0).toUpperCase()}
+      </span>
+    </div>
+  )}
+  <div>
+    <h2 className="text-xl font-semibold">
+      Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
+      {(user.role !== "suppliers" && user.role !== "viewer") && (
+        <span className="capitalize">({user.role})</span>
+      )}
+    </h2>
+    <p className="text-sm text-gray-600">{user.email}</p>
+  </div>
+</div>)}
 
 
 
@@ -174,9 +196,27 @@ if (loading) {
 
                           {user.role === "driver" && (
 
-            <h2 className="text-xl font-semibold mb-4">
-              Welcome 👋 to your Dashboard!
-            </h2>)}
+           <div className="flex items-center gap-4 mb-4">
+  {user.profilePicture ? (
+    <img 
+      src={user.profilePicture} 
+      alt="Profile" 
+      className="h-16 w-16 rounded-full object-cover border-2 border-blue-200"
+    />
+  ) : (
+    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
+      <span className="text-2xl font-bold text-blue-600">
+        {user.name.charAt(0).toUpperCase()}
+      </span>
+    </div>
+  )}
+  <div>
+    <h2 className="text-xl font-semibold">
+      Welcome 👋 to your Dashboard!
+    </h2>
+    <p className="text-sm text-gray-600">{user.name} • {user.email}</p>
+  </div>
+</div>)}
 
 <div className="flex flex-col gap-6 mt-6">
               {user.role === "driver" && (<>

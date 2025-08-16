@@ -11,16 +11,20 @@ const RegisterUser = () => {
   const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 const [editUserId, setEditUserId] = useState(null);
+const [profilePicture, setProfilePicture] = useState(null);
+const [profilePicturePreview, setProfilePicturePreview] = useState('');
 const [allowAttendance, setAllowAttendance] = useState(false);
   const [role, setRole] = useState('sales');
   const [phone, setPhone] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
 const [modalVisible, setModalVisible] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
  const formRef = useRef(null);
+console.log("users",users);
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -28,15 +32,34 @@ const handleSubmit = async (e) => {
     toast.error('Please select at least one production section.');
     return;
   }
+  setIsSubmitting(true); // Start loading
 
   try {
-const payload = { name, email, phone, role, productionSection, allowAttendance };
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('phone', phone);
+    formData.append('role', role);
+    formData.append('productionSection', JSON.stringify(productionSection));
+    formData.append('allowAttendance', allowAttendance);
+    
+    if (profilePicture) {
+      formData.append('profilePicture', profilePicture);
+    }
 
     if (isEditing) {
-      await axiosInstance.put(`/users/update-user/${editUserId}`, payload);
+      await axiosInstance.put(`/users/update-user/${editUserId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       toast.success('User updated successfully!');
     } else {
-      await axiosInstance.post('/users/register', payload);
+      await axiosInstance.post('/users/register', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       toast.success('User registered successfully!');
     }
 
@@ -46,14 +69,17 @@ const payload = { name, email, phone, role, productionSection, allowAttendance }
     setPhone('');
     setRole('sales');
     setProductionSection([]);
+    setProfilePicture(null);
+    setProfilePicturePreview('');
     setIsEditing(false);
     setEditUserId(null);
     fetchUsers();
   } catch (err) {
     toast.error(err.response?.data?.message || 'Operation failed');
+  } finally {
+    setIsSubmitting(false); // Stop loading regardless of success/error
   }
 };
-
 
   const fetchUsers = async () => {
     try {
@@ -151,7 +177,29 @@ const handleCancelEdit = () => {
     className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
   />
 </div>
-
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      if (e.target.files[0]) {
+        setProfilePicture(e.target.files[0]);
+        setProfilePicturePreview(URL.createObjectURL(e.target.files[0]));
+      }
+    }}
+    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+  />
+  {profilePicturePreview && (
+    <div className="mt-2">
+      <img 
+        src={profilePicturePreview} 
+        alt="Preview" 
+        className="h-20 w-20 rounded-full object-cover"
+      />
+    </div>
+  )}
+</div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
               <select
@@ -211,9 +259,12 @@ const handleCancelEdit = () => {
 
 
 
-          <button
+         <button
   type="submit"
-  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+  disabled={isSubmitting}
+  className={`w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition ${
+    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
 >
   {isEditing ? 'Update User' : 'Register User'}
 </button>
@@ -221,7 +272,10 @@ const handleCancelEdit = () => {
   <button
     type="button"
     onClick={handleCancelEdit}
-    className="w-full bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition"
+    disabled={isSubmitting}
+    className={`w-full bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition ${
+      isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+    }`}
   >
     Cancel Editing
   </button>
@@ -248,6 +302,7 @@ const handleCancelEdit = () => {
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
               <tr>
                 <th className="px-4 py-2">#</th>
+                <th className="px-4 py-2">Photo</th>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Role</th>
@@ -261,6 +316,19 @@ const handleCancelEdit = () => {
               {users.map((u, i) => (
                 <tr key={u._id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-2">{i + 1}</td>
+                  <td className="px-4 py-2">
+  {u.profilePicture ? (
+    <img 
+      src={u.profilePicture} 
+      alt="Profile" 
+      className="h-10 w-10 rounded-full object-cover"
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+      <span className="text-gray-500 text-xs">No photo</span>
+    </div>
+  )}
+</td>
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
 <td className="px-4 py-2">
@@ -367,7 +435,16 @@ const handleCancelEdit = () => {
   onClose={() => setModalVisible(false)}
   user={selectedUser}
 />
-
+{isSubmitting && (
+  <div className="fixed inset-0 bg-[#000000d0] bg-opacity-50 flex items-center justify-center z-50">
+    <div className="p-6 rounded-lg shadow-xl flex flex-col items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+      <p className="text-white">
+        {isEditing ? 'Updating user...' : 'Registering user...'}
+      </p>
+    </div>
+  </div>
+)}
     </>
   );
 };
