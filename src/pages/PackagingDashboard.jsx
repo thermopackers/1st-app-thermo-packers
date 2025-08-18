@@ -172,32 +172,35 @@ const handlePageChange = (page) => {
   }
 };
 
-const handleDeleteOrder = async (orderId) => {
-  const confirm = await Swal.fire({
-    title: "Are you sure?",
-    text: "This will remove the order from Packaging Dashboard (not from main Order List).",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Yes, delete it",
-    cancelButtonText: "Cancel",
-  });
-
-  if (confirm.isConfirmed) {
-    try {
-      const token = localStorage.getItem("token");
-      await axiosInstance.delete(`/orders/soft-delete/${orderId}`, {
+const handleProductionStatusChange = async (orderId, newStatus) => {
+  try {
+    const token = localStorage.getItem("token");
+    await axiosInstance.put(
+      `/orders/${orderId}/status`,
+      { status: newStatus },
+      {
         headers: { Authorization: `Bearer ${token}` },
-      });
+      }
+    );
 
-      setOrders((prev) => prev.filter((o) => o._id !== orderId));
-      setFilteredOrders((prev) => prev.filter((o) => o._id !== orderId));
-      toast.success("Order removed from Packaging Dashboard.");
-    } catch (err) {
-      console.error("Delete error:", err);
-      toast.error("Failed to remove order.");
-    }
+    setOrders((prev) =>
+      prev.map((order) =>
+        order._id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+    setFilteredOrders((prev) =>
+      prev.map((order) =>
+        order._id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+
+    toast.success(`Production status set to ${newStatus}`);
+  } catch (error) {
+    console.error("Failed to update production status:", error);
+    toast.error("Failed to update production status.");
   }
 };
+
 const handleDeleteFromPackaging = async (orderId) => {
   const confirm = await Swal.fire({
     title: "Are you sure?",
@@ -423,22 +426,46 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                             </a>
                           )}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-3 h-3 rounded-full ${
-                                  order.status?.toLowerCase() === "pending"
-                                    ? "bg-orange-500"
-                                    : order.status?.toLowerCase() === "in process"
-                                    ? "bg-yellow-500"
-                                    : order.status?.toLowerCase() === "processed"
-                                    ? "bg-green-500"
-                                    : "bg-gray-400"
-                                }`}></span>
-                                <span className="capitalize">
-                                  {order.shapeSlip ? order.status || "Unknown" : "Direct Dispatch"}
-                                </span>
-                              </div>
-                            </td>
+                       <td className="px-4 py-2 whitespace-nowrap">
+  <div className="flex flex-col gap-1">
+    {/* Status indicator */}
+    <div className="flex items-center gap-2">
+      <span
+        className={`w-3 h-3 rounded-full ${
+          order.status?.toLowerCase() === "pending"
+            ? "bg-orange-500"
+            : order.status?.toLowerCase() === "in process"
+            ? "bg-yellow-500"
+            : order.status?.toLowerCase() === "processed"
+            ? "bg-green-500"
+            : "bg-gray-400"
+        }`}
+      ></span>
+      <span className="capitalize">
+        {order.shapeSlip ? order.status || "Unknown" : "Direct Dispatch"}
+      </span>
+    </div>
+
+    {/* Dropdown to update (only if NOT Direct Dispatch) */}
+    {order.shapeSlip && (
+      <select
+        value={order.status || ""}
+        onChange={(e) =>
+          handleProductionStatusChange(order._id, e.target.value)
+        }
+        className="mt-1 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
+      >
+        <option value="" disabled>
+          Change Status
+        </option>
+        <option value="pending">Pending</option>
+        <option value="in process">In Process</option>
+        <option value="processed">Processed</option>
+      </select>
+    )}
+  </div>
+</td>
+
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-semibold ${

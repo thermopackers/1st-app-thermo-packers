@@ -116,30 +116,38 @@ if (loading) {
           <div className="bg-white md:mt-[8vh] shadow-md rounded-lg p-6">
                           {user.role !== "driver" && (
 
-            <div className="flex items-center gap-4 mb-4">
-  {user.profilePicture ? (
-    <img 
-      src={user.profilePicture} 
-      alt="Profile" 
-      className="h-16 w-16 rounded-full object-cover border-2 border-blue-200"
-    />
-  ) : (
-    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
-      <span className="text-2xl font-bold text-blue-600">
-        {user.name.charAt(0).toUpperCase()}
-      </span>
-    </div>
-  )}
-  <div>
-    <h2 className="text-xl font-semibold">
-      Welcome 👋, <span className="font-extrabold text-2xl">{user.name}</span>{" "}
+           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 mb-4">
+  <div className="flex flex-col items-center w-50 sm:w-30">
+    {user.profilePicture ? (
+      <img 
+        src={user.profilePicture} 
+        alt="Profile" 
+        className="h-35 w-35 sm:h-30 sm:w-30 rounded-full object-cover border-2 border-blue-300 shadow-sm"
+      />
+    ) : (
+      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-300 shadow-sm">
+        <span className="text-2xl sm:text-3xl font-bold text-blue-600">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    )}
+    <p className="text-[10px] xs:text-xs text-gray-500 mt-1 text-center leading-tight">
+          Download and set Profile Picture for Whatsapp, Gmail or any other Profile Picture
+    </p>
+  </div>
+  <div className="text-center sm:text-left">
+    <h2 className="text-lg sm:text-xl font-semibold">
+      Welcome 👋, <span className="font-bold sm:font-extrabold text-xl sm:text-2xl">{user.name}</span>
       {(user.role !== "suppliers" && user.role !== "viewer") && (
-        <span className="capitalize">({user.role})</span>
+        <span className="capitalize block sm:inline text-sm sm:text-base text-gray-600 sm:ml-2">
+          ({user.role})
+        </span>
       )}
     </h2>
-    <p className="text-sm text-gray-600">{user.email}</p>
+    <p className="text-xs sm:text-sm text-gray-600">{user.email}</p>
   </div>
-</div>)}
+</div>
+)}
 
 
 
@@ -196,27 +204,33 @@ if (loading) {
 
                           {user.role === "driver" && (
 
-           <div className="flex items-center gap-4 mb-4">
-  {user.profilePicture ? (
-    <img 
-      src={user.profilePicture} 
-      alt="Profile" 
-      className="h-16 w-16 rounded-full object-cover border-2 border-blue-200"
-    />
-  ) : (
-    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
-      <span className="text-2xl font-bold text-blue-600">
-        {user.name.charAt(0).toUpperCase()}
-      </span>
-    </div>
-  )}
-  <div>
-    <h2 className="text-xl font-semibold">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 mb-4">
+  <div className="flex flex-col items-center w-20 sm:w-24">
+    {user.profilePicture ? (
+      <img 
+        src={user.profilePicture} 
+        alt="Profile" 
+        className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-blue-300 shadow-sm"
+      />
+    ) : (
+      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-300 shadow-sm">
+        <span className="text-2xl sm:text-3xl font-bold text-blue-600">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    )}
+    <p className="text-[10px] xs:text-xs text-gray-500 mt-1 text-center leading-tight">
+          Download and set Profile Picture for Whatsapp, Gmail or any other Profile Picture
+    </p>
+  </div>
+  <div className="text-center sm:text-left">
+    <h2 className="text-lg sm:text-xl font-semibold">
       Welcome 👋 to your Dashboard!
     </h2>
-    <p className="text-sm text-gray-600">{user.name} • {user.email}</p>
+    <p className="text-xs sm:text-sm text-gray-600">{user.name} • {user.email}</p>
   </div>
-</div>)}
+</div>
+)}
 
 <div className="flex flex-col gap-6 mt-6">
               {user.role === "driver" && (<>

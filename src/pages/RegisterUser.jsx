@@ -322,6 +322,7 @@ const handleCancelEdit = () => {
       src={u.profilePicture} 
       alt="Profile" 
       className="h-10 w-10 rounded-full object-cover"
+       loading="lazy"
     />
   ) : (
     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">

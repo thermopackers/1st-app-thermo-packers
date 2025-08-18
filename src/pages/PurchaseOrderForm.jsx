@@ -171,7 +171,7 @@ const [status, setStatus] = useState("pending");
         { text: "Description", bold: true, fontSize: 8 },
         { text: "Qty (Kg)", bold: true, fontSize: 8 },
         { text: "Unit", bold: true, fontSize: 8 }, // ✅ Add this
-        { text: "Rate Rs/unit", bold: true, fontSize: 8 },
+        { text: "Basic Price (Rs/unit)", bold: true, fontSize: 8 },
         { text: "Total (₹)", bold: true, fontSize: 8 },
         { text: "GST %", bold: true, fontSize: 8 },
         { text: "Total with GST (₹)", bold: true, fontSize: 8 },
@@ -643,56 +643,73 @@ const [status, setStatus] = useState("pending");
         </h2>
 {id && (
   <div className="mb-4 p-3 rounded-md bg-blue-50 border border-blue-200">
-    <p className="font-semibold text-blue-800">
+    <p className="font-semibold text-blue-800 flex flex-wrap items-center gap-2">
       Current Status:{" "}
-      <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
-        status === "approved" 
-          ? "bg-green-100 text-green-800" 
-          : status === "rejected" 
-            ? "bg-red-100 text-red-800" 
+      <span
+        className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
+          status === "approved"
+            ? "bg-green-100 text-green-800"
+            : status === "rejected"
+            ? "bg-red-100 text-red-800"
             : "bg-yellow-100 text-yellow-800"
-      }`}>
+        }`}
+      >
         {status || "pending"}
       </span>
     </p>
-  {canApprove && (
-  <div className="mt-2 flex gap-2">
-   <button
-  onClick={async () => {
-    try {
-      await axiosInstance.put(`/purchase-orders/${id}/approve`, {
-        approvedBy: user._id
-      });
-      setStatus("approved");
-      toast.success("PO approved successfully!");
-    } catch (err) {
-      toast.error("Failed to approve PO");
-    }
-  }}
-  className="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 text-sm"
->
-  Mark as Approved
-</button>
-<button
-  onClick={async () => {
-    try {
-      await axiosInstance.put(`/purchase-orders/${id}/reject`, {
-        approvedBy: user._id
-      });
-      setStatus("rejected");
-      toast.success("PO rejected!");
-    } catch (err) {
-      toast.error("Failed to reject PO");
-    }
-  }}
-  className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm"
->
-  Mark as Rejected
-</button>
+
+    {canApprove && (
+      <div className="mt-3 flex flex-col sm:flex-row gap-3">
+        {/* Approve Button */}
+        <button
+          onClick={async () => {
+            try {
+              await axiosInstance.put(`/purchase-orders/${id}/approve`, {
+                approvedBy: user._id,
+              });
+              setStatus("approved");
+              toast.success("PO approved successfully!");
+            } catch (err) {
+              toast.error("Failed to approve PO");
+            }
+          }}
+          disabled={status === "approved"}
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 ${
+            status === "approved"
+              ? "bg-green-300 text-green-900 cursor-not-allowed"
+              : "bg-green-500 text-white hover:bg-green-600 active:scale-95"
+          }`}
+        >
+          ✅ {status === "approved" ? "Approved" : "Mark as Approved"}
+        </button>
+
+        {/* Reject Button */}
+        <button
+          onClick={async () => {
+            try {
+              await axiosInstance.put(`/purchase-orders/${id}/reject`, {
+                approvedBy: user._id,
+              });
+              setStatus("rejected");
+              toast.success("PO rejected!");
+            } catch (err) {
+              toast.error("Failed to reject PO");
+            }
+          }}
+          disabled={status === "rejected"}
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 ${
+            status === "rejected"
+              ? "bg-red-300 text-red-900 cursor-not-allowed"
+              : "bg-red-500 text-white hover:bg-red-600 active:scale-95"
+          }`}
+        >
+          ❌ {status === "rejected" ? "Rejected" : "Mark as Rejected"}
+        </button>
+      </div>
+    )}
   </div>
 )}
-  </div>
-)}
+
         <div className="mb-6">
           <label className="block font-semibold mb-2">Select Supplier</label>
           <select

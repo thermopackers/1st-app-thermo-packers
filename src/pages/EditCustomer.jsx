@@ -113,7 +113,7 @@ const handleChange = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-if (customer.company && customer.company !== "URN" && customer.company.length !== 15) {
+if (customer.company && customer.company !== "URP" && customer.company.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   setSubmitting(false);
@@ -121,7 +121,7 @@ if (customer.company && customer.company !== "URN" && customer.company.length !=
 }
 // 🔥 Auto-fill URN
 if (!customer.company || customer.company.trim() === "") {
-  customer.company = "URN";
+  customer.company = "URP";
 }
 
     try {
@@ -222,7 +222,7 @@ if (!customer.company || customer.company.trim() === "") {
           </div>
 
        <div>
-  <label className="block mb-1 font-semibold">GST No.</label>
+  <label className="block mb-1 font-semibold">GST No. (Leave this field if no GST No. It will take URP automatically)</label>
   <input
     type="text"
     name="company"
@@ -231,7 +231,7 @@ if (!customer.company || customer.company.trim() === "") {
     className={`w-full border p-2 rounded ${
       gstError ? "border-red-500 focus:ring-red-400" : ""
     }`}
-        placeholder={customer.company?.trim() === "" ? "URN (If no GST No.)" : "GST No."}
+        placeholder={customer.company?.trim() === "" ? "URP (If no GST No.)" : "GST No."}
 
   />
   {gstError && <p className="text-red-500 text-sm mt-1">{gstError}</p>}

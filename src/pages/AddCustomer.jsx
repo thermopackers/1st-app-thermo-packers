@@ -67,7 +67,7 @@ const handleChange = (e) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
       setSubmitting(true);
-  if (formData.company && formData.company !== "URN" && formData.company.length !== 15) {
+  if (formData.company && formData.company !== "URP" && formData.company.length !== 15) {
   setGstError("GST number must be exactly 15 characters.");
   toast.error("GST number must be exactly 15 characters.");
   setSubmitting(false);
@@ -75,7 +75,7 @@ const handleChange = (e) => {
 }
   // 🔥 Auto-fill URN
   if (!formData.company || formData.company.trim() === "") {
-    formData.company = "URN";
+    formData.company = "URP";
   }
 
     try {
@@ -136,7 +136,7 @@ await axiosInstance.post("/customers", payload);
             </div>
 
           <div>
-  <label className="block mb-1 font-medium text-gray-700">GST No.</label>
+  <label className="block mb-1 font-medium text-gray-700">GST No. (Leave this field if no GST No. It will take URP automatically)</label>
   <input
     name="company"
     value={formData.company}
@@ -146,7 +146,7 @@ await axiosInstance.post("/customers", payload);
     } rounded-md focus:outline-none focus:ring-2 ${
       gstError ? "focus:ring-red-400" : "focus:ring-blue-400"
     }`}
-    placeholder={formData.company?.trim() === "" ? "URN (If no GST No.)" : "GST No."}
+    placeholder={formData.company?.trim() === "" ? "URP (If no GST No.)" : "GST No."}
   />
   {gstError && (
     <p className="text-red-500 text-sm mt-1">{gstError}</p>

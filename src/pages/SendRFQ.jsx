@@ -297,9 +297,10 @@ const docDefinition = {
           // RFQ Details
           [{ text: "Item Name", bold: true }, form.itemName],
           [{ text: "Description", bold: true }, form.description],
+          [{ text: "Quantity", bold: true }, form.quantity],
+                    [{ text: "Unit", bold: true }, form.unit || "N/A"], // Added this new line
           [{ text: "HSN Code", bold: true }, form.hsnCode],
           [{ text: "GST (%)", bold: true }, form.gstPercent],
-          [{ text: "Quantity", bold: true }, form.quantity],
           [{ text: "Required By", bold: true }, form.requiredByDate],
           [{ text: "Size", bold: true }, form.size || "N/A"],
           [{ text: "Category", bold: true }, form.category],
