@@ -38,6 +38,8 @@ import SendRFQ from "../pages/SendRFQ";
 import DrawingOrdersTable from "../pages/DrawingOrdersTable";
 import DrawingUploadForm from "../components/DrawingUploadForm";
 import ViewRFQs from "../pages/viewRFQs";
+import DanaBeadsDashboard from "../pages/DanaBeadsDashboard";
+import MonthlyReports from "../pages/MonthlyReports";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -173,6 +175,14 @@ export default function AppRoutes() {
               element={
                 <ProtectedRoute allowedRoles={["production","accounts"]}>
                   <PageWrapper><ProductionDashboard /></PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dana-beads-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["production","accounts"]}>
+                  <PageWrapper><DanaBeadsDashboard /></PageWrapper>
                 </ProtectedRoute>
               }
             />
@@ -427,6 +437,16 @@ export default function AppRoutes() {
     <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
       <PageWrapper>
         <AttendanceLogs />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/monthly-reports"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper>
+        <MonthlyReports />
       </PageWrapper>
     </ProtectedRoute>
   }

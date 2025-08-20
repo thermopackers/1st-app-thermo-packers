@@ -356,6 +356,7 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                   <thead className="bg-purple-100 text-gray-700 text-xs uppercase">
                     <tr>
                       <th className="px-4 py-3">Order ID</th>
+                      <th className="px-4 py-3">Date of Order</th>
                       <th className="px-4 py-3">Customer Name</th>
                       <th className="px-4 py-3">PO</th>
                       <th className="px-4 py-3">Product</th>
@@ -389,6 +390,11 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                         className="hover:bg-gray-50 transition duration-150"
                       >
                         <td className="px-4 py-3 font-medium">{order.shortId}</td>
+                         <td className="px-6 py-4">
+    <div className="text-xs text-gray-500">
+      {new Date(order.createdAt).toLocaleDateString()}
+  </div>
+</td>
                         <td className="px-4 py-3 capitalize">{order.customerName}</td>
                         <td className="px-4 py-3 capitalize">{order.po}</td>
  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">

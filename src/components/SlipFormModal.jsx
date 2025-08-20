@@ -38,6 +38,14 @@ const inputClass = (field, base = "") =>
     missingFields.includes(field) ? "border-red-500" : "border-gray-300"
   }`;
 const [drawingFiles, setDrawingFiles] = useState([]);
+const [danaBeadsFormData, setDanaBeadsFormData] = useState({
+  productName: "",
+  density: "",
+  quantity: "",
+  recycleDana: "no",   // default
+  nextGrade: "",
+  remarks: "",
+});
 
   const [cuttingFormData, setCuttingFormData] = useState({
   productName: "",
@@ -127,6 +135,15 @@ useEffect(() => {
       drawingName: "",
       remarks: selectedOrder.remarks || "",
     });
+    // Dana/Beads Slip
+setDanaBeadsFormData({
+  productName: selectedOrder.product || "",
+  density: selectedOrder.density || "",
+  quantity: selectedOrder.quantity || "",
+  recycleDana: "no",
+  nextGrade: "",
+  remarks: selectedOrder.remarks || "",
+});
   }
 }, [isOpen, selectedOrder]);
 
@@ -173,7 +190,10 @@ const handleSubmit = async (e) => {
     
   } else if (type === "packaging" || type === "shape-packaging") {
     checkMissing(["quantity", "remarks"], packagingFormData);
-  }
+  } else if (type === "dana-beads") {
+  checkMissing(["productName", "density", "quantity"], danaBeadsFormData);
+}
+
 
   if (missing.length > 0) {
     setMissingFields(missing); // you must declare this state: const [missingFields, setMissingFields] = useState([]);
@@ -246,7 +266,9 @@ for (const file of drawingFiles) {
       });
     } else if (type === "packaging" || type === "shape-packaging") {
       await onSubmit({ packagingFormData });
-    }
+    } else if (type === "dana-beads") {
+  await onSubmit({ danaBeadsFormData });
+}
 
     // Reset fields after submit
     setCuttingFormData({ productName: "", size: "", density: "", quantity: "", remarks: "" });
@@ -273,6 +295,14 @@ for (const file of drawingFiles) {
       drawingName: "",
             remarks: "",
     });
+    setDanaBeadsFormData({
+  productName: "",
+  density: "",
+  quantity: "",
+  recycleDana: "no",
+  nextGrade: "",
+  remarks: "",
+});
     setDrawingFiles([]); // ✅ Reset drawing files
     onClose();
   } catch (error) {
@@ -531,7 +561,78 @@ const handleRemoveDrawingFile = (index) => {
   </section>
 )}
 
+{/* Dana/Beads Slip */}
+{type === "dana-beads" && (
+  <section className="space-y-4">
+    <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2">
+      Dana/Bead Order Slip
+    </h3>
 
+    <label className="font-bold text-xl">Product Name:</label>
+    <input
+      type="text"
+      disabled
+      value={danaBeadsFormData.productName}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, productName: e.target.value })
+      }
+      className={inputClass("productName")}
+    />
+
+    <label className="font-bold text-xl">Density:</label>
+    <input
+      type="text"
+      value={danaBeadsFormData.density}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, density: e.target.value })
+      }
+      className={inputClass("density")}
+    />
+
+    <label className="font-bold text-xl">Quantity:</label>
+    <input
+      type="number"
+      value={danaBeadsFormData.quantity}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, quantity: e.target.value })
+      }
+      className={inputClass("quantity")}
+    />
+
+    <label className="font-bold text-xl">Recycle Dana:</label>
+    <select
+      value={danaBeadsFormData.recycleDana}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, recycleDana: e.target.value })
+      }
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    >
+      <option value="30%">30%</option>
+      <option value="50%">50%</option>
+      <option value="no">No</option>
+    </select>
+
+    <label className="font-bold text-xl">Next Grade of Raw Material:</label>
+    <input
+      type="text"
+      value={danaBeadsFormData.nextGrade}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, nextGrade: e.target.value })
+      }
+      className={inputClass("nextGrade")}
+    />
+
+    <label className="font-bold text-xl">Remarks:</label>
+    <textarea
+      value={danaBeadsFormData.remarks}
+      onChange={(e) =>
+        setDanaBeadsFormData({ ...danaBeadsFormData, remarks: e.target.value })
+      }
+      rows={3}
+      className={inputClass("remarks", "resize-none")}
+    />
+  </section>
+)}
 
           {/* Packaging Slip */}
           {isPackaging && (
@@ -701,6 +802,7 @@ const handleRemoveDrawingFile = (index) => {
               {loading ? "Saving..." : "Save and Continue"}
             </button>
           </div>
+          
         </form>
 
         {/* Loader Overlay */}

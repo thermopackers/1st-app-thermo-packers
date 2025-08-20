@@ -32,6 +32,7 @@ const typeFilter = searchParams.get("type"); // shape or dana
   const [endDate, setEndDate] = useState("");
   const [packagingReadyOrders, setPackagingReadyOrders] = useState([]);
 const type = searchParams.get('type');
+console.log("orders",orders);
 
 const groupOrdersByPO = (orders) => {
   return orders.reduce((groups, order) => {
@@ -383,6 +384,7 @@ const handleRemoveFromProduction = async (order) => {
               <thead>
                 <tr className="bg-gray-100 text-gray-600">
                   <th className="px-6 py-4 text-left font-medium">Order ID</th>
+                  <th className="px-6 py-4 text-left font-medium">Date of Order</th>
                   <th className="px-6 py-4 text-left font-medium">
                     Client Name
                   </th>
@@ -416,6 +418,11 @@ const handleRemoveFromProduction = async (order) => {
     {poOrders.map((order) => (
        <tr key={order._id} className="table-row capitalize">
                     <td className="px-6 py-4">{order.shortId}</td>
+                    <td className="px-6 py-4">
+    <div className="text-xs text-gray-500">
+      {new Date(order.createdAt).toLocaleDateString()}
+  </div>
+</td>
                     <td className="px-6 py-4">{order.customerName}</td>
                     <td className="px-6 py-4">{order.po}</td>
  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">

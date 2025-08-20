@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
+import { NavLink } from "react-router-dom";
 
 const AttendanceLogs = () => {
 const { token, user } = useUserContext();
@@ -126,6 +127,13 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
   >
     Clear Filters
   </button>
+  {/* <NavLink
+  to="/monthly-reports"
+  className="px-3 py-2 rounded hover:bg-gray-200"
+>
+  📊 Monthly Reports
+</NavLink> */}
+
 </div>
 
 

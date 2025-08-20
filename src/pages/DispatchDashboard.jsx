@@ -333,6 +333,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                   <thead className="bg-blue-100 text-gray-700 text-xs uppercase">
                     <tr>
                       <th className="px-4 py-3">Order ID</th>
+                      <th className="px-4 py-3">Date of Order</th>
                       <th className="px-4 py-3">Customer Name</th>
                       <th className="px-4 py-3">PO</th>
                       <th className="px-4 py-3">Product Name</th>
@@ -361,6 +362,11 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                         {poOrders.map((order) => (
                           <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
                             <td className="px-4 py-3 font-medium">{order.shortId}</td>
+                             <td className="px-6 py-4">
+    <div className="text-xs text-gray-500">
+      {new Date(order.createdAt).toLocaleDateString()}
+  </div>
+</td>
                             <td className="px-4 py-3 capitalize">{order.customerName}</td>
                             <td className="px-4 py-3 capitalize">{order.po}</td>
 

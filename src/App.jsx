@@ -48,6 +48,8 @@ export default function App() {
     "/reports/packaging",
     "/issue-asset",
     "/orders",
+    "/dana-beads-dashboard",
+    "/monthly-reports",
     "/add-order",
     "/customers/edit",
     "/my-tasks",

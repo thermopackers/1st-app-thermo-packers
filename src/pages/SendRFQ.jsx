@@ -9,7 +9,8 @@ pdfMake.vfs = pdfFonts.vfs; // ✅ works reliably in React
 
 const categories = [
   "wood", "polythene bags", "hardware", "raw materials",
-  "iron sheets", "aluminium casting/sheets", "boiler materials", "Kraft Paper"
+  "iron sheets", "aluminium casting/sheets", "boiler materials", "Kraft Paper",
+  "SS Pipe or Angle - Stainless Steel Material"
 ];
 
 export default function SendRFQ() {

@@ -91,6 +91,7 @@ useEffect(() => {
 
 const sectionsList = [
   { key: "preExpander", label: "EPS/Thermocol Block Molding Production Section" },
+    { key: "danaBeads", label: "EPS/Thermocol Dana/Beads Production Section" },
   { key: "shapeMoulding", label: "EPS/Thermocol Shape Molding Production Section" },
   { key: "sheetCutting", label: "EPS/Thermocol Sheet Cutting & Dispatch Section" },
   { key: "shapePackaging", label: "EPS/Thermocol Shape Molding Packaging & Dispatch Section" },
@@ -109,6 +110,7 @@ const sectionsList = [
   // 🔁 Maps section keys to slip types
 const sectionToSlipType = {
   preExpander: "dana",
+    danaBeads: "dana-beads",
   shapeMoulding: "production",
   sheetCutting: "dispatch",
   shapePackaging: "packaging",
@@ -211,6 +213,22 @@ const handleSlipSubmit = async (payload) => {
           });
         }
       },
+       "dana-beads": async () => {
+    if (selectedSections.danaBeads) {
+      await axiosInstance.post("/slips/dana-beads", {
+        orderId: selectedOrder._id,
+        ...payload.danaBeadsFormData,
+      });
+      await actuallySendToProduction(
+        selectedOrder._id,
+        null,
+        null,
+        null,
+        null,
+        payload.danaBeadsFormData
+      );
+    }
+  },
     };
 
     const handler = slipTypeToHandler[slipType];
@@ -545,15 +563,28 @@ const actuallySendToProduction = async (
   shapeRowData,
   packagingFormData,
   cuttingFormData,
-  danaFormData
+  danaFormData,
+  danaBeadsFormData
 ) => {
- 
+   const danaBeadsRows = danaBeadsFormData
+    ? [{
+        productName: danaBeadsFormData.productName,
+        density: danaBeadsFormData.density,
+        quantity: danaBeadsFormData.quantity,
+        recycleDana: danaBeadsFormData.recycleDana,
+        nextGrade: danaBeadsFormData.nextGrade,
+        remarks: danaBeadsFormData.remarks,
+      }]
+    : [];
+
+
   const freshOrder = orders.find((o) => o._id === orderId);
   if (!freshOrder) return;
 
   const selectedSections = Object.entries(freshOrder.requiredSections || {})
     .filter(([_, value]) => value)
     .map(([key]) => key);
+    
 
   const product = products.find((p) => p.name === freshOrder.product);
   const stock = product ? product.quantity : 0;
@@ -590,6 +621,10 @@ const actuallySendToProduction = async (
       remainingToProduce: remainingQuantity,
     };
 
+      if (selectedSections.includes("danaBeads") && danaBeadsFormData) {
+    payload.danaBeadsRows = danaBeadsRows;
+  }
+  
     if (selectedSections.includes("blockMoulding") && danaFormData) {
       payload.danaRows = danaRows;
     }
@@ -1359,25 +1394,23 @@ console.log("sortedOrders",sortedOrders);
                                         {sectionsList.map((section) => {
                                           const keyId = `${order._id}-${section.key}`;
 const isSectionSent = (() => {
-  switch (section.key) {
-    case "preExpander":
-      return !!order.danaSlip;
-
-    case "shapeMoulding":
-      return !!order.shapeSlip;
-
-    case "sheetCutting":
-      return !!order.cuttingSlip;
-
-    case "shapePackaging":
-      return !!order.packagingSlip;
-
-    case "cncSection":
-  return !!order.cncSlip?.url;
-
-    default:
-      return false;
+  // Check if this section is in the sentTo arrays
+  const sentToProduction = order.sentTo?.production || [];
+  const sentToDispatch = order.sentTo?.dispatch || [];
+  
+  // Determine which array to check based on section type
+  const productionSections = ["preExpander", "danaBeads", "shapeMoulding", "cncSection"];
+  const dispatchSections = ["sheetCutting", "shapePackaging"];
+  
+  if (productionSections.includes(section.key)) {
+    return sentToProduction.includes(section.key);
   }
+  
+  if (dispatchSections.includes(section.key)) {
+    return sentToDispatch.includes(section.key);
+  }
+  
+  return false;
 })();
 
                                           return (
@@ -1577,7 +1610,7 @@ const isSectionSentToProduction = sentToProduction.includes(selectedKey);
 const isSectionSentToDispatch = sentToDispatch.includes(selectedKey);
 
 const isSectionAlreadySent =
-  ["preExpander", "shapeMoulding", "cncSection"].includes(selectedKey)
+  ["preExpander", "danaBeads", "shapeMoulding", "cncSection"].includes(selectedKey)
     ? isSectionSentToProduction
     : isSectionSentToDispatch;
 

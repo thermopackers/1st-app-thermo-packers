@@ -322,6 +322,15 @@ if (loading) {
       </>
     )}
 
+    {user.role === "accounts" && (
+      <NavLink to="/dana-beads-dashboard" className="h-full">
+        <div className="h-full">
+          <button className="w-full h-full min-h-[80px] bg-pink-600 hover:bg-pink-700 text-white py-6 px-4 rounded-lg shadow text-sm sm:text-base text-center">
+            EPS/Thermocol Dana / Beads Production Section
+          </button>
+        </div>
+      </NavLink>
+    )}
     {(user.role === "dispatch" || user.role === "accounts") && (
       <NavLink to="/dispatch-dashboard" className="h-full">
         <div className="h-full">
