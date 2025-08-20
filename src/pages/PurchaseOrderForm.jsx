@@ -51,7 +51,7 @@ const [status, setStatus] = useState("pending");
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const suppliersRes = await axiosInstance.get("/suppliers");
+const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a large number
         setSuppliers(suppliersRes.data.data);
 
         const productsRes = await axiosInstance.get("/purchase-products");
