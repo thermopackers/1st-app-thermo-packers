@@ -10,6 +10,7 @@ export default function PurchaseOrdersList() {
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [suppliers, setSuppliers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   console.log("orders",orders);
@@ -77,8 +78,17 @@ useEffect(() => {
     }
   }
 };
-const getSupplierContact = (supplierId) => {
-  const supplier = suppliers.find((s) => s._id === supplierId);
+const getSupplierContact = (supplierData) => {
+  // If supplierData is already a populated supplier object
+  if (supplierData && typeof supplierData === 'object') {
+    return {
+      email: supplierData.email || "",
+      phone: supplierData.phone || "",
+    };
+  }
+  
+  // If supplierData is just an ID, look it up in suppliers array
+  const supplier = suppliers.find((s) => s._id === supplierData);
   return {
     email: supplier?.email || "",
     phone: supplier?.phone || "",
@@ -113,7 +123,7 @@ Sent by: ${from}
 
 
 const handleSendWhatsApp = (order) => {
-  const { phone } = getSupplierContact(order.supplier?._id);
+  const phone = order.supplier?.phone;
   if (!phone) return Swal.fire("❌ No phone", "Supplier phone not found", "error");
 
   const message = `Hello,\nPlease find the Purchase Order (${order.poNumber}) here:\n${order.pdfUrl}`;
@@ -122,9 +132,85 @@ const handleSendWhatsApp = (order) => {
 };
 const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.thermopackers@gmail.com"].includes(user?.email);
 
+// Add these functions to your PurchaseOrdersList component
+const handleApprove = async (orderId) => {
+  try {
+        setIsLoading(true); // 🔹 Show loader
+    const confirmed = await Swal.fire({
+      title: "Approve Purchase Order?",
+      text: "This will mark the PO as approved and generate a new PDF.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, approve it!",
+    });
+
+    if (confirmed.isConfirmed) {
+      // Generate PDF with approved status
+      const response = await axiosInstance.post(`/purchase-orders/generate-pdf/${orderId}`, {
+        status: "approved",
+        approvedBy: user._id
+      });
+      
+      // Refresh the orders list
+      fetchOrders(page, search);
+      
+      Swal.fire("Approved!", "The PO has been approved and a new PDF was generated.", "success");
+    }
+  } catch (err) {
+    console.error("Error approving PO:", err);
+    Swal.fire("Error", "Failed to approve PO.", "error");
+  } finally {
+    setIsLoading(false); // 🔹 Hide loader
+  }
+};
+
+const handleReject = async (orderId) => {
+  try {
+        setIsLoading(true); // 🔹 Show loader
+    const confirmed = await Swal.fire({
+      title: "Reject Purchase Order?",
+      text: "This will mark the PO as rejected and generate a new PDF.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, reject it!",
+    });
+
+    if (confirmed.isConfirmed) {
+      // Generate PDF with rejected status
+      const response = await axiosInstance.post(`/purchase-orders/generate-pdf/${orderId}`, {
+        status: "rejected",
+        approvedBy: user._id
+      });
+      
+      // Refresh the orders list
+      fetchOrders(page, search);
+      
+      Swal.fire("Rejected!", "The PO has been rejected and a new PDF was generated.", "success");
+    }
+  } catch (err) {
+    console.error("Error rejecting PO:", err);
+    Swal.fire("Error", "Failed to reject PO.", "error");
+  } finally {
+    setIsLoading(false); // 🔹 Hide loader
+  }
+};
+function LoaderOverlay({ isLoading }) {
+  if (!isLoading) return null;
+  return (
+    <div className="fixed inset-0 bg-[#000000b0] bg-opacity-50 flex items-center justify-center z-50">
+      <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
+
   return (
     <>
       <InternalNavbar />
+      <LoaderOverlay isLoading={isLoading} />
       <div className="max-w-5xl mx-auto px-4 py-6">
         <h2 className="text-2xl font-bold mb-6 text-center">📄 All Purchase Orders</h2>
 
@@ -176,20 +262,28 @@ const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.ther
                         View PDF
                       </a>
                     </td>
-                 <td className="border px-2 py-2 text-center">
+                <td className="border px-2 py-2 text-center">
   <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2">
-    <button
-      onClick={() => handleDelete(order._id)}
-      className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm transition"
-    >
-      🗑 Delete
-    </button>
-    <button
-      onClick={() => navigate(`/purchase-orders/edit/${order._id}`)}
-      className="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm transition"
-    >
-      ✏️ Edit
-    </button>
+    
+    {/* Show Delete & Edit ONLY if not approved */}
+    {order.status !== "approved" && (
+      <>
+        <button
+          onClick={() => handleDelete(order._id)}
+          className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm transition"
+        >
+          🗑 Delete
+        </button>
+        <button
+          onClick={() => navigate(`/purchase-orders/edit/${order._id}`)}
+          className="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-sm transition"
+        >
+          ✏️ Edit
+        </button>
+      </>
+    )}
+
+    {/* Always available */}
     <button
       onClick={() => handleSendEmail(order)}
       className="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 text-sm transition"
@@ -202,8 +296,27 @@ const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.ther
     >
       📱 WhatsApp
     </button>
+
+    {/* Approve/Reject only for approvers */}
+    {canApprove && (
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={() => handleApprove(order._id)}
+          className="bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 text-xs transition"
+        >
+          ✅ Approve
+        </button>
+        <button
+          onClick={() => handleReject(order._id)}
+          className="bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 text-xs transition"
+        >
+          ❌ Reject
+        </button>
+      </div>
+    )}
   </div>
 </td>
+
  <td className="border px-4 py-2 text-center">
         {order.createdBy?.name || "-"} {/* NEW CELL */}
       </td>
