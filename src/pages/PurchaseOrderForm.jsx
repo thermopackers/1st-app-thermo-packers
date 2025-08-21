@@ -576,7 +576,6 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
               status,
     approvedBy: status === "approved" ? user._id : null,
     approvedAt: status === "approved" ? new Date() : null,
-      createdBy: user._id,  // Add this line
        
             });
             toast.success("PO updated successfully!");

@@ -127,12 +127,12 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
   >
     Clear Filters
   </button>
-  {/* <NavLink
+  <NavLink
   to="/monthly-reports"
   className="px-3 py-2 rounded hover:bg-gray-200"
 >
   📊 Monthly Reports
-</NavLink> */}
+</NavLink>
 
 </div>
 

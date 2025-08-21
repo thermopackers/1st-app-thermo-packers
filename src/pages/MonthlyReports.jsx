@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
+import InternalNavbar from "../components/InternalNavbar";
 
 export default function MonthlyReports() {
   const { user } = useUserContext();
@@ -343,6 +344,8 @@ const renderTable = () => {
 };
 
   return (
+    <>
+    <InternalNavbar />
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -446,5 +449,6 @@ const renderTable = () => {
         </div>
       </div>
     </div>
+    </>
   );
 }
