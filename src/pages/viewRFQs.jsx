@@ -85,7 +85,7 @@ const handleWhatsAppSend = () => {
       name: s.name,
       phone: formatPhoneNumber(s.phone)
     }))
-    .filter(s => s.phone && s.phone.length >= 10); // Ensure valid phone numbers
+    .filter(s => s.phone && s.phone.length >= 10);
 
   if (selectedContacts.length === 0) {
     toast.error("No valid phone numbers selected");
@@ -98,15 +98,15 @@ const handleWhatsAppSend = () => {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   if (isMobile) {
-    // Mobile - open WhatsApp directly for each contact
-    selectedContacts.forEach((contact, index) => {
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${contact.phone}&text=${encodedMessage}`;
-      
-      // Add slight delay between openings to avoid blocking
-      setTimeout(() => {
-        window.open(whatsappUrl, '_blank');
-      }, index * 300);
+    // Mobile - show instructions and let user control the flow
+    setWhatsappContacts(selectedContacts.map(contact => ({
+      ...contact,
+      url: `https://api.whatsapp.com/send?phone=${contact.phone}&text=${encodeURIComponent(message)}`
+    })));
+    
+    // Show instruction toast
+    toast.success(`Prepared ${selectedContacts.length} WhatsApp links. Tap each one to send.`, {
+      duration: 4000
     });
   } else {
     // Desktop - show clickable links
@@ -114,11 +114,6 @@ const handleWhatsAppSend = () => {
       ...contact,
       url: `https://web.whatsapp.com/send?phone=${contact.phone}&text=${encodeURIComponent(message)}`
     })));
-  }
-
-  // Close modal if on mobile (since we opened directly)
-  if (isMobile) {
-    setShowWhatsappModal(false);
   }
 };
   return (
@@ -266,7 +261,7 @@ ${JSON.parse(localStorage.getItem("user"))?.name || ""}
             )}
 
             {/* WhatsApp Modal */}
-         {showWhatsappModal && (
+{showWhatsappModal && (
   <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
     <div className="bg-white rounded p-6 w-full max-w-lg">
       <h3 className="text-lg font-bold mb-4">Send RFQ via WhatsApp: {currentRFQ?.itemName}</h3>
@@ -291,24 +286,27 @@ ${JSON.parse(localStorage.getItem("user"))?.name || ""}
         ))}
       </div>
 
-      {/* WhatsApp links - shown on desktop */}
+      {/* WhatsApp links - shown on both desktop and mobile */}
       {whatsappContacts.length > 0 && (
         <div className="mt-4">
           <p className="mb-2">Click to send to each supplier:</p>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
             {whatsappContacts.map((contact, index) => (
-              <button
+              <a
                 key={index}
+                href={contact.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-left bg-green-100 text-green-800 p-2 rounded hover:bg-green-200"
                 onClick={() => {
-                  window.open(contact.url, '_blank');
-                  if (whatsappContacts.length === 1) {
-                    setShowWhatsappModal(false);
+                  // Close modal after last contact on mobile
+                  if (index === whatsappContacts.length - 1) {
+                    setTimeout(() => setShowWhatsappModal(false), 300);
                   }
                 }}
-                className="w-full text-left bg-green-100 text-green-800 p-2 rounded hover:bg-green-200"
               >
                 💬 Send to {contact.name} ({contact.phone})
-              </button>
+              </a>
             ))}
           </div>
         </div>
@@ -319,7 +317,7 @@ ${JSON.parse(localStorage.getItem("user"))?.name || ""}
           onClick={handleWhatsAppSend}
           className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
         >
-          {whatsappContacts.length > 0 ? '📱 Send to All Above' : '📱 Prepare WhatsApp Links'}
+          {whatsappContacts.length > 0 ? '🔄 Regenerate Links' : '📱 Prepare WhatsApp Links'}
         </button>
 
         <button
