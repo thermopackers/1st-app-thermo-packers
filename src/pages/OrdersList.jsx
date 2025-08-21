@@ -979,75 +979,75 @@ console.log("sortedOrders",sortedOrders);
           <div className="w-full overflow-x-auto mt-10">
             <div className="min-w-full inline-block align-middle">
               <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-                <table className="order-table min-w-full divide-y divide-gray-200 table-auto text-sm">
+<table className="order-table min-w-full divide-y divide-gray-200 table-auto text-xs sm:text-sm">
                   <thead className="shadow-md bg-gray-200">
                     <tr>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Order Date
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Order ID
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Client Name
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Product Name
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Narration
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Narration Images
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Bill To</th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
   Ship To</th>
 
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Size
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Qty
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Stock
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Remaining to Produce
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Price
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Density
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Packaging Charge
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         P/O
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Freight
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
   Payments Terms
 </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Dispatch Time
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[160px]">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Remarks{" "}
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider min-w-[120px]">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         PO Copy
                       </th>
                       {role !== "production" &&
                         role !== "dispatch" &&
                         role !== "packaging" && (
-                          <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                             Actions
                           </th>
                         )}
@@ -1057,21 +1057,21 @@ console.log("sortedOrders",sortedOrders);
                         role !== "admin" &&
                         role !== "packaging" && (
                           <>
-                            <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                               Section
                             </th>
-                            <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                               Actions
                             </th>
                           </>
                         )}
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Production Status
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Packaging Status
                       </th>
-                      <th className="px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider">
+      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
                         Dispatch Status
                       </th>
                     
@@ -1081,19 +1081,20 @@ console.log("sortedOrders",sortedOrders);
 {sortedOrders.map((order, index) => {
                             return (
                               <tr key={order._id} className="order-row">
-                                <td className="px-4 py-2 text-sm text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {new Date(
                                     order.createdAt
                                   ).toLocaleDateString()}
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.shortId}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 whitespace-nowrap text-[11px] sm:text-sm">
                                   {order.customerName}
                                 </td>
 
-                                <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
+                                          <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-blue-600 underline cursor-pointer">
+
                                   <button
                                     onClick={() => {
                                       const product = products.find(
@@ -1117,7 +1118,7 @@ console.log("sortedOrders",sortedOrders);
                                   </button>
                                 </td>
                                  {/* ✅ Narration text */}
-                            <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
   {order.narration ? (
     <span>
       <strong>Narration:</strong> {order.narration}
@@ -1131,7 +1132,7 @@ console.log("sortedOrders",sortedOrders);
 
     {/* ✅ Narration images */}
    
-                            <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
           <strong>Narration Images:</strong>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "5px" }}>
             {order.narrationImages?.map((img, i) => (
@@ -1151,26 +1152,26 @@ console.log("sortedOrders",sortedOrders);
             ))}
           </div>
         </td>
-<td className="px-4 py-2 whitespace-pre-wrap max-w-[250px] text-sm text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
   <strong>Bill To:</strong><br />
   {order.billTo || "—"}
 </td>
 
-<td className="px-4 py-2 whitespace-pre-wrap max-w-[250px] text-sm text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
   <strong>Ship To:</strong><br />
   {order.shipTo || "—"}
 </td>
 
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.size ? order.size : "N/A"}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.quantity}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {getStockForProduct(order.product)}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap font-bold bg-red-200">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {Math.max(
                                     order.quantity -
                                       getStockForProduct(order.product),
@@ -1178,27 +1179,27 @@ console.log("sortedOrders",sortedOrders);
                                   )}
                                 </td>
 
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   ₹{order.price}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.density}kg/m<sup>3</sup>
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   ₹{order.packagingCharge}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.po}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {`${order.freight}: ₹${order.freightAmount}`}
                                 </td>
 
-<td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
   {order.paymentTerms || "—"}
 </td>
                                 {/* ✅ Dispatch Date */}
-                                <td className="px-4 py-2 whitespace-nowrap max-w-[160px] truncate">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {(() => {
                                     if (!order.date) return "N/A";
 
@@ -1230,13 +1231,13 @@ console.log("sortedOrders",sortedOrders);
                                     );
                                   })()}
                                 </td>
-                                <td className="px-4 py-2 max-w-[200px] break-words text-gray-800">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.remarks || "N/A"}
                                 </td>
 
                                {/* ✅ PO Copy */}
                                
-<td className="px-4 py-2 whitespace-nowrap max-w-[200px]">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
   <div className="flex flex-col gap-1">
     {/* ✅ Always treat poCopy as array */}
     {(() => {
@@ -1288,63 +1289,65 @@ console.log("sortedOrders",sortedOrders);
         );
       })
     : (
-      <div className="text-sm text-gray-500 italic">
-        No PO Copy uploaded yet.
-      </div>
+      <div className="text-xs sm:text-sm text-gray-500 italic">
+  No PO Copy uploaded yet.
+</div>
+
     );
 })()}
 
 
     {/* ✅ Upload Button — always visible */}
-    <button
-      onClick={async () => {
-        const isArray = Array.isArray(order.poCopy);
-        const title = isArray ? "Upload more PO Copies" : "Upload PO Copy";
-        const multiple = isArray;
+   <button
+  onClick={async () => {
+    const isArray = Array.isArray(order.poCopy);
+    const title = isArray ? "Upload more PO Copies" : "Upload PO Copy";
+    const multiple = isArray;
 
-        const { value: files } = await Swal.fire({
-          title,
-          input: "file",
-          inputAttributes: {
-            accept: "application/pdf,image/*",
-            multiple,
-            "aria-label": "Upload PO Copy",
-          },
-          confirmButtonText: "Upload",
-          showCancelButton: true,
-        });
+    const { value: files } = await Swal.fire({
+      title,
+      input: "file",
+      inputAttributes: {
+        accept: "application/pdf,image/*",
+        multiple,
+        "aria-label": "Upload PO Copy",
+      },
+      confirmButtonText: "Upload",
+      showCancelButton: true,
+    });
 
-        if (files) {
-          const selectedFiles = Array.from(
-            files instanceof FileList ? files : [files]
-          );
-          const formData = new FormData();
-          selectedFiles.forEach((f) => formData.append("poCopy", f));
-          setUploadingPOCopy(true);
+    if (files) {
+      const selectedFiles = Array.from(
+        files instanceof FileList ? files : [files]
+      );
+      const formData = new FormData();
+      selectedFiles.forEach((f) => formData.append("poCopy", f));
+      setUploadingPOCopy(true);
 
-          try {
-            await axiosInstance.post(
-              `/files/upload/po-copy/${order._id}`,
-              formData,
-              {
-                headers: { "Content-Type": "multipart/form-data" },
-              }
-            );
-
-            Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
-            window.location.reload();
-          } catch (err) {
-            Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
-            console.error(err);
-          } finally {
-            setUploadingPOCopy(false);
+      try {
+        await axiosInstance.post(
+          `/files/upload/po-copy/${order._id}`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
           }
-        }
-      }}
-      className="text-sm text-gray-600 underline hover:text-red-600"
-    >
-      📤 Upload PO Copy
-    </button>
+        );
+
+        Swal.fire("✅ Uploaded!", "PO Copy uploaded successfully", "success");
+        window.location.reload();
+      } catch (err) {
+        Swal.fire("❌ Error", "Failed to upload PO Copy", "error");
+        console.error(err);
+      } finally {
+        setUploadingPOCopy(false);
+      }
+    }
+  }}
+  className="text-xs sm:text-sm text-gray-600 underline hover:text-red-600"
+>
+  📤 Upload PO Copy
+</button>
+
   </div>
 </td>
 
@@ -1357,30 +1360,32 @@ console.log("sortedOrders",sortedOrders);
                                 {role !== "production" &&
                                   role !== "dispatch" &&
                                   role !== "packaging" && (
-                                    <td className="px-4 py-2 whitespace-nowrap">
-                                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                        <button
-                                               className="flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm shadow-md transition bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"
+       <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
+  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+    <button
+      className="flex items-center gap-1 
+                 px-2 py-1 sm:px-4 sm:py-1.5 
+                 rounded-lg text-xs sm:text-sm 
+                 shadow-md transition 
+                 bg-yellow-500 hover:bg-yellow-600 text-white"
+      onClick={() => setEditOrder(order)}
+    >
+      ✏️ Edit
+    </button>
 
-                                          disabled={false}
-                                          onClick={() => {
-                                           
-                                            setEditOrder(order);
-                                          }}
-                                        >
-                                          ✏️ Edit
-                                        </button>
+    <button
+      className="flex items-center gap-1 
+                 px-2 py-1 sm:px-4 sm:py-1.5 
+                 rounded-lg text-xs sm:text-sm 
+                 shadow-md transition 
+                 bg-red-500 hover:bg-red-600 text-white"
+      onClick={() => handleDelete(order._id)}
+    >
+      🗑️ Delete
+    </button>
+  </div>
+</td>
 
-                                        <button
-                                          className="flex cursor-pointer items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm shadow-md transition"
-                                          onClick={() =>
-                                            handleDelete(order._id)
-                                          }
-                                        >
-                                          🗑️ Delete
-                                        </button>
-                                      </div>
-                                    </td>
                                   )}
 
                                 {role !== "production" &&
@@ -1446,7 +1451,7 @@ const isSectionSent = (() => {
                                       </td>
 
                                       {/* Buttons Logic */}
-                                      <td className="p-2 flex md:flex-col gap-2">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                         {(() => {
                                           const stock = getStockForProduct(
                                             order.product
@@ -1683,7 +1688,7 @@ if (isSectionAlreadySent) {
                                   )}
 
                                 {/* ✅ Status */}
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   <div className="flex items-center gap-2">
                                     <span
                                       className={`w-3 h-3 rounded-full ${
@@ -1710,7 +1715,7 @@ if (isSectionAlreadySent) {
                                     </span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                      {" "}
                                   <div className="flex items-center gap-2">
                                          {" "}
@@ -1738,7 +1743,7 @@ if (isSectionAlreadySent) {
                                   </div>
                                    {" "}
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
+        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                      {" "}
                                   <div className="flex items-center gap-2">
                                          {" "}
