@@ -264,7 +264,7 @@ const handleRemoveFromProduction = async (order) => {
         <h2 className="text-3xl md:text-4xl text-center font-semibold dashboard-title">
   {type === 'shape'
     ? 'EPS/Thermocol Shape Moulding Production Dashboard'
-    : 'EPS/Thermocol Block Moulding / Dana / Beads Production Dashboard'}
+    : 'EPS/Thermocol Block Moulding Production Dashboard'}
 </h2>
 
         
