@@ -36,36 +36,54 @@ const [expandedUser, setExpandedUser] = useState(null);
     }
   }, [month]);
 
-  const fetchReport = async (type) => {
-      setExpandedUser(null); // ADD THIS LINE
-    if (!month) return alert("Please select a month");
+const fetchReport = async (type) => {
+  setExpandedUser(null);
+  if (!month) return alert("Please select a month");
 
-    setLoading(true);
-    const [year, m] = month.split("-");
-    const from = `${year}-${m}-01`;
-    const lastDay = new Date(year, parseInt(m), 0).getDate();
-    const to = `${year}-${m}-${String(lastDay).padStart(2, "0")}`;
-
-    try {
-      setView(type);
-      const res = await axiosInstance.get("/attendance/monthly", {
-        params: { from, to, userId: employee },
-      });
-      
-      console.log("📊 Monthly report response:", res.data);
-      setReport(res.data);
-    } catch (err) {
-      console.error("❌ Error fetching monthly report:", err.response?.data || err);
-      alert("Failed to fetch report. Please try again.");
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  const [year, m] = month.split("-");
+  const from = `${year}-${m}-01`;
+  const lastDay = new Date(year, parseInt(m), 0).getDate();
+  const to = `${year}-${m}-${String(lastDay).padStart(2, "0")}`;
+  
+  // Calculate number of Sundays in the month
+  let sundayCount = 0;
+  for (let day = 1; day <= lastDay; day++) {
+    const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
+    const date = new Date(dateStr);
+    if (date.getDay() === 0) { // 0 is Sunday
+      sundayCount++;
     }
-  };
+  }
+  
+  try {
+    setView(type);
+    const res = await axiosInstance.get("/attendance/monthly", {
+      params: { from, to, userId: employee },
+    });
+    
+    // Add sundayCount and calculate working days
+    const reportWithSundays = res.data.map(item => ({
+      ...item,
+      sundayCount,
+      totalWorkingDays: item.totalDays - sundayCount,
+      absentDays: item.absentDates ? item.absentDates.length : 0
+    }));
+    
+    console.log("📊 Monthly report response:", reportWithSundays);
+    setReport(reportWithSundays); // FIXED: Set the processed data, not raw response
+  } catch (err) {
+    console.error("❌ Error fetching monthly report:", err.response?.data || err);
+    alert("Failed to fetch report. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const getAttendancePercentage = (presentDays, totalDays) => {
-    if (totalDays === 0) return 0;
-    return Math.round((presentDays / totalDays) * 100);
-  };
+const getAttendancePercentage = (presentDays, totalWorkingDays) => {
+  if (totalWorkingDays === 0) return 0;
+  return Math.round((presentDays / totalWorkingDays) * 100);
+};
 
   const getStatusColor = (percentage) => {
     if (percentage >= 90) return "text-green-600";
@@ -73,39 +91,52 @@ const [expandedUser, setExpandedUser] = useState(null);
     return "text-red-600";
   };
 
-  const renderSummaryCards = () => {
-    if (!report || report.length === 0) return null;
+const renderSummaryCards = () => {
+  if (!report || report.length === 0) return null;
 
-    const totalStats = report.reduce((acc, curr) => ({
-      totalDays: acc.totalDays + curr.totalDays,
-      presentDays: acc.presentDays + curr.presentDays,
-      lateArrivals: acc.lateArrivals + curr.lateArrivals,
-      earlyDepartures: acc.earlyDepartures + curr.earlyDepartures
-    }), { totalDays: 0, presentDays: 0, lateArrivals: 0, earlyDepartures: 0 });
+  const totalStats = report.reduce((acc, curr) => ({
+    totalDays: acc.totalDays + curr.totalDays,
+    totalWorkingDays: acc.totalWorkingDays + curr.totalWorkingDays,
+    presentDays: acc.presentDays + curr.presentDays,
+    lateArrivals: acc.lateArrivals + curr.lateArrivals,
+    earlyDepartures: acc.earlyDepartures + curr.earlyDepartures,
+    sundayCount: curr.sundayCount // All items will have the same sundayCount
+  }), { 
+    totalDays: 0, 
+    totalWorkingDays: 0,
+    presentDays: 0, 
+    lateArrivals: 0, 
+    earlyDepartures: 0,
+    sundayCount: 0
+  });
 
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="text-2xl font-bold text-blue-600">{totalStats.presentDays}</div>
-          <div className="text-sm text-gray-600">Total Present Days</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="text-2xl font-bold text-red-600">{totalStats.lateArrivals}</div>
-          <div className="text-sm text-gray-600">Total Late Arrivals</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="text-2xl font-bold text-orange-600">{totalStats.earlyDepartures}</div>
-          <div className="text-sm text-gray-600">Total Early Departures</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="text-2xl font-bold text-purple-600">
-            {getAttendancePercentage(totalStats.presentDays, totalStats.totalDays)}%
-          </div>
-          <div className="text-sm text-gray-600">Overall Attendance</div>
-        </div>
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="bg-white p-4 rounded-lg shadow border">
+        <div className="text-2xl font-bold text-blue-600">{totalStats.presentDays}</div>
+        <div className="text-sm text-gray-600">Total Present Days</div>
       </div>
-    );
-  };
+      <div className="bg-white p-4 rounded-lg shadow border">
+        <div className="text-2xl font-bold text-red-600">{totalStats.lateArrivals}</div>
+        <div className="text-sm text-gray-600">Total Late Arrivals</div>
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow border">
+        <div className="text-2xl font-bold text-orange-600">{totalStats.earlyDepartures}</div>
+        <div className="text-sm text-gray-600">Total Early Departures</div>
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow border">
+        <div className="text-2xl font-bold text-purple-600">
+          {getAttendancePercentage(totalStats.presentDays, totalStats.totalWorkingDays)}%
+        </div>
+        <div className="text-sm text-gray-600">Overall Attendance</div>
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow border">
+        <div className="text-2xl font-bold text-gray-600">{totalStats.sundayCount}</div>
+        <div className="text-sm text-gray-600">Sundays (Excluded)</div>
+      </div>
+    </div>
+  );
+};
 
   // ADD THESE NEW HELPER FUNCTIONS:
 
@@ -257,7 +288,7 @@ const renderTable = () => {
       filteredReport = report.filter(item => item.presentDays > 0);
       break;
     case "absent":
-      filteredReport = report.filter(item => (item.totalDays - item.presentDays) > 0);
+      filteredReport = report.filter(item => item.absentDays > 0);
       break;
     case "late":
       filteredReport = report.filter(item => item.lateArrivals > 0);
@@ -282,10 +313,43 @@ const renderTable = () => {
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          {/* ... table headers ... */}
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Employee
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Role
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total Days
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Working Days
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Present
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Absent
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Late
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Early
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Attendance %
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Details
+              </th>
+            </tr>
+          </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredReport.map((r) => { 
- const attendancePercent = getAttendancePercentage(r.presentDays, r.totalDays);
+              const attendancePercent = getAttendancePercentage(r.presentDays, r.totalWorkingDays);
               return (
                 <React.Fragment key={r.user._id}>
                   <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleUserDetails(r.user._id)}>
@@ -296,13 +360,16 @@ const renderTable = () => {
                       {r.user.role}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {r.totalDays}
+                      {r.totalDays} <span className="text-xs text-gray-400">({r.sundayCount} Sundays)</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {r.totalWorkingDays}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
                       {r.presentDays}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                      {r.totalDays - r.presentDays}
+                      {r.absentDays || 0}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
                       {r.lateArrivals}
@@ -323,7 +390,7 @@ const renderTable = () => {
                   </tr>
                   {expandedUser === r.user._id && (
                     <tr>
-                      <td colSpan="9" className="px-6 py-4 bg-gray-50">
+                      <td colSpan="10" className="px-6 py-4 bg-gray-50">
                         <div className="space-y-4">
                           {renderPresentDetails(r.presentDetails)}
                           {renderAbsentDetails(r.absentDates)}

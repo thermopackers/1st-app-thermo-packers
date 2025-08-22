@@ -353,11 +353,18 @@ export default function Dashboard() {
                           className="h-full"
                         >
                           <button className="w-full min-h-[84px] rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-                            EPS/Thermocol Block Molding/Dana/Beads Production
-                            Section
+                            EPS/Thermocol Block Molding Production Section
                           </button>
                         </NavLink>
                       )}
+                      
+ {user.role === "accounts" && (
+                    <NavLink to="/dana-beads-dashboard" className="h-full">
+                      <button className="w-full min-h-[84px] rounded-xl bg-pink-600 px-4 py-5 text-white shadow hover:bg-pink-700">
+                        EPS/Thermocol Dana / Beads Production Section
+                      </button>
+                    </NavLink>
+                  )}
 
                       {(user.role === "accounts" ||
                         user.productionSection?.includes("shapeMoulding")) && (
@@ -373,13 +380,7 @@ export default function Dashboard() {
                     </>
                   )}
 
-                  {user.role === "accounts" && (
-                    <NavLink to="/dana-beads-dashboard" className="h-full">
-                      <button className="w-full min-h-[84px] rounded-xl bg-pink-600 px-4 py-5 text-white shadow hover:bg-pink-700">
-                        EPS/Thermocol Dana / Beads Production Section
-                      </button>
-                    </NavLink>
-                  )}
+                 
 
                   {(user.role === "dispatch" || user.role === "accounts") && (
                     <NavLink to="/dispatch-dashboard" className="h-full">

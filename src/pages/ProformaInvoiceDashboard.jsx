@@ -124,7 +124,9 @@ const deleteInvoice = async (id) => {
                 <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
                   <td className="px-3 py-2">{(page - 1) * limit + index + 1}</td>
                   <td className="px-3 py-2">{inv.invoiceNo}</td>
-                  <td className="px-3 py-2">{inv.date}</td>
+<td className="px-3 py-2">
+  {new Date(inv.date).toLocaleDateString("en-GB")}
+</td>
                         <td className="px-3 py-2">{inv.customerName || "—"}</td> {/* Added */}
                   <td className="px-3 py-2">{inv.billTo}</td>
                   <td className="px-3 py-2">{inv.shipTo}</td>

@@ -64,7 +64,7 @@ export default function PurchaseProductSuppliers() {
       <h3 className="text-xl font-bold text-gray-800 text-center mb-4">
         SUPPLIER / VENDOR Information
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <NavLink to="/add-supplier" className="w-full">
           <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
             ➕ Add New Supplier/Vendor
@@ -73,6 +73,11 @@ export default function PurchaseProductSuppliers() {
         <NavLink to="/all-suppliers" className="w-full">
           <button className="w-full bg-teal-500 hover:bg-teal-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
             📂 View/Edit/Delete Supplier/Vendor
+          </button>
+        </NavLink>
+        <NavLink to="/add-category" className="w-full">
+          <button className="w-full bg-pink-500 hover:bg-pink-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+            ➕ Add New Supplier/Vendor Category
           </button>
         </NavLink>
       </div>

@@ -7,11 +7,8 @@ import pdfFonts from "pdfmake/build/vfs_fonts";
 import { useNavigate, useLocation } from "react-router-dom";
 pdfMake.vfs = pdfFonts.vfs; // ✅ works reliably in React
 
-const categories = [
-  "wood", "polythene bags", "hardware", "raw materials",
-  "iron sheets", "aluminium casting/sheets", "boiler materials", "Kraft Paper",
-  "SS Pipe or Angle - Stainless Steel Material"
-];
+
+
 
 export default function SendRFQ() {
   const [form, setForm] = useState({
@@ -32,6 +29,22 @@ export default function SendRFQ() {
   const [loading, setLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  // Before: const categories = [ "wood", ... ];
+
+// After:
+const [categories, setCategories] = useState([]);
+
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/categories");
+      setCategories(res.data);
+    } catch (err) {
+      toast.error("Failed to load categories");
+    }
+  };
+  fetchCategories();
+}, []);
 const normalizeImg = (img) => {
   if (!img) return { url: "" };
   if (typeof img === "string") return { url: img };
@@ -498,13 +511,21 @@ const docDefinition = {
             className="w-full border p-2 rounded" value={form.remarks} onChange={handleChange} />
 
           <label className="block font-semibold">Category</label>
-          <select name="category" required
-            className="w-full border p-2 rounded bg-white" value={form.category} onChange={handleChange}>
-            <option value="">-- Select Category --</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+         <select
+  name="category"
+  required
+  className="w-full border p-2 rounded bg-white"
+  value={form.category}
+  onChange={handleChange}
+>
+  <option value="">-- Select Category --</option>
+  {categories.map((cat) => (
+    <option key={cat._id} value={cat.name}>
+      {cat.name}
+    </option>
+  ))}
+</select>
+
           <div className="flex gap-2">
             <button
               type="submit"

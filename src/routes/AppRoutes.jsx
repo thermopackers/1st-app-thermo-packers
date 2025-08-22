@@ -40,6 +40,7 @@ import DrawingUploadForm from "../components/DrawingUploadForm";
 import ViewRFQs from "../pages/viewRFQs";
 import DanaBeadsDashboard from "../pages/DanaBeadsDashboard";
 import MonthlyReports from "../pages/MonthlyReports";
+import AddCategory from "../pages/AddCategory";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -549,6 +550,14 @@ path="/send-rfq"
 element={
     <ProtectedRoute allowedRoles={["accounts","admin"]}>
       <PageWrapper><SendRFQ /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/add-category"
+element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><AddCategory /></PageWrapper>
     </ProtectedRoute>
   }
 />

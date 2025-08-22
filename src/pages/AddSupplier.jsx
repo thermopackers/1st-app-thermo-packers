@@ -25,6 +25,22 @@ const [totalPages, setTotalPages] = useState(1);
 
   const navigate = useNavigate();
   const { id } = useParams(); // ← Get supplier ID from URL
+// Before: const categories = [ "wood", ... ];
+
+// After:
+const [categories, setCategories] = useState([]);
+
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/categories");
+      setCategories(res.data);
+    } catch (err) {
+      toast.error("Failed to load categories");
+    }
+  };
+  fetchCategories();
+}, []);
 
   // 🔄 Load supplier if in edit mode
   useEffect(() => {
@@ -262,23 +278,19 @@ const handleChequeFileChange = (e) => {
 
   <div>
   <label className="block font-semibold mb-1">Vendor Category</label>
-  <select
-    name="vendorCategory"
-    value={form.vendorCategory}
-    onChange={handleChange}
-    className="w-full border p-2 rounded"
-    required
-  >
-    <option value="">Select Category</option>
-    <option value="wood">Wood</option>
-    <option value="polythene bags">Polythene Bags</option>
-    <option value="hardware">Hardware</option>
-    <option value="raw materials">Raw Materials</option>
-    <option value="iron sheets">Iron Sheets</option>
-    <option value="aluminium casting/sheets">Aluminium Casting/Sheets</option>
-    <option value="boiler materials">Boiler Materials</option>
-    <option value="kraft paper">Kraft Paper</option>
-  </select>
+<select
+  name="vendorCategory"  // ← Change from "category" to "vendorCategory"
+  value={form.vendorCategory}  // ← Also update this
+  onChange={handleChange}
+  className="w-full border p-2 rounded"
+  required
+>
+  <option value="">-- Select Category --</option>
+  {categories.map((cat) => (
+    <option key={cat._id} value={cat.name}>{cat.name}</option>
+  ))}
+</select>
+
 </div>
 
   <div>
