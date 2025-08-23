@@ -126,7 +126,7 @@ export default function Dashboard() {
                     <img
                       src={user.profilePicture}
                       alt="Profile"
-                      className="h-35 w-35 sm:h-24 sm:w-24 rounded-full object-cover border-2 border-indigo-200 shadow"
+                      className="h-45 w-45 sm:h-45 sm:w-45 rounded-full object-cover border-2 border-indigo-200 shadow"
                     />
                   ) : (
                     <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-indigo-200 shadow">
@@ -256,7 +256,7 @@ export default function Dashboard() {
                     <img
                       src={user.profilePicture}
                       alt="Profile"
-                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border-2 border-indigo-200 shadow"
+                      className="h-45 w-45 sm:h-45 sm:w-45 rounded-full object-cover border-2 border-indigo-200 shadow"
                     />
                   ) : (
                     <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-indigo-200 shadow">
