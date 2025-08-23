@@ -750,7 +750,78 @@ const actuallySendToProduction = async (
   const sortedOrders = useMemo(() => {
   return [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }, [orders]);
-console.log("sortedOrders",sortedOrders);
+
+// ✅ Mark order as completed with confirmation
+const handleComplete = async (id) => {
+  const confirm = await Swal.fire({
+    title: "Mark as Completed?",
+    text: "This will mark the order as completed. You won’t be able to revert this easily.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, mark completed",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#16a34a", // green
+    cancelButtonColor: "#d33", // red
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  try {
+    await axiosInstance.put(
+      `/orders/${id}`,
+      { status: "completed" },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o._id === id ? { ...o, status: "completed" } : o
+      )
+    );
+
+    toast.success("Order marked as completed");
+  } catch (err) {
+    console.error("Failed to complete order:", err);
+    toast.error("Failed to mark order completed");
+  }
+};
+
+// ✅ Cancel order with confirmation
+const handleCancel = async (id) => {
+  const confirm = await Swal.fire({
+    title: "Cancel this Order?",
+    text: "This will cancel the order and remove it from dashboards.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, cancel it",
+    cancelButtonText: "Keep it",
+    confirmButtonColor: "#d33", // red
+    cancelButtonColor: "#3085d6", // blue
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  try {
+    await axiosInstance.put(
+      `/orders/${id}`,
+      { status: "cancelled" },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o._id === id ? { ...o, status: "cancelled" } : o
+      )
+    );
+
+    toast.success("Order cancelled");
+  } catch (err) {
+    console.error("Failed to cancel order:", err);
+    toast.error("Failed to cancel order");
+  }
+};
+
+
 
   return (
     
@@ -939,6 +1010,8 @@ console.log("sortedOrders",sortedOrders);
     <option value="pending">Pending</option>
     <option value="in process">In Process</option>
     <option value="processed">Processed</option>
+      {/* <option value="completed">Completed</option>
+    <option value="cancelled">Cancelled</option> 👈 NEW */}
   </select>
 </div>
 
@@ -958,7 +1031,25 @@ console.log("sortedOrders",sortedOrders);
     <option value="dispatched">Dispatched</option>
   </select>
 </div>
+         {/* Cancelled Orders Button */}
+{/* {(role === "admin" || role === "accounts" || role === "sales" || role === "production") && (
+  <div className="col-span-1 flex flex-col md:flex-row gap-3 w-full">
+  <button
+    onClick={() => navigate("/cancelled-orders")}
+    className="w-full md:w-auto bg-red-600 cursor-pointer hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md shadow-lg transition"
+  >
+    ❌ View Cancelled Orders
+  </button>
 
+  <button
+    onClick={() => navigate("/completed-orders")}
+    className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-md shadow-lg transition"
+  >
+    ✅ View Completed Orders
+  </button>
+</div>
+
+)} */}
         </div>
 
         {/* Table and Pagination logic here */}
@@ -976,112 +1067,109 @@ console.log("sortedOrders",sortedOrders);
             No orders found!
           </h1>
         ) : (
-          <div className="w-full overflow-x-auto mt-10">
-            <div className="min-w-full inline-block align-middle">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-<table className="order-table min-w-full divide-y divide-gray-200 table-auto text-xs sm:text-sm">
-                  <thead className="shadow-md bg-gray-200">
-                    <tr>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Order Date
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Order ID
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Client Name
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Product Name
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Narration
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Narration Images
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Bill To</th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-  Ship To</th>
-
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Size
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Qty
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Stock
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Remaining to Produce
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Price
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Density
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Packaging Charge
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        P/O
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Freight
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-  Payments Terms
-</th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Dispatch Time
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Remarks{" "}
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        PO Copy
-                      </th>
-                      {role !== "production" &&
-                        role !== "dispatch" &&
-                        role !== "packaging" && (
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                            Actions
-                          </th>
-                        )}
-                      {role !== "production" &&
-                        role !== "dispatch" &&
-                        role !== "sales" &&
-                        role !== "admin" &&
-                        role !== "packaging" && (
-                          <>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                              Section
-                            </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                              Actions
-                            </th>
-                          </>
-                        )}
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Production Status
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Packaging Status
-                      </th>
-      <th className="px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider text-[10px] sm:text-xs md:text-sm">
-                        Dispatch Status
-                      </th>
-                    
-                    </tr>
-                  </thead>
+       
+          <div className="w-full overflow-x-auto mt-10 max-h-[80vh]">
+  <div className="min-w-full inline-block align-middle">
+    <div className="w-full overflow-x-auto overflow-y-auto max-h-[80vh]">
+  <table className="order-table min-w-full divide-y divide-gray-200 table-auto text-xs sm:text-sm">
+    <thead className="bg-gray-200 sticky top-0 z-30">
+  <tr>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Order Date
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Order ID
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Client Name
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Product Name
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Narration
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Narration Images
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Bill To
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Ship To
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Size
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Qty
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Stock
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Remaining to Produce
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Price
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Density
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Packaging Charge
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      P/O
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Freight
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Payments Terms
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Dispatch Time
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Remarks
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      PO Copy
+    </th>
+    {role !== "production" && role !== "dispatch" && role !== "packaging" && (
+      <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+        Actions
+      </th>
+    )}
+    {role !== "production" && role !== "dispatch" && role !== "sales" && role !== "admin" && role !== "packaging" && (
+      <>
+        <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+          Section
+        </th>
+        <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+          Actions
+        </th>
+      </>
+    )}
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Production Status
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Packaging Status
+    </th>
+    <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+      Dispatch Status
+    </th>
+  </tr>
+</thead>
                   <tbody className="bg-white divide-y divide-gray-200 capitalize">
 {sortedOrders.map((order, index) => {
                             return (
-                              <tr key={order._id} className="order-row">
-        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
+ <tr
+      key={order._id}
+      className="order-row odd:bg-white even:bg-gray-50 hover:bg-gray-100"
+    >        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {new Date(
                                     order.createdAt
                                   ).toLocaleDateString()}
@@ -1383,6 +1471,26 @@ console.log("sortedOrders",sortedOrders);
     >
       🗑️ Delete
     </button>
+    {/* Completed */}
+  {/* <button
+    onClick={() => handleComplete(order._id)}
+    className={`px-2 py-1 rounded ${
+      order.status === "completed"
+        ? "bg-gray-400 cursor-not-allowed"
+        : "flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition bg-green-500 hover:bg-green-600 text-white"
+    }`}
+    disabled={order.status === "completed"}
+  >
+    Mark Order Completed
+  </button> */}
+
+  {/* Cancelled */}
+  {/* <button
+    onClick={() => handleCancel(order._id)}
+    className="flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition bg-red-500 hover:bg-red-600 text-white"
+  >
+    Cancel Order
+  </button> */}
   </div>
 </td>
 
