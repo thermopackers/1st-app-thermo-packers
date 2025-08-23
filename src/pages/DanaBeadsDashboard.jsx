@@ -69,7 +69,10 @@ console.log("filteredOrders",filteredOrders);
           },
         });
 
-        const list = res.data.orders || [];
+const list = (res.data.orders || [])
+  // ✅ only include orders with a danaBeadsSlip
+  .filter((o) => o.danaBeadsSlip && o.danaBeadsSlip.url);
+
         setOrders(list);
         setFilteredOrders(list);
         setTotalPages(res.data.totalPages || 1);
@@ -122,33 +125,34 @@ console.log("filteredOrders",filteredOrders);
     }
   };
 
-  const handleDeleteFromSection = async (orderId) => {
-    const confirm = await Swal.fire({
-      title: "Are you sure?",
-      text: "This will delete the Dana/Bead Slip and remove the order from this dashboard (but not from main Order List).",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it",
-      cancelButtonText: "Cancel",
-    });
+const handleDeleteFromSection = async (orderId) => {
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "This will delete the Dana/Beads Slip and remove the order from Dana/Beads Dashboard (but not from main Order List).",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it",
+    cancelButtonText: "Cancel",
+  });
 
-    if (confirm.isConfirmed) {
-      try {
-        const token = localStorage.getItem("token");
-        await axiosInstance.delete(`/orders/remove-dana-beads/${orderId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  if (confirm.isConfirmed) {
+    try {
+      const token = localStorage.getItem("token");
+      await axiosInstance.delete(`/orders/remove-dana-beads/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        setOrders((prev) => prev.filter((o) => o._id !== orderId));
-        setFilteredOrders((prev) => prev.filter((o) => o._id !== orderId));
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      setFilteredOrders((prev) => prev.filter((o) => o._id !== orderId));
 
-        toast.success("Order removed from Dana/Beads Dashboard.");
-      } catch (err) {
-        console.error("Error removing from dana/beads:", err);
-        toast.error("Failed to remove order.");
-      }
+      toast.success("Order removed from Dana/Beads Dashboard.");
+    } catch (err) {
+      console.error("Error removing from dana/beads:", err);
+      toast.error("Failed to remove order.");
     }
-  };
+  }
+};
+
 
   const currentOrders = filteredOrders;
 
@@ -332,34 +336,46 @@ console.log("filteredOrders",filteredOrders);
                               )}
                             </td>
 
-                            <td className="px-4 py-2 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  order.danaBeadsStatus === "processed"
-                                    ? "bg-green-100 text-green-700"
-                                    : order.danaBeadsStatus === "in process"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : order.danaBeadsStatus === "pending"
-                                    ? "bg-orange-100 text-orange-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {order.danaBeadsStatus || "Pending"}
-                              </span>
-                            </td>
+                           <td className="px-4 py-2 whitespace-nowrap">
+  {order.status === "cancelled" ? (
+    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      🚫 Cancelled
+    </span>
+  ) : (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+        order.danaBeadsStatus === "processed"
+          ? "bg-green-100 text-green-700"
+          : order.danaBeadsStatus === "in process"
+          ? "bg-yellow-100 text-yellow-700"
+          : order.danaBeadsStatus === "pending"
+          ? "bg-orange-100 text-orange-700"
+          : "bg-gray-100 text-gray-700"
+      }`}
+    >
+      {order.danaBeadsStatus || "Pending"}
+    </span>
+  )}
+</td>
 
-                            <td className="px-4 py-3">
-                              <select
-                                value={order.danaBeadsStatus || ""}
-                                onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
-                              >
-                                <option value="" disabled>Change Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="in process">In Process</option>
-                                <option value="processed">Processed</option>
-                              </select>
-                            </td>
+
+                           <td className="px-4 py-3">
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold"> 🚫 Order cancelled, not to be processed!</span>
+  ) : (
+    <select
+      value={order.danaBeadsStatus || ""}
+      onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
+    >
+      <option value="" disabled>Change Status</option>
+      <option value="pending">Pending</option>
+      <option value="in process">In Process</option>
+      <option value="processed">Processed</option>
+    </select>
+  )}
+</td>
+
 
                             <td className="px-4 py-3">
                               <button

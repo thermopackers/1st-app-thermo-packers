@@ -253,10 +253,15 @@ const updateCNCStatus = async (orderId, newStatus) => {
                  <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
   <td className="px-4 py-2">{order.shortId}</td>
    <td className="px-6 py-4">
-    <div className="text-xs text-gray-500">
-      {new Date(order.createdAt).toLocaleDateString()}
+  <div className="text-xs text-gray-500">
+    {new Date(order.createdAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}
   </div>
 </td>
+
   <td className="px-4 py-2 capitalize">{order.customerName}</td>
   <td className="px-4 py-2 capitalize">{order.po}</td>
  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
@@ -295,27 +300,39 @@ const updateCNCStatus = async (orderId, newStatus) => {
     )}
   </td>
 <td className="px-4 py-2">
-  <select
-    value={order.status || "pending"}
-    onChange={(e) => updateCNCStatus(order._id, e.target.value)}
-    className="border border-gray-300 rounded px-2 py-1 text-sm"
-  >
-    <option value="pending">Pending</option>
-    <option value="in process">In Process</option>
-    <option value="processed">Processed</option>
-  </select>
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold">
+      🚫 Order cancelled, not to be processed!
+    </span>
+  ) : (
+    <select
+      value={order.status || "pending"}
+      onChange={(e) => updateCNCStatus(order._id, e.target.value)}
+      className="border border-gray-300 rounded px-2 py-1 text-sm"
+    >
+      <option value="pending">Pending</option>
+      <option value="in process">In Process</option>
+      <option value="processed">Processed</option>
+    </select>
+  )}
 </td>
+
 <td className="px-4 py-2 whitespace-nowrap">
-  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-    order.status === "processed"
-      ? "bg-green-100 text-green-700"
-      : order.status === "in process"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-red-100 text-red-700"
-  }`}>
+  <span
+    className={`px-2 py-1 rounded-full text-xs font-semibold ${
+      order.status === "processed"
+        ? "bg-green-100 text-green-700"
+        : order.status === "in process"
+        ? "bg-yellow-100 text-yellow-700"
+        : order.status === "cancelled"
+        ? "bg-red-200 text-red-800"
+        : "bg-gray-100 text-gray-700"
+    }`}
+  >
     {order.status || "pending"}
   </span>
 </td>
+
 <td className="px-4 py-2">
   <button
     onClick={() => handleDeleteCNC(order._id)}

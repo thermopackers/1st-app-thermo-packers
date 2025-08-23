@@ -419,10 +419,15 @@ const handleRemoveFromProduction = async (order) => {
        <tr key={order._id} className="table-row capitalize">
                     <td className="px-6 py-4">{order.shortId}</td>
                     <td className="px-6 py-4">
-    <div className="text-xs text-gray-500">
-      {new Date(order.createdAt).toLocaleDateString()}
+  <div className="text-xs text-gray-500">
+    {new Date(order.createdAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}
   </div>
 </td>
+
                     <td className="px-6 py-4">{order.customerName}</td>
                     <td className="px-6 py-4">{order.po}</td>
  <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
@@ -470,37 +475,46 @@ const handleRemoveFromProduction = async (order) => {
 
 
                    
-                    <td className="px-6 py-4 flex items-center">
-                      {order.status}
-                      <span
-                        className={`w-3 h-3 rounded-full ml-2 ${
-                          order.status?.trim().toLowerCase() === "pending"
-                            ? "bg-orange-500"
-                            : order.status?.trim().toLowerCase() ===
-                              "in process"
-                            ? "bg-yellow-500"
-                            : order.status?.trim().toLowerCase() === "processed"
-                            ? "bg-green-500"
-                            : "bg-gray-400"
-                        }`}
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                        <select
-                          value={order.status}
-                          onChange={(e) =>
-                            handleStatusChange(order._id, e.target.value)
-                          }
-                          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in process">In Process</option>
-                          <option value="processed">Processed</option>
-                        </select>
+                   <td className="px-6 py-4 flex items-center">
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold">
+      🚫 Order cancelled, not to be processed!
+    </span>
+  ) : (
+    <>
+      {order.status}
+      <span
+        className={`w-3 h-3 rounded-full ml-2 ${
+          order.status?.trim().toLowerCase() === "pending"
+            ? "bg-orange-500"
+            : order.status?.trim().toLowerCase() === "in process"
+            ? "bg-yellow-500"
+            : order.status?.trim().toLowerCase() === "processed"
+            ? "bg-green-500"
+            : "bg-gray-400"
+        }`}
+      />
+    </>
+  )}
+</td>
 
-                      </div>
-                    </td>
+                  <td className="px-6 py-4">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+    <select
+      value={order.status}
+      onChange={(e) => handleStatusChange(order._id, e.target.value)}
+      disabled={order.status === "cancelled"} // 🚫 disable for cancelled
+      className={`border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
+        order.status === "cancelled" ? "bg-gray-100 cursor-not-allowed" : ""
+      }`}
+    >
+      <option value="pending">Pending</option>
+      <option value="in process">In Process</option>
+      <option value="processed">Processed</option>
+    </select>
+  </div>
+</td>
+
                                         <td className="px-6 py-4 flex items-center">
 
                       {/* 🗑 Delete Slip Button */}

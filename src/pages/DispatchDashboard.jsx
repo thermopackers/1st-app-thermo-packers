@@ -17,6 +17,7 @@ const DispatchDashboard = () => {
   
   const [products, setProducts] = useState([]);
     const [activeProductImage, setActiveProductImage] = useState(null);
+console.log("orders", orders);
 
   const [searchTerm, setSearchTerm] = useState("");
                        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
@@ -362,11 +363,16 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                         {poOrders.map((order) => (
                           <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
                             <td className="px-4 py-3 font-medium">{order.shortId}</td>
-                             <td className="px-6 py-4">
-    <div className="text-xs text-gray-500">
-      {new Date(order.createdAt).toLocaleDateString()}
+                            <td className="px-6 py-4">
+  <div className="text-xs text-gray-500">
+    {new Date(order.createdAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}
   </div>
 </td>
+
                             <td className="px-4 py-3 capitalize">{order.customerName}</td>
                             <td className="px-4 py-3 capitalize">{order.po}</td>
 
@@ -424,66 +430,88 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                                 </span>
                               </div>
                             </td>
-                            <td className="px-4 py-2">
-  <select
-    value={order.status || ""}
-    onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
-    className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-  >
-    <option value="" disabled>Select</option>
-    <option value="pending">Pending</option>
-    <option value="in process">In Process</option>
-    <option value="processed">Processed</option>
-  </select>
+                           <td className="px-4 py-2">
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold">
+      🚫 Order cancelled, not to be processed!
+    </span>
+  ) : (
+    <select
+      value={order.status || ""}
+      onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+      className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+    >
+      <option value="" disabled>Select</option>
+      <option value="pending">Pending</option>
+      <option value="in process">In Process</option>
+      <option value="processed">Processed</option>
+    </select>
+  )}
 </td>
 
-                             <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              order.packagingStatus === "packaged"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {order.packagingStatus || "Unpackaged"}
-                          </span>
-                        </td>
-                            {/* Packaging Status Dropdown */}
+
                             <td className="px-4 py-3">
-                              <select
-                                value={order.packagingStatus || ""}
-                                onChange={(e) => handlePackagingStatusChange(order._id, e.target.value)}
-                                className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                              >
-                               <option value="" disabled>Select</option>
-              <option value="unpackaged">Unpackaged</option>
-              <option value="packaged">Packaged</option>
-                              </select>
-                            </td>
-                             <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              order.dispatchStatus === "dispatched"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {order.dispatchStatus || "not dispatched"}
-                          </span>
-                        </td>
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+        order.packagingStatus === "packaged"
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700"
+      }`}
+    >
+      {order.packagingStatus || "Unpackaged"}
+    </span>
+  )}
+</td>
+<td className="px-4 py-3">
+  {order.status === "cancelled" ? (
+    <span className="text-gray-500 italic">Locked</span>
+  ) : (
+    <select
+      value={order.packagingStatus || ""}
+      onChange={(e) => handlePackagingStatusChange(order._id, e.target.value)}
+      className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+    >
+      <option value="" disabled>Select</option>
+      <option value="unpackaged">Unpackaged</option>
+      <option value="packaged">Packaged</option>
+    </select>
+  )}
+</td>
+
                             <td className="px-4 py-3">
-                              <select
-                                value={order.dispatchStatus}
-                                onChange={(e) =>
-                                  handleDispatchStatusChange(order._id, e.target.value)
-                                }
-                                className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                              >
-                                <option value="not dispatched">Not Dispatched</option>
-                                <option value="ready to dispatch">Ready to Dispatch</option>
-                                <option value="dispatched">Dispatched</option>
-                              </select>
-                            </td>
+  {order.status === "cancelled" ? (
+    <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+        order.dispatchStatus === "dispatched"
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700"
+      }`}
+    >
+      {order.dispatchStatus || "not dispatched"}
+    </span>
+  )}
+</td>
+<td className="px-4 py-3">
+  {order.status === "cancelled" ? (
+    <span className="text-gray-500 italic">Locked</span>
+  ) : (
+    <select
+      value={order.dispatchStatus}
+      onChange={(e) => handleDispatchStatusChange(order._id, e.target.value)}
+      className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+    >
+      <option value="not dispatched">Not Dispatched</option>
+      <option value="ready to dispatch">Ready to Dispatch</option>
+      <option value="dispatched">Dispatched</option>
+    </select>
+  )}
+</td>
+
                              <td className="px-4 py-3">
   {order.cuttingSlip?.url && (
     <button
