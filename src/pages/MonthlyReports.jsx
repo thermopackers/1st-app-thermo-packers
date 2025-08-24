@@ -46,12 +46,18 @@ const fetchReport = async (type) => {
   const lastDay = new Date(year, parseInt(m), 0).getDate();
   const to = `${year}-${m}-${String(lastDay).padStart(2, "0")}`;
   
-  // Calculate number of Sundays in the month
+  // Get current date to filter out future dates
+  const currentDate = new Date();
+  const currentDateStr = currentDate.toISOString().split('T')[0];
+  
+  // Calculate number of Sundays in the month up to today only
   let sundayCount = 0;
   for (let day = 1; day <= lastDay; day++) {
     const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
     const date = new Date(dateStr);
-    if (date.getDay() === 0) { // 0 is Sunday
+    
+    // Only count Sundays that are today or in the past
+    if (dateStr <= currentDateStr && date.getDay() === 0) {
       sundayCount++;
     }
   }
@@ -71,7 +77,7 @@ const fetchReport = async (type) => {
     }));
     
     console.log("📊 Monthly report response:", reportWithSundays);
-    setReport(reportWithSundays); // FIXED: Set the processed data, not raw response
+    setReport(reportWithSundays);
   } catch (err) {
     console.error("❌ Error fetching monthly report:", err.response?.data || err);
     alert("Failed to fetch report. Please try again.");
@@ -281,7 +287,7 @@ const renderTable = () => {
   }
 
   // Filter data based on view type
-  let filteredReport = report;
+  let filteredReport = [...report];
   
   switch (view) {
     case "present":
@@ -391,12 +397,21 @@ const renderTable = () => {
                   {expandedUser === r.user._id && (
                     <tr>
                       <td colSpan="10" className="px-6 py-4 bg-gray-50">
-                        <div className="space-y-4">
-                          {renderPresentDetails(r.presentDetails)}
-                          {renderAbsentDetails(r.absentDates)}
-                          {renderLateDetails(r.lateDetails)}
-                          {renderEarlyDetails(r.earlyDetails)}
-                        </div>
+                     <div className="space-y-4">
+  {view === "present" && renderPresentDetails(r.presentDetails)}
+  {view === "absent" && renderAbsentDetails(r.absentDates)}
+  {view === "late" && renderLateDetails(r.lateDetails)}
+  {view === "early" && renderEarlyDetails(r.earlyDetails)}
+  {view === "attendance" && (
+    <>
+      {renderPresentDetails(r.presentDetails)}
+      {renderAbsentDetails(r.absentDates)}
+      {renderLateDetails(r.lateDetails)}
+      {renderEarlyDetails(r.earlyDetails)}
+    </>
+  )}
+</div>
+
                       </td>
                     </tr>
                   )}
@@ -470,19 +485,19 @@ const renderTable = () => {
           {/* Report Buttons */}
          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
   <button className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-3 rounded-lg font-medium transition-colors" onClick={() => fetchReport("attendance")}>
-    📊 Show All
+    Attendance Report
   </button>
   <button className="bg-green-100 hover:bg-green-200 text-green-800 px-4 py-3 rounded-lg font-medium transition-colors" onClick={() => fetchReport("present")}>
-    ✅ Present Only
+    Present Report
   </button>
   <button className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-3 rounded-lg font-medium transition-colors" onClick={() => fetchReport("absent")}>
-    ❌ Absent Only
+    Absent Report
   </button>
   <button className="bg-orange-100 hover:bg-orange-200 text-orange-800 px-4 py-3 rounded-lg font-medium transition-colors" onClick={() => fetchReport("late")}>
-    ⏰ Late Only
+    Late Arrival Report
   </button>
   <button className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-4 py-3 rounded-lg font-medium transition-colors" onClick={() => fetchReport("early")}>
-    🏃 Early Only
+    Early Departure Report
   </button>
 </div>
 
