@@ -219,10 +219,19 @@ const renderEarlyDetails = (earlyDetails) => {
         {earlyDetails.map((detail, index) => {
           if (!detail.checkOutTime) return null;
           
-          // Just display the details as they come from backend
-          // The backend already filtered out non-early departures
-          const hours = Math.floor(detail.earlyBy / 60);
-          const minutes = detail.earlyBy % 60;
+          const checkOutDate = new Date(detail.checkOutTime);
+          const expectedTime = new Date(detail.date);
+          expectedTime.setHours(18, 0, 0, 0); // Set to 6:00 PM
+          
+          // Only show as early if they left BEFORE 6:00 PM
+          if (checkOutDate >= expectedTime) {
+            return null; // Skip if not actually early (after 6 PM)
+          }
+          
+          const earlyByMs = expectedTime - checkOutDate;
+          const earlyByMinutes = Math.round(earlyByMs / 60000);
+          const hours = Math.floor(earlyByMinutes / 60);
+          const minutes = earlyByMinutes % 60;
 
           return (
             <div key={index} className="text-sm text-yellow-700">
@@ -235,6 +244,7 @@ const renderEarlyDetails = (earlyDetails) => {
     </div>
   );
 };
+
 const renderPresentDetails = (presentDetails) => {
   if (!presentDetails || presentDetails.length === 0) return null;
 
