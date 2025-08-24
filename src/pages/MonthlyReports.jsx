@@ -217,10 +217,16 @@ const renderEarlyDetails = (earlyDetails) => {
       <h4 className="font-medium text-yellow-800 mb-2">Early Check-Out Details:</h4>
       <div className="space-y-1">
         {earlyDetails.map((detail, index) => {
-          // Calculate early duration correctly in frontend
+          if (!detail.checkOutTime) return null;
+          
           const checkOutDate = new Date(detail.checkOutTime);
           const expectedTime = new Date(detail.date);
           expectedTime.setHours(18, 0, 0, 0); // Set to 6:00 PM
+          
+          // Only show as early if they left BEFORE 6:00 PM
+          if (checkOutDate >= expectedTime) {
+            return null; // Skip if not actually early (after 6 PM)
+          }
           
           const earlyByMs = expectedTime - checkOutDate;
           const earlyByMinutes = Math.round(earlyByMs / 60000);
