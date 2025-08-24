@@ -305,9 +305,23 @@ const renderTable = () => {
     case "late":
       filteredReport = report.filter(item => item.lateArrivals > 0);
       break;
-    case "early":
-      filteredReport = report.filter(item => item.earlyDepartures > 0);
-      break;
+     case "early":
+    // Filter for users with actual early departures (before 6 PM)
+    filteredReport = report.filter(item => {
+      if (!item.earlyDetails || item.earlyDetails.length === 0) return false;
+      
+      // Only count if there are actual early departures (before 6 PM)
+      const hasRealEarlyDepartures = item.earlyDetails.some(detail => {
+        if (!detail.checkOutTime) return false;
+        const checkOutDate = new Date(detail.checkOutTime);
+        const expectedTime = new Date(detail.date);
+        expectedTime.setHours(18, 0, 0, 0);
+        return checkOutDate < expectedTime;
+      });
+      
+      return hasRealEarlyDepartures;
+    });
+    break;
     default:
       // "attendance" shows all data
       break;
