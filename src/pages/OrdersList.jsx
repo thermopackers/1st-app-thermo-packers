@@ -767,15 +767,22 @@ const handleComplete = async (id) => {
   if (!confirm.isConfirmed) return;
 
   try {
-    await axiosInstance.put(
+     await axiosInstance.put(
       `/orders/${id}`,
-      { status: "completed" },
+      { 
+        status: "completed",
+        danaBeadsStatus: "completed" // Add this line to update danaBeadsStatus too
+      },
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    setOrders((prev) =>
+     setOrders((prev) =>
       prev.map((o) =>
-        o._id === id ? { ...o, status: "completed" } : o
+        o._id === id ? { 
+          ...o, 
+          status: "completed",
+          danaBeadsStatus: "completed" // Update local state too
+        } : o
       )
     );
 
@@ -1010,8 +1017,8 @@ const handleCancel = async (id) => {
     <option value="pending">Pending</option>
     <option value="in process">In Process</option>
     <option value="processed">Processed</option>
-      {/* <option value="completed">Completed</option>
-    <option value="cancelled">Cancelled</option> 👈 NEW */}
+      <option value="completed">Completed</option>
+    <option value="cancelled">Cancelled</option> {/* 👈 NEW */}
   </select>
 </div>
 
@@ -1032,7 +1039,7 @@ const handleCancel = async (id) => {
   </select>
 </div>
          {/* Cancelled Orders Button */}
-{/* {(role === "admin" || role === "accounts" || role === "sales" || role === "production") && (
+{(role === "admin" || role === "accounts" || role === "sales" || role === "production") && (
   <div className="col-span-1 flex flex-col md:flex-row gap-3 w-full">
   <button
     onClick={() => navigate("/cancelled-orders")}
@@ -1049,7 +1056,7 @@ const handleCancel = async (id) => {
   </button>
 </div>
 
-)} */}
+)}
         </div>
 
         {/* Table and Pagination logic here */}
@@ -1472,7 +1479,7 @@ const handleCancel = async (id) => {
       🗑️ Delete
     </button>
     {/* Completed */}
-  {/* <button
+  <button
     onClick={() => handleComplete(order._id)}
     className={`px-2 py-1 rounded ${
       order.status === "completed"
@@ -1482,15 +1489,15 @@ const handleCancel = async (id) => {
     disabled={order.status === "completed"}
   >
     Mark Order Completed
-  </button> */}
+  </button>
 
   {/* Cancelled */}
-  {/* <button
+  <button
     onClick={() => handleCancel(order._id)}
     className="flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition bg-red-500 hover:bg-red-600 text-white"
   >
     Cancel Order
-  </button> */}
+  </button>
   </div>
 </td>
 

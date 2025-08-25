@@ -41,6 +41,8 @@ import ViewRFQs from "../pages/viewRFQs";
 import DanaBeadsDashboard from "../pages/DanaBeadsDashboard";
 import MonthlyReports from "../pages/MonthlyReports";
 import AddCategory from "../pages/AddCategory";
+import CancelledOrders from "../pages/CancelledOrders";
+import CompletedOrdersDashboard from "../pages/CompletedOrdersDashboard";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -445,7 +447,7 @@ export default function AppRoutes() {
 <Route
   path="/monthly-reports"
   element={
-    <ProtectedRoute allowedRoles={["accounts"]}>
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
       <PageWrapper>
         <MonthlyReports />
       </PageWrapper>
@@ -567,6 +569,23 @@ path="/view-rfqs"
 element={
     <ProtectedRoute allowedRoles={["accounts"]}>
       <PageWrapper><ViewRFQs /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+path="/cancelled-orders"
+element={
+    <ProtectedRoute allowedRoles={["accounts","admin","sales","production"]}>
+      <PageWrapper><CancelledOrders /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/completed-orders"
+element={
+    <ProtectedRoute allowedRoles={["accounts","admin","sales","production"]}>
+      <PageWrapper><CompletedOrdersDashboard /></PageWrapper>
     </ProtectedRoute>
   }
 />

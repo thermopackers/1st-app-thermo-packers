@@ -10,7 +10,7 @@ export default function PurchaseOrdersList() {
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [suppliers, setSuppliers] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState([]); // Add this line instead
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   console.log("orders",orders);
@@ -135,7 +135,8 @@ const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.ther
 // Add these functions to your PurchaseOrdersList component
 const handleApprove = async (orderId) => {
   try {
-        setIsLoading(true); // 🔹 Show loader
+    setLoadingOrders(prev => [...prev, orderId]); // Add order to loading state
+    
     const confirmed = await Swal.fire({
       title: "Approve Purchase Order?",
       text: "This will mark the PO as approved and generate a new PDF.",
@@ -147,28 +148,26 @@ const handleApprove = async (orderId) => {
     });
 
     if (confirmed.isConfirmed) {
-      // Generate PDF with approved status
       const response = await axiosInstance.post(`/purchase-orders/generate-pdf/${orderId}`, {
         status: "approved",
         approvedBy: user._id
       });
       
-      // Refresh the orders list
       fetchOrders(page, search);
-      
       Swal.fire("Approved!", "The PO has been approved and a new PDF was generated.", "success");
     }
   } catch (err) {
     console.error("Error approving PO:", err);
     Swal.fire("Error", "Failed to approve PO.", "error");
   } finally {
-    setIsLoading(false); // 🔹 Hide loader
+    setLoadingOrders(prev => prev.filter(id => id !== orderId)); // Remove order from loading state
   }
 };
 
 const handleReject = async (orderId) => {
   try {
-        setIsLoading(true); // 🔹 Show loader
+    setLoadingOrders(prev => [...prev, orderId]); // Add order to loading state
+    
     const confirmed = await Swal.fire({
       title: "Reject Purchase Order?",
       text: "This will mark the PO as rejected and generate a new PDF.",
@@ -180,26 +179,25 @@ const handleReject = async (orderId) => {
     });
 
     if (confirmed.isConfirmed) {
-      // Generate PDF with rejected status
       const response = await axiosInstance.post(`/purchase-orders/generate-pdf/${orderId}`, {
         status: "rejected",
         approvedBy: user._id
       });
       
-      // Refresh the orders list
       fetchOrders(page, search);
-      
       Swal.fire("Rejected!", "The PO has been rejected and a new PDF was generated.", "success");
     }
   } catch (err) {
     console.error("Error rejecting PO:", err);
     Swal.fire("Error", "Failed to reject PO.", "error");
   } finally {
-    setIsLoading(false); // 🔹 Hide loader
+    setLoadingOrders(prev => prev.filter(id => id !== orderId)); // Remove order from loading state
   }
 };
-function LoaderOverlay({ isLoading }) {
-  if (!isLoading) return null;
+
+
+function LoaderOverlay({ loadingOrders }) {
+  if (loadingOrders.length === 0) return null;
   return (
     <div className="fixed inset-0 bg-[#000000b0] bg-opacity-50 flex items-center justify-center z-50">
       <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -210,7 +208,7 @@ function LoaderOverlay({ isLoading }) {
   return (
     <>
       <InternalNavbar />
-      <LoaderOverlay isLoading={isLoading} />
+<LoaderOverlay loadingOrders={loadingOrders} />
       <div className="max-w-5xl mx-auto px-4 py-6">
         <h2 className="text-2xl font-bold mb-6 text-center">📄 All Purchase Orders</h2>
 
@@ -298,22 +296,32 @@ function LoaderOverlay({ isLoading }) {
     </button>
 
     {/* Approve/Reject only for approvers */}
-    {canApprove && (
-      <div className="flex flex-col gap-1">
-        <button
-          onClick={() => handleApprove(order._id)}
-          className="bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 text-xs transition"
-        >
-          ✅ Approve
-        </button>
-        <button
-          onClick={() => handleReject(order._id)}
-          className="bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 text-xs transition"
-        >
-          ❌ Reject
-        </button>
-      </div>
-    )}
+{canApprove && (
+  <div className="flex flex-col gap-1">
+    <button
+      onClick={() => handleApprove(order._id)}
+      disabled={order.status === "approved" || order.status === "rejected" || loadingOrders.includes(order._id)}
+      className={`px-2 py-1 rounded text-xs transition ${
+        order.status === "approved" || order.status === "rejected" || loadingOrders.includes(order._id)
+          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+          : "bg-green-100 text-green-700 hover:bg-green-200"
+      }`}
+    >
+      {loadingOrders.includes(order._id) ? "⏳ Processing..." : "✅ Approve"}
+    </button>
+    <button
+      onClick={() => handleReject(order._id)}
+      disabled={order.status === "approved" || order.status === "rejected" || loadingOrders.includes(order._id)}
+      className={`px-2 py-1 rounded text-xs transition ${
+        order.status === "approved" || order.status === "rejected" || loadingOrders.includes(order._id)
+          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+          : "bg-red-100 text-red-700 hover:bg-red-200"
+      }`}
+    >
+      {loadingOrders.includes(order._id) ? "⏳ Processing..." : "❌ Reject"}
+    </button>
+  </div>
+)}
   </div>
 </td>
 

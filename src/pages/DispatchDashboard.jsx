@@ -416,18 +416,22 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                            
                             <td className="px-4 py-2 whitespace-nowrap">
                               <div className="flex items-center gap-2">
-                                <span className={`w-3 h-3 rounded-full ${
-                                  order.status?.toLowerCase() === "pending"
-                                    ? "bg-orange-500"
-                                    : order.status?.toLowerCase() === "in process"
-                                    ? "bg-yellow-500"
-                                    : order.status?.toLowerCase() === "processed"
-                                    ? "bg-green-500"
-                                    : "bg-gray-400"
-                                }`}></span>
-                                <span className="capitalize">
-                                  {order.danaSlip ? order.status || "Unknown" : "Direct Dispatch"}
-                                </span>
+                              <span className={`w-3 h-3 rounded-full ${
+  order.status?.toLowerCase() === "completed"
+    ? "bg-green-700"
+    : order.status?.toLowerCase() === "processed"
+    ? "bg-green-500"
+    : order.status?.toLowerCase() === "in process"
+    ? "bg-yellow-500"
+    : order.status?.toLowerCase() === "pending"
+    ? "bg-orange-500"
+    : "bg-gray-400"
+}`}></span>
+
+                               <span className="capitalize">
+  {order.status === "completed" ? "✅ Completed" : order.danaSlip ? order.status || "Unknown" : "Direct Dispatch"}
+</span>
+
                               </div>
                             </td>
                            <td className="px-4 py-2">
@@ -436,15 +440,19 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
       🚫 Order cancelled, not to be processed!
     </span>
   ) : (
-    <select
-      value={order.status || ""}
-      onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
-      className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    >
+ <select
+  value={order.status || ""}
+  onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+  disabled={order.status === "completed"} // ✅ Lock when completed
+  className={`p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+    order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+>
       <option value="" disabled>Select</option>
       <option value="pending">Pending</option>
       <option value="in process">In Process</option>
       <option value="processed">Processed</option>
+      <option value="completed">Completed</option>
     </select>
   )}
 </td>
@@ -508,6 +516,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
       <option value="not dispatched">Not Dispatched</option>
       <option value="ready to dispatch">Ready to Dispatch</option>
       <option value="dispatched">Dispatched</option>
+      <option value="completed">Completed</option>
     </select>
   )}
 </td>

@@ -121,18 +121,34 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
     />
   )}
 
+<div className="flex items-center gap-3">
+  {/* Clear Filters Button */}
   <button
     onClick={clearFilters}
-    className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm"
+    className="inline-flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 
+               px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
   >
-    Clear Filters
+    ❌ Clear Filters
   </button>
-  {/* <NavLink
-  to="/monthly-reports"
-  className="px-3 py-2 rounded hover:bg-gray-200"
->
-  📊 Monthly Reports
-</NavLink> */}
+
+  {/* Monthly Reports Button (admin/accounts only) */}
+  {/* {(user.role === "admin" || user.role === "accounts") && (
+    <NavLink
+      to="/monthly-reports"
+      className={({ isActive }) =>
+        `inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+         ${
+           isActive
+             ? "bg-blue-600 text-white shadow-md scale-105"
+             : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+         }`
+      }
+    >
+      📊 Monthly Reports
+    </NavLink>
+  )} */}
+</div>
+
 
 </div>
 

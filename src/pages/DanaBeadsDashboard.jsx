@@ -200,6 +200,7 @@ const handleDeleteFromSection = async (orderId) => {
               <option value="pending">Pending</option>
               <option value="in process">In Process</option>
               <option value="processed">Processed</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
 
@@ -342,19 +343,22 @@ const handleDeleteFromSection = async (orderId) => {
       🚫 Cancelled
     </span>
   ) : (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        order.danaBeadsStatus === "processed"
-          ? "bg-green-100 text-green-700"
-          : order.danaBeadsStatus === "in process"
-          ? "bg-yellow-100 text-yellow-700"
-          : order.danaBeadsStatus === "pending"
-          ? "bg-orange-100 text-orange-700"
-          : "bg-gray-100 text-gray-700"
-      }`}
-    >
-      {order.danaBeadsStatus || "Pending"}
-    </span>
+   <span
+  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+    order.danaBeadsStatus === "completed"
+      ? "bg-green-700 text-white"
+      : order.danaBeadsStatus === "processed"
+      ? "bg-green-100 text-green-700"
+      : order.danaBeadsStatus === "in process"
+      ? "bg-yellow-100 text-yellow-700"
+      : order.danaBeadsStatus === "pending"
+      ? "bg-orange-100 text-orange-700"
+      : "bg-gray-100 text-gray-700"
+  }`}
+>
+  {order.danaBeadsStatus || "Pending"}
+</span>
+
   )}
 </td>
 
@@ -363,15 +367,19 @@ const handleDeleteFromSection = async (orderId) => {
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold"> 🚫 Order cancelled, not to be processed!</span>
   ) : (
-    <select
-      value={order.danaBeadsStatus || ""}
-      onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
-    >
+   <select
+  value={order.danaBeadsStatus || ""}
+  onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+  disabled={order.danaBeadsStatus === "completed"} // ✅ prevent further edits
+  className={`w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300 ${
+    order.danaBeadsStatus === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+>
       <option value="" disabled>Change Status</option>
       <option value="pending">Pending</option>
       <option value="in process">In Process</option>
       <option value="processed">Processed</option>
+      <option value="completed">Completed</option>
     </select>
   )}
 </td>

@@ -209,6 +209,7 @@ const updateCNCStatus = async (orderId, newStatus) => {
   <option value="pending">Pending</option>
   <option value="in process">In Process</option>
   <option value="processed">Processed</option>
+  <option value="completed">Completed</option>
 </select>
 
           <button
@@ -305,32 +306,42 @@ const updateCNCStatus = async (orderId, newStatus) => {
       🚫 Order cancelled, not to be processed!
     </span>
   ) : (
-    <select
-      value={order.status || "pending"}
-      onChange={(e) => updateCNCStatus(order._id, e.target.value)}
-      className="border border-gray-300 rounded px-2 py-1 text-sm"
-    >
-      <option value="pending">Pending</option>
-      <option value="in process">In Process</option>
-      <option value="processed">Processed</option>
-    </select>
+   <select
+  value={order.status || "pending"}
+  onChange={(e) => updateCNCStatus(order._id, e.target.value)}
+  disabled={order.status === "completed"} // lock after completed
+  className={`border border-gray-300 rounded px-2 py-1 text-sm ${
+    order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+>
+  <option value="pending">Pending</option>
+  <option value="in process">In Process</option>
+  <option value="processed">Processed</option>
+  <option value="completed">Completed</option>
+</select>
+
   )}
 </td>
 
 <td className="px-4 py-2 whitespace-nowrap">
-  <span
-    className={`px-2 py-1 rounded-full text-xs font-semibold ${
-      order.status === "processed"
-        ? "bg-green-100 text-green-700"
-        : order.status === "in process"
-        ? "bg-yellow-100 text-yellow-700"
-        : order.status === "cancelled"
-        ? "bg-red-200 text-red-800"
-        : "bg-gray-100 text-gray-700"
-    }`}
-  >
-    {order.status || "pending"}
-  </span>
+ <span
+  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+    order.status === "completed"
+      ? "bg-green-700 text-white"
+      : order.status === "processed"
+      ? "bg-green-100 text-green-700"
+      : order.status === "in process"
+      ? "bg-yellow-100 text-yellow-700"
+      : order.status === "cancelled"
+      ? "bg-red-200 text-red-800"
+      : order.status === "pending"
+      ? "bg-orange-100 text-orange-700"
+      : "bg-gray-100 text-gray-700"
+  }`}
+>
+  {order.status === "completed" ? "✅ Completed" : order.status || "pending"}
+</span>
+
 </td>
 
 <td className="px-4 py-2">
