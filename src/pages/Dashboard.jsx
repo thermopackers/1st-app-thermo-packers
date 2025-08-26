@@ -573,7 +573,7 @@ export default function Dashboard() {
           <section className="mt-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Quotation / Proforma */}
-              {!["driver", "production", "dispatch", "packaging"].includes(
+              {!["driver", "dispatch", "packaging"].includes(
                 user.role
               ) && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

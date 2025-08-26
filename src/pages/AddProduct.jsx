@@ -71,8 +71,9 @@ const handleImageChange = async (e) => {
       navigate("/dashboard");
     } catch (err) {
       console.error("Product addition failed", err);
-      alert("Failed to add product");
-    } finally {
+ const message = err.response?.data?.error || "Failed to add product";
+  alert(message); // ✅ Now shows "Product already added" if duplicate
+      } finally {
       setIsLoading(false); // Stop loader
     }
   };
