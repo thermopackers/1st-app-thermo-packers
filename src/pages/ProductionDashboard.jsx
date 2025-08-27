@@ -7,7 +7,7 @@ import { gsap } from "gsap";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import toast from "react-hot-toast";
-
+import EditSlipForm from "../components/EditSlipForm";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -33,7 +33,22 @@ const typeFilter = searchParams.get("type"); // shape or dana
   const [packagingReadyOrders, setPackagingReadyOrders] = useState([]);
 const type = searchParams.get('type');
 console.log("orders",orders);
+const [editModalOpen, setEditModalOpen] = useState(false);
+const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
+const [editType, setEditType] = useState(null); // 'shape' or 'dana'
 
+const handleEditSlip = (order) => {
+  // Determine slip type
+  const type = order.shapeSlip?.url ? 'shape' : order.danaSlip?.url ? 'dana' : null;
+  if (!type) {
+    toast.error("No slip found for editing");
+    return;
+  }
+  
+  setSelectedOrderForEdit(order);
+  setEditType(type);
+  setEditModalOpen(true);
+};
 const groupOrdersByPO = (orders) => {
   return orders.reduce((groups, order) => {
     const po = order.po || "N/A";
@@ -255,7 +270,33 @@ const handleRemoveFromProduction = async (order) => {
 };
 
 
+const handleSaveEditedSlip = async (orderId, type, formData) => {
+  try {
+    setLoading(true);
+    
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/edit-slip?type=${type}`,
+      formData,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
 
+    toast.success("Slip updated successfully!");
+    setEditModalOpen(false);
+    setSelectedOrderForEdit(null);
+    setEditType(null);
+    
+    // Refresh the orders list
+    fetchOrders();
+    
+  } catch (err) {
+    console.error("Error editing slip", err);
+    toast.error("Failed to update slip");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
@@ -450,7 +491,27 @@ const handleRemoveFromProduction = async (order) => {
   >
     {order.product}
   </button>
-</td>                    
+</td>       
+{editModalOpen && selectedOrderForEdit && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
+    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">
+        Edit {editType === 'shape' ? 'Shape' : 'Dana'} Slip for Order {selectedOrderForEdit.shortId}
+      </h2>
+      
+      <EditSlipForm
+        order={selectedOrderForEdit}
+        type={editType}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedOrderForEdit(null);
+          setEditType(null);
+        }}
+        onSave={handleSaveEditedSlip}
+      />
+    </div>
+  </div>
+)}             
 <td className="px-6 py-4">{order.quantity}</td>
                    <td className="px-6 py-4 space-y-1">
   {order.shapeSlip?.url && (
@@ -526,16 +587,23 @@ const handleRemoveFromProduction = async (order) => {
   </div>
 </td>
 
-                                        <td className="px-6 py-4 flex items-center">
-
-                      {/* 🗑 Delete Slip Button */}
-<button
-  className="mt-2 sm:mt-0 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
-  onClick={() => handleRemoveFromProduction(order)}
->
-  🗑 Remove from Production
-</button>
- </td>
+                                       <td className="px-6 py-4 flex items-center">
+  {/* 🗑 Delete Slip Button */}
+  <button
+    className="mt-2 sm:mt-0 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
+    onClick={() => handleRemoveFromProduction(order)}
+  >
+    🗑 Remove from Production
+  </button>
+  
+  {/* ✏️ Edit Slip Button */}
+  <button
+    className="mt-2 sm:mt-0 ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm"
+    onClick={() => handleEditSlip(order)}
+  >
+    ✏️ Edit Slip
+  </button>
+</td>
                   </tr>
     ))}
   </React.Fragment>

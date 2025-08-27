@@ -7,6 +7,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import EditPackagingSlipForm from "../components/EditPackagingSlipForm";
 
 const PackagingDashboard = () => {
   const { user } = useUserContext();
@@ -29,7 +30,9 @@ const currentPage = parseInt(searchParams.get("page")) || 1;
   const cardsRef = useRef([]);
   const navigate = useNavigate();
   const orderContainerRef = useRef(null);
- 
+ const [editModalOpen, setEditModalOpen] = useState(false);
+const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
+
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
       const po = order.po || "N/A";
@@ -243,6 +246,66 @@ const handleDeleteFromPackaging = async (orderId) => {
       </div>
     );
   }
+
+  const handleEditSlip = (order) => {
+  if (!order.packagingSlip?.url) {
+    toast.error("No packaging slip found for editing");
+    return;
+  }
+  
+  setSelectedOrderForEdit(order);
+  setEditModalOpen(true);
+};
+
+const handleSaveEditedSlip = async (orderId, formData) => {
+  try {
+    setLoading(true);
+    
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/edit-packaging-slip`,
+      formData,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
+
+    toast.success("Packaging slip updated successfully!");
+    setEditModalOpen(false);
+    setSelectedOrderForEdit(null);
+    
+    // Refresh the orders list
+    const token = localStorage.getItem("token");
+    const res = await axiosInstance.get("/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: currentPage,
+        limit: ordersPerPage,
+        startDate,
+        endDate,
+        search: searchTerm,
+        packagingStatus: statusFilter,
+        readyForPackaging: true,
+        sort: sortOrder,
+      },
+    });
+
+    let ready = res.data.orders
+      .filter((order) => order.readyForPackaging && order.status !== "cancelled");
+
+    if (statusFilter) {
+      ready = ready.filter((order) => order.packagingStatus === statusFilter);
+    }
+
+    setOrders(ready);
+    setFilteredOrders(ready);
+    
+  } catch (err) {
+    console.error("Error editing packaging slip", err);
+    toast.error("Failed to update packaging slip");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
@@ -494,9 +557,11 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 </td>
 
 
-                       <td className="px-4 py-3">
+                      <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Packaging Needed</span>
   ) : (
     <span
       className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -512,6 +577,8 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-gray-500 italic">Locked</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Update Needed</span>
   ) : (
     <select
       value={order.packagingStatus || ""}
@@ -525,9 +592,11 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
   )}
 </td>
 
-                       <td className="px-4 py-3">
+                      <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Dispatch Needed</span>
   ) : (
     <span
       className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -543,6 +612,8 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-gray-500 italic">Locked</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Update Needed</span>
   ) : (
     <select
       value={order.dispatchStatus || ""}
@@ -556,13 +627,25 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
   )}
 </td>
 
-                        <td className="px-4 py-3">
-  <button
-    onClick={() => handleDeleteFromPackaging(order._id)}
-    className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
-  >
-    ❌ Delete
-  </button>
+                       <td className="px-4 py-3">
+  <div className="flex flex-col space-y-2">
+    <button
+      onClick={() => handleDeleteFromPackaging(order._id)}
+      className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+    >
+      ❌ Delete
+    </button>
+    
+    {/* Edit Button */}
+    {order.packagingSlip?.url && (
+      <button
+        onClick={() => handleEditSlip(order)}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+      >
+        ✏️ Edit
+      </button>
+    )}
+  </div>
 </td>
 
                       </tr>
@@ -650,6 +733,24 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
         ) : (
           <p className="text-center text-gray-600 mt-8">No orders found.</p>
         )}
+        {editModalOpen && selectedOrderForEdit && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
+    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">
+        Edit Packaging Slip for Order {selectedOrderForEdit.shortId}
+      </h2>
+      
+      <EditPackagingSlipForm
+        order={selectedOrderForEdit}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedOrderForEdit(null);
+        }}
+        onSave={handleSaveEditedSlip}
+      />
+    </div>
+  </div>
+)}
       </div>
     </>
   );

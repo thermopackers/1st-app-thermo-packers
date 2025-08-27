@@ -6,6 +6,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import EditCNCSlipForm from "../components/EditCNCSlipForm";
 
 const CNCDashboard = () => {
   const { setShouldRefetchOrders } = useUserContext();
@@ -16,6 +17,8 @@ const CNCDashboard = () => {
       const [activeProductImage, setActiveProductImage] = useState(null);
   const [endDate, setEndDate] = useState("");
     const [products, setProducts] = useState([]);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   const [cncStatus, setCncStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -119,6 +122,54 @@ const updateCNCStatus = async (orderId, newStatus) => {
       console.error("Error deleting CNC entry:", err);
       toast.error("Failed to remove order.");
     }
+  }
+};
+const handleEditSlip = (order) => {
+  if (!order.cncSlip?.url) {
+    toast.error("No CNC slip found for editing");
+    return;
+  }
+  
+  setSelectedOrderForEdit(order);
+  setEditModalOpen(true);
+};
+
+const handleSaveEditedSlip = async (orderId, formData) => {
+  try {
+    setLoading(true);
+    
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/edit-cnc-slip`,
+      formData,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
+
+    toast.success("CNC slip updated successfully!");
+    setEditModalOpen(false);
+    setSelectedOrderForEdit(null);
+    
+    // Refresh the orders list
+    const res = await axiosInstance.get("/orders/cnc-orders", {
+      params: {
+        page: currentPage,
+        limit: ordersPerPage,
+        search: searchTerm,
+        startDate,
+        endDate,
+        sort: sortOrder,
+        cncStatus,
+      },
+    });
+
+    setOrders(res.data.orders);
+    
+  } catch (err) {
+    console.error("Error editing CNC slip", err);
+    toast.error("Failed to update CNC slip");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -345,14 +396,25 @@ const updateCNCStatus = async (orderId, newStatus) => {
 </td>
 
 <td className="px-4 py-2">
-  <button
-    onClick={() => handleDeleteCNC(order._id)}
-    className="text-red-600 hover:text-red-800 underline"
-  >
-    ❌ Delete
-  </button>
+  <div className="flex flex-col space-y-2">
+    <button
+      onClick={() => handleDeleteCNC(order._id)}
+      className="text-red-600 hover:text-red-800 underline text-sm"
+    >
+      ❌ Delete
+    </button>
+    
+    {/* Edit Button */}
+    {order.cncSlip?.url && (
+      <button
+        onClick={() => handleEditSlip(order)}
+        className="text-blue-600 hover:text-blue-800 underline text-sm"
+      >
+        ✏️ Edit
+      </button>
+    )}
+  </div>
 </td>
-
 </tr>
 
                 ))}
@@ -431,6 +493,24 @@ const updateCNCStatus = async (orderId, newStatus) => {
             </button>
           </div>
         )}
+        {editModalOpen && selectedOrderForEdit && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
+    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">
+        Edit CNC Slip for Order {selectedOrderForEdit.shortId}
+      </h2>
+      
+      <EditCNCSlipForm
+        order={selectedOrderForEdit}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedOrderForEdit(null);
+        }}
+        onSave={handleSaveEditedSlip}
+      />
+    </div>
+  </div>
+)}
       </div>
     </>
   );

@@ -1452,56 +1452,69 @@ const handleCancel = async (id) => {
 
 
                                 {/* ✅ Action Buttons */}
-                                {role !== "production" &&
-                                  role !== "dispatch" &&
-                                  role !== "packaging" && (
-       <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
-  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-    <button
-      className="flex items-center gap-1 
-                 px-2 py-1 sm:px-4 sm:py-1.5 
-                 rounded-lg text-xs sm:text-sm 
-                 shadow-md transition 
-                 bg-yellow-500 hover:bg-yellow-600 text-white"
-      onClick={() => setEditOrder(order)}
-    >
-      ✏️ Edit
-    </button>
+                               {role !== "production" &&
+  role !== "dispatch" &&
+  role !== "packaging" && (
+    <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <button
+          className={`flex items-center gap-1 
+                     px-2 py-1 sm:px-4 sm:py-1.5 
+                     rounded-lg text-xs sm:text-sm 
+                     shadow-md transition 
+                     ${order.status === "completed" || order.status === "cancelled"
+                       ? "bg-gray-400 cursor-not-allowed"
+                       : "bg-yellow-500 hover:bg-yellow-600 text-white"
+                     }`}
+          onClick={() => order.status !== "completed" && order.status !== "cancelled" && setEditOrder(order)}
+          disabled={order.status === "completed" || order.status === "cancelled"}
+        >
+          ✏️ Edit
+        </button>
 
-    <button
-      className="flex items-center gap-1 
-                 px-2 py-1 sm:px-4 sm:py-1.5 
-                 rounded-lg text-xs sm:text-sm 
-                 shadow-md transition 
-                 bg-red-500 hover:bg-red-600 text-white"
-      onClick={() => handleDelete(order._id)}
-    >
-      🗑️ Delete
-    </button>
-    {/* Completed */}
-  <button
-    onClick={() => handleComplete(order._id)}
-    className={`px-2 py-1 rounded ${
-      order.status === "completed"
-        ? "bg-gray-400 cursor-not-allowed"
-        : "flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition bg-green-500 hover:bg-green-600 text-white"
-    }`}
-    disabled={order.status === "completed"}
-  >
-    Mark Order Completed
-  </button>
+        <button
+          className={`flex items-center gap-1 
+                     px-2 py-1 sm:px-4 sm:py-1.5 
+                     rounded-lg text-xs sm:text-sm 
+                     shadow-md transition 
+                     ${order.status === "completed" || order.status === "cancelled"
+                       ? "bg-gray-400 cursor-not-allowed"
+                       : "bg-red-500 hover:bg-red-600 text-white"
+                     }`}
+          onClick={() => order.status !== "completed" && order.status !== "cancelled" && handleDelete(order._id)}
+          disabled={order.status === "completed" || order.status === "cancelled"}
+        >
+          🗑️ Delete
+        </button>
+        
+        {/* Completed */}
+        <button
+          onClick={() => handleComplete(order._id)}
+          className={`flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition ${
+            order.status === "completed" || order.status === "cancelled"
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-500 hover:bg-green-600 text-white"
+          }`}
+          disabled={order.status === "completed" || order.status === "cancelled"}
+        >
+          Mark Order Completed
+        </button>
 
-  {/* Cancelled */}
-  <button
-    onClick={() => handleCancel(order._id)}
-    className="flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition bg-red-500 hover:bg-red-600 text-white"
-  >
-    Cancel Order
-  </button>
-  </div>
-</td>
-
-                                  )}
+        {/* Cancelled */}
+        <button
+          onClick={() => handleCancel(order._id)}
+          className={`flex items-center gap-1 px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-xs sm:text-sm shadow-md transition ${
+            order.status === "completed" || order.status === "cancelled"
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-red-500 hover:bg-red-600 text-white"
+          }`}
+          disabled={order.status === "completed" || order.status === "cancelled"}
+        >
+          Cancel Order
+        </button>
+      </div>
+    </td>
+  )}
 
                                 {role !== "production" &&
                                   role !== "dispatch" &&
@@ -1816,7 +1829,7 @@ if (isSectionAlreadySent) {
                                           : order.status?.toLowerCase() ===
                                             "processed"
                                           ? "bg-green-500"
-                                          : "bg-gray-400"
+                                          : "bg-green-500"
                                       }`}
                                     ></span>
 
@@ -1830,60 +1843,50 @@ if (isSectionAlreadySent) {
                                     </span>
                                   </div>
                                 </td>
-        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
-                                     {" "}
-                                  <div className="flex items-center gap-2">
-                                         {" "}
-                                    <span
-                                      className={`w-3 h-3 rounded-full ${
-                                        order.packagingStatus?.toLowerCase() ===
-                                        "unpackaged"
-                                          ? "bg-orange-500"
-                                          : order.packagingStatus?.toLowerCase() ===
-                                            "packaged"
-                                          ? "bg-green-500"
-                                          : "bg-gray-400"
-                                      }`}
-                                    ></span>
-                                     
-                                    <span className="capitalize">
-                                      {(order.dispatchStatus === "dispatched" ||
-                                        order.dispatchStatus ===
-                                          "ready to dispatch") &&
-                                      order.packagingStatus === "unpackaged"
-                                        ? "packaged"
-                                        : order.packagingStatus}
-                                    </span>
-                                       {" "}
-                                  </div>
-                                   {" "}
-                                </td>
-        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
-                                     {" "}
-                                  <div className="flex items-center gap-2">
-                                         {" "}
-                                    <span
-                                      className={`w-3 h-3 rounded-full ${
-                                        order.dispatchStatus?.toLowerCase() ===
-                                        "not dispatched"
-                                          ? "bg-orange-500"
-                                          : order.dispatchStatus?.toLowerCase() ===
-                                            "ready to dispatch"
-                                          ? "bg-yellow-500"
-                                          : order.dispatchStatus?.toLowerCase() ===
-                                            "dispatched"
-                                          ? "bg-green-500"
-                                          : "bg-gray-400"
-                                      }`}
-                                    ></span>
-                                         {" "}
-                                    <span className="capitalize">
-                                      {order.dispatchStatus || "Unknown"}
-                                    </span>
-                                       {" "}
-                                  </div>
-                                   {" "}
-                                </td>
+       <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
+  <div className="flex items-center gap-2">
+    <span
+      className={`w-3 h-3 rounded-full ${
+        order.status?.toLowerCase() === "completed" ||
+        order.packagingStatus?.toLowerCase() === "packaged"
+          ? "bg-green-500"
+          : order.packagingStatus?.toLowerCase() === "unpackaged"
+          ? "bg-orange-500"
+          : "bg-gray-400"
+      }`}
+    ></span>
+    <span className="capitalize">
+      {order.status?.toLowerCase() === "completed" 
+        ? "packaged" 
+        : (order.dispatchStatus === "dispatched" ||
+          order.dispatchStatus === "ready to dispatch") &&
+          order.packagingStatus === "unpackaged"
+        ? "packaged"
+        : order.packagingStatus}
+    </span>
+  </div>
+</td>
+       <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
+  <div className="flex items-center gap-2">
+    <span
+      className={`w-3 h-3 rounded-full ${
+        order.status?.toLowerCase() === "completed" ||
+        order.dispatchStatus?.toLowerCase() === "dispatched"
+          ? "bg-green-500"
+          : order.dispatchStatus?.toLowerCase() === "ready to dispatch"
+          ? "bg-yellow-500"
+          : order.dispatchStatus?.toLowerCase() === "not dispatched"
+          ? "bg-orange-500"
+          : "bg-gray-400"
+      }`}
+    ></span>
+    <span className="capitalize">
+      {order.status?.toLowerCase() === "completed" 
+        ? "dispatched" 
+        : order.dispatchStatus || "Unknown"}
+    </span>
+  </div>
+</td>
                                
 
                               </tr>

@@ -6,6 +6,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import EditCuttingSlipForm from "../components/EditCuttingSlipForm";
 
 const DispatchDashboard = () => {
   const { setShouldRefetchOrders } = useUserContext();
@@ -14,6 +15,8 @@ const DispatchDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   
   const [products, setProducts] = useState([]);
     const [activeProductImage, setActiveProductImage] = useState(null);
@@ -233,6 +236,58 @@ const handleProductionStatusChange = async (orderId, newStatus) => {
   } catch (err) {
     console.error("Error updating production status:", err);
     toast.error("Failed to update production status.");
+  }
+};
+
+const handleEditSlip = (order) => {
+  if (!order.cuttingSlip?.url) {
+    toast.error("No cutting slip found for editing");
+    return;
+  }
+  
+  setSelectedOrderForEdit(order);
+  setEditModalOpen(true);
+};
+
+const handleSaveEditedSlip = async (orderId, formData) => {
+  try {
+    setLoading(true);
+    
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/edit-cutting-slip`,
+      formData,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
+
+    toast.success("Cutting slip updated successfully!");
+    setEditModalOpen(false);
+    setSelectedOrderForEdit(null);
+    
+    // Refresh the orders list
+    const token = localStorage.getItem("token");
+    const res = await axiosInstance.get("/orders/dispatch-dashboard", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: currentPage,
+        limit: ordersPerPage,
+        startDate,
+        endDate,
+        status: statusFilter,
+        search: searchTerm,
+        sort: sortOrder,
+      },
+    });
+
+    setOrders(res.data.orders);
+    setFilteredOrders(res.data.orders);
+    
+  } catch (err) {
+    console.error("Error editing cutting slip", err);
+    toast.error("Failed to update cutting slip");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -458,9 +513,11 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 </td>
 
 
-                            <td className="px-4 py-3">
+                           <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Packaging Needed</span>
   ) : (
     <span
       className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -476,6 +533,8 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-gray-500 italic">Locked</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Update Needed</span>
   ) : (
     <select
       value={order.packagingStatus || ""}
@@ -489,9 +548,11 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
   )}
 </td>
 
-                            <td className="px-4 py-3">
+                           <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Dispatch Needed</span>
   ) : (
     <span
       className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -507,6 +568,8 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 <td className="px-4 py-3">
   {order.status === "cancelled" ? (
     <span className="text-gray-500 italic">Locked</span>
+  ) : order.status === "completed" ? (
+    <span className="text-gray-500 italic">Completed - No Update Needed</span>
   ) : (
     <select
       value={order.dispatchStatus}
@@ -516,51 +579,58 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
       <option value="not dispatched">Not Dispatched</option>
       <option value="ready to dispatch">Ready to Dispatch</option>
       <option value="dispatched">Dispatched</option>
-      <option value="completed">Completed</option>
     </select>
   )}
 </td>
 
-                             <td className="px-4 py-3">
+                           <td className="px-4 py-3">
   {order.cuttingSlip?.url && (
-    <button
-      className="text-red-600 underline hover:text-red-800"
-      onClick={async () => {
-        const result = await Swal.fire({
-          title: "Are you sure?",
-          text: "This will remove the Cutting Slip and free the order for re-sending.",
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonText: "Yes, delete it!",
-          cancelButtonText: "Cancel",
-        });
+    <div className="flex flex-col space-y-2">
+      <button
+        className="text-red-600 underline hover:text-red-800 text-sm"
+        onClick={async () => {
+          const result = await Swal.fire({
+            title: "Are you sure?",
+            text: "This will remove the Cutting Slip and free the order for re-sending.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel",
+          });
 
-        if (result.isConfirmed) {
-          try {
-            await axiosInstance.put(
-              `/orders/remove-from-dispatch/${order._id}`,
-              {},
-              {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-              }
-            );
+          if (result.isConfirmed) {
+            try {
+              await axiosInstance.put(
+                `/orders/remove-from-dispatch/${order._id}`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                }
+              );
 
-            toast.success("Removed from dispatch successfully!");
-
-            setOrders((prev) => prev.filter((o) => o._id !== order._id));
-               // ✅ Trigger order list refresh
-      setShouldRefetchOrders(true); // <--- HERE
-          } catch (error) {
-            console.error("Error removing from dispatch:", error);
-            toast.error("Failed to remove from dispatch.");
+              toast.success("Removed from dispatch successfully!");
+              setOrders((prev) => prev.filter((o) => o._id !== order._id));
+              setShouldRefetchOrders(true);
+            } catch (error) {
+              console.error("Error removing from dispatch:", error);
+              toast.error("Failed to remove from dispatch.");
+            }
           }
-        }
-      }}
-    >
-      ❌ Delete
-    </button>
+        }}
+      >
+        ❌ Delete
+      </button>
+      
+      {/* Edit Button */}
+      <button
+        className="text-blue-600 underline hover:text-blue-800 text-sm"
+        onClick={() => handleEditSlip(order)}
+      >
+        ✏️ Edit
+      </button>
+    </div>
   )}
 </td>
                            
@@ -652,6 +722,24 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
         ) : (
           <p className="text-center text-gray-500">No orders found.</p>
         )}
+        {editModalOpen && selectedOrderForEdit && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
+    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">
+        Edit Cutting Slip for Order {selectedOrderForEdit.shortId}
+      </h2>
+      
+      <EditCuttingSlipForm
+        order={selectedOrderForEdit}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedOrderForEdit(null);
+        }}
+        onSave={handleSaveEditedSlip}
+      />
+    </div>
+  </div>
+)}
       </div>
     </>
   );

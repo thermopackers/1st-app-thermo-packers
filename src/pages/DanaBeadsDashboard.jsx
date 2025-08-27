@@ -7,6 +7,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import EditDanaBeadsSlipForm from "../components/EditDanaBeadsSlipForm";
 
 const DanaBeadsDashboard = () => {
   const { user } = useUserContext();
@@ -30,6 +31,8 @@ const DanaBeadsDashboard = () => {
   const navigate = useNavigate();
   const orderContainerRef = useRef(null);
 console.log("filteredOrders",filteredOrders);
+const [editModalOpen, setEditModalOpen] = useState(false);
+const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
 
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
@@ -161,6 +164,61 @@ const handleDeleteFromSection = async (orderId) => {
       setSearchParams({ page });
     }
   };
+
+  const handleEditSlip = (order) => {
+  if (!order.danaBeadsSlip?.url) {
+    toast.error("No Dana/Beads slip found for editing");
+    return;
+  }
+  
+  setSelectedOrderForEdit(order);
+  setEditModalOpen(true);
+};
+
+const handleSaveEditedSlip = async (orderId, formData) => {
+  try {
+    setLoading(true);
+    
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/edit-dana-beads-slip`,
+      formData,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      }
+    );
+
+    toast.success("Dana/Beads slip updated successfully!");
+    setEditModalOpen(false);
+    setSelectedOrderForEdit(null);
+    
+    // Refresh the orders list
+    const token = localStorage.getItem("token");
+    const res = await axiosInstance.get("/orders/dana-beads", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        page: currentPage,
+        limit: ordersPerPage,
+        startDate,
+        endDate,
+        search: searchTerm,
+        status: statusFilter,
+        sort: sortOrder,
+      },
+    });
+
+    const list = (res.data.orders || [])
+      .filter((o) => o.danaBeadsSlip && o.danaBeadsSlip.url);
+
+    setOrders(list);
+    setFilteredOrders(list);
+    
+  } catch (err) {
+    console.error("Error editing Dana/Beads slip", err);
+    toast.error("Failed to update Dana/Beads slip");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return (
@@ -385,14 +443,26 @@ const handleDeleteFromSection = async (orderId) => {
 </td>
 
 
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() => handleDeleteFromSection(order._id)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
-                              >
-                                ❌ Delete
-                              </button>
-                            </td>
+                         <td className="px-4 py-3">
+  <div className="flex flex-col space-y-2">
+    <button
+      onClick={() => handleDeleteFromSection(order._id)}
+      className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+    >
+      ❌ Delete
+    </button>
+    
+    {/* Edit Button */}
+    {order.danaBeadsSlip?.url && (
+      <button
+        onClick={() => handleEditSlip(order)}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+      >
+        ✏️ Edit
+      </button>
+    )}
+  </div>
+</td>
                           </tr>
                         ))}
                       </React.Fragment>
@@ -473,6 +543,24 @@ const handleDeleteFromSection = async (orderId) => {
         ) : (
           <p className="text-center text-gray-600 mt-8">No orders found.</p>
         )}
+        {editModalOpen && selectedOrderForEdit && (
+  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
+    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <h2 className="text-2xl font-bold mb-4">
+        Edit Dana/Beads Slip for Order {selectedOrderForEdit.shortId}
+      </h2>
+      
+      <EditDanaBeadsSlipForm
+        order={selectedOrderForEdit}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedOrderForEdit(null);
+        }}
+        onSave={handleSaveEditedSlip}
+      />
+    </div>
+  </div>
+)}
       </div>
     </>
   );

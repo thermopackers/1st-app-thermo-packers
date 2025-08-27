@@ -824,12 +824,12 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
                   htmlFor={`qty-${index}`}
                   className="block font-medium mb-1"
                 >
-                  Quantity (kg)
+                  Quantity to Order
                 </label>
                 <input
                   id={`qty-${index}`}
                   type="text"
-                  placeholder="Qty (Kg)"
+                  placeholder="Quantity"
                   className="border p-2 rounded w-full"
                   value={item.qty}
                   onChange={(e) => {
