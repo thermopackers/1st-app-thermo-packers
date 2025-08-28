@@ -24,7 +24,7 @@ const [gstError, setGstError] = useState("");
   async function fetchUsers() {
     try {
       const res = await axiosInstance.get("/users/all"); // create this route if not already
-      setAllUsers(res.data.filter(u => ["sales", "accounts"].includes(u.role)));
+      setAllUsers(res.data.filter(u => ["sales", "accounts","production"].includes(u.role)));
     } catch (err) {
       console.error("Failed to load users", err);
     }
