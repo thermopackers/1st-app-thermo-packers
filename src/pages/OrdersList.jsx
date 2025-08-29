@@ -48,6 +48,7 @@ const checkIfUrlExists = async (url) => {
     return false;
   }
 };
+console.log("orders",orders);
 
 useEffect(() => {
   const resolveAllPOCopyUrls = async () => {
@@ -443,8 +444,16 @@ useEffect(() => {
       Stock: order.stock,
       ReadyForPackaging: order.readyForPackaging ? "Yes" : "No",
       Remarks: order.remarks || "",
-      CreatedAt: new Date(order.createdAt).toLocaleString(),
-      OrderDate: new Date(order.date).toLocaleDateString(),
+    CreatedAt: new Date(order.createdAt).toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+}),
+OrderDate: new Date(order.date).toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+}),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -1177,9 +1186,12 @@ const handleCancel = async (id) => {
       key={order._id}
       className="order-row odd:bg-white even:bg-gray-50 hover:bg-gray-100"
     >        <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
-                                  {new Date(
-                                    order.createdAt
-                                  ).toLocaleDateString()}
+                                 {new Date(order.createdAt).toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+})}
+
                                 </td>
         <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                   {order.shortId}
@@ -1316,14 +1328,12 @@ const handleCancel = async (id) => {
                                     if (diffDays <= 20) return "Within 20 Days";
 
                                     // If no match, return the date in the required format
-                                    return deliveryDate.toLocaleDateString(
-                                      "en-IN",
-                                      {
-                                        year: "numeric",
-                                        month: "short",
-                                        day: "numeric",
-                                      }
-                                    );
+                                    return deliveryDate.toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
                                   })()}
                                 </td>
         <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">

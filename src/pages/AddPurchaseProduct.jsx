@@ -17,6 +17,11 @@ export default function AddPurchaseProduct() {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [existingFiles, setExistingFiles] = useState([]);
 
+  // 🆕 Internal
+const [internalFiles, setInternalFiles] = useState([]);
+const [internalPreviews, setInternalPreviews] = useState([]);
+const [existingInternalFiles, setExistingInternalFiles] = useState([]);
+
   const navigate = useNavigate();
 
   // Fetch product if editing
@@ -25,6 +30,7 @@ export default function AddPurchaseProduct() {
       axiosInstance.get(`/purchase-products/${id}`).then((res) => {
         setForm(res.data);
         setExistingFiles(res.data.files || []);
+              setExistingInternalFiles(res.data.internalImages || []); // 🆕 add this
       });
     }
   }, [id]);
@@ -52,41 +58,42 @@ export default function AddPurchaseProduct() {
     setExistingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadToCloudinary = async () => {
-    const uploads = files.map(async (file) => {
-      let fileToUpload = file;
+const uploadToCloudinary = async (fileList) => {
+  const uploads = fileList.map(async (file) => {
+    let fileToUpload = file;
 
-      if (file.type.startsWith("image/")) {
-        try {
-          fileToUpload = await imageCompression(file, {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1200,
-            useWebWorker: true,
-          });
-        } catch (err) {
-          console.warn("Image compression failed", err);
-        }
+    if (file.type.startsWith("image/")) {
+      try {
+        fileToUpload = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+        });
+      } catch (err) {
+        console.warn("Image compression failed", err);
       }
+    }
 
-      const data = new FormData();
-      data.append("file", fileToUpload);
-      data.append("upload_preset", "todo_uploads");
-      data.append("cloud_name", "dcr8k5amk");
+    const data = new FormData();
+    data.append("file", fileToUpload);
+    data.append("upload_preset", "todo_uploads");
+    data.append("cloud_name", "dcr8k5amk");
 
-      const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
-        method: "POST",
-        body: data,
-      });
-
-      const result = await res.json();
-      return {
-        url: result.secure_url,
-        public_id: result.public_id,
-      };
+    const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
+      method: "POST",
+      body: data,
     });
 
-    return Promise.all(uploads);
-  };
+    const result = await res.json();
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
+  });
+
+  return Promise.all(uploads);
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,15 +104,17 @@ export default function AddPurchaseProduct() {
 
     try {
       toast.loading("Uploading files...");
-      const uploaded = await uploadToCloudinary();
-      const allFiles = [...existingFiles, ...uploaded];
+const uploadedFiles = await uploadToCloudinary(files);
+const uploadedInternal = await uploadToCloudinary(internalFiles);
+const allFiles = [...existingFiles, ...uploadedFiles];
+const allInternal = [...existingInternalFiles, ...uploadedInternal];
       toast.dismiss();
 
       if (isEdit) {
-        await axiosInstance.put(`/purchase-products/${id}`, { ...form, files: allFiles });
+        await axiosInstance.put(`/purchase-products/${id}`, { ...form, files: allFiles,  internalImages: allInternal });
         toast.success("Product updated");
       } else {
-        await axiosInstance.post("/purchase-products", { ...form, files: allFiles });
+        await axiosInstance.post("/purchase-products", { ...form, files: allFiles,  internalImages: allInternal });
         toast.success("Product added");
       }
 
@@ -115,6 +124,25 @@ export default function AddPurchaseProduct() {
       toast.error("Failed to submit product");
     }
   };
+
+  const handleInternalChange = (e) => {
+  const selected = Array.from(e.target.files);
+  const previews = selected.map(file =>
+    file.type.startsWith("image/") ? URL.createObjectURL(file) : "pdf"
+  );
+  setInternalFiles((prev) => [...prev, ...selected]);
+  setInternalPreviews((prev) => [...prev, ...previews]);
+};
+
+const handleRemoveInternal = (index) => {
+  setInternalFiles((prev) => prev.filter((_, i) => i !== index));
+  setInternalPreviews((prev) => prev.filter((_, i) => i !== index));
+};
+
+const handleRemoveExistingInternal = (index) => {
+  setExistingInternalFiles((prev) => prev.filter((_, i) => i !== index));
+};
+
 
   return (
     <>
@@ -163,7 +191,7 @@ export default function AddPurchaseProduct() {
 
   <div>
     <label className="block font-semibold mb-1" htmlFor="fileInput">
-      Upload Files (Images or PDFs)
+      Upload Product Sheet Images (Images or PDFs)
     </label>
     <input
       id="fileInput"
@@ -218,6 +246,35 @@ export default function AddPurchaseProduct() {
       </div>
     )}
   </div>
+  <div>
+  <label className="block font-semibold mb-1">Upload Internal Product Sheet Images</label>
+  <input type="file" multiple accept="image/*,.pdf" onChange={handleInternalChange} className="w-full border p-2 rounded" />
+
+  {/* Existing */}
+  {existingInternalFiles.length > 0 && (
+    <div className="flex flex-wrap gap-3 mt-3">
+      {existingInternalFiles.map((file, i) => (
+        <div key={i} className="relative border rounded w-24 h-24 flex items-center justify-center bg-gray-100">
+          {file.url.toLowerCase().includes(".pdf") ? <span className="text-3xl">📄</span> : <img src={file.url} alt="internal" className="object-cover w-full h-full" />}
+          <button type="button" onClick={() => handleRemoveExistingInternal(i)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center">×</button>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {/* New Previews */}
+  {internalPreviews.length > 0 && (
+    <div className="flex flex-wrap gap-3 mt-3">
+      {internalPreviews.map((preview, i) => (
+        <div key={i} className="relative border rounded w-24 h-24 flex items-center justify-center bg-gray-100">
+          {preview === "pdf" ? <span className="text-3xl">📄</span> : <img src={preview} alt="preview" className="object-cover w-full h-full" />}
+          <button type="button" onClick={() => handleRemoveInternal(i)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5">×</button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
 
   <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
     {isEdit ? "💾 Update Product" : "✅ Submit Purchase Product"}

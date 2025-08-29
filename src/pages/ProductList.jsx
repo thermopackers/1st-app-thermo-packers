@@ -88,7 +88,8 @@ onChange={handleSearchChange}
           <table className="w-full table-auto border-collapse text-sm sm:text-base rounded-lg overflow-hidden shadow-md">
             <thead className="bg-blue-100 text-gray-700">
               <tr>
-                <th className="border px-3 py-2 text-left">Images</th>
+                <th className="border px-3 py-2 text-left">Product Sheet Images</th>
+                <th className="border px-3 py-2 text-left">Internal Product Sheet Images</th>
                 <th className="border px-3 py-2 text-left">Name</th>
                 <th className="border px-3 py-2 text-left">Unit</th>
                  <th className="border px-3 py-2 text-left">HSN No.</th> {/* ✅ NEW */}
@@ -128,6 +129,36 @@ onClick={() =>
                       )}
                     </div>
                   </td>
+                  <td className="border p-2">
+  <div className="flex flex-wrap gap-2">
+    {p.internalImages?.length > 0 ? (
+      p.internalImages.map((file, i) => (
+        file.endsWith(".pdf") ? (
+          <a
+            key={i}
+            href={file}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs"
+          >
+            📄 PDF
+          </a>
+        ) : (
+          <img
+            key={i}
+            src={file}
+            alt={`${p.name} internal ${i}`}
+            onClick={() => setPreviewImage(file)}
+            className="w-14 h-14 object-cover rounded-md cursor-pointer hover:scale-105 transition-transform duration-200"
+          />
+        )
+      ))
+    ) : (
+      <span className="italic text-gray-400">No internal files</span>
+    )}
+  </div>
+</td>
+
                   <td className="border px-3 py-2">{p.name}</td>
                   <td className="border px-3 py-2">{p.unit}</td>
                   <td className="border px-3 py-2">{p.hsnCode || <span className="text-gray-400">—</span>}</td>

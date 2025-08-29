@@ -360,11 +360,16 @@ const handleSaveEditedSlip = async (orderId, formData) => {
                         {poOrders.map((order, i) => (
                           <tr key={order._id} ref={(el) => (cardsRef.current[i] = el)} className="hover:bg-gray-50 transition duration-150">
                             <td className="px-4 py-3 font-medium">{order.shortId}</td>
-                            <td className="px-6 py-4">
-                              <div className="text-xs text-gray-500">
-                                {new Date(order.createdAt).toLocaleDateString()}
-                              </div>
-                            </td>
+<td className="px-6 py-4">
+  <div className="text-xs text-gray-500">
+    {new Date(order.createdAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}
+  </div>
+</td>
+
                             <td className="px-4 py-3 capitalize">{order.customerName}</td>
                             <td className="px-4 py-3 capitalize">{order.po}</td>
 

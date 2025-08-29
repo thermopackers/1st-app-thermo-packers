@@ -4,10 +4,14 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import "../index.css";
 import AssistantInvitationForm from "../components/AssistantInvitationForm";
+import DocumentNotifications from "../components/DocumentNotifications";
+import VehicleDocumentsView from "../components/VehicleDocumentsView";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+const [showDocs, setShowDocs] = useState(false);
+const [showDocNotifications, setShowDocNotifications] = useState(false);
 
   const [user, setUser] = useState(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -16,6 +20,43 @@ export default function Dashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+const [driverVehicle, setDriverVehicle] = useState(null);
+const [docNotifCount, setDocNotifCount] = useState(0);
+
+useEffect(() => {
+  if (!user || user.role !== "driver") return;
+  const token = localStorage.getItem("token");
+  const fetchVehicle = async () => {
+    try {
+      const res = await axiosInstance.get("/vehicles/all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const vehicle = res.data.find((v) => v.driverEmail === user.email);
+      setDriverVehicle(vehicle);
+    } catch (err) {
+      console.error("❌ Failed to fetch driver vehicle", err);
+    }
+  };
+  fetchVehicle();
+}, [user]);
+
+useEffect(() => {
+  if (user?.role !== "accounts") return;
+  const token = localStorage.getItem("token");
+
+  const fetchDocNotifCount = async () => {
+    try {
+      const res = await axiosInstance.get(`/documents/notifications-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDocNotifCount(res.data.count || 0);
+    } catch (err) {
+      console.error("Failed to fetch document notifications count", err);
+    }
+  };
+
+  fetchDocNotifCount();
+}, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -104,7 +145,31 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      <div className="flex justify-end mx-auto max-w-6xl mt-4 px-4">
+  {user.role === "accounts" && (
+    <button
+      onClick={() => setShowDocNotifications((prev) => !prev)}
+      className="relative flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow hover:bg-slate-100 border"
+    >
+      <span className="text-xl">🔔</span>
+      <span className="hidden sm:inline text-sm font-medium">Documents</span>
 
+      {/* Badge */}
+      {docNotifCount > 0 && (
+  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+    {docNotifCount}
+  </span>
+)}
+    </button>
+  )}
+</div>
+{showDocNotifications && (
+  <div className="mx-auto max-w-6xl px-4 mt-3 transition-all duration-300">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+      <DocumentNotifications setDocNotifCount={setDocNotifCount} />
+    </div>
+  </div>
+)}
       <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
         <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 pt-4 md:pt-8 pb-12">
           {/* Back button on md+ only */}
@@ -298,7 +363,34 @@ export default function Dashboard() {
                 </NavLink>
               </div>
             </section>
+            
           )}
+{user.role === "driver" && driverVehicle && (
+  <section className="mt-6">
+    <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+      <h3 className="text-lg font-bold text-indigo-900">📄 My Vehicle Documents</h3>
+      <p className="mt-1 text-sm text-indigo-800">
+        View insurance, tax, pollution, and permit renewals for your vehicle.
+      </p>
+
+      {/* Toggle Button */}
+      <button
+        onClick={() => setShowDocs(prev => !prev)}
+        className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow"
+      >
+        {showDocs ? "Hide Documents" : "View Documents"}
+      </button>
+
+      {/* Conditionally render documents */}
+      {showDocs && (
+        <div className="mt-4">
+          <VehicleDocumentsView vehicleNumber={driverVehicle.vehicleNumber} />
+        </div>
+      )}
+    </div>
+  </section>
+)}
+
 
           {/* SALES ORDERS */}
           {(["sales", "admin", "accounts"].includes(user.role) ||

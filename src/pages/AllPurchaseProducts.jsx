@@ -75,7 +75,8 @@ export default function AllPurchaseProducts() {
                   <th className="p-3">GST %</th>
                   <th className="p-3">Price</th>
                   <th className="p-3">Description</th>
-                  <th className="p-3">Files</th>
+                  <th className="p-3">Product Sheet Images</th>
+                      <th className="p-3">Internal Product Sheet Images</th>
                   <th className="p-3">Actions</th>
                 </tr>
               </thead>
@@ -176,6 +177,82 @@ export default function AllPurchaseProducts() {
                         })}
                       </div>
                     </td>
+                     {/* 🆕 Internal Images column */}
+      <td className="p-3">
+        <div className="flex flex-wrap gap-2 justify-center">
+          {prod.internalImages?.map((file, index) => {
+            const fileUrl = typeof file === "string" ? file : file?.url || "";
+            const isPDF = fileUrl.toLowerCase().includes(".pdf");
+
+            return (
+              <div
+                key={index}
+                className="w-12 h-12 border rounded-lg flex items-center justify-center bg-gray-100 cursor-pointer overflow-hidden"
+onClick={() => {
+  if (!fileUrl) return;
+
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile && prod.internalImages.length > 1) {
+    const content = prod.internalImages
+      .map((f, i) => {
+        const url = typeof f === "string" ? f : f?.url || "";
+        const ext = url.toLowerCase();
+
+        if (ext.includes(".pdf")) {
+          return `<div class="mb-4"><iframe src="${url}" style="width:100%; height:400px;" frameborder="0"></iframe></div>`;
+        }
+
+        return `<div class="mb-4"><img src="${url}" alt="internal-${i}" style="max-width:100%; border-radius:8px;" onerror="this.src='/broken-image.png'"/></div>`;
+      })
+      .join("");
+
+    Swal.fire({
+      html: `<div style="max-height:80vh; overflow-y:auto;">${content}</div>`,
+      width: "95%",
+      showCloseButton: true,
+      showConfirmButton: false,
+      background: "#f9fafb",
+      customClass: { popup: "rounded-xl shadow-lg" },
+    });
+  } else {
+    if (isPDF) {
+      Swal.fire({
+        html: `<iframe src="${fileUrl}" width="100%" height="500px" style="border:none;"></iframe>`,
+        width: "90%",
+        showCloseButton: true,
+        showConfirmButton: false,
+        background: "#f9fafb",
+        customClass: { popup: "rounded-xl shadow-lg" },
+      });
+    } else {
+      Swal.fire({
+        imageUrl: fileUrl,
+        imageAlt: "Internal Image",
+        showCloseButton: true,
+        showConfirmButton: false,
+        background: "#f9fafb",
+        customClass: { popup: "rounded-xl shadow-lg" },
+      });
+    }
+  }
+}}
+              >
+                {isPDF ? (
+                  <span className="text-2xl text-blue-600">📄</span>
+                ) : (
+                  <img
+                    src={fileUrl}
+                    alt={`internal-${index}`}
+                    className="object-cover w-full h-full"
+                    onError={(e) => (e.target.src = "/broken-image.png")}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </td>
                     <td className="p-3 space-x-2">
                       <button
                         onClick={() => navigate(`/purchase-products/edit/${prod._id}`)}

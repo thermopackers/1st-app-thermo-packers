@@ -356,6 +356,8 @@ const handleRemoveDrawingFile = (index) => {
     ? "Material Packaging Slip"
     : type === "cnc-slip"
     ? "CNC Slip"
+    : type === "dana-beads"
+    ? "Dana/Bead Order Slip"
     : "Cutting Slip Details"}
 </h2>
 
@@ -612,7 +614,7 @@ const handleRemoveDrawingFile = (index) => {
       <option value="no">No</option>
     </select>
 
-    <label className="font-bold text-xl">Next Grade of Raw Material:</label>
+    <label className="font-bold text-xl">Grade of Raw Material / Thermocol Dana:</label>
     <input
       type="text"
       value={danaBeadsFormData.nextGrade}
