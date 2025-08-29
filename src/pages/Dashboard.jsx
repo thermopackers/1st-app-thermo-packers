@@ -145,24 +145,7 @@ useEffect(() => {
           </div>
         </div>
       )}
-      <div className="flex justify-end mx-auto max-w-6xl mt-4 px-4">
-  {user.role === "accounts" && (
-    <button
-      onClick={() => setShowDocNotifications((prev) => !prev)}
-      className="relative flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow hover:bg-slate-100 border"
-    >
-      <span className="text-xl">🔔</span>
-      <span className="hidden sm:inline text-sm font-medium">Documents</span>
-
-      {/* Badge */}
-      {docNotifCount > 0 && (
-  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-    {docNotifCount}
-  </span>
-)}
-    </button>
-  )}
-</div>
+     
 {/* {showDocNotifications && (
   <div className="mx-auto max-w-6xl px-4 mt-3 transition-all duration-300">
     <div className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
