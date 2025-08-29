@@ -4,8 +4,8 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import "../index.css";
 import AssistantInvitationForm from "../components/AssistantInvitationForm";
-import DocumentNotifications from "../components/DocumentNotifications";
-import VehicleDocumentsView from "../components/VehicleDocumentsView";
+// import DocumentNotifications from "../components/DocumentNotifications";
+// import VehicleDocumentsView from "../components/VehicleDocumentsView";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -163,13 +163,13 @@ useEffect(() => {
     </button>
   )}
 </div>
-{showDocNotifications && (
+{/* {showDocNotifications && (
   <div className="mx-auto max-w-6xl px-4 mt-3 transition-all duration-300">
     <div className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
       <DocumentNotifications setDocNotifCount={setDocNotifCount} />
     </div>
   </div>
-)}
+)} */}
       <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
         <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 pt-4 md:pt-8 pb-12">
           {/* Back button on md+ only */}
@@ -382,11 +382,11 @@ useEffect(() => {
       </button>
 
       {/* Conditionally render documents */}
-      {showDocs && (
+      {/* {showDocs && (
         <div className="mt-4">
           <VehicleDocumentsView vehicleNumber={driverVehicle.vehicleNumber} />
         </div>
-      )}
+      )} */}
     </div>
   </section>
 )}
