@@ -1,6 +1,6 @@
 import RecordRTC from 'recordrtc'; // ✅ Add this at the top
 import Swal from "sweetalert2";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
@@ -17,6 +17,7 @@ export default function AssignDispatchPlanForm() {
   const [audioBlob, setAudioBlob] = useState(null);
     const [uploadingPlanId, setUploadingPlanId] = useState(null);
 const [selectedVehicle, setSelectedVehicle] = useState(null);
+const docsRef = useRef(null);
 
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
@@ -62,6 +63,12 @@ const fetchRegisteredVehicles = async () => {
     console.error("Failed to fetch registered vehicles:", err);
   }
 };
+
+useEffect(() => {
+  if (selectedVehicle && docsRef.current) {
+    docsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}, [selectedVehicle]);
 
 useEffect(() => {
   if (user.role === "driver") {
@@ -972,12 +979,13 @@ const handleEditDieselEntry = async (entry) => {
  )}
 
 <div
-  className={`overflow-hidden transition-all duration-500 ease-in-out transform ${
+  className={`transition-all duration-500 ease-in-out transform ${
     showVehicles
-      ? "max-h-[1000px] opacity-100 scale-100"
+      ? "max-h-[1000px] overflow-y-auto opacity-100 scale-100"
       : "max-h-0 opacity-0 scale-95"
   }`}
 >
+
   <div className="mt-6">
     <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
   <ul className="space-y-2">
@@ -1007,7 +1015,7 @@ const handleEditDieselEntry = async (entry) => {
     </li>
   ))}
   {selectedVehicle && user.role === "accounts" && (
-  <div className="mt-6 p-4 border rounded bg-white shadow">
+  <div ref={docsRef} className="mt-6 p-4 border rounded bg-white shadow">
     <h3 className="font-semibold mb-2">
       Managing Documents for: {selectedVehicle.vehicleNumber}
     </h3>
