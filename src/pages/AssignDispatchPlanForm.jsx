@@ -998,20 +998,21 @@ const handleEditDieselEntry = async (entry) => {
         <p className="font-medium">{vehicle.vehicleNumber}</p>
         <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
       </div>
-      <div className="flex gap-2">
-        <button
-          className="text-blue-600 underline text-sm"
-          onClick={() => handleEditVehicle(vehicle)}
-        >
-          ✏️ Edit
-        </button>
-        <button
-          className="text-green-600 underline text-sm"
-          onClick={() => setSelectedVehicle(vehicle)}
-        >
-          📄 Manage Docs
-        </button>
-      </div>
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+  <button
+    className="text-blue-600 underline text-sm text-center sm:text-left"
+    onClick={() => handleEditVehicle(vehicle)}
+  >
+    ✏️ Edit
+  </button>
+  <button
+    className="text-green-600 underline text-sm text-center sm:text-left"
+    onClick={() => setSelectedVehicle(vehicle)}
+  >
+    📄 Manage Docs
+  </button>
+</div>
+
     </li>
   ))}
   {selectedVehicle && user.role === "accounts" && (
