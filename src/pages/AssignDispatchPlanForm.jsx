@@ -989,32 +989,35 @@ const handleEditDieselEntry = async (entry) => {
   <div className="mt-6">
     <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
   <ul className="space-y-2">
-  {registeredVehicles.map((vehicle) => (
-    <li
-      key={vehicle._id}
-      className="flex justify-between items-center border p-2 rounded shadow-sm"
-    >
-      <div>
-        <p className="font-medium">{vehicle.vehicleNumber}</p>
-        <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-  <button
-    className="text-blue-600 underline text-sm text-center sm:text-left"
-    onClick={() => handleEditVehicle(vehicle)}
+ {registeredVehicles.map((vehicle) => (
+  <li
+    key={vehicle._id}
+    className="flex flex-col sm:flex-row sm:justify-between sm:items-center border p-3 rounded shadow-sm gap-3"
   >
-    ✏️ Edit
-  </button>
-  <button
-    className="text-green-600 underline text-sm text-center sm:text-left"
-    onClick={() => setSelectedVehicle(vehicle)}
-  >
-    📄 Manage Docs
-  </button>
-</div>
+    {/* Vehicle details */}
+    <div>
+      <p className="font-medium">{vehicle.vehicleNumber}</p>
+      <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
+    </div>
 
-    </li>
-  ))}
+    {/* Action buttons */}
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+      <button
+        className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+        onClick={() => handleEditVehicle(vehicle)}
+      >
+        ✏️ Edit
+      </button>
+      <button
+        className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+        onClick={() => setSelectedVehicle(vehicle)}
+      >
+        📄 Manage Docs
+      </button>
+    </div>
+  </li>
+))}
+
   {selectedVehicle && user.role === "accounts" && (
   <div ref={docsRef} className="mt-6 p-4 border rounded bg-white shadow">
     <h3 className="font-semibold mb-2">
