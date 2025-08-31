@@ -348,17 +348,9 @@ const handleSaveEditedSlip = async (orderId, formData) => {
                       <th className="px-4 py-3">Remove</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {Object.entries(groupOrdersByPO(currentOrders)).map(([poNumber, poOrders], index) => (
-                      <React.Fragment key={poNumber}>
-                        <tr className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                          <td colSpan="100%" className="px-4 py-2 font-semibold text-left text-gray-800">
-                            📄 <strong>PO:</strong> {poNumber} — {poOrders.length} order{poOrders.length > 1 ? "s" : ""}
-                          </td>
-                        </tr>
-
-                        {poOrders.map((order, i) => (
-                          <tr key={order._id} ref={(el) => (cardsRef.current[i] = el)} className="hover:bg-gray-50 transition duration-150">
+                <tbody className="bg-white divide-y divide-gray-200">
+  {currentOrders.map((order, i) => (
+     <tr key={order._id} ref={(el) => (cardsRef.current[i] = el)} className="hover:bg-gray-50 transition duration-150">
                             <td className="px-4 py-3 font-medium">{order.shortId}</td>
 <td className="px-6 py-4">
   <div className="text-xs text-gray-500">
@@ -442,7 +434,7 @@ const handleSaveEditedSlip = async (orderId, formData) => {
       <option value="pending">Pending</option>
       <option value="in process">In Process</option>
       <option value="processed">Processed</option>
-      <option value="completed">Completed</option>
+  <option value="completed" disabled>Completed</option>
     </select>
   )}
 </td>
@@ -469,10 +461,9 @@ const handleSaveEditedSlip = async (orderId, formData) => {
   </div>
 </td>
                           </tr>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
+  ))}
+</tbody>
+
                 </table>
 
                 {activeProductImage && (

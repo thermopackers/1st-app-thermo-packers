@@ -436,19 +436,9 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                       <th className="px-4 py-3">Delete This order from here</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                   {Object.entries(groupOrdersByPO(currentOrders)).map(([poNumber, poOrders], index) => (
-  <React.Fragment key={poNumber}>
-    {/* PO Group Header Row */}
-    <tr className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-purple-100'}`}>
-      <td colSpan="100%" className="px-4 py-2 font-semibold text-left text-gray-800">
-        📄 <strong>PO:</strong> {poNumber} — {poOrders.length} order{poOrders.length > 1 ? "s" : ""}
-      </td>
-    </tr>
-
-    {/* Orders under this PO */}
-    {poOrders.map((order) => (
-     <tr
+                 <tbody className="bg-white divide-y divide-gray-200">
+  {currentOrders.map((order, index) => (
+    <tr
                         key={order._id}
                         ref={(el) => (cardsRef.current[index] = el)}
                         className="hover:bg-gray-50 transition duration-150"
@@ -548,7 +538,7 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
         <option value="pending">Pending</option>
         <option value="in process">In Process</option>
         <option value="processed">Processed</option>
-        <option value="completed">Completed</option>
+  <option value="completed" disabled>Completed</option>
       </select>
     )}
   </div>
@@ -649,11 +639,9 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 </td>
 
                       </tr>
-    ))}
-  </React.Fragment>
-))}
+  ))}
+</tbody>
 
-                  </tbody>
                 </table>
                 
 {activeProductImage && (

@@ -280,6 +280,7 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
               ...f,
               freightType: f.freightType === type ? "" : type,
               freight: type === "Billed" ? f.freight : 0, // reset if not billed
+                  toPayAmount: type === "To Pay" ? f.toPayAmount : 0, // reset if not "To Pay"
             }))
           }
         />
@@ -287,6 +288,24 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
       </label>
     ))}
   </div>
+  {form.freightType === "To Pay" && (
+  <div>
+    <label className="text-sm font-medium">To Pay Amount (₹)</label>
+    <input
+      className="input"
+      type="number"
+      placeholder="Enter To Pay Amount"
+      value={form.toPayAmount ?? ""}
+      onChange={(e) =>
+        setForm((f) => ({
+          ...f,
+          toPayAmount: Number(e.target.value),
+        }))
+      }
+    />
+  </div>
+)}
+
 </div>
 
 

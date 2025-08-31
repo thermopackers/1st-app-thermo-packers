@@ -445,19 +445,9 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
 
                 </tr>
               </thead>
-              <tbody>
-               {Object.entries(groupOrdersByPO(currentOrders)).map(([poNumber, poOrders], index) => (
-  <React.Fragment key={poNumber}>
-    {/* PO Group Header Row */}
-    <tr className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-purple-100'}`}>
-      <td colSpan="100%" className="px-4 py-2 font-semibold text-left text-gray-800">
-        📄 <strong>PO:</strong> {poNumber} — {poOrders.length} order{poOrders.length > 1 ? "s" : ""}
-      </td>
-    </tr>
-
-    {/* Orders under this PO */}
-    {poOrders.map((order) => (
-       <tr key={order._id} className="table-row capitalize">
+             <tbody>
+  {currentOrders.map((order, index) => (
+    <tr key={order._id} className="table-row capitalize">
                     <td className="px-6 py-4">{order.shortId}</td>
                     <td className="px-6 py-4">
   <div className="text-xs text-gray-500">
@@ -581,7 +571,7 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
   <option value="pending">Pending</option>
   <option value="in process">In Process</option>
   <option value="processed">Processed</option>
-  <option value="completed">Completed</option>
+  <option value="completed" disabled>Completed</option>
 </select>
 
   </div>
@@ -605,11 +595,9 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
   </button>
 </td>
                   </tr>
-    ))}
-  </React.Fragment>
-))}
+  ))}
+</tbody>
 
-              </tbody>
             </table>
             {activeProductImage && (
   <div

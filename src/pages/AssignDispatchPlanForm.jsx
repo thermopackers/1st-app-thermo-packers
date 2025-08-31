@@ -5,6 +5,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import toast from "react-hot-toast";
+import VehicleDocumentManager from '../components/VehicleDocumentManager';
 
 
 
@@ -15,6 +16,7 @@ export default function AssignDispatchPlanForm() {
   const [attachments, setAttachments] = useState([]);
   const [audioBlob, setAudioBlob] = useState(null);
     const [uploadingPlanId, setUploadingPlanId] = useState(null);
+const [selectedVehicle, setSelectedVehicle] = useState(null);
 
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
@@ -956,7 +958,7 @@ const handleEditDieselEntry = async (entry) => {
     Register Vehicle
   </button>
 </div>
-          
+        
 
 <div className="flex justify-center mt-4">
   <button
@@ -978,25 +980,43 @@ const handleEditDieselEntry = async (entry) => {
 >
   <div className="mt-6">
     <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
-    <ul className="space-y-2">
-      {registeredVehicles.map((vehicle) => (
-        <li
-          key={vehicle._id}
-          className="flex justify-between items-center border p-2 rounded shadow-sm"
+  <ul className="space-y-2">
+  {registeredVehicles.map((vehicle) => (
+    <li
+      key={vehicle._id}
+      className="flex justify-between items-center border p-2 rounded shadow-sm"
+    >
+      <div>
+        <p className="font-medium">{vehicle.vehicleNumber}</p>
+        <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          className="text-blue-600 underline text-sm"
+          onClick={() => handleEditVehicle(vehicle)}
         >
-          <div>
-            <p className="font-medium">{vehicle.vehicleNumber}</p>
-            <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
-          </div>
-          <button
-            className="text-blue-600 underline text-sm"
-            onClick={() => handleEditVehicle(vehicle)}
-          >
-            ✏️ Edit
-          </button>
-        </li>
-      ))}
-    </ul>
+          ✏️ Edit
+        </button>
+        <button
+          className="text-green-600 underline text-sm"
+          onClick={() => setSelectedVehicle(vehicle)}
+        >
+          📄 Manage Docs
+        </button>
+      </div>
+    </li>
+  ))}
+  {selectedVehicle && user.role === "accounts" && (
+  <div className="mt-6 p-4 border rounded bg-white shadow">
+    <h3 className="font-semibold mb-2">
+      Managing Documents for: {selectedVehicle.vehicleNumber}
+    </h3>
+    <VehicleDocumentManager vehicleNumber={selectedVehicle.vehicleNumber} />
+  </div>
+)}
+
+</ul>
+
   </div>
 </div>
 

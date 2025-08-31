@@ -368,7 +368,7 @@ const handleSaveEditedSlip = async (orderId, formData) => {
   <option value="pending">Pending</option>
   <option value="in process">In Process</option>
   <option value="processed">Processed</option>
-  <option value="completed">Completed</option>
+  <option value="completed" disabled>Completed</option>
 </select>
 
   )}
