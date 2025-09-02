@@ -10,12 +10,13 @@ export default function AddPurchaseProduct() {
   const isEdit = !!id;
 
   const [form, setForm] = useState({
-    name: "", unit: "", hsnCode: "", gstPercent: "", price: "", description: ""
+    name: "", unit: "", hsnCode: "", gstPercent: "", price: "", description: "", category: ""
   });
 
   const [files, setFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [existingFiles, setExistingFiles] = useState([]);
+const [categories, setCategories] = useState([]);
 
   // 🆕 Internal
 const [internalFiles, setInternalFiles] = useState([]);
@@ -23,6 +24,11 @@ const [internalPreviews, setInternalPreviews] = useState([]);
 const [existingInternalFiles, setExistingInternalFiles] = useState([]);
 
   const navigate = useNavigate();
+useEffect(() => {
+  axiosInstance.get("/categories").then((res) => {
+    setCategories(res.data); // assuming API returns array of { _id, name }
+  });
+}, []);
 
   // Fetch product if editing
   useEffect(() => {
@@ -187,6 +193,21 @@ const handleRemoveExistingInternal = (index) => {
   </div>
 ))}
 
+<div>
+  <label className="block font-semibold mb-1">Category</label>
+  <select
+    name="category"
+    value={form.category}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+    required
+  >
+    <option value="">Select Category</option>
+    {categories.map((cat) => (
+      <option key={cat._id} value={cat._id}>{cat.name}</option>
+    ))}
+  </select>
+</div>
 
 
   <div>

@@ -604,7 +604,7 @@ useEffect(() => {
               ) && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="text-2xl font-bold text-slate-900 text-center">
-                    Dispatch and Mileage Dashboard
+                    Vehicles Management
                   </h3>
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <NavLink to="/assign-dispatch">
@@ -622,6 +622,16 @@ useEffect(() => {
                           Vehicle Mileage Report
                           <div className="mt-1 text-sm font-normal opacity-90">
                             View KM/L for each vehicle
+                          </div>
+                        </button>
+                      </NavLink>
+                    )}
+                    {["admin", "accounts"].includes(user.role) && (
+                      <NavLink to="/registered-vehicles">
+                        <button className="w-full rounded-xl bg-green-600 px-4 py-5 text-white shadow hover:bg-green-700">
+                          Vehicles Documents
+                          <div className="mt-1 text-sm font-normal opacity-90">
+                            Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
                           </div>
                         </button>
                       </NavLink>

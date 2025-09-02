@@ -43,6 +43,8 @@ import MonthlyReports from "../pages/MonthlyReports";
 import AddCategory from "../pages/AddCategory";
 import CancelledOrders from "../pages/CancelledOrders";
 import CompletedOrdersDashboard from "../pages/CompletedOrdersDashboard";
+import StockManagement from "../pages/StockManagement";
+import RegisteredVehicles from "../pages/RegisteredVehicles";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -486,6 +488,22 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["accounts"]}>
       <PageWrapper><AllPurchaseProducts /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/stock-management"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><StockManagement /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/registered-vehicles"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><RegisteredVehicles /></PageWrapper>
     </ProtectedRoute>
   }
 />

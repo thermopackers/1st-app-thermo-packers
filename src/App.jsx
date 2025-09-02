@@ -45,6 +45,8 @@ export default function App() {
     "/material-requisition",
     "/asset-management",
     "/completed-orders",
+    "/stock-management",
+    "/registered-vehicles",
     "/my-assets",
     "/cancelled-orders",
     "/reports/packaging",

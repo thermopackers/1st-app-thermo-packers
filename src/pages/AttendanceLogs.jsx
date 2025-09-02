@@ -132,7 +132,7 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
   </button>
 
   {/* Monthly Reports Button (admin/accounts only) */}
-  {/* {(user.role === "admin" || user.role === "accounts") && (
+  {(user.role === "admin" || user.role === "accounts") && (
     <NavLink
       to="/monthly-reports"
       className={({ isActive }) =>
@@ -146,7 +146,7 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
     >
       📊 Monthly Reports
     </NavLink>
-  )} */}
+  )}
 </div>
 
 

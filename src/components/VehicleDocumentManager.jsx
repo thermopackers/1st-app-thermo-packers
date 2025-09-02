@@ -10,7 +10,9 @@ const DOCUMENT_TYPES = {
   pollution_renewal: 'Pollution Renewal',
   fitness_renewal: 'Fitness Renewal',
   all_india_permit_renewal: 'All India Permit Renewal',
-  gps_renewal: 'GPS Renewal'
+  gps_renewal: 'GPS Renewal',
+   rc_copy: "RC Copy", 
+  vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
 };
 
 export default function VehicleDocumentManager({ vehicleNumber }) {
@@ -236,29 +238,34 @@ const handleSubmit = async (e) => {
   </div>
 )}
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Issue Date</label>
-              <input
-                type="date"
-                name="issueDate"
-                value={formData.issueDate}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
+        {formData.documentType !== "vehicle_images" && (
+  <>
+    <div>
+      <label className="block text-sm font-medium mb-1">Issue Date</label>
+      <input
+        type="date"
+        name="issueDate"
+        value={formData.issueDate}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        required
+      />
+    </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Expiry Date</label>
-              <input
-                type="date"
-                name="expiryDate"
-                value={formData.expiryDate}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
+    <div>
+      <label className="block text-sm font-medium mb-1">Expiry Date</label>
+      <input
+        type="date"
+        name="expiryDate"
+        value={formData.expiryDate}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        required
+      />
+    </div>
+  </>
+)}
+
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Document File</label>
@@ -353,30 +360,57 @@ const handleSubmit = async (e) => {
           </thead>
           <tbody>
             {documents.map((doc) => {
-              const expiring = isExpiring(doc.expiryDate);
-              const expired = isExpired(doc.expiryDate);
-              let statusClass = 'bg-green-100 text-green-800';
-              
-              if (expired) {
-                statusClass = 'bg-red-100 text-red-800';
-              } else if (expiring) {
-                statusClass = 'bg-yellow-100 text-yellow-800';
-              }
+            let status = "Valid";
+let statusClass = "bg-green-100 text-green-800";
+
+if (doc.documentType !== "vehicle_images") {
+  const expiring = isExpiring(doc.expiryDate);
+  const expired = isExpired(doc.expiryDate);
+
+  if (expired) {
+    status = "Expired";
+    statusClass = "bg-red-100 text-red-800";
+  } else if (expiring) {
+    status = "Expiring Soon";
+    statusClass = "bg-yellow-100 text-yellow-800";
+  }
+}
+
               
               return (
                 <tr key={doc._id} className="border-b">
                   <td className="p-3">{DOCUMENT_TYPES[doc.documentType]}</td>
                   <td className="p-3">{doc.documentNumber}</td>
-                  <td className="p-3">{new Date(doc.issueDate).toLocaleDateString()}</td>
-                  <td className="p-3">{new Date(doc.expiryDate).toLocaleDateString()}</td>
+           <td className="p-3">
+  {doc.documentType !== "vehicle_images" && doc.issueDate
+    ? new Date(doc.issueDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    : "—"}
+</td>
+
+<td className="p-3">
+  {doc.documentType !== "vehicle_images" && doc.expiryDate
+    ? new Date(doc.expiryDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    : "—"}
+</td>
+
+
 <td className="p-3 whitespace-normal break-words max-w-xs">
   {doc.notes}
 </td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${statusClass}`}>
-                      {expired ? 'Expired' : expiring ? 'Expiring Soon' : 'Valid'}
-                    </span>
-                  </td>
+  <span className={`px-2 py-1 rounded-full text-xs ${statusClass}`}>
+    {status}
+  </span>
+</td>
+
                   <td className="p-3">
                  <div className="flex flex-wrap gap-2">
   {doc.documentUrls?.map((url, idx) => (

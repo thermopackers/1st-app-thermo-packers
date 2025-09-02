@@ -71,7 +71,7 @@ const handlePageChange = (newPage) => {
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <div className="relative mb-4">
           
-          <h2 className="text-3xl font-semibold text-center text-gray-800">All Products</h2>
+          <h2 className="text-3xl font-semibold text-center text-gray-800">All Sales Products</h2>
         </div>
 
         <div className="mb-6">
@@ -89,7 +89,7 @@ onChange={handleSearchChange}
             <thead className="bg-blue-100 text-gray-700">
               <tr>
                 <th className="border px-3 py-2 text-left">Product Sheet Images</th>
-                <th className="border px-3 py-2 text-left">Internal Product Sheet Images</th>
+                <th className="border px-3 py-2 text-left">Internal Product Sheet - Images (E.g. Weight of product on Kanda, Mould Photo, Size of product, picture of product from multiple angles etc)</th>
                 <th className="border px-3 py-2 text-left">Name</th>
                 <th className="border px-3 py-2 text-left">Unit</th>
                  <th className="border px-3 py-2 text-left">HSN No.</th> {/* ✅ NEW */}

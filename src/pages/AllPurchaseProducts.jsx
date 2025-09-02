@@ -67,10 +67,11 @@ export default function AllPurchaseProducts() {
           {/* 🧾 Product Table */}
           <div className="overflow-x-auto bg-white rounded-xl shadow-md">
             <table className="min-w-full table-auto text-sm text-gray-700">
-              <thead className="bg-gray-100 text-gray-800 text-left">
+              <thead className="bg-gray-100 text-gray-800 text-center">
                 <tr>
                   <th className="p-3">Name</th>
                   <th className="p-3">Unit</th>
+                  <th className="p-3">Category</th>
                   <th className="p-3">HSN</th>
                   <th className="p-3">GST %</th>
                   <th className="p-3">Price</th>
@@ -85,6 +86,7 @@ export default function AllPurchaseProducts() {
                   <tr key={prod._id} className="border-t hover:bg-gray-50 text-center align-top">
                     <td className="p-3">{prod.name}</td>
                     <td className="p-3">{prod.unit}</td>
+                    <td className="p-3">{prod.category?.name || "—"}</td>
                     <td className="p-3">{prod.hsnCode}</td>
                     <td className="p-3">{prod.gstPercent}</td>
                     <td className="p-3">₹ {prod.price}</td>

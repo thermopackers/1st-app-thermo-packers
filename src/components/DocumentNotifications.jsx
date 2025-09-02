@@ -9,7 +9,10 @@ const DOCUMENT_TYPES = {
   fitness_renewal: "Fitness Renewal",
   all_india_permit_renewal: "All India Permit Renewal",
   gps_renewal: "GPS Renewal",
+   rc_copy: "RC Copy", 
+  vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
 };
+
 export default function DocumentNotifications({ setDocNotifCount }) {
   const { token, user } = useUserContext();
   const [expiringDocuments, setExpiringDocuments] = useState([]);
@@ -29,11 +32,24 @@ export default function DocumentNotifications({ setDocNotifCount }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setExpiringDocuments(res.data);
-      if (setDocNotifCount) setDocNotifCount(res.data.length); // ✅ pass count to dashboard
+      if (setDocNotifCount) setDocNotifCount(res.data.length);
     } catch (err) {
       console.error("Error fetching expiring documents:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteNotification = async (id) => {
+    try {
+      await axiosInstance.delete(`/vehicle-documents/notifications/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Optimistic UI update
+      setExpiringDocuments((prev) => prev.filter((doc) => doc._id !== id));
+      if (setDocNotifCount) setDocNotifCount((prev) => Math.max(prev - 1, 0));
+    } catch (err) {
+      console.error("❌ Failed to delete notification:", err);
     }
   };
 
@@ -70,16 +86,22 @@ export default function DocumentNotifications({ setDocNotifCount }) {
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Type</th>
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Expiry</th>
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Days Left</th>
-            {/* <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Action</th> */}
+            <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
           {expiringDocuments.map((doc) => {
             const daysLeft = getDaysUntilExpiry(doc.expiryDate);
-            let urgencyClass =
-              daysLeft <= 3
-                ? "bg-red-100 text-red-700"
-                : "bg-yellow-100 text-yellow-700";
+            const isExpired = daysLeft < 0;
+
+            let urgencyClass = "";
+            if (isExpired) {
+              urgencyClass = "bg-red-200 text-red-700";
+            } else if (daysLeft <= 3) {
+              urgencyClass = "bg-red-100 text-red-700";
+            } else {
+              urgencyClass = "bg-yellow-100 text-yellow-700";
+            }
 
             return (
               <tr key={doc._id}>
@@ -92,23 +114,21 @@ export default function DocumentNotifications({ setDocNotifCount }) {
                 </td>
                 <td className="px-3 py-2 text-sm">
                   <span className={`px-2 py-1 rounded-full text-xs ${urgencyClass}`}>
-                    {daysLeft} day{daysLeft !== 1 ? "s" : ""}
+                    {isExpired ? "Expired" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
                   </span>
                 </td>
-                {/* <td className="px-3 py-2">
-                  {doc.documentUrls?.length > 0 ? (
-                    <a
-                      href={doc.documentUrls[0]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block rounded bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700"
+                <td className="px-3 py-2 text-sm">
+                  {isExpired ? (
+                    <button
+                      onClick={() => deleteNotification(doc._id)}
+                      className="text-red-600 hover:text-red-800 text-lg"
                     >
-                      View
-                    </a>
+                      ❌
+                    </button>
                   ) : (
-                    <span className="text-xs text-slate-400">No File</span>
+                    <span className="text-xs text-slate-400">—</span>
                   )}
-                </td> */}
+                </td>
               </tr>
             );
           })}

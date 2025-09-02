@@ -56,6 +56,12 @@ export default function PurchaseProductSuppliers() {
             📦 View/Edit/Delete Products/Services for Purchase
           </button>
         </NavLink>
+        <NavLink to="/stock-management" className="w-full">
+  <button className="w-full bg-purple-500 hover:bg-purple-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+    📊 Stock Management
+  </button>
+</NavLink>
+
       </div>
     </div>
 

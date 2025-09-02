@@ -10,11 +10,13 @@ const DOCUMENT_TYPES = {
   pollution_renewal: 'Pollution Renewal',
   fitness_renewal: 'Fitness Renewal',
   all_india_permit_renewal: 'All India Permit Renewal',
-  gps_renewal: 'GPS Renewal'
+  gps_renewal: 'GPS Renewal',
+   rc_copy: "RC Copy", 
+  vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
 };
 
 export default function VehicleDocumentsView({ vehicleNumber }) {
-  const { token } = useUserContext();
+  const { token, user } = useUserContext();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -105,12 +107,20 @@ const openInSwal = (url, isImage) => {
                 <p className="text-sm mt-2">
                   <span className="font-semibold">Document #:</span> {doc.documentNumber}
                 </p>
-                <p className="text-sm">
-                  <span className="font-semibold">Issue Date:</span> {new Date(doc.issueDate).toLocaleDateString()}
-                </p>
-                <p className="text-sm">
-                  <span className="font-semibold">Expiry Date:</span> {new Date(doc.expiryDate).toLocaleDateString()}
-                </p>
+               {doc.documentType !== "vehicle_images" ? (
+  <>
+    <p className="text-sm">
+      <span className="font-semibold">Issue Date:</span>{" "}
+      {new Date(doc.issueDate).toLocaleDateString()}
+    </p>
+    <p className="text-sm">
+      <span className="font-semibold">Expiry Date:</span>{" "}
+      {new Date(doc.expiryDate).toLocaleDateString()}
+    </p>
+  </>
+) : (
+  <p className="text-sm text-gray-500 italic">No expiry dates required</p>
+)}
                 <div className="mt-2">
                   <span className={`px-2 py-1 rounded-full text-xs ${statusClass}`}>
                     {expired ? 'Expired' : expiring ? 'Expiring Soon' : 'Valid'}
@@ -147,15 +157,18 @@ const openInSwal = (url, isImage) => {
       )}
 
       {/* ❌ delete button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation(); // prevent opening swal when deleting
-          handleDeleteFile(doc._id, url);
-        }}
-        className="absolute top-1 right-1 bg-red-600 text-white rounded-full px-2 py-0.5 text-xs opacity-80 hover:opacity-100"
-      >
-        ❌
-      </button>
+     {user?.role !== "driver" && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation(); // prevent opening swal when deleting
+      handleDeleteFile(doc._id, url);
+    }}
+    className="absolute top-1 right-1 bg-red-600 text-white rounded-full px-2 py-0.5 text-xs opacity-80 hover:opacity-100"
+  >
+    ❌
+  </button>
+)}
+
     </div>
   ))}
 </div>
