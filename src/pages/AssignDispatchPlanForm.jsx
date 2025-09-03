@@ -982,9 +982,10 @@ const handleEditDieselEntry = async (entry) => {
   className={`transition-all duration-500 ease-in-out transform ${
     showVehicles
       ? "max-h-[1000px] overflow-y-auto opacity-100 scale-100"
-      : "max-h-0 opacity-0 scale-95"
+      : "max-h-0 opacity-0 scale-95 pointer-events-none"
   }`}
 >
+
 
   <div className="mt-6">
     <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
