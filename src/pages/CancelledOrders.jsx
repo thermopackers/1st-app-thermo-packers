@@ -65,8 +65,15 @@ export default function CancelledOrders() {
                   <th className="px-4 py-2 text-left">Order ID</th>
                   <th className="px-4 py-2 text-left">Customer</th>
                   <th className="px-4 py-2 text-left">Product</th>
-                  <th className="px-4 py-2 text-left">Quantity</th>
                   <th className="px-4 py-2 text-left">PO</th>
+                   <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Density</th>
+                  <th className="px-4 py-2">Size</th>
+                  <th className="px-4 py-2">freight</th>
+                  <th className="px-4 py-2">freight Amount</th>
+                  <th className="px-4 py-2">Quantity</th>
+                  <th className="px-4 py-2">Price</th>
+                  <th className="px-4 py-2">Remarks</th>
                   <th className="px-4 py-2 text-left">Cancelled On</th>
                 </tr>
               </thead>
@@ -76,11 +83,31 @@ export default function CancelledOrders() {
                     <td className="px-4 py-2">{o.shortId}</td>
                     <td className="px-4 py-2">{o.customerName}</td>
                     <td className="px-4 py-2">{o.product}</td>
-                    <td className="px-4 py-2">{o.quantity}</td>
                     <td className="px-4 py-2">{o.po}</td>
-                    <td className="px-4 py-2">
-                      {new Date(o.updatedAt).toLocaleDateString()}
+                     <td className="px-4 py-2">
+{new Date(o.updatedAt).toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+})}
                     </td>
+                      <td className="px-4 py-2">{o.density}</td>
+                      <td className="px-4 py-2">{o.size}</td>
+                      <td className="px-4 py-2">{o.freight}</td>
+                      <td className="px-4 py-2">{o.freightAmount}</td>
+                      <td className="px-4 py-2">{o.quantity}</td>
+                      <td className="px-4 py-2">{o.price}</td>
+<td className="px-4 py-2 whitespace-normal break-words">
+  {o.remarks}
+</td>
+                   <td className="px-4 py-2">
+  {new Date(o.updatedAt).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })}
+</td>
+
                   </tr>
                 ))}
               </tbody>

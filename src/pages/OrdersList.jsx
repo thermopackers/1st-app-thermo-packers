@@ -39,6 +39,25 @@ export default function OrdersList() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeProductImage, setActiveProductImage] = useState(null);
   const [resolvedPOUrls, setResolvedPOUrls] = useState({});
+  const [customers, setCustomers] = useState([]);
+
+useEffect(() => {
+  axiosInstance.get("/customers")
+    .then(res => {
+      console.log("Customers API response:", res.data); // 👈 check what comes here
+      setCustomers(Array.isArray(res.data) ? res.data : res.data.customers || []);
+    })
+    .catch(err => console.error("Error fetching customers:", err));
+}, []);
+
+
+const getCustomerPhone = (name) => {
+  if (!Array.isArray(customers)) return "N/A"; // safety check
+  const customer = customers.find(c => c.name === name);
+  return customer ? customer.phone : "N/A";
+};
+
+
   const checkIfUrlExists = async (url) => {
     try {
       const res = await fetch(url, { method: "HEAD" });
@@ -1338,14 +1357,23 @@ useEffect(() => {
                             </div>
                           </td>
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
-                            <strong>Bill To:</strong>
-                            <br />
-                            {order.billTo || "—"}
-                          </td>
+  <strong>Bill To:</strong>
+  <br />
+  {order.billTo || "—"}
+  <br />
+  <span className="text-gray-600">
+    📞 {getCustomerPhone(order.customerName)}
+  </span>
+</td>
+
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                             <strong>Ship To:</strong>
                             <br />
                             {order.shipTo || "—"}
+                            <br />
+  <span className="text-gray-600">
+    📞 {getCustomerPhone(order.customerName)}
+  </span>
                           </td>
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                             {order.size ? order.size : "N/A"}

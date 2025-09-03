@@ -4,14 +4,33 @@ import imageCompression from "browser-image-compression";
 import toast from "react-hot-toast";
 import InternalNavbar from "./InternalNavbar";
 import axiosInstance from "../axiosInstance";
+import Select from "react-select";
+import { useNavigate } from "react-router-dom";
 
 export default function RequisitionForm() {
+  const navigate = useNavigate();
   const [assignedTo, setAssignedTo] = useState("");
-
+  const [products, setProducts] = useState([]);
 const [recorder, setRecorder] = useState(null);
 const [audioBlob, setAudioBlob] = useState(null);
 const [audioURL, setAudioURL] = useState("");
 const [isRecording, setIsRecording] = useState(false);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axiosInstance.get("/purchase-products");
+        setProducts(
+          res.data.data.map((p) => ({
+            label: p.name, // adjust if API uses another key
+            value: p.name,
+          }))
+        );
+      } catch (err) {
+        console.error("❌ Failed to fetch products:", err);
+      }
+    };
+    fetchProducts();
+  }, []);
 
 const startRecording = async () => {
   try {
@@ -195,7 +214,7 @@ const allAttachments = [
 
       toast.dismiss();
     toast.success(editId ? "Requisition updated!" : "Requisition uploaded!");
-      console.log(res.data);
+      navigate("/requisition-slips")
       resetForm();
     } catch (err) {
       toast.dismiss();
@@ -224,16 +243,30 @@ const allAttachments = [
 
           {items.map((item, i) => (
            <div key={i} className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-start">
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">Item Name(Mention specifications like Gauge/quality etc)</label>
-    <input
-      placeholder="Item Name"
-      value={item.name}
-      onChange={(e) => handleItemChange(i, "name", e.target.value)}
-      className="p-3 border border-gray-300 rounded-lg"
-      required
-    />
-  </div>
+ <div className="flex flex-col">
+  <label className="text-sm font-medium mb-1">
+    Item Name (Mention specifications like Gauge/quality etc)
+  </label>
+
+  <Select
+    options={products}
+    isClearable
+    isSearchable
+    placeholder="Select or type to add..."
+    value={item.name ? { label: item.name, value: item.name } : null}
+    onChange={(selectedOption) => {
+      handleItemChange(i, "name", selectedOption ? selectedOption.value : "");
+    }}
+    onInputChange={(inputValue, { action }) => {
+      if (action === "input-change") {
+        handleItemChange(i, "name", inputValue); // allow manual entry
+      }
+    }}
+    className="react-select-container"
+    classNamePrefix="react-select"
+  />
+</div>
+
 
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">Quantity</label>

@@ -629,7 +629,7 @@ useEffect(() => {
                     {["admin", "accounts"].includes(user.role) && (
                       <NavLink to="/registered-vehicles">
                         <button className="w-full rounded-xl bg-green-600 px-4 py-5 text-white shadow hover:bg-green-700">
-                          Vehicles Documents
+                          Vehicles Maintenance Log Book & Documents
                           <div className="mt-1 text-sm font-normal opacity-90">
                             Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
                           </div>
