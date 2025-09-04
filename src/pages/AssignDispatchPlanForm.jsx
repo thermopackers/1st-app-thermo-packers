@@ -901,137 +901,11 @@ const handleEditDieselEntry = async (entry) => {
            {user.role !== "driver" && (
             <>
 
-        <div className="bg-white shadow p-4 rounded mb-6 max-w-3xl mx-auto">
-  <h3 className="font-bold text-lg mb-2">Register New Vehicle</h3>
 
-  <p className="text-sm text-gray-600 mb-4">
-    <span className="font-medium text-gray-700">Format (eg.):</span>
-    <code className="bg-gray-100 p-1 rounded text-sm">PB08 EL 9364 : pb08el9364thermopackers@gmail.com</code>
-  </p>
-
-  <div className="grid md:grid-cols-2 gap-4">
-    <div className="flex flex-col">
-      <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Number</label>
-      <input
-        type="text"
-        placeholder="Enter vehicle number (e.g. PB08 EL 9364)"
-        className="border p-2 rounded"
-        value={newVehicle.vehicleNumber.toUpperCase()}
-        onChange={e => setNewVehicle(v => ({ ...v, vehicleNumber: e.target.value }))}
-      />
-    </div>
-
-    <div className="flex flex-col">
-      <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Email</label>
-      <input
-        type="email"
-        placeholder="Enter vehicle email (e.g. pb08el9364thermopackers@gmail.com)"
-        className="border p-2 rounded"
-        value={newVehicle.driverEmail}
-        onChange={e => setNewVehicle(v => ({ ...v, driverEmail: e.target.value }))}
-      />
-    </div>
-    <div className="flex flex-col">
-  <label className="mb-1 font-medium text-sm text-gray-700">GPS Link (optional)</label>
-  <input
-    type="url"
-    placeholder="Paste GPS tracking link"
-    className="border p-2 rounded"
-    value={newVehicle.gpsLink}
-    onChange={(e) =>
-      setNewVehicle((v) => ({ ...v, gpsLink: e.target.value }))
-    }
-  />
-</div>
-<div className="flex flex-col">
-  <label className="mb-1 font-medium text-sm text-gray-700">Driver Phone</label>
-  <input
-    type="tel"
-    placeholder="e.g. 9876543210"
-    className="border p-2 rounded"
-    value={newVehicle.phone || ""}
-    onChange={(e) =>
-      setNewVehicle((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '') }))
-    }
-  />
-</div>
-
-  </div>
-
-  <button
-    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-    onClick={handleVehicleRegister}
-  >
-    Register Vehicle
-  </button>
-</div>
-        
-
-<div className="flex justify-center mt-4">
-  <button
-    onClick={() => setShowVehicles((prev) => !prev)}
-    className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition"
-  >
-    {showVehicles ? "Hide Registered Vehicles" : "Show Registered Vehicles"}
-  </button>
-</div>
 </>
  )}
 
-<div
-  className={`transition-all duration-500 ease-in-out transform ${
-    showVehicles
-      ? "max-h-[1000px] overflow-y-auto opacity-100 scale-100"
-      : "max-h-0 opacity-0 scale-95 pointer-events-none"
-  }`}
->
 
-
-  <div className="mt-6">
-    <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
-  <ul className="space-y-2">
- {registeredVehicles.map((vehicle) => (
-  <li
-    key={vehicle._id}
-    className="flex flex-col sm:flex-row sm:justify-between sm:items-center border p-3 rounded shadow-sm gap-3"
-  >
-    {/* Vehicle details */}
-    <div>
-      <p className="font-medium">{vehicle.vehicleNumber}</p>
-      <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
-    </div>
-
-    {/* Action buttons */}
-    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-      <button
-        className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
-        onClick={() => handleEditVehicle(vehicle)}
-      >
-        ✏️ Edit
-      </button>
-      <button
-        className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
-        onClick={() => setSelectedVehicle(vehicle)}
-      >
-        📄 Manage Docs
-      </button>
-    </div>
-  </li>
-))}
-
-  {selectedVehicle && user.role === "accounts" && (
-  <div ref={docsRef} className="mt-6 p-4 border rounded bg-white shadow">
-    <h3 className="font-semibold mb-2">
-      Managing Documents for: {selectedVehicle.vehicleNumber}
-    </h3>
-    <VehicleDocumentManager vehicleNumber={selectedVehicle.vehicleNumber} />
-  </div>
-)}
-
-</ul>
-
-  </div>
-</div>
 
 
 
@@ -1540,6 +1414,134 @@ setSearchTerm("");
           </div>
         </div>
             )}
+                    <div className="bg-white shadow p-4 rounded mb-6 max-w-3xl mx-auto">
+  <h3 className="font-bold text-lg mb-2">Register New Vehicle</h3>
+
+  <p className="text-sm text-gray-600 mb-4">
+    <span className="font-medium text-gray-700">Format (eg.):</span>
+    <code className="bg-gray-100 p-1 rounded text-sm">PB08 EL 9364 : pb08el9364thermopackers@gmail.com</code>
+  </p>
+
+  <div className="grid md:grid-cols-2 gap-4">
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Number</label>
+      <input
+        type="text"
+        placeholder="Enter vehicle number (e.g. PB08 EL 9364)"
+        className="border p-2 rounded"
+        value={newVehicle.vehicleNumber.toUpperCase()}
+        onChange={e => setNewVehicle(v => ({ ...v, vehicleNumber: e.target.value }))}
+      />
+    </div>
+
+    <div className="flex flex-col">
+      <label className="mb-1 font-medium text-sm text-gray-700">Vehicle Email</label>
+      <input
+        type="email"
+        placeholder="Enter vehicle email (e.g. pb08el9364thermopackers@gmail.com)"
+        className="border p-2 rounded"
+        value={newVehicle.driverEmail}
+        onChange={e => setNewVehicle(v => ({ ...v, driverEmail: e.target.value }))}
+      />
+    </div>
+    <div className="flex flex-col">
+  <label className="mb-1 font-medium text-sm text-gray-700">GPS Link (optional)</label>
+  <input
+    type="url"
+    placeholder="Paste GPS tracking link"
+    className="border p-2 rounded"
+    value={newVehicle.gpsLink}
+    onChange={(e) =>
+      setNewVehicle((v) => ({ ...v, gpsLink: e.target.value }))
+    }
+  />
+</div>
+<div className="flex flex-col">
+  <label className="mb-1 font-medium text-sm text-gray-700">Driver Phone</label>
+  <input
+    type="tel"
+    placeholder="e.g. 9876543210"
+    className="border p-2 rounded"
+    value={newVehicle.phone || ""}
+    onChange={(e) =>
+      setNewVehicle((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '') }))
+    }
+  />
+</div>
+
+  </div>
+
+  <button
+    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+    onClick={handleVehicleRegister}
+  >
+    Register Vehicle
+  </button>
+</div>
+        
+
+<div className="flex justify-center mt-4">
+  <button
+    onClick={() => setShowVehicles((prev) => !prev)}
+    className="mb-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition"
+  >
+    {showVehicles ? "Hide Registered Vehicles" : "Show Registered Vehicles"}
+  </button>
+</div>
+<div
+  className={`transition-all duration-500 ease-in-out transform ${
+    showVehicles
+      ? "max-h-[1000px] overflow-y-auto opacity-100 scale-100"
+      : "max-h-0 opacity-0 scale-95 pointer-events-none hidden"
+  }`}
+>
+
+
+  <div className="mt-6">
+    <h4 className="font-semibold text-md mb-2 text-center">Registered Vehicles</h4>
+  <ul className="space-y-2">
+ {registeredVehicles.map((vehicle) => (
+  <li
+    key={vehicle._id}
+    className="flex flex-col sm:flex-row sm:justify-between sm:items-center border p-3 rounded shadow-sm gap-3"
+  >
+    {/* Vehicle details */}
+    <div>
+      <p className="font-medium">{vehicle.vehicleNumber}</p>
+      <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
+    </div>
+
+    {/* Action buttons */}
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+      <button
+        className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+        onClick={() => handleEditVehicle(vehicle)}
+      >
+        ✏️ Edit
+      </button>
+      <button
+        className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+        onClick={() => setSelectedVehicle(vehicle)}
+      >
+        📄 Manage Docs
+      </button>
+    </div>
+  </li>
+))}
+
+  {selectedVehicle && user.role === "accounts" && (
+  <div ref={docsRef} className="mt-6 p-4 border rounded bg-white shadow">
+    <h3 className="font-semibold mb-2">
+      Managing Documents for: {selectedVehicle.vehicleNumber}
+    </h3>
+    <VehicleDocumentManager vehicleNumber={selectedVehicle.vehicleNumber} />
+  </div>
+)}
+
+</ul>
+
+  </div>
+</div>
       </main>
     </div>
   );

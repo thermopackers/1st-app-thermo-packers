@@ -6,6 +6,8 @@ import InternalNavbar from "../components/InternalNavbar";
 export default function AddCategory() {
   const [inputs, setInputs] = useState([{ name: "" }]); // multiple category inputs
   const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const fetchCategories = async () => {
     try {
@@ -19,6 +21,17 @@ export default function AddCategory() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // fetch suppliers by category
+  const fetchSuppliers = async (category) => {
+    try {
+      const res = await axiosInstance.get(`/suppliers?category=${category}`);
+      setSuppliers(res.data.data);
+      setSelectedCategory(category);
+    } catch (err) {
+      toast.error("Failed to load suppliers");
+    }
+  };
 
   // handle input change
   const handleInputChange = (index, value) => {
@@ -60,7 +73,7 @@ export default function AddCategory() {
       <InternalNavbar />
       <div className="max-w-md mx-auto p-6 bg-white rounded shadow">
         <h2 className="text-xl font-bold mb-4">➕ Add Categories</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-3">
           {inputs.map((input, index) => (
             <div key={index} className="flex gap-2">
@@ -103,9 +116,32 @@ export default function AddCategory() {
         <h3 className="mt-6 font-semibold">📂 Categories</h3>
         <ul className="list-disc pl-5">
           {categories.map((c) => (
-            <li key={c._id}>{c.name}</li>
+            <li
+              key={c._id}
+              onClick={() => fetchSuppliers(c.name)}
+              className="cursor-pointer text-blue-600 hover:underline"
+            >
+              {c.name}
+            </li>
           ))}
         </ul>
+
+        {selectedCategory && (
+          <div className="mt-4">
+            <h4 className="font-bold">Suppliers in {selectedCategory}</h4>
+            {suppliers.length > 0 ? (
+              <ul className="list-disc pl-5">
+                {suppliers.map((s) => (
+                  <li key={s._id}>
+                    {s.name} {s.company ? `- ${s.company}` : ""}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">No suppliers in this category</p>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

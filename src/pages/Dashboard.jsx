@@ -849,6 +849,25 @@ useEffect(() => {
               </div>
             </section>
           )}
+          {/* Plant & Machinery Maintenance */}
+{/* {["accounts", "admin"].includes(user.role) && (
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 className="text-2xl font-bold text-slate-900 text-center">
+      Plant & Machinery Maintenance
+    </h3>
+    <div className="mt-4 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4">
+      <NavLink to="/plant-machinery-maintenance">
+        <button className="w-full rounded-xl bg-rose-600 px-4 py-5 text-white shadow hover:bg-rose-700">
+          Maintenance Dashboard
+          <div className="mt-1 text-sm font-normal opacity-90">
+            Plant & Machinery Maintenance Dashboard
+          </div>
+        </button>
+      </NavLink>
+    </div>
+  </div>
+)} */}
+
         </div>
       </main>
     </>

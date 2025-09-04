@@ -45,6 +45,11 @@ import CancelledOrders from "../pages/CancelledOrders";
 import CompletedOrdersDashboard from "../pages/CompletedOrdersDashboard";
 import StockManagement from "../pages/StockManagement";
 import RegisteredVehicles from "../pages/RegisteredVehicles";
+import MainElectricPanelPage from "../pages/MainElectricPanelPage";
+import PlantMachineryMaintenance from "../pages/PlantMachineryMaintenance";
+import DGSetLogBookPage from "../pages/DGSetLogBookPage";
+import PowerFactorMaintenance from "../pages/PowerFactorMaintenance";
+import ProductsDetails from "../pages/ProductsDetails";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -507,6 +512,38 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="/maintenance/main-electric-panel"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><MainElectricPanelPage /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/plant-machinery-maintenance"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><PlantMachineryMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/plant-machinery-maintenance-power-factor"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><PowerFactorMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/dg-set-log-book"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><DGSetLogBookPage /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
 
 <Route
   path="/add-supplier"
@@ -615,6 +652,13 @@ element={
     </ProtectedRoute>
   }
 />
+<Route path="/get-products/:id" 
+element={
+   
+      <PageWrapper><ProductsDetails /></PageWrapper>
+
+  } />
+
   <Route 
               path="/register/assistant" 
               element={<PageWrapper><AssistantRegistrationPage /></PageWrapper>} 

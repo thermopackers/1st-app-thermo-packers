@@ -138,7 +138,7 @@ const renderSummaryCards = () => {
       </div>
       <div className="bg-white p-4 rounded-lg shadow border">
         <div className="text-2xl font-bold text-gray-600">{totalStats.sundayCount}</div>
-        <div className="text-sm text-gray-600">Sundays (Excluded)</div>
+        <div className="text-sm text-gray-600">Sundays (Included)</div>
       </div>
     </div>
   );

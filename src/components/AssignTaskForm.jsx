@@ -1,14 +1,10 @@
-
-
-
-
-
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import RecordRTC from 'recordrtc';
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import axios from "axios";
+import Select from "react-select";
 
 const AssignTaskForm = ({
   users,
@@ -29,6 +25,22 @@ const [recorder, setRecorder] = useState(null);
   const [error, setError] = useState("");
   const [existingImages, setExistingImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
+const [products, setProducts] = useState([]);
+const [productSearch, setProductSearch] = useState("");
+const [selectedProducts, setSelectedProducts] = useState([""]);
+console.log("products",products);
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const res = await axiosInstance.get(`/products-multer?search=${productSearch}`);
+      setProducts(res.data.products || []);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    }
+  };
+  fetchProducts();
+}, [productSearch]);
 
   useEffect(() => {
     if (task) {
@@ -171,6 +183,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
         repeat,
         images: allImages,
         isOrderFollowUp,
+  products: selectedProducts.filter((id) => id), // ✅ multiple product IDs
       };
       await axiosInstance.put(`/todos/${task._id}`, payload);
       toast.success("Task updated successfully!");
@@ -186,6 +199,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
             repeat,
             images: allImages,
             isOrderFollowUp,
+                    products: selectedProducts.filter((id) => id), // ✅ multiple products
           };
           await axiosInstance.post("/todos/create", payload);
         })
@@ -261,6 +275,63 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
           rows={4}
         />
       </div>
+
+    <div>
+  <label className="block text-gray-700 font-semibold mb-2">
+    Select Products
+  </label>
+
+  {selectedProducts.map((prodId, index) => (
+    <div key={index} className="flex space-x-2 mb-2">
+      <Select
+        options={products.map((prod) => ({
+          value: prod._id,
+          label: `${prod.name} (${prod.unit})`,
+        }))}
+        value={
+          prodId
+            ? {
+                value: prodId,
+                label:
+                  products.find((p) => p._id === prodId)?.name || "Selected",
+              }
+            : null
+        }
+        onInputChange={(val) => setProductSearch(val)} // 🔎 API search
+        onChange={(opt) => {
+          const newList = [...selectedProducts];
+          newList[index] = opt?.value || "";
+          setSelectedProducts(newList);
+        }}
+        isClearable
+        placeholder="Search & select product..."
+        className="flex-1"
+      />
+      {selectedProducts.length > 1 && (
+        <button
+          type="button"
+          onClick={() =>
+            setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
+          }
+          className="text-red-600 font-bold"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  ))}
+
+  <button
+    type="button"
+    onClick={() => setSelectedProducts([...selectedProducts, ""])}
+    className="text-sm text-indigo-600 hover:underline"
+  >
+    ➕ Add another product
+  </button>
+</div>
+
+
+
 
       <div>
         <label

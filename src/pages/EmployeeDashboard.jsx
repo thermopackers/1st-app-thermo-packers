@@ -4,7 +4,7 @@ import { useToDo } from "../context/ToDoContext";
 import InternalNavbar from "../components/InternalNavbar";
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2"; // Make sure you have installed sweetalert2 via npm/yarn
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import SalesFollowUpForm from "./SalesFollowUpForm";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -22,6 +22,7 @@ const EmployeeDashboard = () => {
  const [requisitionSlips, setRequisitionSlips] = useState({});
 
   const { taskId } = useParams();
+console.log("tasks",tasks);
 
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -502,6 +503,25 @@ useEffect(() => {
                       )}
                     </h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
+                    {task.products?.length > 0 && (
+  <div className="mt-2 text-sm text-gray-800">
+    <p className="font-semibold text-gray-700">🛒 Products:</p>
+    <ul className="list-disc list-inside">
+      {task.products.map((p) => (
+      <li key={p._id}>
+  <Link
+    to={`/get-products/${p._id}`}
+    className="text-blue-600 hover:underline"
+  >
+    {p.name} {p.unit && <span className="text-gray-500">({p.unit})</span>}
+  </Link>
+</li>
+
+      ))}
+    </ul>
+  </div>
+)}
+
 {/* ✅ Show requisition info if available */}
 {task.origin === "requisition" && requisitionSlips[task.requisitionId] && (
   <div className="mt-2 space-y-1 text-sm text-gray-700">
