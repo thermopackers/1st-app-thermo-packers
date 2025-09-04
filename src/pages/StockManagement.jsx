@@ -10,7 +10,7 @@ export default function StockManagement() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [products, setProducts] = useState([]);
   const [quantities, setQuantities] = useState({});
-  const [page, setPage] = useState(1);          // 🆕 pagination
+  const [page, setPage] = useState(1); // pagination
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
@@ -78,12 +78,17 @@ export default function StockManagement() {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await axiosInstance.put(`/purchase-products/${id}/stock`, { add, remove });
+      const res = await axiosInstance.put(`/purchase-products/${id}/stock`, {
+        add,
+        remove,
+      });
 
       toast.success(`Stock updated. Current stock: ${res.data.stock}`);
 
       setProducts((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, stock: res.data.stock } : p))
+        prev.map((p) =>
+          p._id === id ? { ...p, stock: res.data.stock } : p
+        )
       );
 
       setQuantities((prev) => ({ ...prev, [id]: { add: 0, remove: 0 } }));
@@ -92,11 +97,95 @@ export default function StockManagement() {
     }
   };
 
+  // 🔹 Show stock history with pagination inside Swal
+  const showHistory = async (prod) => {
+    let page = 1;
+    let totalPages = 1;
+    let history = [];
+
+    const fetchHistory = async (pg = 1) => {
+      try {
+        const res = await axiosInstance.get(
+          `/purchase-products/${prod._id}/history?page=${pg}&limit=10`
+        );
+        history = res.data.data;
+        page = res.data.page;
+        totalPages = res.data.totalPages;
+      } catch (err) {
+        toast.error("Failed to load stock history");
+      }
+    };
+
+   const renderHistoryTable = () => {
+  const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  return `
+    <table style="width:100%; text-align:left; border-collapse: collapse;">
+      <tr><th>Date</th><th>Added</th><th>Removed</th><th>Stock After</th></tr>
+      ${history
+        .map(
+          (h) => `
+        <tr>
+          <td>${formatDate(h.date)}</td>
+          <td style="color:green;">+${h.added}</td>
+          <td style="color:red;">-${h.removed}</td>
+          <td><b>${h.newStock}</b></td>
+        </tr>
+      `
+        )
+        .join("")}
+    </table>
+    <div style="margin-top:10px; text-align:center;">
+      <button id="prevBtn" ${page === 1 ? "disabled" : ""}>⬅ Prev</button>
+      <span> Page ${page} of ${totalPages} </span>
+      <button id="nextBtn" ${
+        page === totalPages ? "disabled" : ""
+      }>Next ➡</button>
+    </div>
+  `;
+};
+
+    await fetchHistory(1);
+
+    Swal.fire({
+      title: `📜 Stock History - ${prod.name}`,
+      html: renderHistoryTable(),
+      showConfirmButton: false,
+      width: 650,
+      didRender: () => {
+        document
+          .getElementById("prevBtn")
+          ?.addEventListener("click", async () => {
+            if (page > 1) {
+              await fetchHistory(page - 1);
+              Swal.update({ html: renderHistoryTable() });
+            }
+          });
+        document
+          .getElementById("nextBtn")
+          ?.addEventListener("click", async () => {
+            if (page < totalPages) {
+              await fetchHistory(page + 1);
+              Swal.update({ html: renderHistoryTable() });
+            }
+          });
+      },
+    });
+  };
+
   return (
     <>
       <InternalNavbar />
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-center mb-6">📊 Stock Management</h2>
+        <h2 className="text-2xl font-bold text-center mb-6">
+          📊 Stock Management
+        </h2>
 
         {/* Category filter */}
         <div className="mb-6 flex justify-center">
@@ -110,7 +199,9 @@ export default function StockManagement() {
           >
             <option value="">-- Select Category --</option>
             {categories.map((cat) => (
-              <option key={cat._id} value={cat._id}>{cat.name}</option>
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
+              </option>
             ))}
           </select>
         </div>
@@ -123,23 +214,32 @@ export default function StockManagement() {
                 <thead className="bg-gray-100 text-gray-800 text-center">
                   <tr>
                     <th className="p-3">Grade Name</th>
-                    <th className="p-3">Add Quantity</th>
-                    <th className="p-3">Remove Quantity</th>
-                    <th className="p-3">Current Stock</th>
-                    <th className="p-3">Action</th>
+                    <th className="p-3">Unit</th>
+                    <th className="p-3">Material Purchased New</th>
+                    <th className="p-3">Material Consumed</th>
+                    <th className="p-3">Current Stock in Hand</th>
+                    <th className="p-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((prod) => (
-                    <tr key={prod._id} className="border-t hover:bg-gray-50 text-center">
+                    <tr
+                      key={prod._id}
+                      className="border-t hover:bg-gray-50 text-center"
+                    >
                       <td className="p-3">{prod.name}</td>
+                      <td className="p-3">{prod.unit}</td>
                       <td className="p-3">
                         <input
                           type="number"
                           className="border rounded px-2 py-1 w-24"
                           value={quantities[prod._id]?.add || ""}
                           onChange={(e) =>
-                            handleQuantityChange(prod._id, "add", e.target.value)
+                            handleQuantityChange(
+                              prod._id,
+                              "add",
+                              e.target.value
+                            )
                           }
                         />
                       </td>
@@ -149,7 +249,11 @@ export default function StockManagement() {
                           className="border rounded px-2 py-1 w-24"
                           value={quantities[prod._id]?.remove || ""}
                           onChange={(e) =>
-                            handleQuantityChange(prod._id, "remove", e.target.value)
+                            handleQuantityChange(
+                              prod._id,
+                              "remove",
+                              e.target.value
+                            )
                           }
                         />
                       </td>
@@ -160,6 +264,12 @@ export default function StockManagement() {
                           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                         >
                           💾 Save
+                        </button>
+                        <button
+                          onClick={() => showHistory(prod)}
+                          className="ml-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                        >
+                          📜 View History
                         </button>
                       </td>
                     </tr>
@@ -193,7 +303,9 @@ export default function StockManagement() {
           </>
         ) : (
           selectedCategory && (
-            <p className="text-center text-gray-500">No products found in this category.</p>
+            <p className="text-center text-gray-500">
+              No products found in this category.
+            </p>
           )
         )}
       </div>
