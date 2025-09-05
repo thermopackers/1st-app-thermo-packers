@@ -105,7 +105,13 @@ export default function InternalNavbar() {
 
 
         {/* Mobile / Tablet / Laptop Hamburger Icon */}
-        <div className="xl:hidden flex items-center">
+        <div className="xl:hidden flex items-center gap-2">
+           <button
+    onClick={() => navigate("/dashboard")}
+    className="bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded-md shadow-md hover:bg-yellow-500 transition"
+  >
+    Go to Main Dashboard
+  </button>
           <button onClick={toggleMenu} className="focus:outline-none">
             {menuOpen ? (
               <FaTimes className="h-6 w-6 text-white" />

@@ -73,8 +73,6 @@ const PackagingDashboard = React.lazy(() => import("../pages/PackagingDashboard"
 const EmployeeDashboard = React.lazy(() => import("../pages/EmployeeDashboard"));
 const AdminDashboard = React.lazy(() => import("../pages/AdminDashboard"));
 const AssistantRegistrationPage = React.lazy(() => import("../pages/AssistantRegistrationPage"));
-// const AssistantDashboard = React.lazy(() => import("../components/"));
-// const ManageAssistants = React.lazy(() => import("../pages/ManageAssistants"));
 
 export default function AppRoutes() {
   const { user, loading } = useUserContext();

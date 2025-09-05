@@ -17,6 +17,13 @@ export default function StockManagement() {
     fetchCategories();
   }, []);
 
+  const handleDateChange = (id, value) => {
+  setQuantities((prev) => ({
+    ...prev,
+    [id]: { ...prev[id], date: value }
+  }));
+};
+
   const fetchCategories = async () => {
     try {
       const res = await axiosInstance.get("/categories");
@@ -48,12 +55,14 @@ export default function StockManagement() {
   };
 
   const handleSave = async (id) => {
-    const { add = 0, remove = 0 } = quantities[id] || {};
+    const { add = 0, remove = 0, date } = quantities[id] || {};
 
     if (!add && !remove) {
       toast.error("Please enter a quantity to add or remove");
       return;
     }
+      const chosenDate = date ? new Date(date) : new Date();
+  const formattedDate = chosenDate.toISOString(); // Send as ISO string
 
     const netChange = add - remove;
 
@@ -81,6 +90,7 @@ export default function StockManagement() {
       const res = await axiosInstance.put(`/purchase-products/${id}/stock`, {
         add,
         remove,
+         date: formattedDate,
       });
 
       toast.success(`Stock updated. Current stock: ${res.data.stock}`);
@@ -91,7 +101,7 @@ export default function StockManagement() {
         )
       );
 
-      setQuantities((prev) => ({ ...prev, [id]: { add: 0, remove: 0 } }));
+      setQuantities((prev) => ({ ...prev, [id]: { add: 0, remove: 0, date: "" } }));
     } catch (err) {
       toast.error("Failed to update stock");
     }
@@ -179,6 +189,20 @@ export default function StockManagement() {
     });
   };
 
+const getTotalStock = () => {
+  let total = 0;
+  let unit = "";
+
+  products.forEach((p) => {
+    total += p.stock || 0;
+    if (!unit && p.unit) unit = p.unit; // take first non-empty unit
+  });
+
+  return { total, unit };
+};
+
+
+
   return (
     <>
       <InternalNavbar />
@@ -213,6 +237,7 @@ export default function StockManagement() {
               <table className="min-w-full table-auto text-sm text-gray-700">
                 <thead className="bg-gray-100 text-gray-800 text-center">
                   <tr>
+                        <th className="p-3">📅 Date</th>   {/* NEW */}
                     <th className="p-3">Grade Name</th>
                     <th className="p-3">Unit</th>
                     <th className="p-3">Material Purchased New</th>
@@ -227,6 +252,20 @@ export default function StockManagement() {
                       key={prod._id}
                       className="border-t hover:bg-gray-50 text-center"
                     >
+ <td className="p-3">
+  <input
+    type="date"
+    className="border rounded px-2 py-1"
+    value={
+      quantities[prod._id]?.date ||
+      new Date().toISOString().split("T")[0] // default = today
+    }
+    onChange={(e) => handleDateChange(prod._id, e.target.value)}
+    max={new Date().toISOString().split("T")[0]} // ⛔ no future dates
+  />
+</td>
+
+
                       <td className="p-3">{prod.name}</td>
                       <td className="p-3">{prod.unit}</td>
                       <td className="p-3">
@@ -258,23 +297,36 @@ export default function StockManagement() {
                         />
                       </td>
                       <td className="p-3">{prod.stock || 0}</td>
-                      <td className="p-3">
-                        <button
-                          onClick={() => handleSave(prod._id)}
-                          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                        >
-                          💾 Save
-                        </button>
-                        <button
-                          onClick={() => showHistory(prod)}
-                          className="ml-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                        >
-                          📜 View History
-                        </button>
-                      </td>
+                     <td className="p-3">
+  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+    <button
+      onClick={() => handleSave(prod._id)}
+      className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto"
+    >
+      💾 Save
+    </button>
+    <button
+      onClick={() => showHistory(prod)}
+      className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 w-full sm:w-auto"
+    >
+      📜 View History
+    </button>
+  </div>
+</td>
+
                     </tr>
                   ))}
                 </tbody>
+              {/* ✅ Totals Row */}
+<tfoot>
+  <tr className="bg-gray-200 font-bold text-center">
+    <td colSpan="5" className="p-3 text-right">Total Current Stock in Hand:</td>
+    <td className="p-3 text-left" colSpan="2">
+      {getTotalStock().total} {getTotalStock().unit}
+    </td>
+  </tr>
+</tfoot>
+
               </table>
             </div>
 
