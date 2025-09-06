@@ -27,8 +27,7 @@ const [recorder, setRecorder] = useState(null);
   const [newImages, setNewImages] = useState([]);
 const [products, setProducts] = useState([]);
 const [productSearch, setProductSearch] = useState("");
-const [selectedProducts, setSelectedProducts] = useState([""]);
-console.log("products",products);
+const [selectedProducts, setSelectedProducts] = useState([]);
 
 useEffect(() => {
   const fetchProducts = async () => {
@@ -281,53 +280,56 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
     Select Products
   </label>
 
-  {selectedProducts.map((prodId, index) => (
-    <div key={index} className="flex space-x-2 mb-2">
-      <Select
-        options={products.map((prod) => ({
-          value: prod._id,
-          label: `${prod.name} (${prod.unit})`,
-        }))}
-        value={
-          prodId
-            ? {
-                value: prodId,
-                label:
-                  products.find((p) => p._id === prodId)?.name || "Selected",
-              }
-            : null
+{selectedProducts.map((prodId, index) => (
+  <div key={index} className="flex space-x-2 mb-2">
+    <Select
+      options={products.map((prod) => ({
+        value: prod._id,
+        label: `${prod.name} (${prod.unit})`,
+      }))}
+      value={
+        prodId
+          ? {
+              value: prodId,
+              label:
+                products.find((p) => p._id === prodId)?.name ||
+                "Selected product",
+            }
+          : null
+      }
+      onInputChange={(val) => setProductSearch(val)}
+      onChange={(opt) => {
+        const newList = [...selectedProducts];
+        newList[index] = opt?.value || null;
+        setSelectedProducts(newList.filter(Boolean)); // 🚀 removes null/empty
+      }}
+      isClearable
+      placeholder="Search & select product..."
+      className="flex-1"
+    />
+    {selectedProducts.length > 1 && (
+      <button
+        type="button"
+        onClick={() =>
+          setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
         }
-        onInputChange={(val) => setProductSearch(val)} // 🔎 API search
-        onChange={(opt) => {
-          const newList = [...selectedProducts];
-          newList[index] = opt?.value || "";
-          setSelectedProducts(newList);
-        }}
-        isClearable
-        placeholder="Search & select product..."
-        className="flex-1"
-      />
-      {selectedProducts.length > 1 && (
-        <button
-          type="button"
-          onClick={() =>
-            setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
-          }
-          className="text-red-600 font-bold"
-        >
-          ✕
-        </button>
-      )}
-    </div>
-  ))}
+        className="text-red-600 font-bold"
+      >
+        ✕
+      </button>
+    )}
+  </div>
+))}
 
-  <button
-    type="button"
-    onClick={() => setSelectedProducts([...selectedProducts, ""])}
-    className="text-sm text-indigo-600 hover:underline"
-  >
-    ➕ Add another product
-  </button>
+
+<button
+  type="button"
+  onClick={() => setSelectedProducts([...selectedProducts, null])}
+  className="text-sm text-indigo-600 hover:underline"
+>
+  ➕ Add another product
+</button>
+
 </div>
 
 
