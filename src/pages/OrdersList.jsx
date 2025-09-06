@@ -52,10 +52,18 @@ useEffect(() => {
 
 
 const getCustomerPhone = (name) => {
-  if (!Array.isArray(customers)) return "N/A"; // safety check
-  const customer = customers.find(c => c.name === name);
-  return customer ? customer.phone : "N/A";
+  if (!Array.isArray(customers)) return "N/A";
+
+  const normalized = (str) =>
+    str?.toString().trim().toLowerCase().replace(/\s+/g, " ") || "";
+
+  const customer = customers.find(
+    (c) => normalized(c.name) === normalized(name)
+  );
+
+  return customer?.phone || "N/A";
 };
+
 
 
   const checkIfUrlExists = async (url) => {
