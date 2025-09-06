@@ -182,7 +182,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
         repeat,
         images: allImages,
         isOrderFollowUp,
-  products: selectedProducts.filter((id) => id), // ✅ multiple product IDs
+products: selectedProducts.map((p) => p.value), // ✅ correct
       };
       await axiosInstance.put(`/todos/${task._id}`, payload);
       toast.success("Task updated successfully!");
@@ -198,7 +198,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
             repeat,
             images: allImages,
             isOrderFollowUp,
-                    products: selectedProducts.filter((id) => id), // ✅ multiple products
+products: selectedProducts.map((p) => p.value), // ✅ correct
           };
           await axiosInstance.post("/todos/create", payload);
         })
@@ -280,31 +280,20 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
     Select Products
   </label>
 
-{selectedProducts.map((prodId, index) => (
+{selectedProducts.map((prod, index) => (
   <div key={index} className="flex space-x-2 mb-2">
     <Select
-      options={products.map((prod) => ({
-        value: prod._id,
-        label: `${prod.name} (${prod.unit})`,
+      options={products.map((p) => ({
+        value: p._id,
+        label: `${p.name} (${p.unit})`,
       }))}
-      value={
-  prodId
-    ? (() => {
-        const prod = products.find((p) => p._id === prodId);
-        return prod
-          ? { value: prod._id, label: `${prod.name} (${prod.unit})` }
-          : { value: prodId, label: "Loading..." }; // fallback while fetching
-      })()
-    : null
-}
-
+      value={prod || null}   // 👈 just use the object directly
       onInputChange={(val) => setProductSearch(val)}
-    onChange={(opt) => {
-  const newList = [...selectedProducts];
-  newList[index] = opt ? opt.value : null;
-  setSelectedProducts(newList.filter(Boolean)); // ✅ removes null/empty
-}}
-
+      onChange={(opt) => {
+        const newList = [...selectedProducts];
+        newList[index] = opt || null;  // 👈 save object
+        setSelectedProducts(newList.filter(Boolean));
+      }}
       isClearable
       placeholder="Search & select product..."
       className="flex-1"
