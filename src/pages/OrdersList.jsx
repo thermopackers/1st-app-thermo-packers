@@ -51,15 +51,23 @@ useEffect(() => {
 }, []);
 
 
-const getCustomerPhone = (name) => {
+const getCustomerPhone = (orderCustomer) => {
   if (!Array.isArray(customers)) return "N/A";
 
-  const normalized = (str) =>
+  const normalize = (str) =>
     str?.toString().trim().toLowerCase().replace(/\s+/g, " ") || "";
 
-  const customer = customers.find(
-    (c) => normalized(c.name) === normalized(name)
+  // 1️⃣ Try exact GST/company match first
+  let customer = customers.find(
+    (c) => c.company && normalize(c.company) === normalize(orderCustomer)
   );
+
+  // 2️⃣ If not found, try by name
+  if (!customer) {
+    customer = customers.find(
+      (c) => normalize(c.name) === normalize(orderCustomer)
+    );
+  }
 
   return customer?.phone || "N/A";
 };
