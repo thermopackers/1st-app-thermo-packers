@@ -288,15 +288,16 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
         label: `${prod.name} (${prod.unit})`,
       }))}
       value={
-        prodId
-          ? {
-              value: prodId,
-              label:
-                products.find((p) => p._id === prodId)?.name ||
-                "Selected product",
-            }
-          : null
-      }
+  prodId
+    ? (() => {
+        const prod = products.find((p) => p._id === prodId);
+        return prod
+          ? { value: prod._id, label: `${prod.name} (${prod.unit})` }
+          : { value: prodId, label: "Loading..." }; // fallback while fetching
+      })()
+    : null
+}
+
       onInputChange={(val) => setProductSearch(val)}
     onChange={(opt) => {
   const newList = [...selectedProducts];
