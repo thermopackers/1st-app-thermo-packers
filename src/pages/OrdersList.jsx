@@ -51,27 +51,11 @@ useEffect(() => {
 }, []);
 
 
-const getCustomerPhone = (orderCustomer) => {
-  if (!Array.isArray(customers)) return "N/A";
-
-  const normalize = (str) =>
-    str?.toString().trim().toLowerCase().replace(/\s+/g, " ") || "";
-
-  // 1️⃣ Try exact GST/company match first
-  let customer = customers.find(
-    (c) => c.company && normalize(c.company) === normalize(orderCustomer)
-  );
-
-  // 2️⃣ If not found, try by name
-  if (!customer) {
-    customer = customers.find(
-      (c) => normalize(c.name) === normalize(orderCustomer)
-    );
-  }
-
-  return customer?.phone || "N/A";
+const getCustomerPhone = (name) => {
+  if (!Array.isArray(customers)) return "N/A"; // safety check
+  const customer = customers.find(c => c.name === name);
+  return customer ? customer.phone : "N/A";
 };
-
 
 
   const checkIfUrlExists = async (url) => {

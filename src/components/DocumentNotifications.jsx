@@ -11,6 +11,8 @@ const DOCUMENT_TYPES = {
   gps_renewal: "GPS Renewal",
    rc_copy: "RC Copy", 
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
+    tempo_challan_copy: "Tempo Challan Copy",       // ✅ new
+  payment_receipts: "Payment Receipts",           // ✅ new
 };
 
 export default function DocumentNotifications({ setDocNotifCount }) {

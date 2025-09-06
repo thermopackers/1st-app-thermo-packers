@@ -633,6 +633,7 @@ useEffect(() => {
                           <div className="mt-1 text-sm font-normal opacity-90">
                             Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
                           </div>
+                          <span>Add / Remove Vehicles</span>
                         </button>
                       </NavLink>
                     )}

@@ -256,6 +256,19 @@ useEffect(() => {
                     <p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">
                       {task.description}
                     </p>
+                    {task.products && task.products.length > 0 && (
+  <div className="mt-2">
+    <p className="text-sm font-semibold text-gray-700">Product to Sell:</p>
+    <ul className="list-disc list-inside text-sm text-gray-600">
+      {task.products.map((prod) => (
+        <li key={prod._id}>
+          {prod.name} {prod.unit ? `(${prod.unit})` : ""}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
                     {task.images && task.images.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {task.images.map((url, idx) => {
