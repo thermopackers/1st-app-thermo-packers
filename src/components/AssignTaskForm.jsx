@@ -298,11 +298,12 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
           : null
       }
       onInputChange={(val) => setProductSearch(val)}
-      onChange={(opt) => {
-        const newList = [...selectedProducts];
-        newList[index] = opt?.value || null;
-        setSelectedProducts(newList.filter(Boolean)); // 🚀 removes null/empty
-      }}
+    onChange={(opt) => {
+  const newList = [...selectedProducts];
+  newList[index] = opt ? opt.value : null;
+  setSelectedProducts(newList.filter(Boolean)); // ✅ removes null/empty
+}}
+
       isClearable
       placeholder="Search & select product..."
       className="flex-1"
