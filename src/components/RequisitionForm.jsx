@@ -284,6 +284,7 @@ const allAttachments = [
     <label className="text-sm font-medium mb-1">Required By Date</label>
     <input
       type="date"
+        lang="en-GB"
       value={item.requiredBy}
       onChange={(e) => handleItemChange(i, "requiredBy", e.target.value)}
       className="p-3 border border-gray-300 rounded-lg"

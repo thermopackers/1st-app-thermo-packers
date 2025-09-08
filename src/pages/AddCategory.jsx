@@ -12,8 +12,6 @@ export default function AddCategory() {
   const [selectedCategory, setSelectedCategory] = useState("");
 const [selectedSupplier, setSelectedSupplier] = useState(null);
 const detailRef = useRef(null);
-console.log("selectedSupplier",selectedSupplier);
-console.log("suppliers",suppliers);
 
   const fetchCategories = async () => {
     try {
@@ -207,6 +205,7 @@ console.log("suppliers",suppliers);
     <thead className="bg-gray-100">
       <tr>
         <th className="border px-2 py-1">Name</th>
+        <th className="border px-2 py-1">Address</th>
         <th className="border px-2 py-1">Phone</th>
       </tr>
     </thead>
@@ -226,6 +225,7 @@ console.log("suppliers",suppliers);
           className="hover:bg-gray-50 cursor-pointer"
         >
           <td className="border px-2 py-1 text-blue-700">{s.name}</td>
+          <td className="border px-2 py-1 text-blue-700">{s.address}</td>
           <td className="border px-2 py-1 text-blue-700">{s.phone}</td>
         </tr>
       ))}

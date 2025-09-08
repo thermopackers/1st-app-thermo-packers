@@ -19,6 +19,7 @@ export default function RequisitionSlips() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
 const [employees, setEmployees] = useState([]);
+console.log("slips",slips);
 
 useEffect(() => {
   axiosInstance.get("/users/get-all-users")
@@ -45,6 +46,17 @@ useEffect(() => {
     })
     .catch((err) => console.error("Failed to load slips", err));
 }, [page, search, user]);
+
+const formatDateDDMMYYYY = (d) => {
+  if (!d) return "";
+  const dateObj = new Date(d);
+  if (isNaN(dateObj.getTime())) return "";
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 
 
 const forceDownload = async (url, fileName) => {
@@ -183,10 +195,12 @@ const openPdfInSwal = (pdfUrl, slip) => {
                     <span className="font-semibold">Person:</span>{" "}
                     {slip.createdBy}
                   </p>
-                  <p>
-                    <span className="font-semibold">Date:</span>{" "}
-                    {new Date(slip.date).toLocaleDateString()}
-                  </p>
+             <p>
+  <span className="font-semibold">Date:</span>{" "}
+  {formatDateDDMMYYYY(slip.updatedAt)}
+</p>
+
+
                   <p>
                     <span className="font-semibold">Items:</span>{" "}
                     {slip.items?.length || 0}

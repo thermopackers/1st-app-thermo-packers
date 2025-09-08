@@ -79,6 +79,15 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
     setPage(1);
   };
 
+  const formatDate = (dateStr) => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -91,6 +100,7 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
      <div className="flex flex-wrap gap-3 items-center mb-6">
   <input
     type="date"
+     lang="en-GB"
     value={dateFilter}
     onChange={(e) => setDateFilter(e.target.value)}
     className="border border-gray-300 rounded-md px-4 py-2 text-sm w-full sm:w-auto"
@@ -177,7 +187,7 @@ const isPrivileged = ["admin", "accounts"].includes(user?.role);
 <tbody>
   {groupedLogs.map((entry, idx) => (
     <tr key={idx} className="text-sm">
-      <td className="p-2 border">{entry.date}</td>
+<td className="p-2 border">{formatDate(entry.date)}</td>
       <td className="p-2 border">{entry.user?.name || "N/A"}</td>
       <td className="p-2 border capitalize">{entry.user?.role || "N/A"}</td>
 

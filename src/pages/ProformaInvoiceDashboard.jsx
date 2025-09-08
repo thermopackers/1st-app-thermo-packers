@@ -81,6 +81,16 @@ const deleteInvoice = async (id) => {
   }
 };
 
+const formatDateDDMMYYYY = (dateInput) => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d)) return "";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -124,9 +134,7 @@ const deleteInvoice = async (id) => {
                 <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
                   <td className="px-3 py-2">{(page - 1) * limit + index + 1}</td>
                   <td className="px-3 py-2">{inv.invoiceNo}</td>
-<td className="px-3 py-2">
-  {new Date(inv.date).toLocaleDateString("en-GB")}
-</td>
+<td className="px-3 py-2">{formatDateDDMMYYYY(inv.date)}</td>
                         <td className="px-3 py-2">{inv.customerName || "—"}</td> {/* Added */}
                   <td className="px-3 py-2">{inv.billTo}</td>
                   <td className="px-3 py-2">{inv.shipTo}</td>

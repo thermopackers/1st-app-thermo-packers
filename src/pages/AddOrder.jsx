@@ -16,6 +16,7 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [availableSizesList, setAvailableSizesList] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientDetails, setClientDetails] = useState({
+      customerId: "",       // ✅ add this
     customerName: "",
     po: "",
   poCopy: [], // ✅ now an array
@@ -175,13 +176,15 @@ freightAmount:
     if (loadingCustomers) {
       return [{ label: "Loading customers...", value: "" }];
     }
-    return [
-      ...allCustomers.map((c) => ({
-        label: c.name,
-        value: c.name,
-      })),
-      { label: "Other (Custom Customer)", value: "custom" },
-    ];
+   return [
+  ...allCustomers.map((c) => ({
+    label: c.name,
+    value: c._id,     // ✅ use ObjectId
+    name: c.name,     // keep name separately
+  })),
+  { label: "Other (Custom Customer)", value: "custom" },
+];
+
   }, [allCustomers, loadingCustomers]);
 
   const productOptions = useMemo(() => {
@@ -250,7 +253,7 @@ const options = useMemo(() => {
     });
   }
   // ✅ Checkbox: Same as Bill To
- else if (name === "sameAsBillTo") {
+else if (name === "sameAsBillTo") {
   const selectedCustomer = allCustomers.find(
     (c) => c.name === clientDetails.customerName
   );
@@ -258,25 +261,36 @@ const options = useMemo(() => {
   const updatedDetails = {
     ...clientDetails,
     sameAsBillTo: checked,
-    billTo: checked && selectedCustomer ? selectedCustomer.address : clientDetails.billTo,
-    shipTo: checked && selectedCustomer ? selectedCustomer.address : "",
   };
+
+  // If checkbox is checked, set both addresses to customer address
+  if (checked && selectedCustomer) {
+    updatedDetails.billTo = selectedCustomer.address;
+    updatedDetails.shipTo = selectedCustomer.address;
+  }
+  // If checkbox is unchecked, keep billTo but clear shipTo
+  else if (!checked) {
+    updatedDetails.shipTo = "";
+  }
 
   setClientDetails(updatedDetails);
 }
 
 
   // ✅ Bill To change should update Ship To if checkbox is checked
-  else if (name === "billTo") {
-    const updatedDetails = {
-      ...clientDetails,
-      billTo: value,
-    };
-    if (clientDetails.sameAsBillTo) {
-      updatedDetails.shipTo = value;
-    }
-    setClientDetails(updatedDetails);
-  } else {
+else if (name === "billTo") {
+  const updatedDetails = {
+    ...clientDetails,
+    billTo: value,
+  };
+  
+  // Only update shipTo if checkbox is checked AND we're not clearing the field
+  if (clientDetails.sameAsBillTo && value) {
+    updatedDetails.shipTo = value;
+  }
+  
+  setClientDetails(updatedDetails);
+} else {
     setClientDetails({ ...clientDetails, [name]: value });
   }
 };
@@ -426,6 +440,7 @@ const handleSubmit = async (e) => {
 
     // ✅ Submit order first (without file)
     const formData = new FormData();
+    formData.append("customerId", clientDetails.customerId);   // ✅ new
     formData.append("customerName", clientDetails.customerName);
     formData.append("po", clientDetails.po);
     formData.append("date", clientDetails.date);
@@ -499,30 +514,35 @@ if (clientDetails.poCopy.length > 0) {
 <div className="flex items-center justify-center flex-col gap-4">
 
             {/* Customer Dropdown */}
-            <Select
-              options={customerOptions}
-              placeholder={loadingCustomers ? "Loading customers..." : "Select Customer"}
-              value={
-                clientDetails.customerName &&
-                customerOptions.find((opt) => opt.value === clientDetails.customerName) || null
-              }
-          onChange={(selected) => {
-  if (selected.value === "custom") {
-    setClientDetails({ ...clientDetails, customerName: "", billTo: "", shipTo: "" });
-  } else {
-    const selectedCustomer = allCustomers.find((c) => c.name === selected.value);
-    setClientDetails((prev) => ({
-      ...prev,
-      customerName: selected.value,
-      billTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.billTo,
-      shipTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.shipTo,
-    }));
+          <Select
+  options={customerOptions}
+  placeholder={loadingCustomers ? "Loading customers..." : "Select Customer"}
+  value={
+    customerOptions.find((opt) => opt.value === clientDetails.customerId) || null
   }
-}}
-
-              className="w-full"
-              classNamePrefix="react-select"
-            />
+  onChange={(selected) => {
+    if (selected.value === "custom") {
+      setClientDetails({ 
+        ...clientDetails, 
+        customerId: "", 
+        customerName: "", 
+        billTo: "", 
+        shipTo: "" 
+      });
+    } else {
+      const selectedCustomer = allCustomers.find((c) => c._id === selected.value);
+      setClientDetails((prev) => ({
+        ...prev,
+        customerId: selected.value,
+        customerName: selected.label, // Use label instead of name
+        billTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.billTo,
+        shipTo: prev.sameAsBillTo && selectedCustomer ? selectedCustomer.address : prev.shipTo,
+      }));
+    }
+  }}
+  className="w-full"
+  classNamePrefix="react-select"
+/>
 
             {/* Manual Input for custom customer */}
             {/* {!customerOptions.some((opt) => opt.value === clientDetails.customerName) && (
@@ -535,7 +555,14 @@ if (clientDetails.poCopy.length > 0) {
                 className="border border-gray-400 p-2 rounded w-full"
               />
             )} */}
-
+{/* After customer dropdown */}
+{clientDetails.customerId && clientDetails.customerId !== "custom" && (
+  <div className="text-sm text-gray-600 mt-1">
+    Customer Address: {
+      allCustomers.find(c => c._id === clientDetails.customerId)?.address || "Not available"
+    }
+  </div>
+)}
             <input
               name="po"
               placeholder="P/O Number"
@@ -1007,8 +1034,13 @@ if (clientDetails.poCopy.length > 0) {
       const data = await res.json();
 
       if (data.secure_url) {
+        // Ensure narrationImages is always an array before spreading
+        const currentNarrationImages = Array.isArray(updated[index].narrationImages) 
+          ? updated[index].narrationImages 
+          : [];
+        
         updated[index].narrationImages = [
-          ...updated[index].narrationImages,
+          ...currentNarrationImages,
           data.secure_url
         ];
       }

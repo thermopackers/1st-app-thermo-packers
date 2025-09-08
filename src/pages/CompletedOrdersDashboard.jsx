@@ -65,17 +65,20 @@ console.log("orders",orders);
             className="p-2 border rounded"
           />
           <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="p-2 border rounded"
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="p-2 border rounded"
-          />
+  type="date"
+  value={startDate}
+  onChange={(e) => setStartDate(e.target.value)}
+  lang="en-GB"
+  className="p-2 border rounded"
+/>
+<input
+  type="date"
+  value={endDate}
+  onChange={(e) => setEndDate(e.target.value)}
+  lang="en-GB"
+  className="p-2 border rounded"
+/>
+
           <button
             onClick={() => {
               setSearch("");

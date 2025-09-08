@@ -11,8 +11,8 @@ const DOCUMENT_TYPES = {
   gps_renewal: "GPS Renewal",
    rc_copy: "RC Copy", 
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
-    tempo_challan_copy: "Tempo Challan Copy",       // ✅ new
-  payment_receipts: "Payment Receipts",           // ✅ new
+    tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",       // ✅ new
+  payment_receipts: "Tempo Challan Copy & Payment Receipts",           // ✅ new
 };
 
 export default function DocumentNotifications({ setDocNotifCount }) {
@@ -39,19 +39,6 @@ export default function DocumentNotifications({ setDocNotifCount }) {
       console.error("Error fetching expiring documents:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const deleteNotification = async (id) => {
-    try {
-      await axiosInstance.delete(`/vehicle-documents/notifications/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // Optimistic UI update
-      setExpiringDocuments((prev) => prev.filter((doc) => doc._id !== id));
-      if (setDocNotifCount) setDocNotifCount((prev) => Math.max(prev - 1, 0));
-    } catch (err) {
-      console.error("❌ Failed to delete notification:", err);
     }
   };
 
@@ -88,7 +75,6 @@ export default function DocumentNotifications({ setDocNotifCount }) {
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Type</th>
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Expiry</th>
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Days Left</th>
-            <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
@@ -112,25 +98,18 @@ export default function DocumentNotifications({ setDocNotifCount }) {
                   {DOCUMENT_TYPES[doc.documentType]}
                 </td>
                 <td className="px-3 py-2 text-sm">
-                  {new Date(doc.expiryDate).toLocaleDateString()}
+{new Date(doc.expiryDate).toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+})}
                 </td>
                 <td className="px-3 py-2 text-sm">
                   <span className={`px-2 py-1 rounded-full text-xs ${urgencyClass}`}>
                     {isExpired ? "Expired" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-sm">
-                  {isExpired ? (
-                    <button
-                      onClick={() => deleteNotification(doc._id)}
-                      className="text-red-600 hover:text-red-800 text-lg"
-                    >
-                      ❌
-                    </button>
-                  ) : (
-                    <span className="text-xs text-slate-400">—</span>
-                  )}
-                </td>
+               
               </tr>
             );
           })}

@@ -174,6 +174,16 @@ function chunkArray(arr, size) {
   return result;
 }
 
+const formatDateDDMMYYYY = (dateInput) => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d)) return "";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const handleSubmit = async (e) => {
   e.preventDefault();
   setLoading(true);
@@ -220,7 +230,7 @@ if (form.img.length > 0) {
   // Filter out any that failed to load
   productImagesBase64 = productImagesBase64.filter(Boolean);
 }
-const rfqDate = new Date().toLocaleDateString("en-GB");
+const rfqDate = formatDateDDMMYYYY(form.requiredByDate || new Date());
 
     // Build full invoice table
 const docDefinition = {
@@ -315,7 +325,7 @@ const docDefinition = {
                     [{ text: "Unit", bold: true }, form.unit || "N/A"], // Added this new line
           [{ text: "HSN Code", bold: true }, form.hsnCode],
           [{ text: "GST (%)", bold: true }, form.gstPercent],
-          [{ text: "Required By", bold: true }, form.requiredByDate],
+[{ text: "Required By", bold: true }, formatDateDDMMYYYY(form.requiredByDate)],
           [{ text: "Size", bold: true }, form.size || "N/A"],
           [{ text: "Category", bold: true }, form.category],
           [{ text: "Remarks", bold: true }, form.remarks || "None"]

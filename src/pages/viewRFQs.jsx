@@ -59,6 +59,16 @@ export default function ViewRFQs() {
     }
   };
 
+  const formatDateDDMMYYYY = (dateInput) => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d)) return "";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
   const formatPhoneNumber = (phone) => {
     if (!phone) return null;
     
@@ -92,7 +102,7 @@ const handleWhatsAppSend = () => {
     return;
   }
 
-  const message = `Hello,\n\nPlease find the details for the RFQ below:\n\nItem: ${currentRFQ.itemName}\nQuantity: ${currentRFQ.quantity}\nRequired By: ${new Date(currentRFQ.requiredByDate).toLocaleDateString()}\nSize: ${currentRFQ.size || "N/A"}\nRemarks: ${currentRFQ.remarks || "None"}\nCategory: ${currentRFQ.category}\n\nDownload RFQ PDF: ${currentRFQ.fileUrl}\n\nRegards,\n${JSON.parse(localStorage.getItem("user"))?.name || ""}`;
+  const message = `Hello,\n\nPlease find the details for the RFQ below:\n\nItem: ${currentRFQ.itemName}\nQuantity: ${currentRFQ.quantity}\nRequired By: ${formatDateDDMMYYYY(currentRFQ.requiredByDate)}\nSize: ${currentRFQ.size || "N/A"}\nRemarks: ${currentRFQ.remarks || "None"}\nCategory: ${currentRFQ.category}\n\nDownload RFQ PDF: ${currentRFQ.fileUrl}\n\nRegards,\n${JSON.parse(localStorage.getItem("user"))?.name || ""}`;
 
   // Check if on mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -229,7 +239,7 @@ Please find the details for the RFQ below:
 
 Item: ${currentRFQ.itemName}
 Quantity: ${currentRFQ.quantity}
-Required By: ${currentRFQ.requiredByDate}
+Required By: ${formatDateDDMMYYYY(currentRFQ.requiredByDate)}
 Size: ${currentRFQ.size || "N/A"}
 Remarks: ${currentRFQ.remarks || "None"}
 Category: ${currentRFQ.category}

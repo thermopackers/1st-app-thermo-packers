@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axiosInstance from '../axiosInstance';
 import { useUserContext } from '../context/UserContext';
 import Swal from 'sweetalert2';
+import imageCompression from "browser-image-compression";
 
 const DOCUMENT_TYPES = {
   insurance_renewal: 'Insurance Renewal',
@@ -13,8 +14,8 @@ const DOCUMENT_TYPES = {
   gps_renewal: 'GPS Renewal',
    rc_copy: "RC Copy", 
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
-    tempo_challan_copy: "Tempo Challan Copy (Himachal/Haryana/Jammu/UP Tax)",
-  payment_receipts: "Payment Receipts",
+    tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
+  payment_receipts: "Tempo Challan Copy & Payment Receipts",
 };
 
 export default function VehicleDocumentManager({ vehicleNumber }) {
@@ -53,6 +54,23 @@ export default function VehicleDocumentManager({ vehicleNumber }) {
     }
   };
 
+  const compressFile = async (file) => {
+  if (file.type?.startsWith("image/")) {
+    try {
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1280,
+        useWebWorker: true,
+      };
+      return await imageCompression(file, options);
+    } catch (err) {
+      console.error("Image compression error:", err);
+      return file;
+    }
+  }
+  return file; // PDFs or others unchanged
+};
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -87,13 +105,14 @@ const handleSubmit = async (e) => {
   // Separate existing URLs and new files
   const existingUrls = [];
   if (formData.documents && formData.documents.length > 0) {
-    formData.documents.forEach((file) => {
-      if (file.isExisting) {
-        existingUrls.push(file.url); // ✅ collect old file urls
-      } else {
-        submitData.append("documents", file); // ✅ only upload new files
-      }
-    });
+ for (const file of formData.documents) {
+  if (file.isExisting) {
+    existingUrls.push(file.url);
+  } else {
+    const compressed = await compressFile(file);
+    submitData.append("documents", compressed);
+  }
+}
   }
 
   // Add existingUrls as JSON string
@@ -246,6 +265,7 @@ const handleSubmit = async (e) => {
       <label className="block text-sm font-medium mb-1">Issue Date</label>
       <input
         type="date"
+         lang="en-GB"
         name="issueDate"
         value={formData.issueDate}
         onChange={handleInputChange}
@@ -258,6 +278,7 @@ const handleSubmit = async (e) => {
       <label className="block text-sm font-medium mb-1">Expiry Date</label>
       <input
         type="date"
+         lang="en-GB"
         name="expiryDate"
         value={formData.expiryDate}
         onChange={handleInputChange}
@@ -352,7 +373,6 @@ const handleSubmit = async (e) => {
           <thead>
             <tr className="bg-gray-100">
               <th className="p-3 text-left">Type</th>
-              <th className="p-3 text-left">Document #</th>
               <th className="p-3 text-left">Issue Date</th>
               <th className="p-3 text-left">Expiry Date</th>
               <th className="p-3 text-left">Notes</th>
@@ -382,26 +402,26 @@ if (doc.documentType !== "vehicle_images") {
               return (
                 <tr key={doc._id} className="border-b">
                   <td className="p-3">{DOCUMENT_TYPES[doc.documentType]}</td>
-                  <td className="p-3">{doc.documentNumber}</td>
            <td className="p-3">
   {doc.documentType !== "vehicle_images" && doc.issueDate
-    ? new Date(doc.issueDate).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "2-digit",
+    ? new Date(doc.issueDate).toLocaleDateString("en-GB", {
         day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       })
     : "—"}
 </td>
 
 <td className="p-3">
   {doc.documentType !== "vehicle_images" && doc.expiryDate
-    ? new Date(doc.expiryDate).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "2-digit",
+    ? new Date(doc.expiryDate).toLocaleDateString("en-GB", {
         day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       })
     : "—"}
 </td>
+
 
 
 <td className="p-3 whitespace-normal break-words max-w-xs">

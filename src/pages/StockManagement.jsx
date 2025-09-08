@@ -12,6 +12,7 @@ export default function StockManagement() {
   const [quantities, setQuantities] = useState({});
   const [page, setPage] = useState(1); // pagination
   const [totalPages, setTotalPages] = useState(1);
+console.log("products",products);
 
   useEffect(() => {
     fetchCategories();
@@ -201,6 +202,36 @@ const getTotalStock = () => {
   return { total, unit };
 };
 
+const showGradeImages = (prod) => {
+  if (!prod.files || prod.files.length === 0) {
+    Swal.fire({
+      title: `${prod.name} - No Images`,
+      text: "No images available for this grade.",
+      icon: "info",
+    });
+    return;
+  }
+
+  Swal.fire({
+    title: `Images - ${prod.name}`,
+    html: `
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+        ${prod.files
+          .map(
+            (file) => `
+          <div style="border:1px solid #ddd; padding:5px; border-radius:8px;">
+            <img src="${file.url}" alt="file" style="max-width:150px; max-height:150px; object-fit:cover; border-radius:6px;" />
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    `,
+    showCloseButton: true, // ❌ close button
+    showConfirmButton: false,
+    width: 700,
+  });
+};
 
 
   return (
@@ -266,7 +297,12 @@ const getTotalStock = () => {
 </td>
 
 
-                      <td className="p-3">{prod.name}</td>
+<td 
+  className="p-3 text-blue-600 cursor-pointer underline"
+  onClick={() => showGradeImages(prod)}
+>
+  {prod.name}
+</td>
                       <td className="p-3">{prod.unit}</td>
                       <td className="p-3">
                         <input

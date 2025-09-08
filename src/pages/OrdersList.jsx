@@ -512,7 +512,7 @@ useEffect(() => {
     const data = filteredOrders.map((order) => ({
       OrderID: order._id,
       ShortID: order.shortId,
-      Customer: order.customerName,
+Customer: order.customerName || order.customer?.name || "",
       Product: order.product,
       Quantity: order.quantity,
       Unit: order.unit,
@@ -1296,9 +1296,10 @@ console.log("sortedOrders",sortedOrders);
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                             {order.shortId}
                           </td>
-                          <td className="px-2 sm:px-4 py-2 whitespace-nowrap text-[11px] sm:text-sm">
-                            {order.customerName}
-                          </td>
+                        <td className="px-2 sm:px-4 py-2 whitespace-nowrap text-[11px] sm:text-sm">
+  { order.customer?.name || order.customerName }
+</td>
+
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-blue-600 underline cursor-pointer">
                             <button
                               onClick={() => {
@@ -1366,7 +1367,7 @@ console.log("sortedOrders",sortedOrders);
   {order.billTo || "—"}
   <br />
   <span className="text-gray-600">
-    📞 {getCustomerPhone(order.customerName)}
+📞 {order.customer?.phone || getCustomerPhone(order.customerName)}
   </span>
 </td>
 
@@ -1376,7 +1377,7 @@ console.log("sortedOrders",sortedOrders);
                             {order.shipTo || "—"}
                             <br />
   <span className="text-gray-600">
-    📞 {getCustomerPhone(order.customerName)}
+📞 {order.customer?.phone || getCustomerPhone(order.customerName)}
   </span>
                           </td>
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">

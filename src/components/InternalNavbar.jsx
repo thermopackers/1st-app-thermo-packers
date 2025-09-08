@@ -78,7 +78,7 @@ export default function InternalNavbar() {
     ? "🖥️ Dashboard"
 : role === "suppliers" || role === "viewer"
     ? "🖥️ Dashboard"
-    : "🖥️ Manage Orders"}
+    : "🖥️ Main Dashboard"}
 </NavLink>
 
 
@@ -143,7 +143,7 @@ export default function InternalNavbar() {
     ? "🖥️ Dashboard"
     : role === "suppliers" || role === "viewer"
     ? "🖥️ Dashboard"
-    : "🖥️ Manage Orders"}
+    : "🖥️ Main Dashboard"}
 </NavLink>
 
 

@@ -248,7 +248,7 @@ let video;
   const { value: formValues } = await Swal.fire({
     title: "⛽ Add Diesel Entry",
     html: `
-<input id="diesel-date" type="date" class="swal2-input" value="${existingEntry?.date?.slice(0, 10) || new Date().toISOString().slice(0, 10)}" />
+<input id="diesel-date" type="date" class="swal2-input" value="${existingEntry?.date?.slice(0, 10) || new Date().toLocaleDateString("en-GB").split("/").reverse().join("-")}" />
       <label for="kms-filled" class="block text-sm font-semibold text-gray-700 -mb-4">
     कृपया मान्य KM रीडिंग दर्ज करें
   </label>
@@ -1237,7 +1237,15 @@ setSearchTerm("");
                       <td className="p-3 border text-xs text-gray-800">
   <div className="flex items-center gap-2">
     {plan.dateOfTrip ? (
-      <span>{new Date(plan.dateOfTrip).toLocaleDateString()}</span>
+<span>
+  {plan.dateOfTrip
+    ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "—"}
+</span>
     ) : (
       <span className="text-gray-400">—</span>
     )}

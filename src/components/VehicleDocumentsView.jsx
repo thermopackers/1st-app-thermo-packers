@@ -13,8 +13,8 @@ const DOCUMENT_TYPES = {
   gps_renewal: 'GPS Renewal',
    rc_copy: "RC Copy", 
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
-    tempo_challan_copy: "Tempo Challan Copy (Himachal/Haryana/Jammu/UP Tax)",
-  payment_receipts: "Payment Receipts",
+    tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
+  payment_receipts: "Tempo Challan Copy & Payment Receipts",
 };
 
 export default function VehicleDocumentsView({ vehicleNumber }) {
@@ -111,14 +111,27 @@ const openInSwal = (url, isImage) => {
                 </p>
                {doc.documentType !== "vehicle_images" ? (
   <>
-    <p className="text-sm">
-      <span className="font-semibold">Issue Date:</span>{" "}
-      {new Date(doc.issueDate).toLocaleDateString()}
-    </p>
-    <p className="text-sm">
-      <span className="font-semibold">Expiry Date:</span>{" "}
-      {new Date(doc.expiryDate).toLocaleDateString()}
-    </p>
+  <p className="text-sm">
+  <span className="font-semibold">Issue Date:</span>{" "}
+  {doc.issueDate
+    ? new Date(doc.issueDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "-"}
+</p>
+<p className="text-sm">
+  <span className="font-semibold">Expiry Date:</span>{" "}
+  {doc.expiryDate
+    ? new Date(doc.expiryDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "-"}
+</p>
+
   </>
 ) : (
   <p className="text-sm text-gray-500 italic">No expiry dates required</p>

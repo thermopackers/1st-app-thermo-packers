@@ -250,20 +250,47 @@ const renderPresentDetails = (presentDetails) => {
 
   return (
     <div className="mt-3 bg-green-50 p-3 rounded-lg">
-      <h4 className="font-medium text-green-800 mb-2">Present Days Details:</h4>
-      <div className="space-y-2">
-        {presentDetails.map((detail, index) => (
-          <div key={index} className="text-sm text-green-700">
-            📅 {formatDate(detail.date)}: 
-            {detail.checkInTime && ` In: ${formatTime(detail.checkInTime)}`}
-            {detail.checkOutTime && ` Out: ${formatTime(detail.checkOutTime)}`}
-            {detail.workedHours && ` (Worked: ${formatWorkedHours(detail.workedHours)})`}
-          </div>
-        ))}
+      <h4 className="font-medium text-green-800 mb-3">Present Days Details:</h4>
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-green-200 rounded-lg overflow-hidden">
+          <thead className="bg-green-100">
+            <tr>
+              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Date</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Day</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-In</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-Out</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Worked Hours</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-green-200">
+            {presentDetails.map((detail, index) => {
+              const dayName = new Date(detail.date).toLocaleDateString("en-IN", {
+                weekday: "short",
+              });
+
+              return (
+                <tr key={index} className="hover:bg-green-50">
+                  <td className="px-3 py-2 text-sm text-green-700">{formatDate(detail.date)}</td>
+                  <td className="px-3 py-2 text-sm text-green-700">{dayName}</td>
+                  <td className="px-3 py-2 text-sm text-green-700">
+                    {detail.checkInTime ? formatTime(detail.checkInTime) : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-green-700">
+                    {detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-green-700">
+                    {detail.workedHours ? formatWorkedHours(detail.workedHours) : "N/A"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
+
 
 const renderAbsentDetails = (absentDates) => {
   if (!absentDates || absentDates.length === 0) return null;

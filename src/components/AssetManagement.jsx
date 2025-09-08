@@ -361,13 +361,31 @@ useEffect(()=>{
           {typeof asset.issuedTo === 'object' ? asset.issuedTo?.email : '—'}
         </td>
 
-        <td className="py-3 px-4 text-sm">
-          {new Date(asset.createdAt).toLocaleString()}
-        </td>
+     <td className="py-3 px-4 text-sm">
+  {asset.createdAt
+    ? new Date(asset.createdAt).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-"}
+</td>
 
-        <td className="py-3 px-4 text-sm">
-          {new Date(asset.updatedAt).toLocaleString()}
-        </td>
+<td className="py-3 px-4 text-sm">
+  {asset.updatedAt
+    ? new Date(asset.updatedAt).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-"}
+</td>
+
+
 
         <td className="py-3 px-4 text-sm">
           <div className="flex flex-col md:flex-row gap-2">
