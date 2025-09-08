@@ -52,11 +52,11 @@ useEffect(() => {
 }, []);
 
 
-// const getCustomerPhone = (name) => {
-//   if (!Array.isArray(customers)) return "N/A"; // safety check
-//   const customer = customers.find(c => c.name === name);
-//   return customer ? customer.phone : "N/A";
-// };
+const getCustomerPhone = (name) => {
+  if (!Array.isArray(customers)) return "N/A"; // safety check
+  const customer = customers.find(c => c.name === name);
+  return customer ? customer.phone : "N/A";
+};
 
 
   const checkIfUrlExists = async (url) => {
@@ -845,16 +845,7 @@ useEffect(() => {
   };
 
   const sortedOrders = useMemo(() => {
-    return [...orders].map(order => {
-      const customer = customers.find(
-        c =>
-          c.name === order.customerName ||
-          c.company === order.customerName ||
-          c.email === order.customerEmail
-      );
-      return { ...order, customer }; // add `customer` field, keep `customerName`
-    })
-    .sort(
+    return [...orders].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
   }, [orders]);
@@ -1375,7 +1366,7 @@ console.log("sortedOrders",sortedOrders);
   {order.billTo || "—"}
   <br />
   <span className="text-gray-600">
-📞 {order.customer?.phone || "N/A"}
+    📞 {getCustomerPhone(order.customerName)}
   </span>
 </td>
 
@@ -1385,7 +1376,7 @@ console.log("sortedOrders",sortedOrders);
                             {order.shipTo || "—"}
                             <br />
   <span className="text-gray-600">
-📞 {order.customer?.phone || "N/A"}
+    📞 {getCustomerPhone(order.customerName)}
   </span>
                           </td>
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
