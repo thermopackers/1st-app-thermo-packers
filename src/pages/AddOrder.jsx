@@ -15,6 +15,12 @@ const [paymentTerms, setPaymentTerms] = useState("");
 const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [availableSizesList, setAvailableSizesList] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [convertedInvoices, setConvertedInvoices] = useState(() => {
+  // Load from localStorage on initial render
+  const saved = localStorage.getItem('convertedInvoices');
+  return saved ? JSON.parse(saved) : [];
+});
+
   const [clientDetails, setClientDetails] = useState({
       customerId: "",       // ✅ add this
     customerName: "",
@@ -53,8 +59,10 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
 console.log("allProducts",allProducts);
 console.log("productList",productList);
 
+
 useEffect(() => {
-  const fetchProductSizes = async () => {
+
+    const fetchProductSizes = async () => {
     try {
       const response = await axiosInstance.get("/products/all-backend-products");
       setAllProducts(response.data);
@@ -79,14 +87,22 @@ useEffect(() => {
   fetchProductSizes();
   fetchCustomers();
 
+},[])
+
+useEffect(() => {
+
+
   // ✅ Handle auto-fill from Proforma Invoice
   const state = location.state;
   if (state?.fromProforma && state.invoice) {
     const invoice = state.invoice;
 console.log("invoice",invoice);
 
+    const customer = allCustomers.find(c => c.name === invoice.customerName);
+
     setClientDetails((prev) => ({
       ...prev,
+            customerId: customer?._id || "", // Set customerId if found
       customerName: invoice.customerName || "",
       billTo: invoice.billTo || "",
       shipTo: invoice.shipTo || "",
@@ -168,9 +184,15 @@ freightAmount:
 }
 
   }
-}, [location]);
+}, [location,allCustomers]);
 
 
+// Function to mark an invoice as converted
+const markInvoiceAsConverted = (invoiceId) => {
+  const updated = [...convertedInvoices, invoiceId];
+  setConvertedInvoices(updated);
+  localStorage.setItem('convertedInvoices', JSON.stringify(updated));
+};
 
   const customerOptions = useMemo(() => {
     if (loadingCustomers) {
@@ -486,7 +508,22 @@ if (clientDetails.poCopy.length > 0) {
   }
 }
 
-
+       // ✅ If this order came from a proforma invoice, mark it as converted
+    const convertingInvoiceId = localStorage.getItem('convertingInvoiceId');
+    if (convertingInvoiceId && location.state?.fromProforma) {
+      // Use the centralized conversion tracker
+      const success = ConversionTracker.markAsConverted(convertingInvoiceId);
+      
+      if (success) {
+        console.log(`Invoice ${convertingInvoiceId} marked as converted`);
+      } else {
+        console.error(`Failed to mark invoice ${convertingInvoiceId} as converted`);
+      }
+      
+      // Clean up the converting ID
+      localStorage.removeItem('convertingInvoiceId');
+    }
+    
     toast.success("Order submitted!");
         navigate("/dashboard", { replace: true });
 
@@ -497,9 +534,45 @@ if (clientDetails.poCopy.length > 0) {
   }
 };
 
-  const handleCancel = () => {
-    navigate("/orders");
-  };
+// Also add this to handle the case when user cancels the order
+const handleCancel = () => {
+  // Clean up the localStorage if user cancels
+  localStorage.removeItem('convertingInvoiceId');
+  navigate("/orders");
+};
+
+// Add the ConversionTracker utility at the top of the AddOrder component file
+const ConversionTracker = {
+  // Get all converted invoices
+  getConvertedInvoices: () => {
+    try {
+      const saved = localStorage.getItem('convertedInvoices');
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error("Error loading converted invoices:", error);
+      return {};
+    }
+  },
+  
+  // Mark an invoice as converted
+  markAsConverted: (invoiceId) => {
+    try {
+      const converted = ConversionTracker.getConvertedInvoices();
+      converted[invoiceId] = true;
+      localStorage.setItem('convertedInvoices', JSON.stringify(converted));
+      return true;
+    } catch (error) {
+      console.error("Error marking invoice as converted:", error);
+      return false;
+    }
+  },
+  
+  // Check if an invoice is converted
+  isConverted: (invoiceId) => {
+    const converted = ConversionTracker.getConvertedInvoices();
+    return !!converted[invoiceId];
+  }
+};
  
   return (
     <>

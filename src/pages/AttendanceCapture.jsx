@@ -237,25 +237,33 @@ if (!face1 || !face2) {
     const compressedImage = await compressImage(image1, 0.3);
     const location = await getLocation();
 
-    // 📤 Send to server
-    await axiosInstance.post(
-      "/attendance/mark",
-      { type, photo: compressedImage, location },
-      { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-    );
+// 🚀 Show success instantly
+Swal.fire("Success", `Attendance marked: ${type}`, "success");
+setCapturing(false);
 
-    Swal.fire("Success", `Attendance marked: ${type}`, "success");
-    setCapturing(false);
-  } catch (err) {
-    console.error("Error marking attendance:", err);
-if (err.response?.data?.error?.includes("already marked")) {
-  Swal.fire("Already Marked", err.response.data.error, "info");
-} else if (err.response?.data?.error === "Cloudinary rejected the image") {
-  Swal.fire("Upload Failed", "Face photo could not be uploaded. Try again.", "error");
-} else {
-  Swal.fire("Error", "Failed to mark attendance", "error");
-}
-  } finally {
+// 📤 Upload in background (non-blocking)
+const photoPayload = compressedImage.startsWith("data:")
+  ? compressedImage
+  : `data:image/jpeg;base64,${compressedImage}`;
+
+axiosInstance.post(
+  "/attendance/mark",
+  { type, photo: photoPayload, location },
+  { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+).catch((err) => {
+  if (err.response?.data?.error?.includes("already marked")) {
+    console.log("⚠️ Attendance already marked today, ignoring duplicate.");
+  } else {
+    console.error("Background upload failed:", err.response?.data || err.message);
+  }
+});
+
+
+setCapturing(false);
+} catch (err) {
+  console.error("Error marking attendance:", err);
+  // Errors are already handled in background upload
+} finally {
     setIsSaving(false);
     console.timeEnd("🕒 Total Attendance Time");
   }
@@ -355,6 +363,20 @@ const handleCapture = (type) => {
   }, 800);
 };
 
+function AutoCaptureTrigger({ saveAttendance }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveAttendance();
+    }, 1200); // wait ~1.2s for webcam to adjust lighting
+    return () => clearTimeout(timer);
+  }, [saveAttendance]);
+
+  return (
+    <p className="text-gray-500 text-sm mt-2">
+      📸 Capturing automatically...
+    </p>
+  );
+}
 
 
   return (
@@ -390,19 +412,16 @@ const handleCapture = (type) => {
 
      ) : (
         <div className="flex flex-col items-center gap-4">
-         <ReactWebcam
+<ReactWebcam
   ref={webcamRef}
   audio={false}
   screenshotFormat="image/jpeg"
-  width={320}
-  height={240}
+  className="w-full h-72 sm:h-80 md:h-96 object-cover rounded-2xl shadow-lg"
   videoConstraints={{
-    width: { ideal: 320 },
-    height: { ideal: 240 },
     facingMode: "user",
   }}
-  className="rounded-lg shadow border"
 />
+
 
           {captureTimestamp && (
   <p className="text-sm text-gray-600 mt-2">
@@ -430,39 +449,35 @@ const handleCapture = (type) => {
           <div className="loader border-t-4 border-blue-500 w-10 h-10 rounded-full animate-spin"></div>
         </div>
       )}
-       {capturing && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-    <div className="relative bg-white w-full max-w-sm mx-4 p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in">
+      {capturing && (
+  <div className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50">
+    {/* Cancel Button (Top-right) */}
+    <button
+      className="absolute top-4 right-4 text-gray-300 hover:text-red-500 text-2xl font-bold focus:outline-none"
+      onClick={() => setCapturing(false)}
+      aria-label="Close"
+    >
+      ×
+    </button>
 
-      {/* Cancel Button (Top-right) */}
-      <button
-        className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold focus:outline-none"
-        onClick={() => setCapturing(false)}
-        aria-label="Close"
-      >
-        ×
-      </button>
+    <h3 className="text-xl font-bold mb-4 text-white capitalize">
+      {type} - Capture Photo
+    </h3>
 
-      <h3 className="text-xl font-bold mb-4 text-gray-800 capitalize">
-        {type} - Capture Photo
-      </h3>
-
+    <div className="relative w-full max-w-lg h-[80vh] rounded-2xl overflow-hidden shadow-xl">
       <ReactWebcam
-        audio={false}
         ref={webcamRef}
+        audio={false}
         screenshotFormat="image/jpeg"
-          width={320}
-  height={240}
-        className="rounded-lg shadow-md w-full h-auto max-w-full mb-4 border border-gray-300"
+        className="absolute inset-0 w-full h-full object-cover"
+        videoConstraints={{
+          facingMode: "user",
+        }}
       />
-
-      <button
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-sm font-semibold rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        onClick={saveAttendance}
-      >
-        📸 Save Attendance
-      </button>
     </div>
+
+    {/* Auto trigger saveAttendance after webcam loads */}
+    {capturing && <AutoCaptureTrigger saveAttendance={saveAttendance} />}
   </div>
 )}
 
@@ -475,16 +490,26 @@ const handleCapture = (type) => {
 
 
 {showLivenessPrompt && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-    <div className="bg-white rounded-xl p-6 shadow-2xl text-center animate-fade-in w-full max-w-sm mx-4">
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">🧠 Liveness Check</h2>
-      <p className="text-gray-600 mb-4">
-        Please <strong>blink</strong> or <strong>turn your head slightly</strong> to prove you're real.
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="bg-black/10 rounded-3xl p-8 shadow-2xl text-center w-full max-w-sm mx-4 animate-[fadeIn_0.3s_ease-out] backdrop-blur-md">
+      <h2 className="text-2xl font-semibold text-white tracking-tight mb-3">
+        Liveness Check
+      </h2>
+
+      <p className="text-gray-300 text-base leading-relaxed mb-6">
+        Please <span className="font-medium text-white">blink</span> or{" "}
+        <span className="font-medium text-white">turn your head</span> slightly.
       </p>
-      <p className="text-4xl font-bold text-blue-600">{livenessCountdown}</p>
+
+      <div className="text-5xl font-bold text-blue-400 tracking-wider mb-2">
+        {livenessCountdown}
+      </div>
+
+      <p className="text-xs text-gray-400">Verifying authenticity...</p>
     </div>
   </div>
 )}
+
 
 
     </>

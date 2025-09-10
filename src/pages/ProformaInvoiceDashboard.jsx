@@ -1,3 +1,4 @@
+// In ProformaInvoiceDashboard.jsx
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
@@ -7,14 +8,70 @@ import { useNavigate } from "react-router-dom";
 import { Eye, Mail, MessageCircle } from "lucide-react";
 import { useUserContext } from "../context/UserContext";
 
+// Centralized conversion tracking utility
+const ConversionTracker = {
+  // Get all converted invoices
+  getConvertedInvoices: () => {
+    try {
+      const saved = localStorage.getItem('convertedInvoices');
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error("Error loading converted invoices:", error);
+      return {};
+    }
+  },
+  
+  // Mark an invoice as converted
+  markAsConverted: (invoiceId) => {
+    try {
+      const converted = ConversionTracker.getConvertedInvoices();
+      converted[invoiceId] = true;
+      localStorage.setItem('convertedInvoices', JSON.stringify(converted));
+      return true;
+    } catch (error) {
+      console.error("Error marking invoice as converted:", error);
+      return false;
+    }
+  },
+  
+  // Check if an invoice is converted
+  isConverted: (invoiceId) => {
+    const converted = ConversionTracker.getConvertedInvoices();
+    return !!converted[invoiceId];
+  },
+  
+  // Clear conversion status (for testing/debugging)
+  clearAll: () => {
+    localStorage.removeItem('convertedInvoices');
+  }
+};
+
 export default function ProformaInvoiceDashboard() {
-  const { user } =useUserContext();
+  const { user } = useUserContext();
   const [invoices, setInvoices] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [convertedInvoices, setConvertedInvoices] = useState({});
   const limit = 10;  
-const navigate=useNavigate();
+  const navigate = useNavigate();
+
+  // Load converted invoices from localStorage on component mount
+  useEffect(() => {
+    const loadConvertedInvoices = () => {
+      const converted = ConversionTracker.getConvertedInvoices();
+      setConvertedInvoices(converted);
+    };
+    
+    loadConvertedInvoices();
+    
+    // Also set up an interval to periodically check for updates
+    // (in case another tab/window made changes)
+    const intervalId = setInterval(loadConvertedInvoices, 2000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
   const fetchInvoices = async () => {
     try {
       const res = await axiosInstance.get("/proforma/all", {
@@ -31,22 +88,22 @@ const navigate=useNavigate();
     fetchInvoices();
   }, [page, search]);
 
-const handleEmailShare = async (invoice, user) => {
-  const { value: toEmail } = await Swal.fire({
-    title: "Send Invoice via Email",
-    input: 'email',
-    inputLabel: 'Customer Email',
-    inputValue: invoice.customerEmail || 'example@example.com',
-    showCancelButton: true,
-    confirmButtonText: 'Open Email App',
-    inputPlaceholder: 'Enter customer email'
-  });
+  const handleEmailShare = async (invoice, user) => {
+    const { value: toEmail } = await Swal.fire({
+      title: "Send Invoice via Email",
+      input: 'email',
+      inputLabel: 'Customer Email',
+      inputValue: invoice.customerEmail || 'example@example.com',
+      showCancelButton: true,
+      confirmButtonText: 'Open Email App',
+      inputPlaceholder: 'Enter customer email'
+    });
 
-  if (!toEmail) return;
+    if (!toEmail) return;
 
-  const subject = encodeURIComponent(`Proforma Invoice - ${invoice.invoiceNo}`);
-  const body = encodeURIComponent(
-    `Dear Customer,
+    const subject = encodeURIComponent(`Proforma Invoice - ${invoice.invoiceNo}`);
+    const body = encodeURIComponent(
+      `Dear Customer,
 
 Please find your Proforma Invoice and Statement below:
 
@@ -58,38 +115,58 @@ Let us know in case of any questions.
 Best regards,
 ${user.name}
 (${user.email})`
-  );
+    );
 
-  const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${body}`;
+    const mailtoLink = `mailto:${toEmail}?subject=${subject}&body=${body}`;
 
-  // Open user's email client
-  window.location.href = mailtoLink;
-};
-
+    // Open user's email client
+    window.location.href = mailtoLink;
+  };
 
   const totalPages = Math.ceil(total / limit);
-const deleteInvoice = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this invoice?")) return;
+  
+  const deleteInvoice = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this invoice?")) return;
 
-  try {
-    await axiosInstance.delete(`/proforma/${id}`);
-    toast.success("Invoice deleted successfully");
-    fetchInvoices(); // refresh list
-  } catch (err) {
-    console.error("Failed to delete invoice", err);
-    toast.error("Error deleting invoice");
-  }
-};
+    try {
+      await axiosInstance.delete(`/proforma/${id}`);
+      toast.success("Invoice deleted successfully");
+      fetchInvoices(); // refresh list
+    } catch (err) {
+      console.error("Failed to delete invoice", err);
+      toast.error("Error deleting invoice");
+    }
+  };
 
-const formatDateDDMMYYYY = (dateInput) => {
-  if (!dateInput) return "";
-  const d = new Date(dateInput);
-  if (isNaN(d)) return "";
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
+  const formatDateDDMMYYYY = (dateInput) => {
+    if (!dateInput) return "";
+    const d = new Date(dateInput);
+    if (isNaN(d)) return "";
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Function to handle conversion to sales order
+  const handleConvertToSalesOrder = (invoice) => {
+    // Store the invoice ID in localStorage for the AddOrder component to access
+    localStorage.setItem('convertingInvoiceId', invoice._id);
+    
+    // Navigate to add order page
+    navigate("/add-order", { 
+      state: { fromProforma: true, invoice: invoice } 
+    });
+  };
+
+  // Debug function to reset conversion status (can be removed in production)
+  const resetConversionStatus = (invoiceId) => {
+    const converted = ConversionTracker.getConvertedInvoices();
+    delete converted[invoiceId];
+    localStorage.setItem('convertedInvoices', JSON.stringify(converted));
+    setConvertedInvoices({...converted});
+    toast.success("Conversion status reset");
+  };
 
   return (
     <>
@@ -119,7 +196,7 @@ const formatDateDDMMYYYY = (dateInput) => {
                 <th className="px-3 py-2 text-left">S.No</th>
                 <th className="px-3 py-2 text-left">P/I ID</th>
                 <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Customer Name</th> {/* Added */}
+                <th className="px-3 py-2 text-left">Customer Name</th>
                 <th className="px-3 py-2 text-left">Bill To</th>
                 <th className="px-3 py-2 text-left">Ship To</th>
                 <th className="px-3 py-2 text-center">Total Products</th>
@@ -130,82 +207,103 @@ const formatDateDDMMYYYY = (dateInput) => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv,index) => (
-                <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
-                  <td className="px-3 py-2">{(page - 1) * limit + index + 1}</td>
-                  <td className="px-3 py-2">{inv.invoiceNo}</td>
-<td className="px-3 py-2">{formatDateDDMMYYYY(inv.date)}</td>
-                        <td className="px-3 py-2">{inv.customerName || "—"}</td> {/* Added */}
-                  <td className="px-3 py-2">{inv.billTo}</td>
-                  <td className="px-3 py-2">{inv.shipTo}</td>
-                  <td className="px-3 py-2 text-center">{inv.products?.length}</td>
-                 <td className="px-3 py-2 text-center space-y-1">
-  {/* View PDF */}
-  <a
-    href={inv.pdfUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition"
-  >
-    <Eye size={16} />
-    View Invoice
-  </a>
+              {invoices.map((inv, index) => {
+                const isConverted = ConversionTracker.isConverted(inv._id);
+                
+                return (
+                  <tr key={inv._id} className="even:bg-gray-50 hover:bg-blue-50 transition">
+                    <td className="px-3 py-2">{(page - 1) * limit + index + 1}</td>
+                    <td className="px-3 py-2">{inv.invoiceNo}</td>
+                    <td className="px-3 py-2">{formatDateDDMMYYYY(inv.date)}</td>
+                    <td className="px-3 py-2">{inv.customerName || "—"}</td>
+                    <td className="px-3 py-2">{inv.billTo}</td>
+                    <td className="px-3 py-2">{inv.shipTo}</td>
+                    <td className="px-3 py-2 text-center">{inv.products?.length}</td>
+                    <td className="px-3 py-2 text-center space-y-1">
+                      {/* View PDF */}
+                      <a
+                        href={inv.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition"
+                      >
+                        <Eye size={16} />
+                        View Invoice
+                      </a>
 
-  {/* Share via Email */}
-  <button
-    onClick={() => handleEmailShare(inv, user)}
-    className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded transition"
-  >
-    <Mail size={16} />
-    Email Customer
-  </button>
+                      {/* Share via Email */}
+                      <button
+                        onClick={() => handleEmailShare(inv, user)}
+                        className="flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded transition"
+                      >
+                        <Mail size={16} />
+                        Email Customer
+                      </button>
 
-  {/* Share via WhatsApp */}
-  <a
-    href={`https://wa.me/${inv.contact.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, please find your Proforma Invoice:\n${inv.pdfUrl}`)}`}
-    target="_blank"
-    className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded transition"
-  >
-    <MessageCircle size={16} />
-    WhatsApp Customer
-  </a>
-</td>
+                      {/* Share via WhatsApp */}
+                      <a
+                        href={`https://wa.me/${inv.contact?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, please find your Proforma Invoice:\n${inv.pdfUrl}`)}`}
+                        target="_blank"
+                        className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded transition"
+                      >
+                        <MessageCircle size={16} />
+                        WhatsApp Customer
+                      </a>
+                    </td>
 
+                    {!isConverted ? (
+                      <td className="px-3 py-2 text-center">
+                        <button
+                          onClick={() => navigate(`/proforma-edit/${inv._id}`)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          ✏️ Edit
+                        </button>
+                      </td>
+                    ) : (
+                      <td className="px-3 py-2 text-center">—</td>
+                    )}
 
-                  <td className="px-3 py-2 text-center">
-  <button
-    onClick={() => navigate(`/proforma-edit/${inv._id}`)}
-    className="text-green-600 hover:text-green-800 font-medium"
-  >
-    ✏️ Edit
-  </button>
-</td>
-
-                  <td className="px-3 py-2 text-center">
-  <button
-    onClick={() => deleteInvoice(inv._id)}
-    className="text-red-500 hover:text-red-700 font-medium"
-  >
-    ❌
-  </button>
-</td>
-<td className="px-3 py-2 text-center">
-  <button
-    onClick={() =>
-      navigate("/add-order", { state: { fromProforma: true, invoice: inv } })
-    }
-    className="bg-indigo-600 hover:bg-indigo-700 cursor-pointer text-white px-4 py-1 rounded shadow"
-  >
-    🔄 Convert to Sales Order
-  </button>
-</td>
-
-
-                </tr>
-              ))}
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => deleteInvoice(inv._id)}
+                        className="text-red-500 hover:text-red-700 font-medium"
+                      >
+                        ❌
+                      </button>
+                    </td>
+                    
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => handleConvertToSalesOrder(inv)}
+                        disabled={isConverted}
+                        className={`px-4 py-1 rounded shadow ${
+                          isConverted 
+                            ? "bg-gray-400 cursor-not-allowed opacity-70" 
+                            : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer text-white"
+                        }`}
+                      >
+                        {isConverted ? '✅ Already Converted' : '🔄 Convert to Sales Order'}
+                      </button>
+                      
+                      {/* Debug button to reset conversion status (remove in production) */}
+                      {/* {isConverted && (
+                        <button
+                          onClick={() => resetConversionStatus(inv._id)}
+                          className="mt-1 text-xs text-red-500 hover:text-red-700"
+                          title="Reset conversion status (for testing)"
+                        >
+                          Reset
+                        </button>
+                      )} */}
+                    </td>
+                  </tr>
+                );
+              })}
+              
               {invoices.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="text-center text-gray-500 py-6 italic">
+                  <td colSpan="11" className="text-center text-gray-500 py-6 italic">
                     No invoices found.
                   </td>
                 </tr>
