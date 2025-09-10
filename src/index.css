@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+
+/* custom styles */
+@layer base {
+  body {
+    font-family: "Comfortaa", sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+@layer utilities {
+  .input {
+    @apply border border-gray-300 rounded px-3 py-1 w-full focus:outline-none focus:ring-2 focus:ring-blue-400;
+  }
+
+  .textarea {
+    @apply border border-gray-300 rounded px-3 py-2 w-full min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-400;
+  }
+}
+
+/* You can put this in your index.css or global styles */
+.react-select-container {
+  position: relative;
+  z-index: 10;
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
