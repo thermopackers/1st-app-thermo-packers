@@ -599,7 +599,7 @@ useEffect(() => {
               </div>
 
               {/* Dispatch & Mileage */}
-              {["packaging", "admin", "accounts", "driver"].includes(
+              {["packaging", "admin", "accounts"].includes(
                 user.role
               ) && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

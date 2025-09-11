@@ -15,6 +15,7 @@ const DOCUMENT_TYPES = {
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
     tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
   payment_receipts: "Tempo Challan Copy & Payment Receipts",
+    vin_chassis_photo: "VIN - Chassis Number Photo", // Add this line
 };
 
 export default function VehicleDocumentsView({ vehicleNumber }) {
@@ -109,7 +110,7 @@ const openInSwal = (url, isImage) => {
                 <p className="text-sm mt-2">
                   <span className="font-semibold">Document #:</span> {doc.documentNumber}
                 </p>
-               {doc.documentType !== "vehicle_images" ? (
+{!["vehicle_images", "vin_chassis_photo"].includes(doc.documentType) ? (
   <>
   <p className="text-sm">
   <span className="font-semibold">Issue Date:</span>{" "}

@@ -16,6 +16,7 @@ const DOCUMENT_TYPES = {
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
     tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
   payment_receipts: "Tempo Challan Copy & Payment Receipts",
+    vin_chassis_photo: "VIN - Chassis Number Photo", // Add this line
 };
 
 export default function VehicleDocumentManager({ vehicleNumber }) {
@@ -259,7 +260,7 @@ const handleSubmit = async (e) => {
   </div>
 )}
 
-        {formData.documentType !== "vehicle_images" && (
+{!["vehicle_images", "vin_chassis_photo"].includes(formData.documentType) && (
   <>
     <div>
       <label className="block text-sm font-medium mb-1">Issue Date</label>
@@ -385,7 +386,7 @@ const handleSubmit = async (e) => {
             let status = "Valid";
 let statusClass = "bg-green-100 text-green-800";
 
-if (doc.documentType !== "vehicle_images") {
+if (!["vehicle_images", "vin_chassis_photo"].includes(doc.documentType)) {
   const expiring = isExpiring(doc.expiryDate);
   const expired = isExpired(doc.expiryDate);
 
