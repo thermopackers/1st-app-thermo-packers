@@ -50,6 +50,8 @@ import PlantMachineryMaintenance from "../pages/PlantMachineryMaintenance";
 import DGSetLogBookPage from "../pages/DGSetLogBookPage";
 import PowerFactorMaintenance from "../pages/PowerFactorMaintenance";
 import ProductsDetails from "../pages/ProductsDetails";
+import TourExpenses from "../pages/TourExpenses";
+import TourExpensesDashboard from "../pages/TourExpensesDashboard";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -639,6 +641,22 @@ path="/completed-orders"
 element={
     <ProtectedRoute allowedRoles={["accounts","admin","sales","production"]}>
       <PageWrapper><CompletedOrdersDashboard /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/tour-expenses"
+element={
+    <ProtectedRoute allowedRoles={["accounts","sales"]}>
+      <PageWrapper><TourExpenses /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+path="/tour-expenses-dashboard"
+element={
+    <ProtectedRoute allowedRoles={["accounts","sales"]}>
+      <PageWrapper><TourExpensesDashboard /></PageWrapper>
     </ProtectedRoute>
   }
 />

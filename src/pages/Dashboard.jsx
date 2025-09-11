@@ -852,7 +852,7 @@ useEffect(() => {
           )}
           {/* Plant & Machinery Maintenance */}
 {["accounts", "admin"].includes(user.role) && (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="rounded-2xl mt-8 border border-slate-200 bg-white p-5 shadow-sm">
     <h3 className="text-2xl font-bold text-slate-900 text-center">
       Plant & Machinery Maintenance
     </h3>
@@ -868,6 +868,41 @@ useEffect(() => {
     </div>
   </div>
 )}
+{/* Tour Expenses Section for Sales */}
+{["sales", "accounts"].includes(user.role) && (
+  <section className="mt-8">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-xl font-bold text-slate-900 text-center">
+        Tour Expenses
+      </h3>
+
+      {/* Buttons grid */}
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Add Expenses */}
+        <NavLink to="/tour-expenses" className="w-full">
+          <button className="w-full rounded-xl bg-blue-600 px-4 py-5 text-white shadow-md hover:bg-blue-700 transition">
+            <div className="text-base font-semibold">➕ Add Tour Expenses</div>
+            <div className="mt-1 text-xs font-normal opacity-90">
+              Submit & track your travel expenses
+            </div>
+          </button>
+        </NavLink>
+
+        {/* View Expenses */}
+        <NavLink to="/tour-expenses-dashboard" className="w-full">
+          <button className="w-full rounded-xl bg-purple-600 px-4 py-5 text-white shadow-md hover:bg-purple-700 transition">
+            <div className="text-base font-semibold">📊 View Tour Expenses</div>
+            <div className="mt-1 text-xs font-normal opacity-90">
+              Dashboard & reports
+            </div>
+          </button>
+        </NavLink>
+      </div>
+    </div>
+  </section>
+)}
+
+
 
         </div>
       </main>
