@@ -3,17 +3,12 @@ import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import InternalNavbar from '../components/InternalNavbar';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
-import { useLocation, useNavigate } from 'react-router-dom';
 import FaceRegistrationModal from '../components/FaceRegistrationModal';
 import FileInput from '../components/FileInput';
 import Swal from "sweetalert2";
 
 const RegisterUser = () => {
   const [deletingUserId, setDeletingUserId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-const [totalPages, setTotalPages] = useState(1);
-const [totalUsers, setTotalUsers] = useState(0);
-const [limit] = useState(10); // You can make this configurable if needed
   const [name, setName] = useState('');
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [email, setEmail] = useState('');
@@ -67,21 +62,6 @@ const [miscDocuments, setMiscDocuments] = useState([]);
   });
  const formRef = useRef(null);
 console.log("users",users);
-const location = useLocation();
-
- useEffect(() => {
-    if (location.hash) {
-      // Remove the "#" from the hash
-      const id = location.hash.replace("#", "");
-      const element = document.getElementById(id);
-      if (element) {
-        // Delay a little so DOM is fully rendered
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 200);
-      }
-    }
-  }, [location]);
 
 useEffect(() => {
   if (isEditing) {
@@ -205,17 +185,15 @@ fetchUsers();
   }
 };
 
-const fetchUsers = async (page = 1) => {
-  try {
-    const res = await axiosInstance.get(`/users/all?page=${page}&limit=${limit}`);
-    setUsers(res.data.users);
-    setCurrentPage(res.data.pagination.currentPage);
-    setTotalPages(res.data.pagination.totalPages);
-    setTotalUsers(res.data.pagination.totalUsers);
-  } catch (err) {
-    toast.error('Failed to fetch users');
-  }
-};
+  const fetchUsers = async () => {
+    try {
+      const res = await axiosInstance.get('/users/all');
+      setUsers(res.data);
+    } catch (err) {
+      toast.error('Failed to fetch users');
+    }
+  };
+
 
 const formatDateForInput = (isoDate) => {
   if (!isoDate) return "";
@@ -381,7 +359,7 @@ const handleCancelEdit = () => {
   };
 
   useEffect(() => {
-    fetchUsers(currentPage);
+    fetchUsers();
   }, []);
 
   const showDocument = (url, title) => {
@@ -722,7 +700,7 @@ const handleCancelEdit = () => {
           )}
         </div>
 
-        <div id="employeeTableSection" className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
+        <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
           <h3 className="text-xl font-bold text-gray-800 mb-4">All Registered Users and Employees</h3>
           <table className="w-full text-sm text-left text-gray-600">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
@@ -946,88 +924,14 @@ const handleCancelEdit = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan="17" className="text-center py-4 text-gray-400">
+                  <td colSpan="5" className="text-center py-4 text-gray-400">
                     No users found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-          {/* Pagination Controls */}
-<div className="flex justify-between items-center mt-4">
-  <div className="text-sm text-gray-600">
-    Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalUsers)} of {totalUsers} users
-  </div>
-  
-  <div className="flex space-x-2">
-    <button
-      onClick={() => fetchUsers(1)}
-      disabled={currentPage === 1}
-      className={`px-3 py-1 rounded border ${
-        currentPage === 1 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      First
-    </button>
-    
-    <button
-      onClick={() => fetchUsers(currentPage - 1)}
-      disabled={currentPage === 1}
-      className={`px-3 py-1 rounded border ${
-        currentPage === 1 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Previous
-    </button>
-    
-    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-      if (pageNum > totalPages) return null;
-      
-      return (
-        <button
-          key={pageNum}
-          onClick={() => fetchUsers(pageNum)}
-          className={`px-3 py-1 rounded border ${
-            currentPage === pageNum
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          {pageNum}
-        </button>
-      );
-    })}
-    
-    <button
-      onClick={() => fetchUsers(currentPage + 1)}
-      disabled={currentPage === totalPages}
-      className={`px-3 py-1 rounded border ${
-        currentPage === totalPages 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Next
-    </button>
-    
-    <button
-      onClick={() => fetchUsers(totalPages)}
-      disabled={currentPage === totalPages}
-      className={`px-3 py-1 rounded border ${
-        currentPage === totalPages 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Last
-    </button>
-  </div>
-</div>
+         
         </div>
       </div>
       <FaceRegistrationModal
