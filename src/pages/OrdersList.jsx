@@ -2196,6 +2196,7 @@ console.log("sortedOrders",sortedOrders);
         type={slipType}
         selectedOrder={selectedOrder}
         selectedSections={selectedSections}
+          products={products}   // ✅ add this
       />
     </div>
   );

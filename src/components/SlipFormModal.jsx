@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 import imageCompression from "browser-image-compression";
+import ShowInternalImagesButton from "./ShowInternalImagesButton";
 
 Modal.setAppElement("#root");
 
@@ -11,10 +12,13 @@ const SlipFormModal = ({
   type,
   selectedOrder,
   selectedSections = {},
+    products = [], 
 }) => {
   const isProduction = type === "production";
   const isPackaging = type === "packaging" || type === "shape-packaging";
   const isShapeOnly = type === "shape-packaging";
+  console.log("pop",products);
+  
   const shouldShowShapeSlip =
     isShapeOnly ||
     (isProduction &&
@@ -338,6 +342,9 @@ const handleRemoveDrawingFile = (index) => {
   setDrawingFiles((prev) => prev.filter((_, i) => i !== index));
 };
 
+  const product =
+    products?.find((p) => p.name === selectedOrder?.product) || null;
+
   return (
     <>
       <Modal
@@ -371,15 +378,19 @@ const handleRemoveDrawingFile = (index) => {
         Raw Block/Dana Slip
       </h3>
 
-      <label className="font-bold text-xl">Product Name:</label>
-      <input
-        type="text"
-        disabled
-        placeholder="Product Name"
-        value={danaFormData.productName}
-        onChange={(e) => handleDanaChange("productName", e.target.value)}
-        className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-      />
+     <label className="font-bold text-xl">Product Name:</label>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  <input
+    type="text"
+    disabled
+    placeholder="Product Name"
+    value={danaFormData.productName}
+    onChange={(e) => handleDanaChange("productName", e.target.value)}
+    className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
 
       <label className="font-bold text-xl">Density (Kg/m³):</label>
       <input
@@ -525,14 +536,18 @@ const handleRemoveDrawingFile = (index) => {
       Shape Moulding Production Slip / Die Moulding
     </h3>
 
-    <label className="font-bold text-xl">Product Name:</label>
-    <input
-      type="text"
-      disabled
-      value={shapeFormData.productName}
-      onChange={(e) => handleShapeChange("productName", e.target.value)}
-      className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-    />
+   <label className="font-bold text-xl">Product Name:</label>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  <input
+    type="text"
+    disabled
+    value={shapeFormData.productName}
+    onChange={(e) => handleShapeChange("productName", e.target.value)}
+    className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
 
     <label className="font-bold text-xl">Dry Weight / Density:</label>
    <input
@@ -571,15 +586,19 @@ const handleRemoveDrawingFile = (index) => {
     </h3>
 
     <label className="font-bold text-xl">Product Name:</label>
-    <input
-      type="text"
-      disabled
-      value={danaBeadsFormData.productName}
-      onChange={(e) =>
-        setDanaBeadsFormData({ ...danaBeadsFormData, productName: e.target.value })
-      }
-      className={inputClass("productName")}
-    />
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  <input
+    type="text"
+    disabled
+    value={danaBeadsFormData.productName}
+    onChange={(e) =>
+      setDanaBeadsFormData({ ...danaBeadsFormData, productName: e.target.value })
+    }
+    className={inputClass("productName")}
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
 
     <label className="font-bold text-xl">Density:</label>
     <input
@@ -642,13 +661,17 @@ const handleRemoveDrawingFile = (index) => {
               <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
                 Shape Moulding Packaging Slip
               </h3>
-              <label className="font-bold text-xl">Product Name:</label>
-              <input
-                type="text"
-                placeholder="Product Name"
-                value={packagingFormData.productName}
-                className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-              />
+            <label className="font-bold text-xl">Product Name:</label>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  <input
+    type="text"
+    placeholder="Product Name"
+    value={packagingFormData.productName}
+    className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
               <label className="font-bold text-xl">Quantity:</label>
              <input
   type="number"
@@ -675,12 +698,16 @@ const handleRemoveDrawingFile = (index) => {
                 Cutting Slip
               </h3>
               <label className="font-bold text-xl">Product Name:</label>
-<input
-  type="text"
-  value={cuttingFormData.productName}
-  readOnly
-  className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-/>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  <input
+    type="text"
+    value={cuttingFormData.productName}
+    readOnly
+    className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
 
               <label className="font-bold text-xl">Size:</label>
               <input
@@ -718,13 +745,17 @@ const handleRemoveDrawingFile = (index) => {
           )}
 {type === "cnc-slip" && (
   <section className="space-y-4">
-    <label className="font-bold text-xl">Product Name:</label>
+   <label className="font-bold text-xl">Product Name:</label>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
   <input
-  type="text"
-  value={cncFormData.productName}
-  onChange={(e) => handleCNCChange("productName", e.target.value)}
-  className={inputClass("productName")}
-/>
+    type="text"
+    value={cncFormData.productName}
+    onChange={(e) => handleCNCChange("productName", e.target.value)}
+    className={inputClass("productName")}
+  />
+  <ShowInternalImagesButton product={product} />
+</div>
+
     <label className="font-bold text-xl">Size:</label>
   <input
   type="text"
