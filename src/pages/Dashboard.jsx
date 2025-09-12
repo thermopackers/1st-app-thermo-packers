@@ -6,6 +6,7 @@ import "../index.css";
 import AssistantInvitationForm from "../components/AssistantInvitationForm";
 import DocumentNotifications from "../components/DocumentNotifications";
 import VehicleDocumentsView from "../components/VehicleDocumentsView";
+import Swal from "sweetalert2";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -203,6 +204,26 @@ useEffect(() => {
                   <p className="mt-2 text-xs text-slate-500 text-center leading-tight">
                     Download and set a Profile Picture for WhatsApp, Gmail, etc.
                   </p>
+                  {user.visitingCard && (
+  <div className="mt-4 text-center">
+    <button
+      onClick={() =>
+        Swal.fire({
+          title: "Visiting Card",
+          imageUrl: user.visitingCard,
+          imageAlt: "Visiting Card",
+          confirmButtonText: "Close",
+          confirmButtonColor: "#4F46E5", // Indigo
+          width: "auto",
+        })
+      }
+      className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"
+    >
+      View Visiting Card
+    </button>
+  </div>
+)}
+
                 </div>
 
                 <div className="text-center sm:text-left">
@@ -761,22 +782,63 @@ useEffect(() => {
 
           {/* Admin register + Attendance Logs */}
           <section className="mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {["admin", "accounts"].includes(user.role) && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 text-center">
-                    Admin Tools
-                  </h3>
-                  <NavLink to="/register-user">
-                    <button className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-4 text-white shadow hover:bg-blue-700">
-                      Register New User
-                      <div className="mt-1 text-sm font-normal opacity-90">
-                        Add new user by email and assign role
-                      </div>
-                    </button>
-                  </NavLink>
-                </div>
-              )}
+               
+              {/* HR / Accounts Section */}
+{["admin","accounts"].includes(user.role) && (
+  <section className="mt-8">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-2xl font-bold text-slate-900 text-center">
+        HR (Human Resource)
+      </h3>
+      <p className="mt-1 text-sm text-slate-600 text-center">
+        Employee ID proof, Salary Sheets, ESIC, EPFO etc.
+      </p>
+
+      {/* Buttons grid */}
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Add Employee */}
+        <NavLink to="/register-user">
+          <button className="w-full rounded-xl bg-blue-600 px-4 py-5 text-white shadow hover:bg-blue-700">
+            ➕ Add New Employee
+          </button>
+        </NavLink>
+
+        {/* View/Edit/Delete Employee */}
+        <NavLink to="/register-user#employeeTableSection">
+          <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
+            👥 View / Edit / Delete Employee
+          </button>
+        </NavLink>
+
+       {/* ESIC */}
+<button
+  disabled
+  className="w-full rounded-xl bg-green-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed"
+>
+  📑 ESIC Monthly Challan & Payment Receipts
+</button>
+
+{/* EPFO */}
+<button
+  disabled
+  className="w-full rounded-xl bg-purple-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed"
+>
+  📑 EPFO Monthly Challan & Payment Receipts
+</button>
+
+{/* Salary Sheets */}
+<button
+  disabled
+  className="w-full rounded-xl bg-rose-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed sm:col-span-2"
+>
+  📊 Monthly Salary Sheets
+</button>
+
+      </div>
+    </div>
+  </section>
+)}
+
 
               {user.allowAttendance && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -793,8 +855,7 @@ useEffect(() => {
                   </NavLink>
                 </div>
               )}
-            </div>
-          </section>
+           </section>
 
           {/* Supplier / Viewer block */}
           {(user.role === "suppliers" ||

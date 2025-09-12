@@ -172,6 +172,10 @@ export default function TourExpenses() {
               className="mt-1 w-full bg-amber-200 p-2 rounded"
               accept="image/*,.pdf"
             />
+              {/* Helper text */}
+  <p className="text-xs text-slate-600 mt-1">
+    📸 Upload pictures of <b>Bus Ticket, Hotel Bill, Food Bill</b> and any other expenses done
+  </p>
             <div className="mt-2 flex flex-wrap gap-3">
               {files.map((file, index) => (
                 <div

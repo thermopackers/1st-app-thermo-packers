@@ -3,18 +3,37 @@ import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import InternalNavbar from '../components/InternalNavbar';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import FaceRegistrationModal from '../components/FaceRegistrationModal';
+import FileInput from '../components/FileInput';
+import Swal from "sweetalert2";
 
 const RegisterUser = () => {
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+const [totalPages, setTotalPages] = useState(1);
+const [totalUsers, setTotalUsers] = useState(0);
+const [limit] = useState(10); // You can make this configurable if needed
   const [name, setName] = useState('');
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [email, setEmail] = useState('');
+    // Add this state
+  const [resetTrigger, setResetTrigger] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+    const [existingFrontFace, setExistingFrontFace] = useState([]);
+  const [existingAadharCard, setExistingAadharCard] = useState([]);
+  const [existingPanCard, setExistingPanCard] = useState([]);
+  const [existingPassbookCheque, setExistingPassbookCheque] = useState([]);
+  const [existingEsicCopy, setExistingEsicCopy] = useState([]);
+  const [existingEpfoCopy, setExistingEpfoCopy] = useState([]);
+  const [existingMiscDocuments, setExistingMiscDocuments] = useState([]);
 const [editUserId, setEditUserId] = useState(null);
 const [profilePicture, setProfilePicture] = useState(null);
 const [profilePicturePreview, setProfilePicturePreview] = useState('');
 const [allowAttendance, setAllowAttendance] = useState(false);
   const [role, setRole] = useState('sales');
+  const [visitingCard, setVisitingCard] = useState(null);
+const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
 const [modalVisible, setModalVisible] = useState(false);
@@ -23,8 +42,61 @@ const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(null);
   const [users, setUsers] = useState([]);
 const [productionSection, setProductionSection] = useState([]);
+const [dob, setDob] = useState('');
+const [address, setAddress] = useState('');
+const [emergencyNumber, setEmergencyNumber] = useState('');
+const [designation, setDesignation] = useState('');
+const [esicNo, setEsicNo] = useState('');
+const [epfoNo, setEpfoNo] = useState('');
+
+const [frontFacePicture, setFrontFacePicture] = useState(null);
+const [aadharCard, setAadharCard] = useState([]);
+const [panCard, setPanCard] = useState([]);
+const [passbookCheque, setPassbookCheque] = useState([]);
+const [esicCopy, setEsicCopy] = useState([]);
+const [epfoCopy, setEpfoCopy] = useState([]);
+const [miscDocuments, setMiscDocuments] = useState([]);
+  const [filesToRemove, setFilesToRemove] = useState({
+    aadharCard: [],
+    panCard: [],
+    passbookCheque: [],
+    esicCopy: [],
+    epfoCopy: [],
+    miscDocuments: [],
+    frontFacePicture: false
+  });
  const formRef = useRef(null);
 console.log("users",users);
+const location = useLocation();
+
+ useEffect(() => {
+    if (location.hash) {
+      // Remove the "#" from the hash
+      const id = location.hash.replace("#", "");
+      const element = document.getElementById(id);
+      if (element) {
+        // Delay a little so DOM is fully rendered
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 200);
+      }
+    }
+  }, [location]);
+
+useEffect(() => {
+  if (isEditing) {
+    // Reset files to remove when starting to edit
+    setFilesToRemove({
+      aadharCard: [],
+      panCard: [],
+      passbookCheque: [],
+      esicCopy: [],
+      epfoCopy: [],
+      miscDocuments: [],
+      frontFacePicture: false
+    });
+  }
+}, [isEditing]);
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -42,10 +114,41 @@ const handleSubmit = async (e) => {
     formData.append('role', role);
     formData.append('productionSection', JSON.stringify(productionSection));
     formData.append('allowAttendance', allowAttendance);
+    formData.append("dob", dob);
+formData.append("address", address);
+formData.append("emergencyNumber", emergencyNumber);
+formData.append("designation", designation);
+formData.append("esicNo", esicNo);
+formData.append("epfoNo", epfoNo);
+    formData.append('filesToRemove', JSON.stringify(filesToRemove));
+
+
+if (frontFacePicture) formData.append("frontFacePicture", frontFacePicture);
+
+const multiFileFields = [
+  { field: aadharCard, name: "aadharCard" },
+  { field: panCard, name: "panCard" },
+  { field: passbookCheque, name: "passbookCheque" },
+  { field: esicCopy, name: "esicCopy" },
+  { field: epfoCopy, name: "epfoCopy" },
+  { field: miscDocuments, name: "miscDocuments" }
+];
+
+multiFileFields.forEach(({ field, name }) => {
+  if (field && field.length > 0) {
+    field.forEach(file => {
+      formData.append(name, file);
+    });
+  }
+});
     
     if (profilePicture) {
       formData.append('profilePicture', profilePicture);
     }
+
+    if (visitingCard) {
+  formData.append('visitingCard', visitingCard);
+}
 
     if (isEditing) {
       await axiosInstance.put(`/users/update-user/${editUserId}`, formData, {
@@ -62,18 +165,39 @@ const handleSubmit = async (e) => {
       });
       toast.success('User registered successfully!');
     }
+    setResetTrigger(prev => prev + 1);
 
-    // Reset form
-    setName('');
-    setEmail('');
-    setPhone('');
-    setRole('sales');
-    setProductionSection([]);
-    setProfilePicture(null);
-    setProfilePicturePreview('');
-    setIsEditing(false);
-    setEditUserId(null);
-    fetchUsers();
+ // Reset form
+setName('');
+setEmail('');
+setPhone('');
+setRole('sales');
+setProductionSection([]);
+setProfilePicture(null);
+setProfilePicturePreview('');
+setVisitingCard(null);
+setVisitingCardPreview('');
+setIsEditing(false);
+setEditUserId(null);
+setAllowAttendance(false);
+
+setDob('');
+setAddress('');
+setEmergencyNumber('');
+setDesignation('');
+setEsicNo('');
+setEpfoNo('');
+
+setFrontFacePicture(null);
+setAadharCard([]);
+setPanCard([]);
+setPassbookCheque([]);
+setEsicCopy([]);
+setEpfoCopy([]);
+setMiscDocuments([]);
+
+fetchUsers();
+
   } catch (err) {
     toast.error(err.response?.data?.message || 'Operation failed');
   } finally {
@@ -81,53 +205,197 @@ const handleSubmit = async (e) => {
   }
 };
 
-  const fetchUsers = async () => {
-    try {
-      const res = await axiosInstance.get('/users/all');
-      setUsers(res.data);
-    } catch (err) {
-      toast.error('Failed to fetch users');
-    }
-  };
+const fetchUsers = async (page = 1) => {
+  try {
+    const res = await axiosInstance.get(`/users/all?page=${page}&limit=${limit}`);
+    setUsers(res.data.users);
+    setCurrentPage(res.data.pagination.currentPage);
+    setTotalPages(res.data.pagination.totalPages);
+    setTotalUsers(res.data.pagination.totalUsers);
+  } catch (err) {
+    toast.error('Failed to fetch users');
+  }
+};
+
+const formatDateForInput = (isoDate) => {
+  if (!isoDate) return "";
+  const date = new Date(isoDate);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+  // Add handler for removing existing files
+const handleRemoveExistingFile = (field, fileUrl) => {
+  setFilesToRemove(prev => ({
+    ...prev,
+    [field]: [...(prev[field] || []), fileUrl]
+  }));
+  
+  // Also remove from existing files state immediately
+  switch(field) {
+    case 'frontFacePicture':
+      setExistingFrontFace([]);
+      break;
+    case 'aadharCard':
+      setExistingAadharCard(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'panCard':
+      setExistingPanCard(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'passbookCheque':
+      setExistingPassbookCheque(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'esicCopy':
+      setExistingEsicCopy(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'epfoCopy':
+      setExistingEpfoCopy(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'miscDocuments':
+      setExistingMiscDocuments(prev => prev.filter(file => file !== fileUrl));
+      break;
+    default:
+      break;
+  }
+};
+
 const handleEdit = (user) => {
   setIsEditing(true);
   setEditUserId(user._id);
-  setName(user.name);
-  setEmail(user.email);
-  setRole(user.role);
-  setPhone(user.phone?.replace('+91', '') || '');
+
+      // Set existing file URLs for edit mode
+    setExistingFrontFace(user.frontFacePicture ? [user.frontFacePicture] : []);
+    setExistingAadharCard(user.aadharCard || []);
+    setExistingPanCard(user.panCard || []);
+    setExistingPassbookCheque(user.passbookCheque || []);
+    setExistingEsicCopy(user.esicCopy || []);
+    setExistingEpfoCopy(user.epfoCopy || []);
+    setExistingMiscDocuments(user.miscDocuments || []);
+
+  setName(user.name || "");
+  setEmail(user.email || "");
+  setPhone(user.phone?.replace('+91', '') || "");
+  setRole(user.role || "sales");
   setProductionSection(user.productionSection || []);
   setAllowAttendance(user.allowAttendance || false);
-   // Scroll form into view
+
+  setDob(user.dob ? formatDateForInput(user.dob) : "");
+  setAddress(user.address || "");
+  setEmergencyNumber(user.emergencyNumber || "");
+  setDesignation(user.designation || "");
+  setEsicNo(user.esicNo || "");
+  setEpfoNo(user.epfoNo || "");
+
+  // Previews for files (Cloudinary URLs are already saved in DB)
+  setProfilePicturePreview(user.profilePicture || "");
+  setVisitingCardPreview(user.visitingCard || "");
+
+  // reset files (you only preview, not re-upload until user changes)
+  setProfilePicture(null);
+  setVisitingCard(null);
+  setFrontFacePicture(null);
+  setAadharCard([]);
+  setPanCard([]);
+  setPassbookCheque([]);
+  setEsicCopy([]);
+  setEpfoCopy([]);
+  setMiscDocuments([]);
+
+  // scroll form into view
   setTimeout(() => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, 100); // slight delay ensures UI updates first
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, 100);
 };
+
 const handleCancelEdit = () => {
   setIsEditing(false);
   setEditUserId(null);
-  setName('');
-  setEmail('');
-  setPhone('');
-  setRole('sales');
+
+  setName("");
+  setEmail("");
+  setPhone("");
+  setRole("sales");
   setProductionSection([]);
   setAllowAttendance(false);
+
+   // Reset existing files
+    setExistingFrontFace([]);
+    setExistingAadharCard([]);
+    setExistingPanCard([]);
+    setExistingPassbookCheque([]);
+    setExistingEsicCopy([]);
+    setExistingEpfoCopy([]);
+    setExistingMiscDocuments([]);
+
+    // Reset files to remove
+  setFilesToRemove({
+    aadharCard: [],
+    panCard: [],
+    passbookCheque: [],
+    esicCopy: [],
+    epfoCopy: [],
+    miscDocuments: [],
+    frontFacePicture: false
+  });
+
+    setResetTrigger(prev => prev + 1);
+
+  setDob("");
+  setAddress("");
+  setEmergencyNumber("");
+  setDesignation("");
+  setEsicNo("");
+  setEpfoNo("");
+
+  setProfilePicture(null);
+  setProfilePicturePreview("");
+  setVisitingCard(null);
+  setVisitingCardPreview("");
+
+  setFrontFacePicture(null);
+  setAadharCard([]);
+  setPanCard([]);
+  setPassbookCheque([]);
+  setEsicCopy([]);
+  setEpfoCopy([]);
+  setMiscDocuments([]);
 };
+
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
+      
+      setDeletingUserId(id); // Set the user ID being deleted
+
     try {
       await axiosInstance.delete(`/users/delete-user/${id}`);
       toast.success('User deleted');
       fetchUsers();
     } catch (err) {
       toast.error('Failed to delete user');
-    }
+    } finally {
+    setDeletingUserId(null); // Reset after operation completes
+  }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(currentPage);
   }, []);
+
+  const showDocument = (url, title) => {
+  Swal.fire({
+    title: title,
+    html: `<div style="text-align:center;">
+             <img src="${url}" alt="${title}" style="max-width:100%; max-height:70vh; border-radius:8px;" />
+           </div>`,
+    showCloseButton: true,
+    showConfirmButton: false,
+    width: "80%",
+    background: "#fff",
+  });
+};
 
   return (
     <>
@@ -135,7 +403,7 @@ const handleCancelEdit = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-10">
         <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10 mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
-            Register New User
+            Add New Employee/User
           </h2>
 
 <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
@@ -200,6 +468,164 @@ const handleCancelEdit = () => {
     </div>
   )}
 </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      if (e.target.files[0]) {
+        setVisitingCard(e.target.files[0]);
+        setVisitingCardPreview(URL.createObjectURL(e.target.files[0]));
+      }
+    }}
+    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+  />
+  {visitingCardPreview && (
+    <div className="mt-2">
+      <img
+        src={visitingCardPreview}
+        alt="Visiting Card Preview"
+        className="h-24 rounded-md object-cover border"
+      />
+    </div>
+  )}
+</div>
+
+<button
+  type="button"
+  onClick={() => setShowMoreDetails(!showMoreDetails)}
+  className="flex items-center gap-2 text-blue-600 font-medium mb-3 focus:outline-none"
+>
+  <span>{showMoreDetails ? "Hide Details" : "Add More Details"}</span>
+  <svg
+    className={`w-4 h-4 transform transition-transform duration-300 ${
+      showMoreDetails ? "rotate-180" : "rotate-0"
+    }`}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  </svg>
+</button>
+
+
+<div
+  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+    showMoreDetails ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+  }`}
+>
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm">Date of Birth</label>
+      <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
+    </div>
+
+    <div>
+      <label className="block text-sm">Address</label>
+      <textarea value={address} onChange={e => setAddress(e.target.value)} className="w-full border p-2 rounded" />
+    </div>
+
+    <div>
+      <label className="block text-sm">Emergency Number</label>
+      <input type="tel" value={emergencyNumber} onChange={e => setEmergencyNumber(e.target.value)} className="w-full border p-2 rounded" />
+    </div>
+
+    <div>
+      <label className="block text-sm">Designation</label>
+      <select value={designation} onChange={e => setDesignation(e.target.value)} className="w-full border p-2 rounded">
+        <option value="">Select</option>
+        <option value="operator">Operator</option>
+        <option value="helper">Helper</option>
+      </select>
+    </div>
+
+    <div>
+      <label className="block text-sm">ESIC No</label>
+      <input type="text" value={esicNo} onChange={e => setEsicNo(e.target.value)} className="w-full border p-2 rounded" />
+    </div>
+
+    <div>
+      <label className="block text-sm">EPFO No</label>
+      <input type="text" value={epfoNo} onChange={e => setEpfoNo(e.target.value)} className="w-full border p-2 rounded" />
+    </div>
+
+    {/* File uploads */}
+<FileInput 
+  label="Front Face Picture" 
+  name="frontFacePicture" 
+  onChange={setFrontFacePicture} 
+  multiple={false} 
+  resetTrigger={resetTrigger}
+  initialFiles={existingFrontFace}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('frontFacePicture', fileUrl)}
+/>
+
+<FileInput 
+  label="Aadhar Card (Front & Back)" 
+  name="aadharCard" 
+  onChange={setAadharCard} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingAadharCard}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('aadharCard', fileUrl)}
+/>
+
+<FileInput 
+  label="PAN Card" 
+  name="panCard" 
+  onChange={setPanCard} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingPanCard}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('panCard', fileUrl)}
+/>
+
+<FileInput 
+  label="Passbook / Cheque Book" 
+  name="passbookCheque" 
+  onChange={setPassbookCheque} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingPassbookCheque}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('passbookCheque', fileUrl)}
+/>
+
+<FileInput 
+  label="ESIC Copy" 
+  name="esicCopy" 
+  onChange={setEsicCopy} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingEsicCopy}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
+/>
+
+<FileInput 
+  label="EPFO Copy" 
+  name="epfoCopy" 
+  onChange={setEpfoCopy} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingEpfoCopy}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('epfoCopy', fileUrl)}
+/>
+
+<FileInput 
+  label="Misc Documents" 
+  name="miscDocuments" 
+  onChange={setMiscDocuments} 
+  multiple 
+  resetTrigger={resetTrigger}
+  initialFiles={existingMiscDocuments}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('miscDocuments', fileUrl)}
+/>
+    </div>
+</div>
+
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
               <select
@@ -296,22 +722,31 @@ const handleCancelEdit = () => {
           )}
         </div>
 
-        <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">All Registered Users and Vehicles</h3>
+        <div id="employeeTableSection" className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">All Registered Users and Employees</h3>
           <table className="w-full text-sm text-left text-gray-600">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Photo</th>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Prod. Section</th>
-                <th className="px-4 py-2">Phone</th>
-                <th className="px-4 py-2">Attendance</th>
-                <th className="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
+  <tr>
+    <th className="px-4 py-2">#</th>
+    <th className="px-4 py-2">Photo</th>
+    <th className="px-4 py-2">Visiting Card</th>
+    <th className="px-4 py-2">Name</th>
+    <th className="px-4 py-2">Email</th>
+    <th className="px-4 py-2">Role</th>
+    <th className="px-4 py-2">Prod. Section</th>
+    <th className="px-4 py-2">Phone</th>
+    <th className="px-4 py-2">Attendance</th>
+    <th className="px-4 py-2">DOB</th>
+    <th className="px-4 py-2">Address</th>
+    <th className="px-4 py-2">Emergency No.</th>
+    <th className="px-4 py-2">Designation</th>
+    <th className="px-4 py-2">ESIC No</th>
+    <th className="px-4 py-2">EPFO No</th>
+    <th className="px-4 py-2">Documents</th>
+    <th className="px-4 py-2">Actions</th>
+  </tr>
+</thead>
+
             <tbody>
               {users.map((u, i) => (
                 <tr key={u._id} className="border-b hover:bg-gray-50">
@@ -328,6 +763,15 @@ const handleCancelEdit = () => {
     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
       <span className="text-gray-500 text-xs">No photo</span>
     </div>
+  )}
+</td>
+<td className="px-4 py-2">
+  {u.visitingCard ? (
+    <a href={u.visitingCard} target="_blank" rel="noopener noreferrer">
+      <img src={u.visitingCard} alt="Visiting Card" className="h-12 w-20 object-cover rounded" />
+    </a>
+  ) : (
+    <span className="text-gray-400 italic">None</span>
   )}
 </td>
                   <td className="px-4 py-2">{u.name}</td>
@@ -353,6 +797,86 @@ const handleCancelEdit = () => {
 <td className="px-4 py-2">
   {u.allowAttendance ? 'Yes' : 'No'}
 </td>
+
+<td className="px-4 py-2">{u.dob ? new Date(u.dob).toLocaleDateString() : "-"}</td>
+<td className="px-4 py-2">{u.address || "-"}</td>
+<td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
+<td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
+<td className="px-4 py-2">{u.esicNo || "-"}</td>
+<td className="px-4 py-2">{u.epfoNo || "-"}</td>
+<td className="px-4 py-2">
+  <div className="flex flex-col gap-2 text-xs">
+    {u.frontFacePicture && (
+      <button
+        onClick={() => showDocument(u.frontFacePicture, "Front Face")}
+        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+      >
+        Front Face
+      </button>
+    )}
+
+    {u.aadharCard?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `Aadhar ${idx + 1}`)}
+        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+      >
+        Aadhar {idx + 1}
+      </button>
+    ))}
+
+    {u.panCard?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `PAN ${idx + 1}`)}
+        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+      >
+        PAN {idx + 1}
+      </button>
+    ))}
+
+    {u.passbookCheque?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `Passbook / Cheque ${idx + 1}`)}
+        className="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition"
+      >
+        Passbook {idx + 1}
+      </button>
+    ))}
+
+    {u.esicCopy?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `ESIC ${idx + 1}`)}
+        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
+      >
+        ESIC {idx + 1}
+      </button>
+    ))}
+
+    {u.epfoCopy?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `EPFO ${idx + 1}`)}
+        className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+      >
+        EPFO {idx + 1}
+      </button>
+    ))}
+
+    {u.miscDocuments?.map((url, idx) => (
+      <button
+        key={idx}
+        onClick={() => showDocument(url, `Misc Document ${idx + 1}`)}
+        className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+      >
+        Misc {idx + 1}
+      </button>
+    ))}
+  </div>
+</td>
+
 
 
 <td className="px-4 py-2">
@@ -422,13 +946,88 @@ const handleCancelEdit = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="text-center py-4 text-gray-400">
+                  <td colSpan="17" className="text-center py-4 text-gray-400">
                     No users found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          {/* Pagination Controls */}
+<div className="flex justify-between items-center mt-4">
+  <div className="text-sm text-gray-600">
+    Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalUsers)} of {totalUsers} users
+  </div>
+  
+  <div className="flex space-x-2">
+    <button
+      onClick={() => fetchUsers(1)}
+      disabled={currentPage === 1}
+      className={`px-3 py-1 rounded border ${
+        currentPage === 1 
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+          : 'bg-white text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      First
+    </button>
+    
+    <button
+      onClick={() => fetchUsers(currentPage - 1)}
+      disabled={currentPage === 1}
+      className={`px-3 py-1 rounded border ${
+        currentPage === 1 
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+          : 'bg-white text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      Previous
+    </button>
+    
+    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+      if (pageNum > totalPages) return null;
+      
+      return (
+        <button
+          key={pageNum}
+          onClick={() => fetchUsers(pageNum)}
+          className={`px-3 py-1 rounded border ${
+            currentPage === pageNum
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {pageNum}
+        </button>
+      );
+    })}
+    
+    <button
+      onClick={() => fetchUsers(currentPage + 1)}
+      disabled={currentPage === totalPages}
+      className={`px-3 py-1 rounded border ${
+        currentPage === totalPages 
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+          : 'bg-white text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      Next
+    </button>
+    
+    <button
+      onClick={() => fetchUsers(totalPages)}
+      disabled={currentPage === totalPages}
+      className={`px-3 py-1 rounded border ${
+        currentPage === totalPages 
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+          : 'bg-white text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      Last
+    </button>
+  </div>
+</div>
         </div>
       </div>
       <FaceRegistrationModal
@@ -443,6 +1042,14 @@ const handleCancelEdit = () => {
       <p className="text-white">
         {isEditing ? 'Updating user...' : 'Registering user...'}
       </p>
+    </div>
+  </div>
+)}
+{deletingUserId && (
+  <div className="fixed inset-0 bg-[#000000d0] bg-opacity-50 flex items-center justify-center z-50">
+    <div className="p-6 rounded-lg shadow-xl flex flex-col items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+      <p className="text-white">Deleting user...</p>
     </div>
   </div>
 )}
