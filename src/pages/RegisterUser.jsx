@@ -188,17 +188,20 @@ setPersonalPhone('');
     }
   };
 
-const fetchUsers = async (page = 1) => {
+const fetchUsers = async (page = 1, query = "") => {
   try {
-    const res = await axiosInstance.get(`/users/all-user-pagination?page=${page}&limit=${limit}`);
+    const res = await axiosInstance.get(
+      `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`
+    );
     setUsers(res.data.users);
     setCurrentPage(res.data.pagination.currentPage);
     setTotalPages(res.data.pagination.totalPages);
     setTotalUsers(res.data.pagination.totalUsers);
   } catch (err) {
-    toast.error('Failed to fetch users');
+    toast.error("Failed to fetch users");
   }
 };
+
 
   const formatDateForInput = (isoDate) => {
     if (!isoDate) return "";
@@ -715,8 +718,12 @@ const fetchUsers = async (page = 1) => {
     type="text"
     placeholder="🔍 Search by name..."
     value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+  onChange={(e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    fetchUsers(1, value); // always reset to page 1 when searching
+  }}
+  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
   />
 </div>
 
@@ -744,12 +751,7 @@ const fetchUsers = async (page = 1) => {
             </thead>
 
             <tbody>
-           {users
-  .filter((u) =>
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-  .map((u, i) => (
-
+           {users.map((u, i) => (
                 <tr key={u._id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-2">{i + 1}</td>
                   <td className="px-4 py-2">
@@ -965,74 +967,80 @@ const fetchUsers = async (page = 1) => {
     Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalUsers)} of {totalUsers} users
   </div>
   
-  <div className="flex space-x-2">
-    <button
-      onClick={() => fetchUsers(1)}
-      disabled={currentPage === 1}
-      className={`px-3 py-1 rounded border ${
-        currentPage === 1 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      First
-    </button>
-    
-    <button
-      onClick={() => fetchUsers(currentPage - 1)}
-      disabled={currentPage === 1}
-      className={`px-3 py-1 rounded border ${
-        currentPage === 1 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Previous
-    </button>
-    
-    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-      if (pageNum > totalPages) return null;
-      
-      return (
-        <button
-          key={pageNum}
-          onClick={() => fetchUsers(pageNum)}
-          className={`px-3 py-1 rounded border ${
-            currentPage === pageNum
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          {pageNum}
-        </button>
-      );
-    })}
-    
-    <button
-      onClick={() => fetchUsers(currentPage + 1)}
-      disabled={currentPage === totalPages}
-      className={`px-3 py-1 rounded border ${
-        currentPage === totalPages 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Next
-    </button>
-    
-    <button
-      onClick={() => fetchUsers(totalPages)}
-      disabled={currentPage === totalPages}
-      className={`px-3 py-1 rounded border ${
-        currentPage === totalPages 
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-          : 'bg-white text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      Last
-    </button>
-  </div>
+ <div className="flex space-x-2">
+  {/* First */}
+  <button
+    onClick={() => fetchUsers(1, searchQuery)}
+    disabled={currentPage === 1}
+    className={`px-3 py-1 rounded border ${
+      currentPage === 1 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    First
+  </button>
+
+  {/* Previous */}
+  <button
+    onClick={() => fetchUsers(currentPage - 1, searchQuery)}
+    disabled={currentPage === 1}
+    className={`px-3 py-1 rounded border ${
+      currentPage === 1 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Previous
+  </button>
+
+  {/* Page Numbers */}
+  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+    if (pageNum > totalPages) return null;
+
+    return (
+      <button
+        key={pageNum}
+        onClick={() => fetchUsers(pageNum, searchQuery)} 
+        className={`px-3 py-1 rounded border ${
+          currentPage === pageNum
+            ? 'bg-blue-600 text-white'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        {pageNum}
+      </button>
+    );
+  })}
+
+  {/* Next */}
+  <button
+    onClick={() => fetchUsers(currentPage + 1, searchQuery)} 
+    disabled={currentPage === totalPages}
+    className={`px-3 py-1 rounded border ${
+      currentPage === totalPages 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Next
+  </button>
+
+  {/* Last */}
+  <button
+    onClick={() => fetchUsers(totalPages, searchQuery)} 
+    disabled={currentPage === totalPages}
+    className={`px-3 py-1 rounded border ${
+      currentPage === totalPages 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Last
+  </button>
+</div>
+
 </div>
         </div>
       </div>
