@@ -75,6 +75,7 @@ export default function AllPurchaseProducts() {
                   <th className="p-3">HSN</th>
                   <th className="p-3">GST %</th>
                   <th className="p-3">Price</th>
+                    <th className="p-3">Current Stock in Hand</th>
                   <th className="p-3">Description</th>
                   <th className="p-3">Product Sheet Images</th>
                       <th className="p-3">Internal Product Sheet Images</th>
@@ -90,6 +91,7 @@ export default function AllPurchaseProducts() {
                     <td className="p-3">{prod.hsnCode}</td>
                     <td className="p-3">{prod.gstPercent}</td>
                     <td className="p-3">₹ {prod.price}</td>
+                    <td className="p-3">{prod.stock || 0} {prod.unit}</td>
                     <td className="p-3 max-w-xs text-left">{prod.description}</td>
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2 justify-center">

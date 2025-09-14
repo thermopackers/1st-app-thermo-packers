@@ -299,11 +299,18 @@ const renderAbsentDetails = (absentDates) => {
     <div className="mt-3 bg-red-50 p-3 rounded-lg">
       <h4 className="font-medium text-red-800 mb-2">Absent Dates:</h4>
       <div className="flex flex-wrap gap-1">
-        {absentDates.map((date, index) => (
-          <span key={index} className="text-sm text-red-700 bg-red-100 px-2 py-1 rounded">
-            {formatDate(date)}
-          </span>
-        ))}
+     {absentDates.map((entry, index) => {
+  const colorClass = entry.type === "sunday"
+    ? "text-orange-800 bg-orange-300"
+    : "text-red-700 bg-red-100";
+
+  return (
+    <span key={index} className={`text-sm px-2 py-1 rounded ${colorClass}`}>
+      {formatDate(entry.date)}
+    </span>
+  );
+})}
+
       </div>
     </div>
   );
