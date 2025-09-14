@@ -82,7 +82,11 @@ console.log("suppliers",suppliers);
               {suppliers.map((supplier) => (
                 <tr key={supplier._id} className="border-t align-top text-center">
                   <td className="p-2">{supplier.name}</td>
-                  <td className="p-2">{supplier.vendorCategory || "–"}</td>
+<td className="p-2">
+  {Array.isArray(supplier.vendorCategory) 
+    ? supplier.vendorCategory.join(", ") 
+    : supplier.vendorCategory || "–"}
+</td>
 <td className="p-2 text-center">
   <div className="space-y-1">
     {supplier.phone && (

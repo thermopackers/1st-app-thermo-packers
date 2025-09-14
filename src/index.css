@@ -58,3 +58,18 @@
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+select[multiple] {
+  height: auto;
+  min-height: 100px;
+}
+
+select[multiple] option {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+select[multiple] option:checked {
+  background-color: #3b82f6;
+  color: white;
+}

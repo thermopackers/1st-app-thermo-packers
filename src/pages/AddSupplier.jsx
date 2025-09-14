@@ -4,12 +4,12 @@ import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import imageCompression from "browser-image-compression";
-
+import '../index.css'
 export default function AddSupplier() {
 const [form, setForm] = useState({
   name: "", phone: "", phone2: "", email: "", address: "", gstNumber: "",
   locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
-   bankName: "", vendorCategory: ""
+   bankName: "", vendorCategory: []
 });
 const [gstError, setGstError] = useState("");
 
@@ -50,26 +50,40 @@ useEffect(() => {
     }
   }, [id]);
 
-  const fetchSupplier = async () => {
-    try {
-      const res = await axiosInstance.get(`/suppliers/${id}`);
-setForm(res.data);
-setExistingCloudFiles(res.data.files || []);
-setPreviewUrls(res.data.files?.map(f => f.url || f) || []);
+const fetchSupplier = async () => {
+  try {
+    const res = await axiosInstance.get(`/suppliers/${id}`);
+    const supplier = res.data;
 
-// ✅ Fetch frequently purchased items
-try {
-  const freqRes = await axiosInstance.get(`/purchase-orders/frequent-products/${id}?page=1&limit=5`);
-setFrequentProducts(freqRes.data.data);
-setTotalPages(freqRes.data.totalPages);
-setCurrentPage(1);
-} catch (err) {
-  console.warn("Failed to load frequent products", err);
-}
- } catch (err) {
-      toast.error("Failed to load supplier data");
+    // 🔄 Always make vendorCategory an array
+    setForm({
+      ...supplier,
+      vendorCategory: Array.isArray(supplier.vendorCategory)
+        ? supplier.vendorCategory
+        : supplier.vendorCategory
+        ? [supplier.vendorCategory]
+        : []
+    });
+
+    setExistingCloudFiles(supplier.files || []);
+    setPreviewUrls(supplier.files?.map(f => f.url || f) || []);
+
+    // ✅ Fetch frequently purchased items
+    try {
+      const freqRes = await axiosInstance.get(
+        `/purchase-orders/frequent-products/${id}?page=1&limit=5`
+      );
+      setFrequentProducts(freqRes.data.data);
+      setTotalPages(freqRes.data.totalPages);
+      setCurrentPage(1);
+    } catch (err) {
+      console.warn("Failed to load frequent products", err);
     }
-  };
+  } catch (err) {
+    toast.error("Failed to load supplier data");
+  }
+};
+
 const fetchPaginatedProducts = async (page) => {
   try {
     const res = await axiosInstance.get(`/purchase-orders/frequent-products/${id}?page=${page}&limit=5`);
@@ -276,21 +290,23 @@ const handleChequeFileChange = (e) => {
     </div>
   )}
 
-  <div>
+<div>
   <label className="block font-semibold mb-1">Vendor Category</label>
-<select
-  name="vendorCategory"  // ← Change from "category" to "vendorCategory"
-  value={form.vendorCategory}  // ← Also update this
-  onChange={handleChange}
-  className="w-full border p-2 rounded"
-  required
->
-  <option value="">-- Select Category --</option>
-  {categories.map((cat) => (
-    <option key={cat._id} value={cat.name}>{cat.name}</option>
-  ))}
-</select>
-
+  <select
+    name="vendorCategory"
+    value={form.vendorCategory}
+    onChange={(e) => {
+      const selectedOptions = Array.from(e.target.selectedOptions, opt => opt.value);
+      setForm({ ...form, vendorCategory: selectedOptions });
+    }}
+    className="w-full border p-2 rounded"
+    multiple
+    required
+  >
+    {categories.map((cat) => (
+      <option key={cat._id} value={cat.name}>{cat.name}</option>
+    ))}
+  </select>
 </div>
 
   <div>
