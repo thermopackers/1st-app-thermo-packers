@@ -219,7 +219,7 @@ useEffect(() => {
       }
       className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"
     >
-      View Visiting Card
+      View or Download Visiting Card
     </button>
   </div>
 )}
@@ -799,14 +799,7 @@ useEffect(() => {
         {/* Add Employee */}
         <NavLink to="/register-user">
           <button className="w-full rounded-xl bg-blue-600 px-4 py-5 text-white shadow hover:bg-blue-700">
-            ➕ Add New Employee
-          </button>
-        </NavLink>
-
-        {/* View/Edit/Delete Employee */}
-        <NavLink to="/register-user#employeeTableSection">
-          <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-            👥 View / Edit / Delete Employee
+            ➕ Add / View / Edit / Delete Employees
           </button>
         </NavLink>
 
