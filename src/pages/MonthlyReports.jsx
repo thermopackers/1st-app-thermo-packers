@@ -253,12 +253,25 @@ const renderEarlyDetails = (earlyDetails) => {
   );
 };
 
-const renderPresentDetails = (presentDetails, absentDates, allDatesInMonth) => {
+const renderPresentDetails = (presentDetails, absentDates, month) => {
   if (!presentDetails && !absentDates) return null;
 
-  // Get all dates in the month (already calculated in fetchReport)
-  const allDates = allDatesInMonth || [];
-  
+  // Calculate all dates in the month if not provided
+  let allDates = [];
+  if (month) {
+    const [year, m] = month.split("-");
+    const lastDay = new Date(year, parseInt(m), 0).getDate();
+    const currentDate = new Date();
+    const currentDateStr = currentDate.toISOString().split('T')[0];
+    
+    for (let day = 1; day <= lastDay; day++) {
+      const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
+      if (dateStr <= currentDateStr) {
+        allDates.push(dateStr);
+      }
+    }
+  }
+
   // Create a map of present dates for quick lookup
   const presentDateMap = {};
   if (presentDetails) {
@@ -580,13 +593,13 @@ const renderTable = () => {
                     <tr>
                       <td colSpan="10" className="px-6 py-4 bg-gray-50">
                      <div className="space-y-4">
-{view === "present" && renderPresentDetails(r.presentDetails, r.absentDates, allDates)}
+{view === "present" && renderPresentDetails(r.presentDetails, r.absentDates, month)}
 {view === "absent" && renderAbsentDetails(r.absentDates)}
   {view === "late" && renderLateDetails(r.lateDetails)}
   {view === "early" && renderEarlyDetails(r.earlyDetails)}
   {view === "attendance" && (
     <>
-{renderPresentDetails(r.presentDetails, r.absentDates, allDates)}
+{renderPresentDetails(r.presentDetails, r.absentDates, month)}
 {renderAbsentDetails(r.absentDates)}
       {renderLateDetails(r.lateDetails)}
       {renderEarlyDetails(r.earlyDetails)}
