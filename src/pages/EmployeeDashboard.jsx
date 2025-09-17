@@ -633,6 +633,7 @@ if (shouldShowFollowUpForm) {
     <SalesFollowUpForm
       taskId={task._id}
       onFollowUpSubmitted={fetchTasks}
+        task={task} // Pass the entire task object
     />
   );
 }

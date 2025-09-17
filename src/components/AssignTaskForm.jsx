@@ -51,7 +51,6 @@ useEffect(() => {
       setRepeat(task.repeat || "ONE_TIME");
       setExistingImages(task.images || []);
       setIsOrderFollowUp(task?.isOrderFollowUp || false);
-          setCustomerPhone(task?.customerPhone || "");
     } else {
       setTitle("");
       setDescription("");
@@ -61,7 +60,6 @@ useEffect(() => {
       setExistingImages([]);
       setNewImages([]);
           setIsOrderFollowUp(false); // ✅ Reset when creating new task
-              setCustomerPhone("");
     }
   }, [task]);
 const startRecording = async () => {
@@ -186,7 +184,6 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
         images: allImages,
         isOrderFollowUp,
 products: selectedProducts.map((p) => p.value), // ✅ correct
-customerPhone
       };
       await axiosInstance.put(`/todos/${task._id}`, payload);
       toast.success("Task updated successfully!");
@@ -203,7 +200,6 @@ customerPhone
             images: allImages,
             isOrderFollowUp,
 products: selectedProducts.map((p) => p.value), // ✅ correct
-customerPhone
           };
           await axiosInstance.post("/todos/create", payload);
         })
@@ -279,23 +275,6 @@ customerPhone
           rows={4}
         />
       </div>
-
-<div>
-  <label
-    htmlFor="customerPhone"
-    className="block text-gray-700 font-semibold mb-2"
-  >
-    Customer Phone (for follow-up)
-  </label>
-  <input
-    id="customerPhone"
-    type="tel"
-    className="w-full border border-gray-300 rounded-md p-3"
-    value={customerPhone}
-    onChange={(e) => setCustomerPhone(e.target.value)}
-    placeholder="Customer phone number for follow-up"
-  />
-</div>
 
     <div>
   <label className="block text-gray-700 font-semibold mb-2">
@@ -452,6 +431,24 @@ customerPhone
   </label>
 </div>
 
+{isOrderFollowUp && (
+  <div>
+    <label
+      htmlFor="customerPhone"
+      className="block text-gray-700 font-semibold mb-2"
+    >
+      Customer Phone Number
+    </label>
+    <input
+      id="customerPhone"
+      type="tel"
+      className="w-full border border-gray-300 rounded-md p-3"
+      value={customerPhone}
+      onChange={(e) => setCustomerPhone(e.target.value)}
+      placeholder="Customer phone number for WhatsApp"
+    />
+  </div>
+)}
 
       <div className="space-y-2">
         <label className="block text-gray-700 font-semibold mb-2">Images</label>
