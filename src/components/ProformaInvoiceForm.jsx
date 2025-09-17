@@ -28,7 +28,7 @@ export default function ProformaInvoiceForm() {
     contact: "",
     remarks: "",
     products: [],
-     paymentTerms: [],         // ⬅️ Array of selected terms
+     paymentTerms: "",         // ⬅️ Array of selected terms
   customPaymentTerm: "",    // ⬅️ Dynamic input field
     customerEmail: "",         // ✅ add this field silently
   });
@@ -329,21 +329,19 @@ freight: e.target.value,
 <div className="col-span-2">
   <label className="text-sm font-medium">Payment Terms</label>
   <div className="grid md:grid-cols-2 gap-2 mt-2 text-sm">
-    {["100% Advance", "45 Days Credit", "Cheque on Delivery"].map((term) => (
-      <label key={term} className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={form.paymentTerms.includes(term)}
-          onChange={(e) => {
-            const updated = e.target.checked
-              ? [...form.paymentTerms, term]
-              : form.paymentTerms.filter(t => t !== term);
-            setForm(f => ({ ...f, paymentTerms: updated }));
-          }}
-        />
-        {term}
-      </label>
-    ))}
+   {["100% Advance", "45 Days Credit", "Cheque on Delivery"].map((term) => (
+  <label key={term} className="flex items-center gap-2">
+    <input
+      type="radio"
+      name="paymentTerms"
+      value={term}
+      checked={form.paymentTerms === term}
+      onChange={(e) => setForm(f => ({ ...f, paymentTerms: e.target.value }))}
+    />
+    {term}
+  </label>
+))}
+
   </div>
   {/* Dynamic input for custom term */}
   <div className="mt-2">

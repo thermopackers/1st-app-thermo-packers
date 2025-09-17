@@ -291,17 +291,21 @@ const handleSubmit = async (e) => {
 )}
 
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Document File</label>
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="w-full p-2 border rounded"
-                required={!editingDoc}
-                accept=".pdf,.jpg,.jpeg,.png"
-                multiple   
-              />
-            </div>
+           <div className="md:col-span-2">
+  <label className="block text-sm font-medium mb-1">Document File</label>
+  <input
+    type="file"
+    onChange={handleFileChange}
+    className="w-full p-2 border rounded"
+    required={!editingDoc}
+    accept=".pdf,.jpg,.jpeg,.png"
+    multiple
+  />
+  <p className="text-xs text-gray-600 mt-1">
+    📌 Note: Don’t delete any old documents, instead upload the new ones along with the previous documents.
+  </p>
+</div>
+
 {formData.documents.length > 0 && (
   <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded">
     {formData.documents.map((file, idx) => (
