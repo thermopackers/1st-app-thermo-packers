@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
-import { WhatsAppShareButton } from "react-share";
 
 const dailyFollowUpOptions = [
   "No Response / Call Not Answered",
@@ -25,33 +24,53 @@ export default function SalesFollowUpForm({ taskId, onFollowUpSubmitted }) {
   const [closeStatus, setCloseStatus] = useState("");
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
-const [taskDetails, setTaskDetails] = useState(null);
+  const [taskDetails, setTaskDetails] = useState(null);
 
-useEffect(() => {
-  const fetchTaskDetails = async () => {
-    try {
-      const res = await axiosInstance.get(`/todos/${taskId}`);
-      setTaskDetails(res.data);
-    } catch (err) {
-      console.error("Error fetching task details:", err);
+  useEffect(() => {
+    const fetchTaskDetails = async () => {
+      try {
+        const res = await axiosInstance.get(`/todos/${taskId}`);
+        setTaskDetails(res.data);
+      } catch (err) {
+        console.error("Error fetching task details:", err);
+      }
+    };
+    
+    if (taskId) {
+      fetchTaskDetails();
+    }
+  }, [taskId]);
+
+  // Function to generate WhatsApp message
+  const generateWhatsAppMessage = () => {
+    if (!taskDetails) return "";
+    
+    const productsText = taskDetails.products && taskDetails.products.length > 0 
+      ? `Products: ${taskDetails.products.map(p => p.name).join(", ")}`
+      : "";
+    
+    return `Hello! This is regarding your inquiry about ${taskDetails.title}. ${productsText}`;
+  };
+
+  // Function to open WhatsApp with pre-filled message
+  const openWhatsApp = () => {
+    if (!taskDetails?.customerPhone) return;
+    
+    const message = encodeURIComponent(generateWhatsAppMessage());
+    const phone = taskDetails.customerPhone.replace(/\D/g, ''); // Remove non-digit characters
+    
+    // Check if it's mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Open WhatsApp app on mobile
+      window.open(`whatsapp://send?phone=${phone}&text=${message}`, '_blank');
+    } else {
+      // Open WhatsApp web on desktop
+      window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${message}`, '_blank');
     }
   };
-  
-  if (taskId) {
-    fetchTaskDetails();
-  }
-}, [taskId]);
 
-// Add this function to generate WhatsApp message
-const generateWhatsAppMessage = () => {
-  if (!taskDetails) return "";
-  
-  const productsText = taskDetails.products && taskDetails.products.length > 0 
-    ? `Products: ${taskDetails.products.map(p => p.name).join(", ")}`
-    : "";
-  
-  return `Hello! This is regarding your inquiry about ${taskDetails.title}. ${productsText}`;
-};
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -64,14 +83,13 @@ const generateWhatsAppMessage = () => {
 
     setLoading(true);
     try {
-     const source = closeStatus ? "close" : "daily";
+      const source = closeStatus ? "close" : "daily";
 
-const response = await axiosInstance.post(`/todos/${taskId}/follow-up`, {
-  status: finalStatus,
-  comment: comment,
-  source: source,
-});
-
+      const response = await axiosInstance.post(`/todos/${taskId}/follow-up`, {
+        status: finalStatus,
+        comment: comment,
+        source: source,
+      });
 
       toast.success("Follow-up submitted successfully");
       onFollowUpSubmitted?.(response.data);
@@ -156,25 +174,24 @@ const response = await axiosInstance.post(`/todos/${taskId}/follow-up`, {
       </button>
 
       {taskDetails?.customerPhone && (
-  <div className="mt-4 p-4 bg-green-50 rounded-lg">
-    <h4 className="font-semibold text-green-800 mb-2">Customer Contact</h4>
-    <p className="mb-2">Phone: {taskDetails.customerPhone}</p>
-    
-    <WhatsAppShareButton
-      url={window.location.href}
-      title={generateWhatsAppMessage()}
-      separator=":: "
-      className="flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-    >
-      <span className="mr-2">📱</span>
-      Send WhatsApp Message
-    </WhatsAppShareButton>
-    
-    <p className="text-sm text-gray-600 mt-2">
-      This will open WhatsApp with a pre-filled message including product details.
-    </p>
-  </div>
-)}
+        <div className="mt-4 p-4 bg-green-50 rounded-lg">
+          <h4 className="font-semibold text-green-800 mb-2">Customer Contact</h4>
+          <p className="mb-2">Phone: {taskDetails.customerPhone}</p>
+          
+          <button
+            type="button"
+            onClick={openWhatsApp}
+            className="flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            <span className="mr-2">📱</span>
+            Send WhatsApp Message
+          </button>
+          
+          <p className="text-sm text-gray-600 mt-2">
+            This will open WhatsApp with a pre-filled message including product details.
+          </p>
+        </div>
+      )}
     </form>
   );
 }
