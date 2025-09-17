@@ -258,9 +258,14 @@ const renderPresentDetails = (presentDetails, absentDates, month) => {
 
   // Calculate all dates in the month if not provided
   let allDates = [];
+  let firstDayOffset = 0;
+  
   if (month) {
     const [year, m] = month.split("-");
-    const lastDay = new Date(year, parseInt(m), 0).getDate();
+    const lastDay = new Date(year, parseInt(m) - 1, 0).getDate();
+    const firstDay = new Date(year, parseInt(m) - 1, 1);
+    firstDayOffset = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
     const currentDate = new Date();
     const currentDateStr = currentDate.toISOString().split('T')[0];
     
@@ -310,11 +315,16 @@ const renderPresentDetails = (presentDetails, absentDates, month) => {
       
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-2">
-        {/* Day headers */}
+        {/* Day headers - always in correct order */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
             {day}
           </div>
+        ))}
+        
+        {/* Empty cells for days before the 1st of the month */}
+        {Array.from({ length: firstDayOffset }, (_, i) => (
+          <div key={`empty-${i}`} className="p-2 rounded text-center text-sm bg-gray-50 opacity-50"></div>
         ))}
         
         {/* Calendar dates */}
