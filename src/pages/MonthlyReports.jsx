@@ -50,14 +50,21 @@ const fetchReport = async (type) => {
   const currentDate = new Date();
   const currentDateStr = currentDate.toISOString().split('T')[0];
   
-  // Calculate number of Sundays in the month up to today only
-  let sundayCount = 0;
+  // Calculate all dates in the month (only up to today)
+  const allDates = [];
   for (let day = 1; day <= lastDay; day++) {
     const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
+    // Only include dates that are today or in the past
+    if (dateStr <= currentDateStr) {
+      allDates.push(dateStr);
+    }
+  }
+  
+  // Calculate number of Sundays in the month up to today only
+  let sundayCount = 0;
+  for (const dateStr of allDates) {
     const date = new Date(dateStr);
-    
-    // Only count Sundays that are today or in the past
-    if (dateStr <= currentDateStr && date.getDay() === 0) {
+    if (date.getDay() === 0) {
       sundayCount++;
     }
   }
@@ -73,7 +80,8 @@ const fetchReport = async (type) => {
       ...item,
       sundayCount,
       totalWorkingDays: item.totalDays - sundayCount,
-      absentDays: item.absentDates ? item.absentDates.length : 0
+      absentDays: item.absentDates ? item.absentDates.length : 0,
+      allDates: allDates // Add allDates to each report item
     }));
     
     console.log("📊 Monthly report response:", reportWithSundays);
@@ -245,52 +253,150 @@ const renderEarlyDetails = (earlyDetails) => {
   );
 };
 
-const renderPresentDetails = (presentDetails) => {
-  if (!presentDetails || presentDetails.length === 0) return null;
+const renderPresentDetails = (presentDetails, absentDates, allDatesInMonth) => {
+  if (!presentDetails && !absentDates) return null;
+
+  // Get all dates in the month (already calculated in fetchReport)
+  const allDates = allDatesInMonth || [];
+  
+  // Create a map of present dates for quick lookup
+  const presentDateMap = {};
+  if (presentDetails) {
+    presentDetails.forEach(detail => {
+      presentDateMap[detail.date] = detail;
+    });
+  }
+
+  // Create a map of absent dates for quick lookup
+  const absentDateMap = {};
+  if (absentDates) {
+    absentDates.forEach(date => {
+      absentDateMap[date] = true;
+    });
+  }
 
   return (
-    <div className="mt-3 bg-green-50 p-3 rounded-lg">
-      <h4 className="font-medium text-green-800 mb-3">Present Days Details:</h4>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-green-200 rounded-lg overflow-hidden">
-          <thead className="bg-green-100">
-            <tr>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Date</th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Day</th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-In</th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-Out</th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Worked Hours</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-green-200">
-            {presentDetails.map((detail, index) => {
-              const dayName = new Date(detail.date).toLocaleDateString("en-IN", {
-                weekday: "short",
-              });
-
-              return (
-                <tr key={index} className="hover:bg-green-50">
-                  <td className="px-3 py-2 text-sm text-green-700">{formatDate(detail.date)}</td>
-                  <td className="px-3 py-2 text-sm text-green-700">{dayName}</td>
-                  <td className="px-3 py-2 text-sm text-green-700">
-                    {detail.checkInTime ? formatTime(detail.checkInTime) : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-green-700">
-                    {detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-green-700">
-                    {detail.workedHours ? formatWorkedHours(detail.workedHours) : "N/A"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className="mt-3 bg-white p-3 rounded-lg border border-gray-200">
+      <h4 className="font-medium text-gray-800 mb-3">Daily Attendance Calendar:</h4>
+      
+      {/* Status Legend */}
+      <div className="flex flex-wrap gap-3 mb-4 text-xs">
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-green-500 rounded mr-1"></div>
+          <span>Present (Weekday)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-orange-500 rounded mr-1"></div>
+          <span>Sunday</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-red-500 rounded mr-1"></div>
+          <span>Absent (Weekday)</span>
+        </div>
       </div>
+      
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-2">
+        {/* Day headers */}
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+            {day}
+          </div>
+        ))}
+        
+        {/* Calendar dates */}
+        {allDates.map(dateStr => {
+          const dateObj = new Date(dateStr);
+          const dayOfMonth = dateObj.getDate();
+          const isSunday = dateObj.getDay() === 0;
+          const isPresent = presentDateMap[dateStr];
+          const isAbsent = absentDateMap[dateStr] && !isPresent;
+          
+          let bgColor = "bg-gray-100";
+          let textColor = "text-gray-800";
+          
+          if (isPresent && isSunday) {
+            bgColor = "bg-orange-100";
+            textColor = "text-orange-800";
+          } else if (isPresent) {
+            bgColor = "bg-green-100";
+            textColor = "text-green-800";
+          } else if (isSunday) {
+            bgColor = "bg-orange-100";
+            textColor = "text-orange-800";
+          } else if (isAbsent) {
+            bgColor = "bg-red-100";
+            textColor = "text-red-800";
+          }
+          
+          // Find present details for tooltip
+          const presentDetail = presentDateMap[dateStr];
+          
+          return (
+            <div 
+              key={dateStr} 
+              className={`p-2 rounded text-center text-sm ${bgColor} ${textColor} relative`}
+              title={presentDetail ? 
+                `Check-in: ${formatTime(presentDetail.checkInTime)}\nCheck-out: ${presentDetail.checkOutTime ? formatTime(presentDetail.checkOutTime) : 'N/A'}` : 
+                (isSunday ? "Sunday" : "Absent")}
+            >
+              {dayOfMonth}
+              {presentDetail && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* Detailed Table (only show if there are present days) */}
+      {presentDetails && presentDetails.length > 0 && (
+        <>
+          <h4 className="font-medium text-gray-800 mt-6 mb-3">Present Days Details:</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Date</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Day</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-In</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Worked Hours</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {presentDetails.map((detail, index) => {
+                  const dayName = new Date(detail.date).toLocaleDateString("en-IN", {
+                    weekday: "short",
+                  });
+                  const isSunday = new Date(detail.date).getDay() === 0;
+                  const rowColor = isSunday ? "bg-orange-50" : "bg-green-50";
+                  const textColor = isSunday ? "text-orange-700" : "text-green-700";
+
+                  return (
+                    <tr key={index} className={`hover:opacity-90 ${rowColor}`}>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>{formatDate(detail.date)}</td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>{dayName}</td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {detail.checkInTime ? formatTime(detail.checkInTime) : "—"}
+                      </td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}
+                      </td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {detail.workedHours ? formatWorkedHours(detail.workedHours) : "N/A"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 };
-
 
 const renderAbsentDetails = (absentDates) => {
   if (!absentDates || absentDates.length === 0) return null;
@@ -404,12 +510,55 @@ const renderTable = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {r.totalWorkingDays}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                      {r.presentDays}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                      {r.absentDays || 0}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+  {r.presentDetails && r.presentDetails.length > 0 ? (
+    <div className="flex flex-wrap gap-1">
+      {r.presentDetails.map((detail, idx) => {
+        const date = new Date(detail.date);
+        const isSunday = date.getDay() === 0;
+        return (
+          <span
+            key={idx}
+            className={`px-1 rounded text-xs ${
+              isSunday 
+                ? 'bg-orange-100 text-orange-800' 
+                : 'bg-green-100 text-green-800'
+            }`}
+            title={isSunday ? "Sunday (Present)" : "Present"}
+          >
+            {date.getDate()}
+          </span>
+        );
+      })}
+    </div>
+  ) : (
+    <span className="text-red-600">0</span>
+  )}
+</td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm">
+  {r.absentDates && r.absentDates.length > 0 ? (
+    <div className="flex flex-wrap gap-1">
+      {r.absentDates.map((date, idx) => {
+        const isSunday = new Date(date).getDay() === 0;
+        return (
+          <span
+            key={idx}
+            className={`px-1 rounded text-xs ${
+              isSunday 
+                ? 'bg-orange-100 text-orange-800' 
+                : 'bg-red-100 text-red-800'
+            }`}
+            title={isSunday ? "Sunday" : "Absent"}
+          >
+            {new Date(date).getDate()}
+          </span>
+        );
+      })}
+    </div>
+  ) : (
+    <span className="text-green-600">0</span>
+  )}
+</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
                       {r.lateArrivals}
                     </td>
@@ -431,14 +580,14 @@ const renderTable = () => {
                     <tr>
                       <td colSpan="10" className="px-6 py-4 bg-gray-50">
                      <div className="space-y-4">
-  {view === "present" && renderPresentDetails(r.presentDetails)}
-  {view === "absent" && renderAbsentDetails(r.absentDates)}
+{view === "present" && renderPresentDetails(r.presentDetails, r.absentDates, allDates)}
+{view === "absent" && renderAbsentDetails(r.absentDates)}
   {view === "late" && renderLateDetails(r.lateDetails)}
   {view === "early" && renderEarlyDetails(r.earlyDetails)}
   {view === "attendance" && (
     <>
-      {renderPresentDetails(r.presentDetails)}
-      {renderAbsentDetails(r.absentDates)}
+{renderPresentDetails(r.presentDetails, r.absentDates, allDates)}
+{renderAbsentDetails(r.absentDates)}
       {renderLateDetails(r.lateDetails)}
       {renderEarlyDetails(r.earlyDetails)}
     </>
