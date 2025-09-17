@@ -396,6 +396,32 @@ useEffect(() => {
 
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
+  // Add this function inside your component
+const openWhatsApp = (task) => {
+  if (!task?.customerPhone) {
+    toast.error("No phone number available for this customer");
+    return;
+  }
+  
+  const productsText = task.products && task.products.length > 0 
+    ? `Products: ${task.products.map(p => p.name).join(", ")}`
+    : "";
+  
+  const message = encodeURIComponent(`Hello! This is regarding your inquiry about ${task.title}. ${productsText}`);
+  const phone = task.customerPhone.replace(/\D/g, ''); // Remove non-digit characters
+  
+  // Check if it's mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    // Open WhatsApp app on mobile
+    window.open(`whatsapp://send?phone=${phone}&text=${message}`, '_blank');
+  } else {
+    // Open WhatsApp web on desktop
+    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${message}`, '_blank');
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -550,6 +576,13 @@ useEffect(() => {
 <p className="text-sm text-gray-500 mt-2">
                       Assigned by: {task.assignedBy?.name || "N/A"}
                     </p>
+
+                    {/* Add this line to show the customer phone number */}
+{task.customerPhone && (
+  <p className="text-sm text-gray-500">
+    Customer Phone: {task.customerPhone}
+  </p>
+)}
                     <p className="text-sm text-gray-500">
                       Assigned on:{" "}
                       {task.assignedOn
@@ -682,6 +715,16 @@ return (
                     </button>
                   )}
 
+{/* WhatsApp Button - Show for tasks with customer phone number */}
+{task.customerPhone && (
+  <button
+    onClick={() => openWhatsApp(task)}
+    className="mt-4 sm:mt-0 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center"
+  >
+    <span className="mr-2">📱</span>
+    WhatsApp
+  </button>
+)}
                   {/* Show assigned images */}
           {/* Assigned Media Section */}
 {task.origin !== "requisition" && task.images?.length > 0 && (
