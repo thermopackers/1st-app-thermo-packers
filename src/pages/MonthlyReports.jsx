@@ -533,55 +533,13 @@ const renderTable = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {r.totalWorkingDays}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-  {r.presentDetails && r.presentDetails.length > 0 ? (
-    <div className="flex flex-wrap gap-1">
-      {r.presentDetails.map((detail, idx) => {
-        const date = new Date(detail.date);
-        const isSunday = date.getDay() === 0;
-        return (
-          <span
-            key={idx}
-            className={`px-1 rounded text-xs ${
-              isSunday 
-                ? 'bg-orange-100 text-orange-800' 
-                : 'bg-green-100 text-green-800'
-            }`}
-            title={isSunday ? "Sunday (Present)" : "Present"}
-          >
-            {date.getDate()}
-          </span>
-        );
-      })}
-    </div>
-  ) : (
-    <span className="text-red-600">0</span>
-  )}
-</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-  {r.absentDates && r.absentDates.length > 0 ? (
-    <div className="flex flex-wrap gap-1">
-      {r.absentDates.map((date, idx) => {
-        const isSunday = new Date(date).getDay() === 0;
-        return (
-          <span
-            key={idx}
-            className={`px-1 rounded text-xs ${
-              isSunday 
-                ? 'bg-orange-100 text-orange-800' 
-                : 'bg-red-100 text-red-800'
-            }`}
-            title={isSunday ? "Sunday" : "Absent"}
-          >
-            {new Date(date).getDate()}
-          </span>
-        );
-      })}
-    </div>
-  ) : (
-    <span className="text-green-600">0</span>
-  )}
-</td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                      {r.presentDays}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                      {r.absentDays || 0}
+                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
                       {r.lateArrivals}
                     </td>
