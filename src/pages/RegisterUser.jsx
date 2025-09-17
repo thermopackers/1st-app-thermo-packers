@@ -400,7 +400,7 @@ const fetchUsers = async (page = 1, query = "") => {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (As per Aadhar Card)</label>
               <input
                 type="text"
                 required
@@ -416,12 +416,12 @@ const fetchUsers = async (page = 1, query = "") => {
             {/* All details are now always visible */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm">Date of Birth</label>
+                <label className="block text-sm">Date of Birth (As per Aadhar Card)</label>
                 <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
               </div>
 
               <div>
-                <label className="block text-sm">Address</label>
+                <label className="block text-sm">Address (As per Aadhar Card)</label>
                 <textarea value={address} onChange={e => setAddress(e.target.value)} className="w-full border p-2 rounded" />
               </div>
 
