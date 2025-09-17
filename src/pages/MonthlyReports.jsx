@@ -252,7 +252,7 @@ const renderPresentDetails = (presentDetails, absentDates, totalDays) => {
 
   // Map absentDates into same structure as presentDetails
   const absentMapped = absentDates.map(entry => ({
-    date: entry.date,
+    date: entry.date || entry, // Handle both object and string formats
     status: entry.type === "sunday" ? "sunday" : "absent",
     checkInTime: null,
     checkOutTime: null,
@@ -290,9 +290,15 @@ const renderPresentDetails = (presentDetails, absentDates, totalDays) => {
           </thead>
           <tbody className="divide-y divide-green-200">
             {allDays.map((detail, index) => {
-              const dayName = new Date(detail.date).toLocaleDateString("en-IN", {
-                weekday: "short",
-              });
+              // Add error handling for invalid dates
+              let dayName = "Invalid date";
+              try {
+                dayName = new Date(detail.date).toLocaleDateString("en-IN", {
+                  weekday: "short",
+                });
+              } catch (e) {
+                console.error("Invalid date:", detail.date);
+              }
 
               let rowClass = "";
               if (detail.status === "present") rowClass = "text-green-700";
