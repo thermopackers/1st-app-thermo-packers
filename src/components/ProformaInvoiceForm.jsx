@@ -486,18 +486,271 @@ packaging: e.target.value,
               />
             </td>
             <td>{p.unit}</td>
-            <td>
-              <input
-                className="input w-20"
-                type="number"
-                value={p.rate}
-                onChange={(e) => {
+          <td>
+  <div className="flex flex-col gap-1">
+    {/* Checkbox for Costing Sheet */}
+    <label className="flex items-center gap-1 text-xs">
+      <input
+        type="checkbox"
+        checked={p.isCNC || false}
+        onChange={(e) => {
+          const updated = [...form.products];
+          updated[i].isCNC = e.target.checked;
+          // Reset CNC fields when unchecked
+          if (!e.target.checked) {
+            updated[i].cncLength = "";
+            updated[i].cncBreadth = "";
+            updated[i].cncHeight = "";
+            updated[i].cncWeight = 0;
+            updated[i].cncBasicCost = 300;
+            updated[i].cncMachineRate = 500;
+            updated[i].cncMachineHours = 0;
+            updated[i].cncLaborCharges = 0;
+            updated[i].cncProfit = 0;
+            updated[i].rate = 0;
+          } else {
+            updated[i].cncBasicCost = 300;
+            updated[i].cncMachineRate = 500;
+          }
+          setForm(f => ({ ...f, products: updated }));
+        }}
+      />
+      Costing sheet for EPS/Thermocol CNC Pattern
+    </label>
+    
+    {p.isCNC ? (
+      <div className="bg-gray-100 p-2 rounded text-xs">
+        {/* Dimensions Inputs */}
+        <div className="grid grid-cols-3 gap-1 mb-2">
+          <div>
+            <label className="block text-xs">Length (mm)</label>
+            <input
+              type="number"
+              className="input w-full text-xs p-1"
+              value={p.cncLength || ""}
+              onChange={(e) => {
+                const updated = [...form.products];
+                updated[i].cncLength = e.target.value;
+                setForm(f => ({ ...f, products: updated }));
+              }}
+              onBlur={() => {
+                if (p.cncLength && p.cncBreadth && p.cncHeight) {
                   const updated = [...form.products];
-                  updated[i].rate = +e.target.value;
+                  // Calculate weight: ((l*b*h)/1000000)*24/1000
+                  const l = parseFloat(p.cncLength);
+                  const b = parseFloat(p.cncBreadth);
+                  const h = parseFloat(p.cncHeight);
+                  updated[i].cncWeight = ((l * b * h) / 1000000) * 24 / 1000;
+                  
+                  // Calculate all costs
+                  const basicCost = updated[i].cncBasicCost || 300;
+                  const machineRate = updated[i].cncMachineRate || 500;
+                  const machineHours = updated[i].cncMachineHours || 0;
+                  const laborCharges = machineHours * machineRate * 0.5; // 50% of machine hours
+                  const totalCost = (basicCost * updated[i].cncWeight) + (machineRate * machineHours) + laborCharges;
+                  const profit = totalCost * 0.2; // 20% profit
+                  
+                  updated[i].cncLaborCharges = laborCharges;
+                  updated[i].cncProfit = profit;
+                  updated[i].rate = totalCost + profit;
+                  
                   setForm(f => ({ ...f, products: updated }));
-                }}
-              />
-            </td>
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs">Breadth (mm)</label>
+            <input
+              type="number"
+              className="input w-full text-xs p-1"
+              value={p.cncBreadth || ""}
+              onChange={(e) => {
+                const updated = [...form.products];
+                updated[i].cncBreadth = e.target.value;
+                setForm(f => ({ ...f, products: updated }));
+              }}
+              onBlur={() => {
+                if (p.cncLength && p.cncBreadth && p.cncHeight) {
+                  const updated = [...form.products];
+                  const l = parseFloat(p.cncLength);
+                  const b = parseFloat(p.cncBreadth);
+                  const h = parseFloat(p.cncHeight);
+                  updated[i].cncWeight = ((l * b * h) / 1000000) * 24 / 1000;
+                  
+                  const basicCost = updated[i].cncBasicCost || 300;
+                  const machineRate = updated[i].cncMachineRate || 500;
+                  const machineHours = updated[i].cncMachineHours || 0;
+                  const laborCharges = machineHours * machineRate * 0.5;
+                  const totalCost = (basicCost * updated[i].cncWeight) + (machineRate * machineHours) + laborCharges;
+                  const profit = totalCost * 0.2;
+                  
+                  updated[i].cncLaborCharges = laborCharges;
+                  updated[i].cncProfit = profit;
+                  updated[i].rate = totalCost + profit;
+                  
+                  setForm(f => ({ ...f, products: updated }));
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs">Height (mm)</label>
+            <input
+              type="number"
+              className="input w-full text-xs p-1"
+              value={p.cncHeight || ""}
+              onChange={(e) => {
+                const updated = [...form.products];
+                updated[i].cncHeight = e.target.value;
+                setForm(f => ({ ...f, products: updated }));
+              }}
+              onBlur={() => {
+                if (p.cncLength && p.cncBreadth && p.cncHeight) {
+                  const updated = [...form.products];
+                  const l = parseFloat(p.cncLength);
+                  const b = parseFloat(p.cncBreadth);
+                  const h = parseFloat(p.cncHeight);
+                  updated[i].cncWeight = ((l * b * h) / 1000000) * 24 / 1000;
+                  
+                  const basicCost = updated[i].cncBasicCost || 300;
+                  const machineRate = updated[i].cncMachineRate || 500;
+                  const machineHours = updated[i].cncMachineHours || 0;
+                  const laborCharges = machineHours * machineRate * 0.5;
+                  const totalCost = (basicCost * updated[i].cncWeight) + (machineRate * machineHours) + laborCharges;
+                  const profit = totalCost * 0.2;
+                  
+                  updated[i].cncLaborCharges = laborCharges;
+                  updated[i].cncProfit = profit;
+                  updated[i].rate = totalCost + profit;
+                  
+                  setForm(f => ({ ...f, products: updated }));
+                }
+              }}
+            />
+          </div>
+        </div>
+        
+        {/* Calculated Weight */}
+        {p.cncWeight > 0 && (
+          <div className="mb-1">
+            <span className="font-medium">Calculated Weight:</span> {p.cncWeight.toFixed(4)} kg
+          </div>
+        )}
+        
+        {/* Basic Cost */}
+        <div className="mb-1">
+          <label className="block text-xs">Basic Cost (₹/kg)</label>
+          <input
+            type="number"
+            className="input w-full text-xs p-1"
+            value={p.cncBasicCost || 300}
+            onChange={(e) => {
+              const updated = [...form.products];
+              updated[i].cncBasicCost = parseFloat(e.target.value) || 300;
+              
+              // Recalculate everything
+              if (p.cncWeight > 0) {
+                const machineRate = updated[i].cncMachineRate || 500;
+                const machineHours = updated[i].cncMachineHours || 0;
+                const laborCharges = machineHours * machineRate * 0.5;
+                const totalCost = (updated[i].cncBasicCost * p.cncWeight) + (machineRate * machineHours) + laborCharges;
+                const profit = totalCost * 0.2;
+                
+                updated[i].cncLaborCharges = laborCharges;
+                updated[i].cncProfit = profit;
+                updated[i].rate = totalCost + profit;
+              }
+              
+              setForm(f => ({ ...f, products: updated }));
+            }}
+          />
+        </div>
+        
+        {/* Machine Hours */}
+        <div className="mb-1">
+          <label className="block text-xs">Machine Hours</label>
+          <input
+            type="number"
+            step="0.5"
+            className="input w-full text-xs p-1"
+            value={p.cncMachineHours || 0}
+            onChange={(e) => {
+              const updated = [...form.products];
+              updated[i].cncMachineHours = parseFloat(e.target.value) || 0;
+              
+              // Recalculate everything
+              if (p.cncWeight > 0) {
+                const basicCost = updated[i].cncBasicCost || 300;
+                const machineRate = updated[i].cncMachineRate || 500;
+                const laborCharges = updated[i].cncMachineHours * machineRate * 0.5;
+                const totalCost = (basicCost * p.cncWeight) + (machineRate * updated[i].cncMachineHours) + laborCharges;
+                const profit = totalCost * 0.2;
+                
+                updated[i].cncLaborCharges = laborCharges;
+                updated[i].cncProfit = profit;
+                updated[i].rate = totalCost + profit;
+              }
+              
+              setForm(f => ({ ...f, products: updated }));
+            }}
+          />
+        </div>
+        
+        {/* Machine Rate */}
+        <div className="mb-1">
+          <label className="block text-xs">Machine Rate (₹/hr)</label>
+          <input
+            type="number"
+            className="input w-full text-xs p-1"
+            value={p.cncMachineRate || 500}
+            onChange={(e) => {
+              const updated = [...form.products];
+              updated[i].cncMachineRate = parseFloat(e.target.value) || 500;
+              
+              // Recalculate everything
+              if (p.cncWeight > 0) {
+                const basicCost = updated[i].cncBasicCost || 300;
+                const machineHours = updated[i].cncMachineHours || 0;
+                const laborCharges = machineHours * updated[i].cncMachineRate * 0.5;
+                const totalCost = (basicCost * p.cncWeight) + (updated[i].cncMachineRate * machineHours) + laborCharges;
+                const profit = totalCost * 0.2;
+                
+                updated[i].cncLaborCharges = laborCharges;
+                updated[i].cncProfit = profit;
+                updated[i].rate = totalCost + profit;
+              }
+              
+              setForm(f => ({ ...f, products: updated }));
+            }}
+          />
+        </div>
+        
+        {/* Calculated Values */}
+        {p.cncWeight > 0 && (
+          <div className="text-xs space-y-1">
+            <div>Material Cost: ₹{(p.cncBasicCost * p.cncWeight).toFixed(2)}</div>
+            <div>Block Price: ₹{((p.cncMachineRate || 500) * (p.cncMachineHours || 0)).toFixed(2)}</div>
+            <div>Labor Charges: ₹{p.cncLaborCharges.toFixed(2)}</div>
+            <div>Profit (20%): ₹{p.cncProfit.toFixed(2)}</div>
+            <div className="font-bold">Final Rate: ₹{p.rate.toFixed(2)}</div>
+          </div>
+        )}
+      </div>
+    ) : (
+      <input
+        className="input w-20"
+        type="number"
+        value={p.rate.toFixed(3)}
+        onChange={(e) => {
+          const updated = [...form.products];
+          updated[i].rate = +e.target.value;
+          setForm(f => ({ ...f, products: updated }));
+        }}
+      />
+    )}
+  </div>
+</td>
             {form.inPunjab ? (
               <>
                 <td>{(p.gst / 2).toFixed(2)}%</td>
