@@ -245,73 +245,41 @@ const renderEarlyDetails = (earlyDetails) => {
   );
 };
 
-const renderPresentDetails = (presentDetails, absentDates, totalDays) => {
-  if ((!presentDetails || presentDetails.length === 0) && (!absentDates || absentDates.length === 0)) {
-    return null;
-  }
-
-  // Map absentDates into same structure as presentDetails
-  const absentMapped = absentDates?.map(entry => ({
-    date: entry.date,
-    status: entry.type === "sunday" ? "sunday" : "absent",
-    checkInTime: null,
-    checkOutTime: null,
-    workedHours: null
-  }));
-
-  // Mark presents
-  const presentMapped = presentDetails?.map(detail => ({
-    date: detail.date,
-    status: "present",
-    checkInTime: detail.checkInTime,
-    checkOutTime: detail.checkOutTime,
-    workedHours: detail.workedHours
-  }));
-
-  // Merge both arrays
-  const allDays = [...presentMapped, ...absentMapped].sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
-  );
+const renderPresentDetails = (presentDetails) => {
+  if (!presentDetails || presentDetails.length === 0) return null;
 
   return (
     <div className="mt-3 bg-green-50 p-3 rounded-lg">
-      <h4 className="font-medium text-green-800 mb-3">Day-wise Attendance:</h4>
+      <h4 className="font-medium text-green-800 mb-3">Present Days Details:</h4>
       <div className="overflow-x-auto">
         <table className="min-w-full border border-green-200 rounded-lg overflow-hidden">
           <thead className="bg-green-100">
             <tr>
               <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Date</th>
               <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Day</th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Status</th>
               <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-In</th>
               <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Check-Out</th>
               <th className="px-3 py-2 text-left text-sm font-medium text-green-800">Worked Hours</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-green-200">
-            {allDays.map((detail, index) => {
+            {presentDetails.map((detail, index) => {
               const dayName = new Date(detail.date).toLocaleDateString("en-IN", {
                 weekday: "short",
               });
 
-              let rowClass = "";
-              if (detail.status === "present") rowClass = "text-green-700";
-              if (detail.status === "absent") rowClass = "text-red-700 bg-red-50";
-              if (detail.status === "sunday") rowClass = "text-orange-700 bg-orange-50";
-
               return (
-                <tr key={index} className={`hover:bg-green-50 ${rowClass}`}>
-                  <td className="px-3 py-2 text-sm">{formatDate(detail.date)}</td>
-                  <td className="px-3 py-2 text-sm">{dayName}</td>
-                  <td className="px-3 py-2 text-sm capitalize">{detail.status}</td>
-                  <td className="px-3 py-2 text-sm">
+                <tr key={index} className="hover:bg-green-50">
+                  <td className="px-3 py-2 text-sm text-green-700">{formatDate(detail.date)}</td>
+                  <td className="px-3 py-2 text-sm text-green-700">{dayName}</td>
+                  <td className="px-3 py-2 text-sm text-green-700">
                     {detail.checkInTime ? formatTime(detail.checkInTime) : "—"}
                   </td>
-                  <td className="px-3 py-2 text-sm">
+                  <td className="px-3 py-2 text-sm text-green-700">
                     {detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}
                   </td>
-                  <td className="px-3 py-2 text-sm">
-                    {detail.workedHours ? formatWorkedHours(detail.workedHours) : "—"}
+                  <td className="px-3 py-2 text-sm text-green-700">
+                    {detail.workedHours ? formatWorkedHours(detail.workedHours) : "N/A"}
                   </td>
                 </tr>
               );
@@ -324,7 +292,6 @@ const renderPresentDetails = (presentDetails, absentDates, totalDays) => {
 };
 
 
-
 const renderAbsentDetails = (absentDates) => {
   if (!absentDates || absentDates.length === 0) return null;
 
@@ -332,18 +299,11 @@ const renderAbsentDetails = (absentDates) => {
     <div className="mt-3 bg-red-50 p-3 rounded-lg">
       <h4 className="font-medium text-red-800 mb-2">Absent Dates:</h4>
       <div className="flex flex-wrap gap-1">
-     {absentDates.map((entry, index) => {
-  const colorClass = entry.type === "sunday"
-    ? "text-orange-800 bg-orange-300"
-    : "text-red-700 bg-red-100";
-
-  return (
-    <span key={index} className={`text-sm px-2 py-1 rounded ${colorClass}`}>
-      {formatDate(entry.date)}
-    </span>
-  );
-})}
-
+        {absentDates.map((date, index) => (
+          <span key={index} className="text-sm text-red-700 bg-red-100 px-2 py-1 rounded">
+            {formatDate(date)}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -471,7 +431,7 @@ const renderTable = () => {
                     <tr>
                       <td colSpan="10" className="px-6 py-4 bg-gray-50">
                      <div className="space-y-4">
-{view === "present" && renderPresentDetails(r.presentDetails, r.absentDates, r.totalDays)}
+  {view === "present" && renderPresentDetails(r.presentDetails)}
   {view === "absent" && renderAbsentDetails(r.absentDates)}
   {view === "late" && renderLateDetails(r.lateDetails)}
   {view === "early" && renderEarlyDetails(r.earlyDetails)}
@@ -607,3 +567,4 @@ const renderTable = () => {
     </>
   );
 }
+ 
