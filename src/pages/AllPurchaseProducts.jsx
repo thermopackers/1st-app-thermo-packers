@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
 import InternalNavbar from "../components/InternalNavbar";
@@ -11,11 +11,49 @@ export default function AllPurchaseProducts() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [suppliers, setSuppliers] = useState([]);
+const [selectedCategory, setSelectedCategory] = useState("");
+const [selectedSupplier, setSelectedSupplier] = useState(null);
+const detailRef = useRef(null);
   const navigate = useNavigate();
+
+  const fetchSuppliers = async (category) => {
+  try {
+    const res = await axiosInstance.get(`/suppliers?category=${category}`);
+    setSuppliers(res.data.data);
+    setSelectedCategory(category);
+    setSelectedSupplier(null); // Reset selected supplier
+  } catch (err) {
+    toast.error("Failed to load suppliers");
+  }
+};
+
+const handleCategoryClick = (category) => {
+  fetchSuppliers(category);
+};
 
   useEffect(() => {
     fetchProducts();
   }, [page, query]);
+
+  useEffect(() => {
+  if (selectedSupplier && detailRef.current) {
+    detailRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}, [selectedSupplier]);
+
+useEffect(() => {
+  if (selectedCategory && detailRef.current) {
+    detailRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}, [selectedCategory]);
+
 
   const fetchProducts = async () => {
     try {
@@ -38,6 +76,32 @@ export default function AllPurchaseProducts() {
     setPage(1);
     setQuery(search);
   };
+
+  const handleFilePreview = (file) => {
+  if (!file?.url) return;
+
+  const isImage = file.url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+  const isPdf = file.url.match(/\.pdf$/i);
+
+  if (isImage) {
+    Swal.fire({
+      imageUrl: file.url,
+      imageAlt: file.filename || "File Preview",
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: "auto",
+    });
+  } else if (isPdf) {
+    Swal.fire({
+      html: `<iframe src="${file.url}" width="100%" height="500px"></iframe>`,
+      width: "80%",
+      showCloseButton: true,
+      showConfirmButton: false,
+    });
+  } else {
+    Swal.fire("Unsupported file type", "", "error");
+  }
+};
 
   return (
     <>
@@ -87,7 +151,18 @@ export default function AllPurchaseProducts() {
                   <tr key={prod._id} className="border-t hover:bg-gray-50 text-center align-top">
                     <td className="p-3">{prod.name}</td>
                     <td className="p-3">{prod.unit}</td>
-                    <td className="p-3">{prod.category?.name || "—"}</td>
+<td className="p-3">
+  {prod.category?.name ? (
+    <span
+      className="text-blue-600 hover:underline cursor-pointer"
+      onClick={() => handleCategoryClick(prod.category.name)}
+    >
+      {prod.category.name}
+    </span>
+  ) : (
+    "—"
+  )}
+</td>
                     <td className="p-3">{prod.hsnCode}</td>
                     <td className="p-3">{prod.gstPercent}</td>
                     <td className="p-3">₹ {prod.price}</td>
@@ -316,6 +391,156 @@ onClick={() => {
               Next ▶
             </button>
           </div>
+          {/* Supplier Details Section */}
+{selectedCategory && (
+  <div className="mt-8 bg-white p-4 rounded-xl shadow-md">
+    <h3 className="text-lg font-bold mb-4">
+      Suppliers in {selectedCategory}
+     <button
+  onClick={() => {
+    setSelectedCategory("");
+    setSelectedSupplier(null);
+
+    // scroll back to top after reset
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }}
+  className="ml-4 text-red-200 px-2 py-1 rounded bg-red-600 text-sm font-normal"
+>
+  Close
+</button>
+
+    </h3>
+
+    {suppliers.length > 0 ? (
+      <div className="overflow-x-auto">
+        <table className="w-full border text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-2 py-1">Name</th>
+              <th className="border px-2 py-1">Address</th>
+              <th className="border px-2 py-1">Phone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {suppliers.map((s) => (
+              <tr
+                key={s._id}
+               onClick={() => setSelectedSupplier(s)
+              }
+                className="hover:bg-gray-50 cursor-pointer"
+              >
+                <td className="border px-2 py-1 text-blue-700">{s.name}</td>
+                <td className="border px-2 py-1 text-blue-700">{s.address}</td>
+                <td className="border px-2 py-1 text-blue-700">{s.phone}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <p className="text-gray-500">No suppliers in this category</p>
+    )}
+
+    <div ref={detailRef}>
+      {selectedSupplier && (
+        <div className="mt-4 p-4 border rounded bg-gray-50 shadow-md">
+          <h4 className="font-bold mb-2">Supplier Details</h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <p><strong>Name:</strong> {selectedSupplier.name}</p>
+            <p><strong>Category:</strong> {selectedSupplier.vendorCategory}</p>
+            <p><strong>Email:</strong> {selectedSupplier.email}</p>
+            <p><strong>GST:</strong> {selectedSupplier.gstNumber}</p>
+            <p><strong>Phone:</strong> {selectedSupplier.phone}</p>
+            <p className="sm:col-span-2">
+              <strong>Address:</strong> {selectedSupplier.address}
+            </p>
+
+            {/* Banking Details */}
+            <p><strong>Acc Name:</strong> {selectedSupplier.accountName}</p>
+            <p><strong>Bank Name:</strong> {selectedSupplier.bankName}</p>
+            <p><strong>Acc No:</strong> {selectedSupplier.accountNumber}</p>
+            <p><strong>IFSC:</strong> {selectedSupplier.ifscCode}</p>
+
+            {/* Files */}
+            {selectedSupplier.files?.length > 0 && (
+              <div className="sm:col-span-2 mt-2">
+                <strong>Files:</strong>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedSupplier.files.map((f, i) => {
+                    const isImage = f.url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+                    const isPdf = f.url.match(/\.pdf$/i);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handleFilePreview(f)}
+                        className="cursor-pointer border rounded p-1 w-24 h-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200"
+                      >
+                        {isImage ? (
+                          <img
+                            src={f.url}
+                            alt={f.filename || `File ${i + 1}`}
+                            className="w-full h-full object-cover rounded"
+                          />
+                        ) : isPdf ? (
+                          <span className="text-red-600 font-bold">PDF</span>
+                        ) : (
+                          <span className="text-gray-500">File</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Cheque Files */}
+            {selectedSupplier.chequeFiles?.length > 0 && (
+              <div className="sm:col-span-2 mt-2">
+                <strong>Cheque Files:</strong>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedSupplier.chequeFiles.map((f, i) => {
+                    const isImage = f.url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+                    const isPdf = f.url.match(/\.pdf$/i);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handleFilePreview(f)}
+                        className="cursor-pointer border rounded p-1 w-24 h-24 flex items-center justify-center bg-gray-100 hover:bg-gray-200"
+                      >
+                        {isImage ? (
+                          <img
+                            src={f.url}
+                            alt={f.filename || `Cheque ${i + 1}`}
+                            className="w-full h-full object-cover rounded"
+                          />
+                        ) : isPdf ? (
+                          <span className="text-red-600 font-bold">PDF</span>
+                        ) : (
+                          <span className="text-gray-500">File</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setSelectedSupplier(null)}
+            className="mt-3 bg-red-600 text-white px-3 py-1 rounded"
+          >
+            Close Details
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
         </div>
       </div>
     </>
