@@ -347,11 +347,13 @@ products: selectedProducts.map((p) => p.value), // ✅ correct
               required
             >
               <option value="">Select user</option>
-              {users.map((user) => (
-                <option key={user._id} value={user._id}>
-                  {user.name} ({user.role})
-                </option>
-              ))}
+              {users
+  .filter((user) => user.role && user.role.trim() !== "") // ✅ exclude "no role"
+  .map((user) => (
+    <option key={user._id} value={user._id}>
+      {user.name} ({user.role})
+    </option>
+))}
             </select>
             {assignedToList.length > 1 && (
               <button

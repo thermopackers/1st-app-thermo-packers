@@ -29,7 +29,7 @@ const [limit] = useState(10); // You can make this configurable if needed
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
   const [allowAttendance, setAllowAttendance] = useState(false);
-  const [role, setRole] = useState('sales');
+  const [role, setRole] = useState('');
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
@@ -153,7 +153,7 @@ formData.append("personalPhone", personalPhone);
       setName('');
       setEmail('');
       setPhone('');
-      setRole('sales');
+      setRole('');
       setProductionSection([]);
       setProfilePicture(null);
       setProfilePicturePreview('');
@@ -623,13 +623,13 @@ const fetchUsers = async (page = 1, query = "") => {
                 onChange={e => setRole(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-blue-400 outline-none"
               >
+                <option value="">No Role</option>
                 <option value="sales">Sales</option>
                 <option value="accounts">Accounts</option>
                 <option value="dispatch">EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section</option>
                 <option value="production">Production</option>
                 <option value="packaging">EPS/Thermocol Shape Molding, Packaging and Dispatch Section</option>
                 <option value="suppliers">Vendors/Suppliers</option> {/* ✅ NEW */}
-                <option value="">No Role</option>
               </select>
             </div>
             {role === 'production' && (
