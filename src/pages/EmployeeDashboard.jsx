@@ -398,6 +398,7 @@ useEffect(() => {
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
   // Add this function inside your component
+// Replace the existing openWhatsApp function with this updated version
 const openWhatsApp = (task) => {
   if (!task?.customerPhone) {
     toast.error("No phone number available for this customer");
@@ -406,7 +407,7 @@ const openWhatsApp = (task) => {
 
   // Build product list
   const productsText = task.products?.length
-    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("%0A")
+    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("\n")
     : "";
 
   // Collect first 3 images (optional limit)
@@ -416,29 +417,31 @@ const openWhatsApp = (task) => {
 
   // Take visiting card from the current logged-in user
   const visitingCardUrl = task.assignedBy?.visitingCard || ""; 
-  // 👆 Make sure you store visitingCard in your User model when uploading visiting card
 
   // Build WhatsApp message
-  let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
+  let message = `Hello! 👋\nThis is regarding your inquiry about *${task.title}*.\n\n`;
 
   if (productsText) {
-    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
+    message += `🛒 *Products*:\n${productsText}\n\n`;
   }
 
   if (imageUrls.length > 0) {
-    message += `📷 *Images*:%0A`;
+    message += `📷 *Images*:\n`;
     imageUrls.forEach((url, i) => {
-      message += `${i + 1}. ${url}%0A`;
+      message += `${i + 1}. ${url}\n`;
     });
-    message += "%0A";
+    message += "\n";
   }
 
   if (visitingCardUrl) {
-    message += `👔 *My Visiting Card*:%0A${visitingCardUrl}%0A`;
+    message += `👔 *My Visiting Card*:\n${visitingCardUrl}\n`;
   }
 
+  // Properly encode the message for URL
+  const encodedMessage = encodeURIComponent(message);
   const phone = task.customerPhone.replace(/\D/g, "");
-  window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+  
+  window.open(`https://wa.me/${phone}?text=${encodedMessage}`, "_blank");
 };
 
 
