@@ -398,8 +398,7 @@ useEffect(() => {
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
   // Add this function inside your component
-// Replace the openWhatsApp function with this updated version
-const openWhatsApp = (task) => {
+const openWhatsApp = async (task) => {
   if (!task?.customerPhone) {
     toast.error("No phone number available for this customer");
     return;
@@ -421,18 +420,27 @@ const openWhatsApp = (task) => {
     phone = "+" + phone;
   }
 
-  // Build product list
-  const productsText = task.products?.length
-    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("%0A")
-    : "";
+  // Build product list with images
+  let productsText = "";
+  let productImages = [];
+  
+  if (task.products?.length) {
+    productsText = task.products.map((p, i) => 
+      `${i + 1}. ${p.name} (${p.unit || ""})`
+    ).join("%0A");
+    
+   // Collect ALL images from ALL products
+task.products.forEach(product => {
+  if (product.images && product.images.length > 0) {
+    product.images.forEach(imageUrl => {
+      productImages.push(imageUrl);
+    });
+  }
+});
+  }
 
-  // Collect first 3 images (optional limit)
-  const imageUrls = (task.images || [])
-    .filter((url) => !url.endsWith(".webm") && !url.endsWith(".mp3"))
-    .slice(0, 3);
-
-  // Take visiting card from the current logged-in user
-  const visitingCardUrl = task.assignedBy?.visitingCard || ""; 
+  // Get visiting card from CURRENT logged-in user (not task assigner)
+  const currentUserVisitingCard = user?.visitingCard || ""; 
 
   // Build WhatsApp message
   let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
@@ -441,16 +449,18 @@ const openWhatsApp = (task) => {
     message += `🛒 *Products*:%0A${productsText}%0A%0A`;
   }
 
-  if (imageUrls.length > 0) {
-    message += `📷 *Images*:%0A`;
-    imageUrls.forEach((url, i) => {
+  // Add product images
+  if (productImages.length > 0) {
+    message += `📷 *Product Images*:%0A`;
+    productImages.forEach((url, i) => {
       message += `${i + 1}. ${url}%0A`;
     });
     message += "%0A";
   }
 
-  if (visitingCardUrl) {
-    message += `👔 *My Visiting Card*:%0A${visitingCardUrl}%0A`;
+  // Add current user's visiting card
+  if (currentUserVisitingCard) {
+    message += `👔 *My Visiting Card*:%0A${currentUserVisitingCard}%0A%0A`;
   }
 
   window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
