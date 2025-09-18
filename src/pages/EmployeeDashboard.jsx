@@ -398,12 +398,63 @@ useEffect(() => {
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
   // Add this function inside your component
-// Replace the existing openWhatsApp function with this updated version
+// Replace the openWhatsApp function with this updated version
 const openWhatsApp = (task) => {
   if (!task?.customerPhone) {
     toast.error("No phone number available for this customer");
     return;
   }
+
+  // Clean and format the phone number
+  let phone = task.customerPhone.replace(/\D/g, ""); // Remove all non-digit characters
+  
+  // If it starts with 91 (India code) but doesn't have +, add it
+  if (phone.startsWith("91") && phone.length === 12) {
+    phone = "+" + phone;
+  }
+  // If it's a 10-digit number without country code, assume it's Indian and add +91
+  else if (phone.length === 10) {
+    phone = "+91" + phone;
+  }
+  // If it's already in international format with +, keep it
+  else if (phone.startsWith("91") && !phone.startsWith("+")) {
+    phone = "+" + phone;
+  }
+
+  // Build product list
+  const productsText = task.products?.length
+    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("%0A")
+    : "";
+
+  // Collect first 3 images (optional limit)
+  const imageUrls = (task.images || [])
+    .filter((url) => !url.endsWith(".webm") && !url.endsWith(".mp3"))
+    .slice(0, 3);
+
+  // Take visiting card from the current logged-in user
+  const visitingCardUrl = task.assignedBy?.visitingCard || ""; 
+
+  // Build WhatsApp message
+  let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
+
+  if (productsText) {
+    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
+  }
+
+  if (imageUrls.length > 0) {
+    message += `📷 *Images*:%0A`;
+    imageUrls.forEach((url, i) => {
+      message += `${i + 1}. ${url}%0A`;
+    });
+    message += "%0A";
+  }
+
+  if (visitingCardUrl) {
+    message += `👔 *My Visiting Card*:%0A${visitingCardUrl}%0A`;
+  }
+
+  window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+};
 
   // Build product list
   const productsText = task.products?.length
