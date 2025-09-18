@@ -184,6 +184,7 @@ const uploadedImageUrls = await uploadFilesToCloudinary();
         images: allImages,
         isOrderFollowUp,
 products: selectedProducts.map((p) => p.value), // ✅ correct
+customerPhone
       };
       await axiosInstance.put(`/todos/${task._id}`, payload);
       toast.success("Task updated successfully!");
@@ -200,6 +201,7 @@ products: selectedProducts.map((p) => p.value), // ✅ correct
             images: allImages,
             isOrderFollowUp,
 products: selectedProducts.map((p) => p.value), // ✅ correct
+customerPhone
           };
           await axiosInstance.post("/todos/create", payload);
         })

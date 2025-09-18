@@ -420,45 +420,43 @@ const openWhatsApp = async (task) => {
     phone = "+" + phone;
   }
 
-  // Build product list with images
-  let productsText = "";
-  let productImages = [];
-  
-  if (task.products?.length) {
-    productsText = task.products.map((p, i) => 
-      `${i + 1}. ${p.name} (${p.unit || ""})`
-    ).join("%0A");
-    
-   // Collect ALL images from ALL products
-task.products.forEach(product => {
-  if (product.images && product.images.length > 0) {
-    product.images.forEach(imageUrl => {
-      productImages.push(imageUrl);
-    });
-  }
-});
-  }
-
-  // Get visiting card from CURRENT logged-in user (not task assigner)
+  // Get current user's visiting card
   const currentUserVisitingCard = user?.visitingCard || ""; 
 
   // Build WhatsApp message
   let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
 
-  if (productsText) {
-    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
-  }
-
-  // Add product images
-  if (productImages.length > 0) {
-    message += `📷 *Product Images*:%0A`;
-    productImages.forEach((url, i) => {
-      message += `${i + 1}. ${url}%0A`;
+  // Check if there are products to include
+  if (task.products?.length > 0) {
+    // Build product list with images
+    let productsText = task.products.map((p, i) => 
+      `${i + 1}. ${p.name} (${p.unit || ""})`
+    ).join("%0A");
+    
+    // Collect ALL images from ALL products
+    let productImages = [];
+    task.products.forEach(product => {
+      if (product.images && product.images.length > 0) {
+        product.images.forEach(imageUrl => {
+          productImages.push(imageUrl);
+        });
+      }
     });
-    message += "%0A";
+
+    // Add products to message
+    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
+
+    // Add product images if available
+    if (productImages.length > 0) {
+      message += `📷 *Product Images*:%0A`;
+      productImages.forEach((url, i) => {
+        message += `${i + 1}. ${url}%0A`;
+      });
+      message += "%0A";
+    }
   }
 
-  // Add current user's visiting card
+  // Add current user's visiting card (always included)
   if (currentUserVisitingCard) {
     message += `👔 *My Visiting Card*:%0A${currentUserVisitingCard}%0A%0A`;
   }
@@ -761,7 +759,7 @@ return (
                   )}
 
 {/* WhatsApp Button - Show for tasks with customer phone number */}
-{(task.isOrderFollowUp || task.customerPhone) && (
+{task.customerPhone && (
   <button
     onClick={() => openWhatsApp(task)}
     className="mt-4 sm:mt-0 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center"
