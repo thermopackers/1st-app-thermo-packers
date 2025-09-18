@@ -761,7 +761,7 @@ return (
                   )}
 
 {/* WhatsApp Button - Show for tasks with customer phone number */}
-{task.customerPhone && (
+{(task.isOrderFollowUp || task.customerPhone) && (
   <button
     onClick={() => openWhatsApp(task)}
     className="mt-4 sm:mt-0 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center"
