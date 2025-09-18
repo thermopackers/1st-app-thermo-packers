@@ -456,45 +456,6 @@ const openWhatsApp = (task) => {
   window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
 };
 
-  // Build product list
-  const productsText = task.products?.length
-    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("\n")
-    : "";
-
-  // Collect first 3 images (optional limit)
-  const imageUrls = (task.images || [])
-    .filter((url) => !url.endsWith(".webm") && !url.endsWith(".mp3"))
-    .slice(0, 3);
-
-  // Take visiting card from the current logged-in user
-  const visitingCardUrl = task.assignedBy?.visitingCard || ""; 
-
-  // Build WhatsApp message
-  let message = `Hello! 👋\nThis is regarding your inquiry about *${task.title}*.\n\n`;
-
-  if (productsText) {
-    message += `🛒 *Products*:\n${productsText}\n\n`;
-  }
-
-  if (imageUrls.length > 0) {
-    message += `📷 *Images*:\n`;
-    imageUrls.forEach((url, i) => {
-      message += `${i + 1}. ${url}\n`;
-    });
-    message += "\n";
-  }
-
-  if (visitingCardUrl) {
-    message += `👔 *My Visiting Card*:\n${visitingCardUrl}\n`;
-  }
-
-  // Properly encode the message for URL
-  const encodedMessage = encodeURIComponent(message);
-  const phone = task.customerPhone.replace(/\D/g, "");
-  
-  window.open(`https://wa.me/${phone}?text=${encodedMessage}`, "_blank");
-};
-
 
   return (
     <>
