@@ -20,6 +20,7 @@ const EmployeeDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
  const [requisitionSlips, setRequisitionSlips] = useState({});
+console.log("userddddd",user);
 
   const { taskId } = useParams();
 console.log("tasks",tasks);
@@ -402,25 +403,44 @@ const openWhatsApp = (task) => {
     toast.error("No phone number available for this customer");
     return;
   }
-  
-  const productsText = task.products && task.products.length > 0 
-    ? `Products: ${task.products.map(p => p.name).join(", ")}`
+
+  // Build product list
+  const productsText = task.products?.length
+    ? task.products.map((p, i) => `${i + 1}. ${p.name} (${p.unit || ""})`).join("%0A")
     : "";
-  
-  const message = encodeURIComponent(`Hello! This is regarding your inquiry about ${task.title}. ${productsText}`);
-  const phone = task.customerPhone.replace(/\D/g, ''); // Remove non-digit characters
-  
-  // Check if it's mobile device
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  
-  if (isMobile) {
-    // Open WhatsApp app on mobile
-    window.open(`whatsapp://send?phone=${phone}&text=${message}`, '_blank');
-  } else {
-    // Open WhatsApp web on desktop
-    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${message}`, '_blank');
+
+  // Collect first 3 images (optional limit)
+  const imageUrls = (task.images || [])
+    .filter((url) => !url.endsWith(".webm") && !url.endsWith(".mp3"))
+    .slice(0, 3);
+
+  // Take visiting card from the current logged-in user
+  const visitingCardUrl = task.assignedBy?.visitingCard || ""; 
+  // 👆 Make sure you store visitingCard in your User model when uploading visiting card
+
+  // Build WhatsApp message
+  let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
+
+  if (productsText) {
+    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
   }
+
+  if (imageUrls.length > 0) {
+    message += `📷 *Images*:%0A`;
+    imageUrls.forEach((url, i) => {
+      message += `${i + 1}. ${url}%0A`;
+    });
+    message += "%0A";
+  }
+
+  if (visitingCardUrl) {
+    message += `👔 *My Visiting Card*:%0A${visitingCardUrl}%0A`;
+  }
+
+  const phone = task.customerPhone.replace(/\D/g, "");
+  window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
 };
+
 
   return (
     <>
