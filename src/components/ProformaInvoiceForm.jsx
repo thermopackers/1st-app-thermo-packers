@@ -739,7 +739,7 @@ packaging: e.target.value,
       <input
         className="input w-20"
         type="number"
-        value={p.rate.toFixed(3)}
+        value={p.rate}
         onChange={(e) => {
           const updated = [...form.products];
           updated[i].rate = +e.target.value;
