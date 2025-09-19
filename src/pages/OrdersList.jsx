@@ -1187,6 +1187,9 @@ console.log("sortedOrders",sortedOrders);
                         Order ID
                       </th>
                       <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
+  Handled By
+</th>
+                      <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
                         Client Name
                       </th>
                       <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
@@ -1296,6 +1299,16 @@ console.log("sortedOrders",sortedOrders);
                           <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                             {order.shortId}
                           </td>
+                          <td className="px-2 sm:px-4 py-2 whitespace-nowrap text-[11px] sm:text-sm text-gray-800">
+  {order.employee ? (
+    <>
+      <div>{order.employee.name}</div>
+      <div className="text-xs text-gray-500">{order.employee.email}</div>
+    </>
+  ) : (
+    "N/A"
+  )}
+</td>
                         <td className="px-2 sm:px-4 py-2 whitespace-nowrap text-[11px] sm:text-sm">
   { order.customer?.name || order.customerName }
 </td>
