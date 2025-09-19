@@ -488,16 +488,18 @@ const sendWhatsAppWithImages = async (task) => {
   }
 };
 
-// Function to download images for WhatsApp
-// Function to download images for WhatsApp
+// Function to download all images for WhatsApp with a single click
 const downloadImagesForWhatsApp = async (task) => {
   try {
+    // Show loading indicator
+    toast.loading('Preparing images for download...');
+    
     // Collect all product images
     const productImages = [];
     if (task.products?.length > 0) {
-      task.products.forEach(product => {
+      for (const product of task.products) {
         if (product.images && product.images.length > 0) {
-          product.images.forEach(imageUrl => {
+          for (const imageUrl of product.images) {
             // Extract filename from URL or generate one
             const urlParts = imageUrl.split('/');
             let fileName = urlParts[urlParts.length - 1];
@@ -516,9 +518,9 @@ const downloadImagesForWhatsApp = async (task) => {
               url: imageUrl,
               name: fileName
             });
-          });
+          }
         }
-      });
+      }
     }
 
     // Get visiting card image if available
@@ -540,66 +542,67 @@ const downloadImagesForWhatsApp = async (task) => {
       });
     }
 
-    // Show download options with actual download functionality
-    if (productImages.length > 0) {
-      Swal.fire({
-        title: 'Download Images for WhatsApp',
-        html: `
-          <p>Click on the images to download them for WhatsApp:</p>
-          <div class="mt-3 max-h-60 overflow-y-auto">
-            ${productImages.map((img, index) => `
-              <div class="flex items-center justify-between p-2 border-b">
-                <span class="text-sm">${index + 1}. ${img.name}</span>
-                <button 
-                  onclick="window.downloadImage('${img.url}', '${img.name}')" 
-                  class="ml-2 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                >
-                  Download
-                </button>
-              </div>
-            `).join('')}
-          </div>
-          <p class="mt-3 text-sm text-gray-600">
-            After downloading all images, open WhatsApp and send them to the customer.
-          </p>
-        `,
-        icon: 'info',
-        confirmButtonText: 'Done',
-        didOpen: () => {
-          // Add the downloadImage function to the window object
-          window.downloadImage = async (url, filename) => {
-            try {
-              const response = await fetch(url);
-              const blob = await response.blob();
-              const blobUrl = window.URL.createObjectURL(blob);
-              
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              
-              // Clean up the blob URL
-              window.URL.revokeObjectURL(blobUrl);
-              
-              toast.success(`Downloaded ${filename}`);
-            } catch (error) {
-              console.error('Download error:', error);
-              toast.error(`Failed to download ${filename}`);
-            }
-          };
-        },
-        willClose: () => {
-          // Clean up the function from window object
-          delete window.downloadImage;
-        }
-      });
-    } else {
+    if (productImages.length === 0) {
+      toast.dismiss();
       toast.error("No images available to download");
+      return;
     }
+
+    // Download all images sequentially
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < productImages.length; i++) {
+      const img = productImages[i];
+      
+      try {
+        // Update loading message
+        toast.loading(`Downloading image ${i + 1} of ${productImages.length}...`);
+        
+        // Fetch the image
+        const response = await fetch(img.url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        // Create and trigger download
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = img.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(blobUrl);
+        
+        successCount++;
+        
+        // Small delay between downloads to avoid browser issues
+        if (i < productImages.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      } catch (error) {
+        console.error(`Failed to download ${img.name}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show result summary
+    toast.dismiss();
+    
+    if (failCount === 0) {
+      toast.success(`Successfully downloaded ${successCount} image(s)`);
+    } else if (successCount === 0) {
+      toast.error(`Failed to download all ${failCount} image(s)`);
+    } else {
+      toast.success(`Downloaded ${successCount} image(s), failed to download ${failCount}`);
+    }
+    
   } catch (error) {
     console.error("Error preparing download:", error);
+    toast.dismiss();
     toast.error("Failed to prepare images for download");
   }
 };
