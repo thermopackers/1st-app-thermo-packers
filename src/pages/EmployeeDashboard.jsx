@@ -426,6 +426,16 @@ const sendWhatsAppWithImages = async (task) => {
     
     let message = `Dear Sir/Ma'am,%0A%0A`;
     message += `This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.%0A%0A`;
+
+    // Add product details if available
+    if (task.products?.length > 0) {
+      message += `🛒 *Products*:%0A`;
+      task.products.forEach((p, i) => {
+        message += `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ''}%0A`;
+      });
+      message += `%0A`;
+    }
+
     message += `Thanks,%0A${salesPersonName}%0A`;
     
     if (salesPersonPhone) {
