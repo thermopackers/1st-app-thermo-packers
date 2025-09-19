@@ -489,55 +489,118 @@ const sendWhatsAppWithImages = async (task) => {
 };
 
 // Function to download images for WhatsApp
-const downloadImagesForWhatsApp = (task) => {
-  // Collect all product images
-  const productImages = [];
-  if (task.products?.length > 0) {
-    task.products.forEach(product => {
-      if (product.images && product.images.length > 0) {
-        product.images.forEach(imageUrl => {
-          productImages.push({
-            url: imageUrl,
-            name: `${product.name}.jpg`
+// Function to download images for WhatsApp
+const downloadImagesForWhatsApp = async (task) => {
+  try {
+    // Collect all product images
+    const productImages = [];
+    if (task.products?.length > 0) {
+      task.products.forEach(product => {
+        if (product.images && product.images.length > 0) {
+          product.images.forEach(imageUrl => {
+            // Extract filename from URL or generate one
+            const urlParts = imageUrl.split('/');
+            let fileName = urlParts[urlParts.length - 1];
+            
+            // If the URL has query parameters, remove them
+            if (fileName.includes('?')) {
+              fileName = fileName.split('?')[0];
+            }
+            
+            // If we can't determine the file extension, default to jpg
+            if (!fileName.includes('.')) {
+              fileName = `${product.name.replace(/\s+/g, '_')}.jpg`;
+            }
+            
+            productImages.push({
+              url: imageUrl,
+              name: fileName
+            });
           });
-        });
+        }
+      });
+    }
+
+    // Get visiting card image if available
+    if (user?.visitingCardImage) {
+      const urlParts = user.visitingCardImage.split('/');
+      let fileName = urlParts[urlParts.length - 1];
+      
+      if (fileName.includes('?')) {
+        fileName = fileName.split('?')[0];
       }
-    });
-  }
+      
+      if (!fileName.includes('.')) {
+        fileName = "VisitingCard.jpg";
+      }
+      
+      productImages.push({
+        url: user.visitingCardImage,
+        name: fileName
+      });
+    }
 
-  // Get visiting card image if available
-  if (user?.visitingCardImage) {
-    productImages.push({
-      url: user.visitingCardImage,
-      name: "VisitingCard.jpg"
-    });
-  }
-
-  // Show download options
-  if (productImages.length > 0) {
-    Swal.fire({
-      title: 'Download Images for WhatsApp',
-      html: `
-        <p>Download these images to send via WhatsApp:</p>
-        <ul class="text-left mt-2 max-h-40 overflow-y-auto">
-          ${productImages.map((img, index) => `
-            <li class="mb-1">
-              <a href="${img.url}" download="${img.name}" 
-                 class="text-blue-600 hover:underline">
-                Image ${index + 1}: ${img.name}
-              </a>
-            </li>
-          `).join('')}
-        </ul>
-        <p class="mt-3 text-sm text-gray-600">
-          After downloading, open WhatsApp and send these images to the customer.
-        </p>
-      `,
-      icon: 'info',
-      confirmButtonText: 'OK'
-    });
-  } else {
-    toast.error("No images available to download");
+    // Show download options with actual download functionality
+    if (productImages.length > 0) {
+      Swal.fire({
+        title: 'Download Images for WhatsApp',
+        html: `
+          <p>Click on the images to download them for WhatsApp:</p>
+          <div class="mt-3 max-h-60 overflow-y-auto">
+            ${productImages.map((img, index) => `
+              <div class="flex items-center justify-between p-2 border-b">
+                <span class="text-sm">${index + 1}. ${img.name}</span>
+                <button 
+                  onclick="window.downloadImage('${img.url}', '${img.name}')" 
+                  class="ml-2 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                >
+                  Download
+                </button>
+              </div>
+            `).join('')}
+          </div>
+          <p class="mt-3 text-sm text-gray-600">
+            After downloading all images, open WhatsApp and send them to the customer.
+          </p>
+        `,
+        icon: 'info',
+        confirmButtonText: 'Done',
+        didOpen: () => {
+          // Add the downloadImage function to the window object
+          window.downloadImage = async (url, filename) => {
+            try {
+              const response = await fetch(url);
+              const blob = await response.blob();
+              const blobUrl = window.URL.createObjectURL(blob);
+              
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              
+              // Clean up the blob URL
+              window.URL.revokeObjectURL(blobUrl);
+              
+              toast.success(`Downloaded ${filename}`);
+            } catch (error) {
+              console.error('Download error:', error);
+              toast.error(`Failed to download ${filename}`);
+            }
+          };
+        },
+        willClose: () => {
+          // Clean up the function from window object
+          delete window.downloadImage;
+        }
+      });
+    } else {
+      toast.error("No images available to download");
+    }
+  } catch (error) {
+    console.error("Error preparing download:", error);
+    toast.error("Failed to prepare images for download");
   }
 };
 
