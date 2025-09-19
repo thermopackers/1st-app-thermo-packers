@@ -523,9 +523,10 @@ const downloadImagesForWhatsApp = async (task) => {
       }
     }
 
-    // Get visiting card image if available
-    if (user?.visitingCardImage) {
-      const urlParts = user.visitingCardImage.split('/');
+    // Get visiting card image - FIXED: Using visitingCard instead of visitingCardImage
+    if (user?.visitingCard) {
+      const visitingCardUrl = user.visitingCard;
+      const urlParts = visitingCardUrl.split('/');
       let fileName = urlParts[urlParts.length - 1];
       
       if (fileName.includes('?')) {
@@ -537,7 +538,7 @@ const downloadImagesForWhatsApp = async (task) => {
       }
       
       productImages.push({
-        url: user.visitingCardImage,
+        url: visitingCardUrl,
         name: fileName
       });
     }
