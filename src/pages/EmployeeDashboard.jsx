@@ -420,34 +420,36 @@ const sendWhatsAppWithImages = async (task) => {
       phone = "+" + phone;
     }
 
-    // Collect all product images
-    const productImages = [];
-    if (task.products?.length > 0) {
-      task.products.forEach(product => {
-        if (product.images && product.images.length > 0) {
-          product.images.forEach(imageUrl => {
-            productImages.push(imageUrl);
-          });
-        }
-      });
-    }
-
-    // Get visiting card image if available
-    const visitingCardImage = user?.visitingCardImage || '';
-
-    // Prepare the message
-    let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
-
-    if (task.products?.length > 0) {
-      let productsText = task.products.map((p, i) => 
-        `${i + 1}. ${p.name} (${p.unit || ""})`
-      ).join("%0A");
-      message += `🛒 *Products*:%0A${productsText}%0A%0A`;
+    // Prepare the message with the specific format requested
+    const salesPersonName = user?.name || "Sales Representative";
+    const salesPersonPhone = user?.phone || "";
+    
+    let message = `Dear Sir/Ma'am,%0A%0A`;
+    message += `This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.%0A%0A`;
+    message += `Thanks,%0A${salesPersonName}%0A`;
+    
+    if (salesPersonPhone) {
+      message += `${salesPersonPhone}`;
     }
 
     // For WhatsApp Web/Desktop, we can only send one image at a time
     // So we'll send the first product image or visiting card
-    const imageToSend = productImages.length > 0 ? productImages[0] : visitingCardImage;
+    let imageToSend = '';
+    
+    // Check for product images first
+    if (task.products?.length > 0) {
+      for (const product of task.products) {
+        if (product.images && product.images.length > 0) {
+          imageToSend = product.images[0];
+          break;
+        }
+      }
+    }
+    
+    // If no product images, use visiting card
+    if (!imageToSend && user?.visitingCardImage) {
+      imageToSend = user.visitingCardImage;
+    }
 
     if (imageToSend) {
       // Encode the image URL for WhatsApp
