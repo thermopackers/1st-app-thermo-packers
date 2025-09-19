@@ -893,8 +893,13 @@ ${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ""}`;
         </>
       )}
     </button>
+    {/* 📌 Added note below button */}
+    <p className="mt-2 text-xs text-gray-600 italic">
+      Click to share product catalogue and visiting card with potential customer.
+    </p>
   </div>
 )}
+
                     {!task.isOrderFollowUp && (
                       <>
                         <p className="text-sm text-gray-500">
