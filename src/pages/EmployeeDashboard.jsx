@@ -1,5 +1,3 @@
-
-
 import { useToDo } from "../context/ToDoContext";
 import InternalNavbar from "../components/InternalNavbar";
 import { useEffect, useState } from "react";
@@ -19,12 +17,12 @@ const EmployeeDashboard = () => {
   const [notifiedTasks, setNotifiedTasks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
- const [requisitionSlips, setRequisitionSlips] = useState({});
- const [whatsappLoading, setWhatsappLoading] = useState(false);
-console.log("userddddd",user);
+  const [requisitionSlips, setRequisitionSlips] = useState({});
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  console.log("userddddd", user);
 
   const { taskId } = useParams();
-console.log("tasks",tasks);
+  console.log("tasks", tasks);
 
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -33,7 +31,7 @@ console.log("tasks",tasks);
     axiosInstance
       .patch(`/notifications/mark-read/${user._id}`)
       .then(() => {
-         return axiosInstance.get(`/notifications/${user._id}`); // ✅ fetch again
+        return axiosInstance.get(`/notifications/${user._id}`); // ✅ fetch again
       })
       .then((res) => setNotifications(res.data))
       .catch((err) =>
@@ -46,65 +44,66 @@ console.log("tasks",tasks);
 
     fetchTasks();
   }, []);
-useEffect(() => {
-  const fetchSlip = async (task) => {
-    if (
-      task.origin === "requisition" &&
-      task.requisitionId &&
-      !requisitionSlips[task.requisitionId]
-    ) {
-      try {
-        const res = await axiosInstance.get(`/requisitions/${task.requisitionId}`);
-        setRequisitionSlips((prev) => ({
-          ...prev,
-          [task.requisitionId]: res.data,
-        }));
-      } catch (err) {
-        console.error("❌ Failed to load requisition slip", err);
+  useEffect(() => {
+    const fetchSlip = async (task) => {
+      if (
+        task.origin === "requisition" &&
+        task.requisitionId &&
+        !requisitionSlips[task.requisitionId]
+      ) {
+        try {
+          const res = await axiosInstance.get(
+            `/requisitions/${task.requisitionId}`
+          );
+          setRequisitionSlips((prev) => ({
+            ...prev,
+            [task.requisitionId]: res.data,
+          }));
+        } catch (err) {
+          console.error("❌ Failed to load requisition slip", err);
+        }
       }
-    }
-  };
+    };
 
-  tasks.forEach(fetchSlip);
-}, [tasks]);
+    tasks.forEach(fetchSlip);
+  }, [tasks]);
 
   useEffect(() => {
-  if (taskId) {
-    // Delay to ensure tasks are rendered
-    setTimeout(() => {
-      const taskElement = document.getElementById(`task-${taskId}`);
-      if (taskElement) {
-        taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        taskElement.classList.add("ring-4", "ring-yellow-400");
-        setTimeout(() => {
-          taskElement.classList.remove("ring-4", "ring-yellow-400");
-        }, 3000); // remove highlight after 3s
-      }
-    }, 500);
-  }
-}, [tasks, taskId]);
-useEffect(() => {
-  if (taskId && tasks.length > 0) {
-    const index = tasks.findIndex(t => t._id === taskId);
-    if (index !== -1) {
-      const pageOfTask = Math.floor(index / ITEMS_PER_PAGE) + 1;
-      setCurrentPage(pageOfTask);
-
-      // Scroll after page has been changed
+    if (taskId) {
+      // Delay to ensure tasks are rendered
       setTimeout(() => {
-        const el = document.getElementById(`task-${taskId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-4", "ring-yellow-400");
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (taskElement) {
+          taskElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          taskElement.classList.add("ring-4", "ring-yellow-400");
           setTimeout(() => {
-            el.classList.remove("ring-4", "ring-yellow-400");
-          }, 3000);
+            taskElement.classList.remove("ring-4", "ring-yellow-400");
+          }, 3000); // remove highlight after 3s
         }
-      }, 800); // allow render delay
+      }, 500);
     }
-  }
-}, [taskId, tasks]);
+  }, [tasks, taskId]);
+  useEffect(() => {
+    if (taskId && tasks.length > 0) {
+      const index = tasks.findIndex((t) => t._id === taskId);
+      if (index !== -1) {
+        const pageOfTask = Math.floor(index / ITEMS_PER_PAGE) + 1;
+        setCurrentPage(pageOfTask);
 
+        // Scroll after page has been changed
+        setTimeout(() => {
+          const el = document.getElementById(`task-${taskId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add("ring-4", "ring-yellow-400");
+            setTimeout(() => {
+              el.classList.remove("ring-4", "ring-yellow-400");
+            }, 3000);
+          }
+        }, 800); // allow render delay
+      }
+    }
+  }, [taskId, tasks]);
 
   // Only show tasks not soft-deleted by the employee
   const employeeVisibleTasks = tasks.filter(
@@ -399,81 +398,81 @@ useEffect(() => {
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
   // Add this function inside your component
-// Function to send images via WhatsApp
-const sendWhatsAppWithImages = async (task) => {
-  if (!task?.customerPhone) {
-    toast.error("No phone number available for this customer");
-    return;
-  }
-
-  setWhatsappLoading(true);
-
-  try {
-    // Clean and format the phone number
-    let phone = task.customerPhone.replace(/\D/g, "");
-    
-    if (phone.startsWith("91") && phone.length === 12) {
-      phone = "+" + phone;
-    } else if (phone.length === 10) {
-      phone = "+91" + phone;
-    } else if (phone.startsWith("91") && !phone.startsWith("+")) {
-      phone = "+" + phone;
+  // Function to send images via WhatsApp
+  const sendWhatsAppWithImages = async (task) => {
+    if (!task?.customerPhone) {
+      toast.error("No phone number available for this customer");
+      return;
     }
 
-    // Prepare the message with the specific format requested
-    const salesPersonName = user?.name || "Sales Representative";
-    const salesPersonPhone = user?.phone || "";
-    
-    let message = `Dear Sir/Ma'am,%0A%0A`;
-    message += `This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.%0A%0A`;
+    setWhatsappLoading(true);
 
-    // Add product details if available
-    if (task.products?.length > 0) {
-      message += `🛒 *Products*:%0A`;
-      task.products.forEach((p, i) => {
-        message += `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ''}%0A`;
-      });
-      message += `%0A`;
-    }
+    try {
+      // Clean and format the phone number
+      let phone = task.customerPhone.replace(/\D/g, "");
 
-    message += `Thanks,%0A${salesPersonName}%0A`;
-    
-    if (salesPersonPhone) {
-      message += `${salesPersonPhone}`;
-    }
+      if (phone.startsWith("91") && phone.length === 12) {
+        phone = "+" + phone;
+      } else if (phone.length === 10) {
+        phone = "+91" + phone;
+      } else if (phone.startsWith("91") && !phone.startsWith("+")) {
+        phone = "+" + phone;
+      }
 
-    // For WhatsApp Web/Desktop, we can only send one image at a time
-    // So we'll send the first product image or visiting card
-    let imageToSend = '';
-    
-    // Check for product images first
-    if (task.products?.length > 0) {
-      for (const product of task.products) {
-        if (product.images && product.images.length > 0) {
-          imageToSend = product.images[0];
-          break;
+      // Prepare the message with the specific format requested
+      const salesPersonName = user?.name || "Sales Representative";
+      const salesPersonPhone = user?.phone || "";
+
+      let message = `Dear Sir/Ma'am,%0A%0A`;
+      message += `This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.%0A%0A`;
+
+      // Add product details if available
+      if (task.products?.length > 0) {
+        message += `🛒 *Products*:%0A`;
+        task.products.forEach((p, i) => {
+          message += `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ""}%0A`;
+        });
+        message += `%0A`;
+      }
+
+      message += `Thanks,%0A${salesPersonName}%0A`;
+
+      if (salesPersonPhone) {
+        message += `${salesPersonPhone}`;
+      }
+
+      // For WhatsApp Web/Desktop, we can only send one image at a time
+      // So we'll send the first product image or visiting card
+      let imageToSend = "";
+
+      // Check for product images first
+      if (task.products?.length > 0) {
+        for (const product of task.products) {
+          if (product.images && product.images.length > 0) {
+            imageToSend = product.images[0];
+            break;
+          }
         }
       }
-    }
-    
-    // If no product images, use visiting card
-    if (!imageToSend && user?.visitingCardImage) {
-      imageToSend = user.visitingCardImage;
-    }
 
-    if (imageToSend) {
-      // Encode the image URL for WhatsApp
-      const encodedImageUrl = encodeURIComponent(imageToSend);
-      
-      // Create WhatsApp link with image
-      // Note: This approach only works if the image is publicly accessible
-      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
-      
-      // Show instructions for sending multiple images
-      setTimeout(() => {
-        Swal.fire({
-          title: 'Sending Images on WhatsApp',
-          html: `
+      // If no product images, use visiting card
+      if (!imageToSend && user?.visitingCardImage) {
+        imageToSend = user.visitingCardImage;
+      }
+
+      if (imageToSend) {
+        // Encode the image URL for WhatsApp
+        const encodedImageUrl = encodeURIComponent(imageToSend);
+
+        // Create WhatsApp link with image
+        // Note: This approach only works if the image is publicly accessible
+        window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+
+        // Show instructions for sending multiple images
+        setTimeout(() => {
+          Swal.fire({
+            title: "Sending Images on WhatsApp",
+            html: `
             <p>To send images through WhatsApp:</p>
             <ol class="text-left pl-4 mt-2">
               <li>Wait for the WhatsApp chat to open</li>
@@ -484,201 +483,208 @@ const sendWhatsAppWithImages = async (task) => {
             </ol>
             <p class="mt-3 text-sm text-gray-600">Note: You may need to download the images first from the task details.</p>
           `,
-          icon: 'info',
-          confirmButtonText: 'OK'
-        });
-      }, 1000);
-    } else {
-      // If no images, just send the text message
-      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+            icon: "info",
+            confirmButtonText: "OK",
+          });
+        }, 1000);
+      } else {
+        // If no images, just send the text message
+        window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp message:", error);
+      toast.error("Failed to open WhatsApp");
+    } finally {
+      setWhatsappLoading(false);
     }
-  } catch (error) {
-    console.error("Error sending WhatsApp message:", error);
-    toast.error("Failed to open WhatsApp");
-  } finally {
-    setWhatsappLoading(false);
-  }
-};
+  };
 
-// Function to download all images and message for WhatsApp with a single click
-const downloadImagesForWhatsApp = (task) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Show loading indicator
-      toast.loading('Preparing files for download...');
-      
-      // Collect all product images
-      const productImages = [];
-      if (task.products?.length > 0) {
-        for (const product of task.products) {
-          if (product.images && product.images.length > 0) {
-            for (const imageUrl of product.images) {
-              // Extract filename from URL or generate one
-              const urlParts = imageUrl.split('/');
-              let fileName = urlParts[urlParts.length - 1];
-              
-              // If the URL has query parameters, remove them
-              if (fileName.includes('?')) {
-                fileName = fileName.split('?')[0];
+  // Function to download all images and message for WhatsApp with a single click
+  const downloadImagesForWhatsApp = (task) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Show loading indicator
+        toast.loading("Preparing files for download...");
+
+        // Collect all product images
+        const productImages = [];
+        if (task.products?.length > 0) {
+          for (const product of task.products) {
+            if (product.images && product.images.length > 0) {
+              for (const imageUrl of product.images) {
+                // Extract filename from URL or generate one
+                const urlParts = imageUrl.split("/");
+                let fileName = urlParts[urlParts.length - 1];
+
+                // If the URL has query parameters, remove them
+                if (fileName.includes("?")) {
+                  fileName = fileName.split("?")[0];
+                }
+
+                // If we can't determine the file extension, default to jpg
+                if (!fileName.includes(".")) {
+                  fileName = `${product.name.replace(/\s+/g, "_")}.jpg`;
+                }
+
+                productImages.push({
+                  url: imageUrl,
+                  name: fileName,
+                });
               }
-              
-              // If we can't determine the file extension, default to jpg
-              if (!fileName.includes('.')) {
-                fileName = `${product.name.replace(/\s+/g, '_')}.jpg`;
-              }
-              
-              productImages.push({
-                url: imageUrl,
-                name: fileName
-              });
             }
           }
         }
-      }
 
-      // Get visiting card image
-      if (user?.visitingCard) {
-        const visitingCardUrl = user.visitingCard;
-        const urlParts = visitingCardUrl.split('/');
-        let fileName = urlParts[urlParts.length - 1];
-        
-        if (fileName.includes('?')) {
-          fileName = fileName.split('?')[0];
+        // Get visiting card image
+        if (user?.visitingCard) {
+          const visitingCardUrl = user.visitingCard;
+          const urlParts = visitingCardUrl.split("/");
+          let fileName = urlParts[urlParts.length - 1];
+
+          if (fileName.includes("?")) {
+            fileName = fileName.split("?")[0];
+          }
+
+          if (!fileName.includes(".")) {
+            fileName = "VisitingCard.jpg";
+          }
+
+          productImages.push({
+            url: visitingCardUrl,
+            name: fileName,
+          });
         }
-        
-        if (!fileName.includes('.')) {
-          fileName = "VisitingCard.jpg";
+
+        if (productImages.length === 0) {
+          toast.dismiss();
+          toast.error("No images available to download");
+          resolve(); // Resolve instead of reject since this isn't an error case
+          return;
         }
-        
-        productImages.push({
-          url: visitingCardUrl,
-          name: fileName
-        });
-      }
 
-      if (productImages.length === 0) {
-        toast.dismiss();
-        toast.error("No images available to download");
-        resolve(); // Resolve instead of reject since this isn't an error case
-        return;
-      }
+        // Create message text file
+        const salesPersonName = user?.name || "Sales Representative";
+        const salesPersonPhone = user?.phone || "";
 
-      // Create message text file
-      const salesPersonName = user?.name || "Sales Representative";
-      const salesPersonPhone = user?.phone || "";
-      
-      const messageContent = `Dear Sir/Ma'am,
+        const messageContent = `Dear Sir/Ma'am,
 
 This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.
 
 Thanks,
 ${salesPersonName}
-${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ''}`;
+${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ""}`;
 
-      // Download all images and message file sequentially
-      let successCount = 0;
-      let failCount = 0;
-      
-      // First download the message file
-      try {
-        toast.loading('Creating message file...');
-        
-        const messageBlob = new Blob([messageContent], { type: 'text/plain' });
-        const messageBlobUrl = window.URL.createObjectURL(messageBlob);
-        
-        const a = document.createElement('a');
-        a.href = messageBlobUrl;
-        a.download = 'Message_to_Customer.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        window.URL.revokeObjectURL(messageBlobUrl);
-        
-        successCount++;
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error) {
-        console.error('Failed to create message file:', error);
-        failCount++;
-      }
-      
-      // Then download all images
-      for (let i = 0; i < productImages.length; i++) {
-        const img = productImages[i];
-        
+        // Download all images and message file sequentially
+        let successCount = 0;
+        let failCount = 0;
+
+        // First download the message file
         try {
-          // Update loading message
-          toast.loading(`Downloading image ${i + 1} of ${productImages.length}...`);
-          
-          // Fetch the image
-          const response = await fetch(img.url);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          
-          // Create and trigger download
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = img.name;
+          toast.loading("Creating message file...");
+
+          const messageBlob = new Blob([messageContent], {
+            type: "text/plain",
+          });
+          const messageBlobUrl = window.URL.createObjectURL(messageBlob);
+
+          const a = document.createElement("a");
+          a.href = messageBlobUrl;
+          a.download = "Message_to_Customer.txt";
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          
-          // Clean up the blob URL
-          window.URL.revokeObjectURL(blobUrl);
-          
+
+          window.URL.revokeObjectURL(messageBlobUrl);
+
           successCount++;
-          
-          // Small delay between downloads to avoid browser issues
-          if (i < productImages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
+          await new Promise((resolve) => setTimeout(resolve, 300));
         } catch (error) {
-          console.error(`Failed to download ${img.name}:`, error);
+          console.error("Failed to create message file:", error);
           failCount++;
         }
-      }
-      
-      // Show result summary
-      toast.dismiss();
-      
-      if (failCount === 0) {
-        toast.success(`Successfully downloaded ${successCount} files (${productImages.length} images + message)`);
-      } else if (successCount === 0) {
-        toast.error(`Failed to download all ${failCount} files`);
-      } else {
-        toast.success(`Downloaded ${successCount} files, failed to download ${failCount}`);
-      }
-      
-      resolve({ successCount, failCount }); // Resolve with download results
-      
-    } catch (error) {
-      console.error("Error preparing download:", error);
-      toast.dismiss();
-      toast.error("Failed to prepare files for download");
-      reject(error); // Reject the promise on error
-    }
-  });
-};
 
-// Combined function to download images and open WhatsApp
-const handleWhatsAppWithAutoDownload = async (task) => {
-  setWhatsappLoading(true);
-  
-  try {
-    // First download all images
-    await downloadImagesForWhatsApp(task);
-    
-    // Then open WhatsApp
-    await sendWhatsAppWithImages(task);
-  } catch (error) {
-    console.error("Error in WhatsApp process:", error);
-    toast.error("Failed to process WhatsApp request");
-  } finally {
-    setWhatsappLoading(false);
-  }
-};
+        // Then download all images
+        for (let i = 0; i < productImages.length; i++) {
+          const img = productImages[i];
+
+          try {
+            // Update loading message
+            toast.loading(
+              `Downloading image ${i + 1} of ${productImages.length}...`
+            );
+
+            // Fetch the image
+            const response = await fetch(img.url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            // Create and trigger download
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = img.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Clean up the blob URL
+            window.URL.revokeObjectURL(blobUrl);
+
+            successCount++;
+
+            // Small delay between downloads to avoid browser issues
+            if (i < productImages.length - 1) {
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            }
+          } catch (error) {
+            console.error(`Failed to download ${img.name}:`, error);
+            failCount++;
+          }
+        }
+
+        // Show result summary
+        toast.dismiss();
+
+        if (failCount === 0) {
+          toast.success(
+            `Successfully downloaded ${successCount} files (${productImages.length} images + message)`
+          );
+        } else if (successCount === 0) {
+          toast.error(`Failed to download all ${failCount} files`);
+        } else {
+          toast.success(
+            `Downloaded ${successCount} files, failed to download ${failCount}`
+          );
+        }
+
+        resolve({ successCount, failCount }); // Resolve with download results
+      } catch (error) {
+        console.error("Error preparing download:", error);
+        toast.dismiss();
+        toast.error("Failed to prepare files for download");
+        reject(error); // Reject the promise on error
+      }
+    });
+  };
+
+  // Combined function to download images and open WhatsApp
+  const handleWhatsAppWithAutoDownload = async (task) => {
+    setWhatsappLoading(true);
+
+    try {
+      // First download all images
+      await downloadImagesForWhatsApp(task);
+
+      // Then open WhatsApp
+      await sendWhatsAppWithImages(task);
+    } catch (error) {
+      console.error("Error in WhatsApp process:", error);
+      toast.error("Failed to process WhatsApp request");
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
   return (
     <>
       <InternalNavbar />
@@ -735,26 +741,26 @@ const handleWhatsAppWithAutoDownload = async (task) => {
           <>
             <div className="space-y-6">
               {paginatedTasks.map((task) => (
-               <div 
-  key={task._id}
-  id={`task-${task._id}`}
-  className={`
+                <div
+                  key={task._id}
+                  id={`task-${task._id}`}
+                  className={`
     relative rounded-2xl p-5 sm:flex sm:justify-between sm:items-center sm:space-x-4
     transition-all duration-300 backdrop-blur-lg
     shadow-lg ring-1 ring-white/10 border border-white/10
     ${task.isOrderFollowUp ? "bg-orange-300/10" : "bg-blue-300/10"}
     hover:scale-[1.01] hover:shadow-2xl
   `}
->
-   {/* Glowing Left Border */}
-  <div
-    className={`
+                >
+                  {/* Glowing Left Border */}
+                  <div
+                    className={`
       absolute top-0 left-0 h-full w-1.5 rounded-l-xl 
       ${task.isOrderFollowUp ? "bg-orange-500" : "bg-blue-500"}
       blur-[1.5px] drop-shadow-yellow-400
     `}
-  />
-           <div className="flex-1">
+                  />
+                  <div className="flex-1">
                     {task.isOrderFollowUp && (
                       <span className="text-orange-600 font-semibold p-1 bg-orange-200 text-sm ml-1">
                         Follow-up Task
@@ -769,11 +775,11 @@ const handleWhatsAppWithAutoDownload = async (task) => {
                     >
                       {task.title}
                       {/* ✅ Show badge if it's from requisition */}
-  {task.origin === "requisition" && (
-    <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">
-      From Requisition
-    </span>
-  )}
+                      {task.origin === "requisition" && (
+                        <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">
+                          From Requisition
+                        </span>
+                      )}
                       {!task.isOrderFollowUp && task.repeat !== "ONE_TIME" && (
                         <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded">
                           ⟳{" "}
@@ -787,66 +793,108 @@ const handleWhatsAppWithAutoDownload = async (task) => {
                     </h2>
                     <p className="text-gray-700 mt-1">{task.description}</p>
                     {task.products?.length > 0 && (
-  <div className="mt-2 text-sm text-gray-800">
-    <p className="font-semibold text-gray-700">🛒 Products:</p>
-    <ul className="list-disc list-inside">
-      {task.products.map((p) => (
-      <li key={p._id}>
-  <Link
-    to={`/get-products/${p._id}`}
-    className="text-blue-600 hover:underline"
-  >
-    {p.name} {p.unit && <span className="text-gray-500">({p.unit})</span>}
-  </Link>
-</li>
+                      <div className="mt-2 text-sm text-gray-800">
+                        <p className="font-semibold text-gray-700">
+                          🛒 Products to sell:
+                        </p>
+                        <ul className="list-disc list-inside">
+                          {task.products.map((p) => (
+                            <li key={p._id}>
+                              <Link
+                                to={`/get-products/${p._id}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {p.name}{" "}
+                                {p.unit && (
+                                  <span className="text-gray-500">
+                                    ({p.unit})
+                                  </span>
+                                )}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-      ))}
-    </ul>
-  </div>
-)}
+                    {/* ✅ Show requisition info if available */}
+                    {task.origin === "requisition" &&
+                      requisitionSlips[task.requisitionId] && (
+                        <div className="mt-2 space-y-1 text-sm text-gray-700">
+                          <p>
+                            <strong>🧾 Items:</strong>{" "}
+                            {requisitionSlips[task.requisitionId].items
+                              ?.length || 0}
+                          </p>
 
-{/* ✅ Show requisition info if available */}
-{task.origin === "requisition" && requisitionSlips[task.requisitionId] && (
-  <div className="mt-2 space-y-1 text-sm text-gray-700">
-    <p>
-      <strong>🧾 Items:</strong>{" "}
-      {requisitionSlips[task.requisitionId].items?.length || 0}
-    </p>
+                          {requisitionSlips[
+                            task.requisitionId
+                          ].attachments?.some(
+                            (url) =>
+                              url.endsWith(".webm") || url.endsWith(".mp3")
+                          ) && (
+                            <div className="space-y-1">
+                              <p className="font-medium text-indigo-700">
+                                🎧 Audio Notes:
+                              </p>
+                              {requisitionSlips[task.requisitionId].attachments
+                                .filter(
+                                  (url) =>
+                                    url.endsWith(".webm") ||
+                                    url.endsWith(".mp3")
+                                )
+                                .map((url, i) => (
+                                  <audio
+                                    key={i}
+                                    controls
+                                    className="w-full rounded"
+                                  >
+                                    <source src={url} type="audio/webm" />
+                                  </audio>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-    {requisitionSlips[task.requisitionId].attachments?.some(
-      (url) => url.endsWith(".webm") || url.endsWith(".mp3")
-    ) && (
-      <div className="space-y-1">
-        <p className="font-medium text-indigo-700">🎧 Audio Notes:</p>
-        {requisitionSlips[task.requisitionId].attachments
-          .filter((url) => url.endsWith(".webm") || url.endsWith(".mp3"))
-          .map((url, i) => (
-            <audio key={i} controls className="w-full rounded">
-              <source src={url} type="audio/webm" />
-            </audio>
-          ))}
-      </div>
-    )}
-  </div>
-)}
-
-<p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-500 mt-2">
                       Assigned by: {task.assignedBy?.name || "N/A"}
                     </p>
 
                     {/* Add this line to show the customer phone number */}
-{task.customerPhone && (
-  <p className="text-sm text-gray-500">
-    Customer Phone: {task.customerPhone}
-  </p>
-)}
+                    {task.customerPhone && (
+                      <p className="text-sm text-gray-500">
+                        Customer Phone: {task.customerPhone}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-500">
                       Assigned on:{" "}
                       {task.assignedOn
                         ? new Date(task.assignedOn).toLocaleDateString()
                         : "N/A"}
                     </p>
-
+{/* WhatsApp Button - Show for tasks with customer phone number */}
+{task.customerPhone && (
+  <div className="mt-4">
+    <button
+      onClick={() => handleWhatsAppWithAutoDownload(task)}
+      disabled={whatsappLoading}
+      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center disabled:opacity-50"
+    >
+      {whatsappLoading ? (
+        <>
+          <span className="mr-2">⏳</span>
+          Preparing...
+        </>
+      ) : (
+        <>
+          <span className="mr-2">📱</span>
+          Send to WhatsApp
+        </>
+      )}
+    </button>
+  </div>
+)}
                     {!task.isOrderFollowUp && (
                       <>
                         <p className="text-sm text-gray-500">
@@ -886,57 +934,61 @@ const handleWhatsAppWithAutoDownload = async (task) => {
                       </p>
                     )}
 
-                   {task.isOrderFollowUp &&
-  task.assignedBy?.role === "accounts" && (() => {
- const followUps = task.followUps || [];
-const today = new Date().toISOString().slice(0, 10);
-const todayFollowUp = followUps.find(
-  (entry) => new Date(entry.date).toISOString().slice(0, 10) === today
-);
-const lastFollowUp = followUps[followUps.length - 1];
+                    {task.isOrderFollowUp &&
+                      task.assignedBy?.role === "accounts" &&
+                      (() => {
+                        const followUps = task.followUps || [];
+                        const today = new Date().toISOString().slice(0, 10);
+                        const todayFollowUp = followUps.find(
+                          (entry) =>
+                            new Date(entry.date).toISOString().slice(0, 10) ===
+                            today
+                        );
+                        const lastFollowUp = followUps[followUps.length - 1];
 
-const continueResponses = [
-  "No Response / Call Not Answered",
-  "Number Unreachable / Switched Off",
-  "Follow-up Requested – Call Scheduled for Later"
-];
+                        const continueResponses = [
+                          "No Response / Call Not Answered",
+                          "Number Unreachable / Switched Off",
+                          "Follow-up Requested – Call Scheduled for Later",
+                        ];
 
-const lastResponse = lastFollowUp?.response?.trim();
-const lastSource = lastFollowUp?.source?.trim();
+                        const lastResponse = lastFollowUp?.response?.trim();
+                        const lastSource = lastFollowUp?.source?.trim();
 
-const shouldShowFollowUpForm =
-  !todayFollowUp ||
-  continueResponses.includes(lastResponse) ||
-  (lastResponse === "Other (Mention comments in Box)" && lastSource !== "close");
+                        const shouldShowFollowUpForm =
+                          !todayFollowUp ||
+                          continueResponses.includes(lastResponse) ||
+                          (lastResponse === "Other (Mention comments in Box)" &&
+                            lastSource !== "close");
 
-if (
-  task.isOrderFollowUp &&
-  shouldShowFollowUpForm &&
-  !notifiedTasks.includes(task._id)
-) {
-  toast.success("🔁 This follow-up task was updated. Please submit again.");
-  setNotifiedTasks((prev) => [...prev, task._id]);
-}
+                        if (
+                          task.isOrderFollowUp &&
+                          shouldShowFollowUpForm &&
+                          !notifiedTasks.includes(task._id)
+                        ) {
+                          toast.success(
+                            "🔁 This follow-up task was updated. Please submit again."
+                          );
+                          setNotifiedTasks((prev) => [...prev, task._id]);
+                        }
 
-if (shouldShowFollowUpForm) {
-  return (
-    <SalesFollowUpForm
-      taskId={task._id}
-      onFollowUpSubmitted={fetchTasks}
-        task={task} // Pass the entire task object
-    />
-  );
-}
+                        if (shouldShowFollowUpForm) {
+                          return (
+                            <SalesFollowUpForm
+                              taskId={task._id}
+                              onFollowUpSubmitted={fetchTasks}
+                              task={task} // Pass the entire task object
+                            />
+                          );
+                        }
 
-return (
-  <p className="text-sm text-green-700 mt-2 italic">
-    ✅ This order follow-up was completed based on the last response.
-  </p>
-);
-
-
-
-  })()}
+                        return (
+                          <p className="text-sm text-green-700 mt-2 italic">
+                            ✅ This order follow-up was completed based on the
+                            last response.
+                          </p>
+                        );
+                      })()}
 
                     {/* Show done remarks if task is DONE and remarks exist */}
                     {task.status === "DONE" && task.doneRemarks && (
@@ -972,89 +1024,73 @@ return (
                     </button>
                   )}
 
-{/* WhatsApp Button - Show for tasks with customer phone number */}
-{task.customerPhone && (
-  <div className="mt-4">
-    <button
-      onClick={() => handleWhatsAppWithAutoDownload(task)}
-      disabled={whatsappLoading}
-      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center disabled:opacity-50"
-    >
-      {whatsappLoading ? (
-        <>
-          <span className="mr-2">⏳</span>
-          Preparing...
-        </>
-      ) : (
-        <>
-          <span className="mr-2">📱</span>
-          Send to WhatsApp
-        </>
-      )}
-    </button>
-  </div>
-)}
                   {/* Show assigned images */}
-          {/* Assigned Media Section */}
-{task.origin !== "requisition" && task.images?.length > 0 && (
-  <div className="mt-4">
-    <h4 className="text-sm font-semibold text-gray-700 mb-2">📎 Assigned Media</h4>
-    <div className="flex flex-wrap gap-3">
-      {task.images
-        .filter((url) => !url.endsWith(".webm"))
-        .map((url, idx) => {
-          const isPDF = url.toLowerCase().endsWith(".pdf");
-          return isPDF ? (
-            <a
-              key={idx}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-24 h-24"
-            >
-              <img
-                src="/images/pdf.png"
-                alt="PDF"
-                className="w-full h-full object-contain border rounded shadow"
-              />
-            </a>
-          ) : (
-            <img
-              key={idx}
-              src={url}
-              alt={`Image ${idx + 1}`}
-              className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
-              onClick={() =>
-                Swal.fire({
-                  imageUrl: url,
-                  imageAlt: "Assigned Image",
-                  showConfirmButton: false,
-                  showCloseButton: true,
-                  width: "auto",
-                })
-              }
-            />
-          );
-        })}
-    </div>
+                  {/* Assigned Media Section */}
+                  {task.origin !== "requisition" && task.images?.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        📎 Assigned Media
+                      </h4>
+                      <div className="flex flex-wrap gap-3">
+                        {task.images
+                          .filter((url) => !url.endsWith(".webm"))
+                          .map((url, idx) => {
+                            const isPDF = url.toLowerCase().endsWith(".pdf");
+                            return isPDF ? (
+                              <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block w-24 h-24"
+                              >
+                                <img
+                                  src="/images/pdf.png"
+                                  alt="PDF"
+                                  className="w-full h-full object-contain border rounded shadow"
+                                />
+                              </a>
+                            ) : (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`Image ${idx + 1}`}
+                                className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
+                                onClick={() =>
+                                  Swal.fire({
+                                    imageUrl: url,
+                                    imageAlt: "Assigned Image",
+                                    showConfirmButton: false,
+                                    showCloseButton: true,
+                                    width: "auto",
+                                  })
+                                }
+                              />
+                            );
+                          })}
+                      </div>
 
-    {/* Voice Notes */}
-    {task.images.some((url) => url.endsWith(".webm")) && (
-      <div className="mt-4 bg-gray-100 p-3 rounded shadow">
-        <p className="text-sm font-semibold text-indigo-700 mb-2">🎧 Voice Note</p>
-        {task.images
-          .filter((url) => url.endsWith(".webm"))
-          .map((url, i) => (
-            <audio key={i} controls className="w-full rounded">
-              <source src={url} type="audio/webm" />
-            </audio>
-          ))}
-      </div>
-    )}
-  </div>
-)}
-
-
+                      {/* Voice Notes */}
+                      {task.images.some((url) => url.endsWith(".webm")) && (
+                        <div className="mt-4 bg-gray-100 p-3 rounded shadow">
+                          <p className="text-sm font-semibold text-indigo-700 mb-2">
+                            🎧 Voice Note
+                          </p>
+                          {task.images
+                            .filter((url) => url.endsWith(".webm"))
+                            .map((url, i) => (
+                              <audio
+                                key={i}
+                                controls
+                                className="w-full rounded"
+                              >
+                                <source src={url} type="audio/webm" />
+                              </audio>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {task.doneFiles?.length > 0 && (
                     <div>
@@ -1068,72 +1104,79 @@ return (
                           gap: "10px",
                         }}
                       >
+                        {/* Uploaded Media Section */}
+                        {task.doneFiles?.length > 0 && (
+                          <div className="mt-6">
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              ✅ Uploaded Media
+                            </h4>
+                            <div className="flex flex-wrap gap-3">
+                              {task.doneFiles
+                                .filter((url) => !url.endsWith(".webm"))
+                                .map((url, i) => {
+                                  const isPDF = url
+                                    .toLowerCase()
+                                    .endsWith(".pdf");
+                                  return isPDF ? (
+                                    <a
+                                      key={i}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-block w-24 h-24"
+                                    >
+                                      <img
+                                        src="/images/pdf.png"
+                                        alt={`PDF ${i + 1}`}
+                                        className="w-full h-full object-contain border rounded shadow"
+                                      />
+                                    </a>
+                                  ) : (
+                                    <img
+                                      key={i}
+                                      src={url}
+                                      alt={`Done Image ${i + 1}`}
+                                      className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
+                                      onClick={() =>
+                                        Swal.fire({
+                                          imageUrl: url,
+                                          imageAlt: "Done Image",
+                                          showConfirmButton: false,
+                                          showCloseButton: true,
+                                          width: "50vw",
+                                        })
+                                      }
+                                    />
+                                  );
+                                })}
+                            </div>
 
-                    {/* Uploaded Media Section */}
-{task.doneFiles?.length > 0 && (
-  <div className="mt-6">
-    <h4 className="text-sm font-semibold text-gray-700 mb-2">✅ Uploaded Media</h4>
-    <div className="flex flex-wrap gap-3">
-      {task.doneFiles
-        .filter((url) => !url.endsWith(".webm"))
-        .map((url, i) => {
-          const isPDF = url.toLowerCase().endsWith(".pdf");
-          return isPDF ? (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-24 h-24"
-            >
-              <img
-                src="/images/pdf.png"
-                alt={`PDF ${i + 1}`}
-                className="w-full h-full object-contain border rounded shadow"
-              />
-            </a>
-          ) : (
-            <img
-              key={i}
-              src={url}
-              alt={`Done Image ${i + 1}`}
-              className="w-24 h-24 object-cover border rounded shadow cursor-pointer"
-              onClick={() =>
-                Swal.fire({
-                  imageUrl: url,
-                  imageAlt: "Done Image",
-                  showConfirmButton: false,
-                  showCloseButton: true,
-                  width: "50vw",
-                })
-              }
-            />
-          );
-        })}
-    </div>
-
-    {/* Uploaded Voice Note */}
-    {task.doneFiles.some((url) => url.endsWith(".webm")) && (
-      <div className="mt-4 bg-gray-100 p-3 rounded shadow">
-        <p className="text-sm font-semibold text-green-700 mb-2">🎤 Uploaded Voice Note</p>
-        {task.doneFiles
-          .filter((url) => url.endsWith(".webm"))
-          .map((url, i) => (
-            <audio key={i} controls className="w-full rounded">
-              <source src={url} type="audio/webm" />
-            </audio>
-          ))}
-      </div>
-    )}
-  </div>
-)}
-
-
+                            {/* Uploaded Voice Note */}
+                            {task.doneFiles.some((url) =>
+                              url.endsWith(".webm")
+                            ) && (
+                              <div className="mt-4 bg-gray-100 p-3 rounded shadow">
+                                <p className="text-sm font-semibold text-green-700 mb-2">
+                                  🎤 Uploaded Voice Note
+                                </p>
+                                {task.doneFiles
+                                  .filter((url) => url.endsWith(".webm"))
+                                  .map((url, i) => (
+                                    <audio
+                                      key={i}
+                                      controls
+                                      className="w-full rounded"
+                                    >
+                                      <source src={url} type="audio/webm" />
+                                    </audio>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-
-                  
                 </div>
               ))}
             </div>
