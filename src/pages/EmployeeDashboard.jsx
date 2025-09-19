@@ -20,6 +20,7 @@ const EmployeeDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | DONE | NOT_DONE
  const [requisitionSlips, setRequisitionSlips] = useState({});
+ const [whatsappLoading, setWhatsappLoading] = useState(false);
 console.log("userddddd",user);
 
   const { taskId } = useParams();
@@ -398,70 +399,146 @@ useEffect(() => {
   if (loading) return <div className="p-4">Loading tasks...</div>;
 
   // Add this function inside your component
-const openWhatsApp = async (task) => {
+// Function to send images via WhatsApp
+const sendWhatsAppWithImages = async (task) => {
   if (!task?.customerPhone) {
     toast.error("No phone number available for this customer");
     return;
   }
 
-  // Clean and format the phone number
-  let phone = task.customerPhone.replace(/\D/g, ""); // Remove all non-digit characters
-  
-  // If it starts with 91 (India code) but doesn't have +, add it
-  if (phone.startsWith("91") && phone.length === 12) {
-    phone = "+" + phone;
-  }
-  // If it's a 10-digit number without country code, assume it's Indian and add +91
-  else if (phone.length === 10) {
-    phone = "+91" + phone;
-  }
-  // If it's already in international format with +, keep it
-  else if (phone.startsWith("91") && !phone.startsWith("+")) {
-    phone = "+" + phone;
-  }
+  setWhatsappLoading(true);
 
-  // Get current user's visiting card
-  const currentUserVisitingCard = user?.visitingCard || ""; 
-
-  // Build WhatsApp message
-  let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
-
-  // Check if there are products to include
-  if (task.products?.length > 0) {
-    // Build product list with images
-    let productsText = task.products.map((p, i) => 
-      `${i + 1}. ${p.name} (${p.unit || ""})`
-    ).join("%0A");
+  try {
+    // Clean and format the phone number
+    let phone = task.customerPhone.replace(/\D/g, "");
     
-    // Collect ALL images from ALL products
-    let productImages = [];
+    if (phone.startsWith("91") && phone.length === 12) {
+      phone = "+" + phone;
+    } else if (phone.length === 10) {
+      phone = "+91" + phone;
+    } else if (phone.startsWith("91") && !phone.startsWith("+")) {
+      phone = "+" + phone;
+    }
+
+    // Collect all product images
+    const productImages = [];
+    if (task.products?.length > 0) {
+      task.products.forEach(product => {
+        if (product.images && product.images.length > 0) {
+          product.images.forEach(imageUrl => {
+            productImages.push(imageUrl);
+          });
+        }
+      });
+    }
+
+    // Get visiting card image if available
+    const visitingCardImage = user?.visitingCardImage || '';
+
+    // Prepare the message
+    let message = `Hello! 👋%0AThis is regarding your inquiry about *${task.title}*.%0A%0A`;
+
+    if (task.products?.length > 0) {
+      let productsText = task.products.map((p, i) => 
+        `${i + 1}. ${p.name} (${p.unit || ""})`
+      ).join("%0A");
+      message += `🛒 *Products*:%0A${productsText}%0A%0A`;
+    }
+
+    // For WhatsApp Web/Desktop, we can only send one image at a time
+    // So we'll send the first product image or visiting card
+    const imageToSend = productImages.length > 0 ? productImages[0] : visitingCardImage;
+
+    if (imageToSend) {
+      // Encode the image URL for WhatsApp
+      const encodedImageUrl = encodeURIComponent(imageToSend);
+      
+      // Create WhatsApp link with image
+      // Note: This approach only works if the image is publicly accessible
+      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+      
+      // Show instructions for sending multiple images
+      setTimeout(() => {
+        Swal.fire({
+          title: 'Sending Images on WhatsApp',
+          html: `
+            <p>To send images through WhatsApp:</p>
+            <ol class="text-left pl-4 mt-2">
+              <li>Wait for the WhatsApp chat to open</li>
+              <li>Click the attachment button (paperclip icon)</li>
+              <li>Select "Photos & Videos" or "Document"</li>
+              <li>Select the images you want to send</li>
+              <li>Add any additional message and press send</li>
+            </ol>
+            <p class="mt-3 text-sm text-gray-600">Note: You may need to download the images first from the task details.</p>
+          `,
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
+      }, 1000);
+    } else {
+      // If no images, just send the text message
+      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+    }
+  } catch (error) {
+    console.error("Error sending WhatsApp message:", error);
+    toast.error("Failed to open WhatsApp");
+  } finally {
+    setWhatsappLoading(false);
+  }
+};
+
+// Function to download images for WhatsApp
+const downloadImagesForWhatsApp = (task) => {
+  // Collect all product images
+  const productImages = [];
+  if (task.products?.length > 0) {
     task.products.forEach(product => {
       if (product.images && product.images.length > 0) {
         product.images.forEach(imageUrl => {
-          productImages.push(imageUrl);
+          productImages.push({
+            url: imageUrl,
+            name: `${product.name}.jpg`
+          });
         });
       }
     });
-
-    // Add products to message
-    message += `🛒 *Products*:%0A${productsText}%0A%0A`;
-
-    // Add product images if available
-    if (productImages.length > 0) {
-      message += `📷 *Product Images*:%0A`;
-      productImages.forEach((url, i) => {
-        message += `${i + 1}. ${url}%0A`;
-      });
-      message += "%0A";
-    }
   }
 
-  // Add current user's visiting card (always included)
-  if (currentUserVisitingCard) {
-    message += `👔 *My Visiting Card*:%0A${currentUserVisitingCard}%0A%0A`;
+  // Get visiting card image if available
+  if (user?.visitingCardImage) {
+    productImages.push({
+      url: user.visitingCardImage,
+      name: "VisitingCard.jpg"
+    });
   }
 
-  window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+  // Show download options
+  if (productImages.length > 0) {
+    Swal.fire({
+      title: 'Download Images for WhatsApp',
+      html: `
+        <p>Download these images to send via WhatsApp:</p>
+        <ul class="text-left mt-2 max-h-40 overflow-y-auto">
+          ${productImages.map((img, index) => `
+            <li class="mb-1">
+              <a href="${img.url}" download="${img.name}" 
+                 class="text-blue-600 hover:underline">
+                Image ${index + 1}: ${img.name}
+              </a>
+            </li>
+          `).join('')}
+        </ul>
+        <p class="mt-3 text-sm text-gray-600">
+          After downloading, open WhatsApp and send these images to the customer.
+        </p>
+      `,
+      icon: 'info',
+      confirmButtonText: 'OK'
+    });
+  } else {
+    toast.error("No images available to download");
+  }
 };
 
 
@@ -760,13 +837,33 @@ return (
 
 {/* WhatsApp Button - Show for tasks with customer phone number */}
 {task.customerPhone && (
-  <button
-    onClick={() => openWhatsApp(task)}
-    className="mt-4 sm:mt-0 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center"
-  >
-    <span className="mr-2">📱</span>
-    WhatsApp
-  </button>
+  <div className="mt-4 flex flex-wrap gap-2">
+    <button
+      onClick={() => sendWhatsAppWithImages(task)}
+      disabled={whatsappLoading}
+      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center disabled:opacity-50"
+    >
+      {whatsappLoading ? (
+        <>
+          <span className="mr-2">⏳</span>
+          Opening...
+        </>
+      ) : (
+        <>
+          <span className="mr-2">📱</span>
+          WhatsApp
+        </>
+      )}
+    </button>
+    
+    <button
+      onClick={() => downloadImagesForWhatsApp(task)}
+      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center"
+    >
+      <span className="mr-2">📥</span>
+      Download Images
+    </button>
+  </div>
 )}
                   {/* Show assigned images */}
           {/* Assigned Media Section */}
