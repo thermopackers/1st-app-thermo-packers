@@ -147,8 +147,13 @@ useEffect(() => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((prod) => (
-                  <tr key={prod._id} className="border-t hover:bg-gray-50 text-center align-top">
+              {products.map((prod) => (
+  <tr 
+    key={prod._id} 
+    className={`border-t hover:bg-gray-50 text-center align-top ${
+      prod.stock < 10 ? 'bg-red-300' : ''
+    }`}
+  >
                     <td className="p-3">{prod.name}</td>
                     <td className="p-3">{prod.unit}</td>
 <td className="p-3">
@@ -166,8 +171,11 @@ useEffect(() => {
                     <td className="p-3">{prod.hsnCode}</td>
                     <td className="p-3">{prod.gstPercent}</td>
                     <td className="p-3">₹ {prod.price}</td>
-                    <td className="p-3">{prod.stock || 0} {prod.unit}</td>
-                    <td className="p-3 max-w-xs text-left">{prod.description}</td>
+<td className="p-3">
+  <span className={prod.stock < 10 ? 'text-red-600 font-semibold' : ''}>
+    {prod.stock || 0} {prod.unit}
+  </span>
+</td>                    <td className="p-3 max-w-xs text-left">{prod.description}</td>
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2 justify-center">
                         {prod.files?.map((file, index) => {

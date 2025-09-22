@@ -325,34 +325,59 @@ if (form.freightType === 'Billed' && (!form.freight || Number(form.freight) <= 0
 
   </div>
 )}
+{/* New payment terms section */}
 <div className="col-span-2">
   <label className="text-sm font-medium">Payment Terms</label>
-  <div className="grid md:grid-cols-2 gap-2 mt-2 text-sm">
-   {["100% Advance", "45 Days Credit", "Cheque on Delivery"].map((term) => (
-  <label key={term} className="flex items-center gap-2">
-    <input
-      type="radio"
-      name="paymentTerms"
-      value={term}
-      checked={form.paymentTerms === term}
-      onChange={(e) => setForm(f => ({ ...f, paymentTerms: e.target.value }))}
-    />
-    {term}
-  </label>
-))}
-
-  </div>
-  {/* Dynamic input for custom term */}
-  <div className="mt-2">
-    <input
-      className="input w-full"
-      placeholder="Other (please specify)"
-      value={form.customPaymentTerm}
-      onChange={(e) =>
-        setForm(f => ({ ...f, customPaymentTerm: e.target.value }))
+  <select
+    className="w-full border border-gray-300 rounded px-3 py-2 mt-1"
+    value={form.paymentTerms === form.customPaymentTerm ? "Other" : form.paymentTerms}
+    onChange={(e) => {
+      if (e.target.value === "Other") {
+        setForm(f => ({ 
+          ...f, 
+          paymentTerms: f.customPaymentTerm || "",
+        }));
+      } else {
+        setForm(f => ({ 
+          ...f, 
+          paymentTerms: e.target.value,
+          customPaymentTerm: "" 
+        }));
       }
+    }}
+  >
+    <option value="">-- Select Payment Terms --</option>
+    <option value="100% Advance">
+      1) 100% Advance
+    </option>
+    <option value="Cash on Delivery (Driver to get Cash payment on delivery)">
+      2) Cash on Delivery (Driver to get Cash payment on delivery)
+    </option>
+    <option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
+      3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
+    </option>
+    <option value="50% Advance and Balance 50% on delivery">
+      4) 50% Advance and Balance 50% on delivery
+    </option>
+    <option value="Credit (Udhaar): 45 Days">
+      5) Credit (Udhaar): 45 Days
+    </option>
+    <option value="Other">6) Other (Write in remarks)</option>
+  </select>
+
+  {(form.paymentTerms === form.customPaymentTerm || form.paymentTerms === "Other") && (
+    <input
+      type="text"
+      className="input w-full mt-2"
+      placeholder="Enter custom payment terms"
+      value={form.customPaymentTerm}
+      onChange={(e) => setForm(f => ({ 
+        ...f, 
+        customPaymentTerm: e.target.value,
+        paymentTerms: e.target.value 
+      }))}
     />
-  </div>
+  )}
 </div>
   <div>
     <label className="text-sm font-medium">Packaging Charges (₹)</label>

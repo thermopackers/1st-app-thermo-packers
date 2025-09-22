@@ -112,21 +112,26 @@ console.log("invoice",invoice);
       remarks: invoice.remarks || "",
     }));
 // ✅ Auto-map payment terms from Proforma
-if (invoice.customPaymentTerm) {
-  setPaymentTerms("Other");
-  setCustomPaymentTerms(invoice.customPaymentTerm); // ✅ shows "544"
-} else if (Array.isArray(invoice.paymentTerms)) {
-  const term = invoice.paymentTerms[0]?.toString().toLowerCase();
-  if (term.includes("100%")) {
-    setPaymentTerms("Payment already came 100% Advance");
-  } else if (term.includes("credit")) {
-    setPaymentTerms("Credit (Udhaar): 45 Days");
-  } else if (term.includes("cheque") || term.includes("pdc")) {
-    setPaymentTerms(
-      "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material"
-    );
+// ✅ Auto-map payment terms from Proforma
+if (invoice.paymentTerms || invoice.customPaymentTerm) {
+  const piPaymentTerm = invoice.paymentTerms || invoice.customPaymentTerm;
+  
+  // Check if it matches any of the standard options
+  const standardTerms = [
+    "100% Advance",
+    "Cash on Delivery (Driver to get Cash payment on delivery)",
+    "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
+    "50% Advance and Balance 50% on delivery",
+    "Credit (Udhaar): 45 Days"
+  ];
+  
+  if (standardTerms.includes(piPaymentTerm)) {
+    setPaymentTerms(piPaymentTerm);
+    setCustomPaymentTerms("");
   } else {
-    setPaymentTerms(invoice.paymentTerms[0]); // fallback
+    // It's a custom term
+    setPaymentTerms("Other");
+    setCustomPaymentTerms(piPaymentTerm);
   }
 }
 
@@ -651,10 +656,10 @@ const ConversionTracker = {
   value={
     paymentTerms &&
     ![
-      "Payment already came 100% Advance",
+      "100% Advance",
       "Cash on Delivery (Driver to get Cash payment on delivery)",
       "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
-      "50% Came and Balance 50% on delivery",
+      "50% Advance and Balance 50% on delivery",
       "Credit (Udhaar): 45 Days"
     ].includes(paymentTerms)
       ? "Other"
@@ -671,8 +676,8 @@ const ConversionTracker = {
 >
 
    <option value="">-- Select Payment Terms --</option>
-<option value="Payment already came 100% Advance">
-  1) Payment already came 100% Advance
+<option value="100% Advance">
+  1) 100% Advance
 </option>
 <option value="Cash on Delivery (Driver to get Cash payment on delivery)">
   2) Cash on Delivery (Driver to get Cash payment on delivery)
@@ -680,8 +685,8 @@ const ConversionTracker = {
 <option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
   3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
 </option>
-<option value="50% Came and Balance 50% on delivery">
-  4) 50% Came and Balance 50% on delivery
+<option value="50% Advance and Balance 50% on delivery">
+  4) 50% Advance and Balance 50% on delivery
 </option>
 <option value="Credit (Udhaar): 45 Days">
   5) Credit (Udhaar): 45 Days
