@@ -52,6 +52,7 @@ import PowerFactorMaintenance from "../pages/PowerFactorMaintenance";
 import ProductsDetails from "../pages/ProductsDetails";
 import TourExpenses from "../pages/TourExpenses";
 import TourExpensesDashboard from "../pages/TourExpensesDashboard";
+import ImportantNumbers from "../components/ImportantNumbers";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -652,6 +653,9 @@ element={
     </ProtectedRoute>
   }
 />
+
+<Route path="/important-numbers" element={<ImportantNumbers />} />
+
 <Route
 path="/tour-expenses-dashboard"
 element={

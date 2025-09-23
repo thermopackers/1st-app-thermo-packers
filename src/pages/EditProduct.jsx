@@ -4,6 +4,7 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
+import Swal from "sweetalert2";
 
 export default function EditProduct() {
   const { id } = useParams();
@@ -94,16 +95,7 @@ export default function EditProduct() {
     setPreviewUrls((prev) => [...prev, ...validFiles.map((f) => URL.createObjectURL(f))]);
   };
 
-  const handleRemoveImage = (indexToRemove) => {
-    const removedUrl = previewUrls[indexToRemove];
-    if (!removedUrl.startsWith("blob:")) {
-      const relativePath = removedUrl.replace(BASE_URL, "");
-      setRemovedImages((prev) => [...prev, relativePath]);
-    } else {
-      setImages((prev) => prev.filter((_, i) => i !== indexToRemove));
-    }
-    setPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
-  };
+ 
 
   // 🆕 Internal images/pdfs
   const handleInternalChange = async (e) => {
@@ -123,16 +115,53 @@ export default function EditProduct() {
     setInternalPreviewUrls((prev) => [...prev, ...processed.map((f) => URL.createObjectURL(f))]);
   };
 
-  const handleRemoveInternal = (indexToRemove) => {
-    const removedUrl = internalPreviewUrls[indexToRemove];
-    if (!removedUrl.startsWith("blob:")) {
-      const relativePath = removedUrl.replace(BASE_URL, "");
-      setRemovedInternalImages((prev) => [...prev, relativePath]);
-    } else {
-      setInternalImages((prev) => prev.filter((_, i) => i !== indexToRemove));
+const handleRemoveImage = (indexToRemove) => {
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "You want to delete this image?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancel'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const removedUrl = previewUrls[indexToRemove];
+      if (!removedUrl.startsWith("blob:")) {
+        const relativePath = removedUrl.replace(BASE_URL, "");
+        setRemovedImages((prev) => [...prev, relativePath]);
+      } else {
+        setImages((prev) => prev.filter((_, i) => i !== indexToRemove));
+      }
+      setPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
     }
-    setInternalPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
-  };
+  });
+};
+
+const handleRemoveInternal = (indexToRemove) => {
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "You want to delete this image?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancel'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const removedUrl = internalPreviewUrls[indexToRemove];
+      if (!removedUrl.startsWith("blob:")) {
+        const relativePath = removedUrl.replace(BASE_URL, "");
+        setRemovedInternalImages((prev) => [...prev, relativePath]);
+      } else {
+        setInternalImages((prev) => prev.filter((_, i) => i !== indexToRemove));
+      }
+      setInternalPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
+    }
+  });
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -194,33 +223,78 @@ export default function EditProduct() {
           <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} className="w-full border p-2 rounded" placeholder="HSN Code" />
           <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
 
-          {/* Product images */}
-          <label className="block font-semibold">Product Sheet Images</label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {previewUrls.map((url, i) => (
-              <div key={i} className="relative">
-                <img src={url} alt={`Preview ${i}`} className="w-32 h-32 object-cover rounded" />
-                <button type="button" onClick={() => handleRemoveImage(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
-              </div>
-            ))}
-          </div>
-          <input type="file" accept="image/*" multiple onChange={handleImagesChange} className="w-full border p-2 rounded" />
-
-          {/* 🆕 Internal images/pdfs */}
-          <label className="block font-semibold">Internal Product Sheet Images</label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {internalPreviewUrls.map((url, i) => (
-              <div key={i} className="relative w-32 h-32 border rounded flex items-center justify-center overflow-hidden">
-                {url.endsWith(".pdf") ? (
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-red-600 font-semibold">📄 PDF</a>
-                ) : (
-                  <img src={url} alt={`Internal ${i}`} className="w-full h-full object-cover" />
-                )}
-                <button type="button" onClick={() => handleRemoveInternal(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
-              </div>
-            ))}
-          </div>
-          <input type="file" accept="image/*,application/pdf" multiple onChange={handleInternalChange} className="w-full border p-2 rounded" />
+ {/* Product images */}
+<label className="block font-semibold">Product Sheet Images</label>
+<div className="flex flex-wrap gap-2 mb-2">
+  {previewUrls.map((url, i) => (
+    <div key={i} className="relative">
+      <img 
+        src={url} 
+        alt={`Preview ${i}`} 
+        className="w-32 h-32 object-cover rounded cursor-pointer"
+        onClick={() => {
+          Swal.fire({
+            html: `<div style="text-align: center;">
+                     <img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;" />
+                     <div style="margin-top: 10px;">
+                       <button id="closeImageBtn" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                     </div>
+                   </div>`,
+            showConfirmButton: false,
+            width: 'auto',
+            padding: 0,
+            didOpen: () => {
+              // Add event listener after the modal opens
+              document.getElementById('closeImageBtn').addEventListener('click', () => {
+                Swal.close();
+              });
+            }
+          });
+        }}
+      />
+      <button type="button" onClick={() => handleRemoveImage(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
+    </div>
+  ))}
+</div>
+<input type="file" accept="image/*" multiple onChange={handleImagesChange} className="w-full border p-2 rounded" />
+         {/* 🆕 Internal images/pdfs */}
+<label className="block font-semibold">Internal Product Sheet Images</label>
+<div className="flex flex-wrap gap-2 mb-2">
+  {internalPreviewUrls.map((url, i) => (
+    <div key={i} className="relative w-32 h-32 border rounded flex items-center justify-center overflow-hidden">
+      {url.endsWith(".pdf") ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-red-600 font-semibold">📄 PDF</a>
+      ) : (
+        <img 
+          src={url} 
+          alt={`Internal ${i}`} 
+          className="w-full h-full object-cover cursor-pointer"
+          onClick={() => {
+            Swal.fire({
+              html: `<div style="text-align: center;">
+                       <img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;" />
+                       <div style="margin-top: 10px;">
+                         <button id="closeImageBtn" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                       </div>
+                     </div>`,
+              showConfirmButton: false,
+              width: 'auto',
+              padding: 0,
+              didOpen: () => {
+                // Add event listener after the modal opens
+                document.getElementById('closeImageBtn').addEventListener('click', () => {
+                  Swal.close();
+                });
+              }
+            });
+          }}
+        />
+      )}
+      <button type="button" onClick={() => handleRemoveInternal(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
+    </div>
+  ))}
+</div>
+<input type="file" accept="image/*,application/pdf" multiple onChange={handleInternalChange} className="w-full border p-2 rounded" />
 
           <button type="submit" disabled={isSubmitting} className={`bg-blue-600 text-white px-4 py-2 rounded ${isSubmitting ? "opacity-50" : "hover:bg-blue-700"}`}>
             {isSubmitting ? "Updating..." : "Update Product"}

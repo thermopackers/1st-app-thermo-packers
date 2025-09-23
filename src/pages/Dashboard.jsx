@@ -1074,6 +1074,46 @@ useEffect(() => {
   </section>
 )}
 
+{/* Important Numbers Section */}
+{/* {["admin", "accounts"].includes(user.role) && (
+  <section className="mt-8">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-2xl font-bold text-slate-900 text-center">
+        Important Numbers
+      </h3>
+      <p className="mt-1 text-sm text-slate-600 text-center">
+        Manage and view important contact numbers
+      </p>
+
+      <div className="mt-6 flex justify-center">
+        <NavLink to="/important-numbers">
+          <button className="rounded-xl bg-blue-600 px-6 py-3 text-white shadow hover:bg-blue-700 transition">
+            📞 Manage Important Numbers
+          </button>
+        </NavLink>
+      </div>
+    </div>
+  </section>
+)} */}
+
+{/* View Important Numbers for other roles */}
+{/* {!["admin", "accounts"].includes(user.role) && (
+  <section className="mt-8">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-2xl font-bold text-slate-900 text-center">
+        Important Numbers
+      </h3>
+      
+      <div className="mt-6 flex justify-center">
+        <NavLink to="/important-numbers">
+          <button className="rounded-xl bg-green-600 px-6 py-3 text-white shadow hover:bg-green-700 transition">
+            📞 View Important Numbers
+          </button>
+        </NavLink>
+      </div>
+    </div>
+  </section>
+)} */}
 
 
         </div>

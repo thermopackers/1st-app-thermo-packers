@@ -19,6 +19,7 @@ export default function App() {
     "/send-rfq",
     "/tour-expenses",
     "/tour-expenses-dashboard",
+    "/important-numbers",
     "/view-rfqs",
     "/edit-rfq",
     "/register/assistant",
