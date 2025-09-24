@@ -1075,7 +1075,7 @@ useEffect(() => {
 )}
 
 {/* Important Numbers Section */}
-{/* {["admin", "accounts"].includes(user.role) && (
+{["admin", "accounts"].includes(user.role) && (
   <section className="mt-8">
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-2xl font-bold text-slate-900 text-center">
@@ -1094,10 +1094,10 @@ useEffect(() => {
       </div>
     </div>
   </section>
-)} */}
+)}
 
 {/* View Important Numbers for other roles */}
-{/* {!["admin", "accounts"].includes(user.role) && (
+{!["admin", "accounts"].includes(user.role) && (
   <section className="mt-8">
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-2xl font-bold text-slate-900 text-center">
@@ -1113,7 +1113,7 @@ useEffect(() => {
       </div>
     </div>
   </section>
-)} */}
+)}
 
 
         </div>
