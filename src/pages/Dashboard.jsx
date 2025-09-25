@@ -406,50 +406,7 @@ useEffect(() => {
                   )}
                 </div>
               )}
-                {notifications.length > 0 && (
-  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-6">
-    <h3 className="text-md font-bold text-yellow-800 mb-2">🔔 Follow-Up Reminders</h3>
-    <ul className="space-y-1">
-      {notifications
-.filter((n) => n.message?.toLowerCase()?.includes("follow-up"))
-        .map((note, idx) => (
-          <li key={idx} className="text-sm text-gray-800">
-            • {note.message}{" "}
-            {note.link && (
-              <NavLink
-                to={note.link}
-                className="text-indigo-600 hover:underline ml-1"
-              >
-                View
-              </NavLink>
-            )}
-          </li>
-        ))}
-    </ul>
-    {totalPages > 1 && (
-  <div className="flex justify-end gap-2 mt-2">
-    <button
-      onClick={() => setPage((p) => Math.max(p - 1, 1))}
-      disabled={page === 1}
-      className="px-2 py-1 bg-gray-200 rounded-lg disabled:opacity-50"
-    >
-      Prev
-    </button>
-    <span className="px-3 py-1 text-sm text-gray-700">
-      Page {page} of {totalPages}
-    </span>
-    <button
-      onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-      disabled={page === totalPages}
-      className="px-2 py-1 bg-gray-200 rounded-lg disabled:opacity-50"
-    >
-      Next
-    </button>
-  </div>
-)}
-
-  </div>
-)}
+               
             </header>
           ) : (
             // Driver header

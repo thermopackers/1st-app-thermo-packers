@@ -6,7 +6,7 @@ import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import toast from "react-hot-toast";
 import VehicleDocumentManager from '../components/VehicleDocumentManager';
-
+import MaintenanceLogBook from '../components/MaintenanceLogBook';
 
 
 export default function AssignDispatchPlanForm() {
@@ -18,7 +18,7 @@ export default function AssignDispatchPlanForm() {
     const [uploadingPlanId, setUploadingPlanId] = useState(null);
 const [selectedVehicle, setSelectedVehicle] = useState(null);
 const docsRef = useRef(null);
-
+const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState(null);
 const [audioUrl, setAudioUrl] = useState(null);
 const [customerDetails, setCustomerDetails] = useState([]);
 const [recording, setRecording] = useState(false);
@@ -1520,20 +1520,28 @@ setSearchTerm("");
     </div>
 
     {/* Action buttons */}
-    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-      <button
-        className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
-        onClick={() => handleEditVehicle(vehicle)}
-      >
-        ✏️ Edit
-      </button>
-      <button
-        className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
-        onClick={() => setSelectedVehicle(vehicle)}
-      >
-        📄 Manage Docs
-      </button>
-    </div>
+   <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+  <button
+    className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+    onClick={() => handleEditVehicle(vehicle)}
+  >
+    ✏️ Edit
+  </button>
+  <button
+    className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+    onClick={() => setSelectedVehicle(vehicle)}
+  >
+    📄 Manage Docs
+  </button>
+  {user.role === "accounts" && (
+    <button
+      className="bg-purple-50 hover:bg-purple-100 text-purple-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+      onClick={() => setSelectedMaintenanceVehicle(vehicle)}
+    >
+      📋 Maintenance Log
+    </button>
+  )}
+</div>
   </li>
 ))}
 
@@ -1551,6 +1559,12 @@ setSearchTerm("");
   </div>
 </div>
       </main>
+      {selectedMaintenanceVehicle && (
+  <MaintenanceLogBook 
+    vehicleNumber={selectedMaintenanceVehicle.vehicleNumber}
+    onClose={() => setSelectedMaintenanceVehicle(null)}
+  />
+)}
     </div>
   );
 }

@@ -5,11 +5,13 @@ import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import VehicleDocumentManager from "../components/VehicleDocumentManager";
+import MaintenanceLogBook from '../components/MaintenanceLogBook'; // ✅ Add this import
 
 export default function RegisteredVehicles() {
   const { user, token, loading } = useUserContext();
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState(null); // ✅ Add this state
   const docsRef = useRef(null);
 
   const [newVehicle, setNewVehicle] = useState({
@@ -102,6 +104,10 @@ export default function RegisteredVehicles() {
         {user.role !== "driver" && (
           <div className="bg-white shadow p-4 rounded mb-6">
             <h3 className="font-bold text-lg mb-2">Register New Vehicle</h3>
+             <p className="text-sm text-gray-600 mb-4">
+    <span className="font-medium text-gray-700">Format (eg.):</span>
+    <code className="bg-gray-100 p-1 rounded text-sm">PB08 EL 9364 : pb08el9364thermopackers@gmail.com</code>
+  </p>
             <div className="grid md:grid-cols-2 gap-4">
               <input
                 type="text"
@@ -152,19 +158,29 @@ export default function RegisteredVehicles() {
                 <p className="font-medium">{vehicle.vehicleNumber}</p>
                 <p className="text-sm text-gray-600">{vehicle.driverEmail}</p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
+              
+              {/* ✅ Updated button group with Maintenance Log button */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
                 <button
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md"
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
                   onClick={() => handleEditVehicle(vehicle)}
                 >
                   ✏️ Edit
                 </button>
                 <button
-                  className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md"
+                  className="bg-green-50 hover:bg-green-100 text-green-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
                   onClick={() => setSelectedVehicle(vehicle)}
                 >
                   📄 Manage Docs
                 </button>
+                {user.role === "accounts" && (
+                  <button
+                    className="bg-purple-50 hover:bg-purple-100 text-purple-600 text-sm px-3 py-1 rounded-md transition text-center sm:text-left"
+                    onClick={() => setSelectedMaintenanceVehicle(vehicle)}
+                  >
+                    📋 Maintenance Log
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -179,6 +195,14 @@ export default function RegisteredVehicles() {
           </div>
         )}
       </main>
+
+      {/* ✅ Add MaintenanceLogBook modal */}
+      {selectedMaintenanceVehicle && (
+        <MaintenanceLogBook 
+          vehicleNumber={selectedMaintenanceVehicle.vehicleNumber}
+          onClose={() => setSelectedMaintenanceVehicle(null)}
+        />
+      )}
     </div>
   );
 }
