@@ -280,7 +280,7 @@ customerPhone
 
     <div>
   <label className="block text-gray-700 font-semibold mb-2">
-    Select Products
+    Select Products to sell:
   </label>
 
 {selectedProducts.map((prod, index) => (
