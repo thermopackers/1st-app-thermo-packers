@@ -457,7 +457,7 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
                     {
                       table: {
                         headerRows: 1,
-                        widths: [20, 40, 40, 40, 40, 50, 40, 40, 50, 35],
+                        widths: [20, 70, 85, 30, 20, 20, 40, 25, 50, 35],
                         body: bodyRows,
                       },
                       layout: "lightHorizontalLines",

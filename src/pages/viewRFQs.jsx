@@ -102,8 +102,11 @@ const handleWhatsAppSend = () => {
     return;
   }
 
-  const message = `Hello,\n\nPlease find the details for the RFQ below:\n\nItem: ${currentRFQ.itemName}\nQuantity: ${currentRFQ.quantity}\nRequired By: ${formatDateDDMMYYYY(currentRFQ.requiredByDate)}\nSize: ${currentRFQ.size || "N/A"}\nRemarks: ${currentRFQ.remarks || "None"}\nCategory: ${currentRFQ.category}\n\nDownload RFQ PDF: ${currentRFQ.fileUrl}\n\nRegards,\n${JSON.parse(localStorage.getItem("user"))?.name || ""}`;
+const productList = currentRFQ.products.map((product, index) => 
+  `Product ${index + 1}: ${product.itemName} - Qty: ${product.quantity} ${product.unit || ''}`
+).join('\n');
 
+const message = `Hello,\n\nPlease find the details for the RFQ below:\n\n${productList}\n\nRequired By: ${formatDateDDMMYYYY(currentRFQ.requiredByDate)}\nCategory: ${currentRFQ.category}\n\nDownload RFQ PDF: ${currentRFQ.fileUrl}\n\nRegards,\n${JSON.parse(localStorage.getItem("user"))?.name || ""}`;
   // Check if on mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
