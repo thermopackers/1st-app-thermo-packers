@@ -82,24 +82,23 @@ const stopRecording = () => {
   });
 };
 
-  const handleImageChange = async (e) => {
-    const files = Array.from(e.target.files);
-    const newImagesArray = [];
+const handleImageChange = async (e) => {
+  const files = Array.from(e.target.files);
+  const newImagesArray = [];
 
-    for (const file of files) {
-      if (file.type.startsWith("image/")) {
-        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 800 };
-        const compressed = await imageCompression(file, options);
-        compressed.originalName = file.name;
-        newImagesArray.push(compressed);
-      } else {
-        file.originalName = file.name;
-        newImagesArray.push(file);
-      }
+  for (const file of files) {
+    if (file.type.startsWith("image/")) {
+      // Remove compression - just use the original file
+      file.originalName = file.name;
+      newImagesArray.push(file);
+    } else {
+      file.originalName = file.name;
+      newImagesArray.push(file);
     }
+  }
 
-    setNewImages((prev) => [...prev, ...newImagesArray]);
-  };
+  setNewImages((prev) => [...prev, ...newImagesArray]);
+};
 
   const handleRemoveNewImage = (index) => {
     const updated = [...newImages];
