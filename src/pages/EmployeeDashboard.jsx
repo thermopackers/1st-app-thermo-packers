@@ -685,6 +685,74 @@ ${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ""}`;
       setWhatsappLoading(false);
     }
   };
+
+  // Enhanced function to save contact with better details
+const saveContactToPhone = (task) => {
+  if (!task?.customerPhone) {
+    toast.error("No phone number available for this customer");
+    return;
+  }
+
+  // Clean and format the phone number
+  let phone = task.customerPhone.replace(/\D/g, "");
+  
+  // Format for India numbers
+  if (phone.startsWith("91") && phone.length === 12) {
+    phone = "+" + phone;
+  } else if (phone.length === 10) {
+    phone = "+91" + phone;
+  } else if (phone.startsWith("91") && !phone.startsWith("+")) {
+    phone = "+" + phone;
+  }
+
+  const salesPersonName = user?.name || "Sales Representative";
+  const companyName = "Your Company";
+  
+  // Create more detailed vCard
+  const vCard = `BEGIN:VCARD
+VERSION:3.0
+FN:Customer - ${task.title}
+N:Customer;${task.title};;;
+TEL;TYPE=CELL,VOICE:${phone}
+ORG:${companyName}
+NOTE:Lead from sales task: ${task.title}. Task description: ${task.description || "No description"}. Added by ${salesPersonName} on ${new Date().toLocaleDateString()}.
+URL:${window.location.origin}
+X-ABLabel:Sales Lead
+END:VCARD`;
+
+  // Create blob and download
+  const blob = new Blob([vCard], { type: "text/vcard;charset=utf-8" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  
+  const fileName = `customer_${task.title.replace(/[^a-zA-Z0-9]/g, "_")}.vcf`;
+  
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  
+  // Cleanup
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+  
+  // Show instructions
+  Swal.fire({
+    title: 'Contact Saved!',
+    html: `
+      <p>The contact file has been downloaded.</p>
+      <p class="text-sm text-gray-600 mt-2">
+        <strong>To save to your phone:</strong><br>
+        • <strong>Android:</strong> Open the .vcf file<br>
+        • <strong>iPhone:</strong> Open in Contacts app<br>
+        • <strong>Other:</strong> Import to your address book
+      </p>
+    `,
+    icon: 'success',
+    confirmButtonText: 'OK'
+  });
+};
+
   return (
     <>
       <InternalNavbar />
@@ -875,26 +943,38 @@ ${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ""}`;
                     </p>
 {/* WhatsApp Button - Show for tasks with customer phone number */}
 {task.customerPhone && (
-  <div className="mt-4">
-    <button
-      onClick={() => handleWhatsAppWithAutoDownload(task)}
-      disabled={whatsappLoading}
-      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center disabled:opacity-50"
-    >
-      {whatsappLoading ? (
-        <>
-          <span className="mr-2">⏳</span>
-          Preparing...
-        </>
-      ) : (
-        <>
-          <span className="mr-2">📱</span>
-          Send to WhatsApp
-        </>
-      )}
-    </button>
-    {/* 📌 Added note below button */}
-    <p className="mt-2 text-xs text-gray-600 italic">
+  <div className="mt-4 space-y-2">
+    <div className="flex gap-2">
+      <button
+        onClick={() => handleWhatsAppWithAutoDownload(task)}
+        disabled={whatsappLoading}
+        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200 flex items-center disabled:opacity-50 flex-1"
+      >
+        {whatsappLoading ? (
+          <>
+            <span className="mr-2">⏳</span>
+            Preparing...
+          </>
+        ) : (
+          <>
+            <span className="mr-2">📱</span>
+            Send to WhatsApp
+          </>
+        )}
+      </button>
+      
+      <button
+        onClick={() => saveContactToPhone(task)}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 flex items-center"
+        title="Save contact to phone"
+      >
+        <span className="mr-2">👤</span>
+        Save Contact
+      </button>
+    </div>
+    
+    {/* 📌 Added note below buttons */}
+     <p className="mt-2 text-xs text-gray-600 italic">
       Click to share product catalogue and visiting card with potential customer.
     </p>
   </div>
