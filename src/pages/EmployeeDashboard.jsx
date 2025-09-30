@@ -399,274 +399,208 @@ const EmployeeDashboard = () => {
 
   // Add this function inside your component
   // Function to send images via WhatsApp
-  const sendWhatsAppWithImages = async (task) => {
-    if (!task?.customerPhone) {
-      toast.error("No phone number available for this customer");
-      return;
+ // Updated function to handle WhatsApp with download fallback
+const sendWhatsAppWithImages = async (task) => {
+  if (!task?.customerPhone) {
+    toast.error("No phone number available for this customer");
+    return;
+  }
+
+  setWhatsappLoading(true);
+
+  try {
+    // First try to download images
+    await downloadImagesForWhatsApp(task);
+    
+    // Then open WhatsApp with a basic message (user will manually attach files)
+    let phone = task.customerPhone.replace(/\D/g, "");
+    
+    // Format phone number
+    if (phone.startsWith("91") && phone.length === 12) {
+      phone = "+" + phone;
+    } else if (phone.length === 10) {
+      phone = "+91" + phone;
+    } else if (phone.startsWith("91") && !phone.startsWith("+")) {
+      phone = "+" + phone;
     }
 
-    setWhatsappLoading(true);
+    // Basic message without images (since we can't attach via URL in WhatsApp Web)
+    const salesPersonName = user?.name || "Sales Representative";
+    let message = `Dear Sir/Ma'am,%0A%0A`;
+    message += `This is regarding your requirement of packaging requirement in EPS/Pulp. I've shared our product catalogue and visiting card through separate files.%0A%0A`;
+    
+    if (task.products?.length > 0) {
+      message += `🛒 *Products*:%0A`;
+      task.products.forEach((p, i) => {
+        message += `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ""}%0A`;
+      });
+      message += `%0A`;
+    }
+    
+    message += `Thanks,%0A${salesPersonName}%0A`;
+    
+    if (user?.phone) {
+      message += `${user.phone}`;
+    }
 
+    // Open WhatsApp with the message
+    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+    
+  } catch (error) {
+    console.error("Error in WhatsApp process:", error);
+    toast.error("Failed to process WhatsApp request");
+  } finally {
+    setWhatsappLoading(false);
+  }
+};
+
+// Fixed function to download all images and message for WhatsApp
+const downloadImagesForWhatsApp = (task) => {
+  return new Promise(async (resolve, reject) => {
     try {
-      // Clean and format the phone number
-      let phone = task.customerPhone.replace(/\D/g, "");
+      // Show loading indicator
+      toast.loading("Preparing files for download...");
 
-      if (phone.startsWith("91") && phone.length === 12) {
-        phone = "+" + phone;
-      } else if (phone.length === 10) {
-        phone = "+91" + phone;
-      } else if (phone.startsWith("91") && !phone.startsWith("+")) {
-        phone = "+" + phone;
-      }
+      // Collect all product images
+      const allImages = [];
 
-      // Prepare the message with the specific format requested
-      const salesPersonName = user?.name || "Sales Representative";
-      const salesPersonPhone = user?.phone || "";
-
-      let message = `Dear Sir/Ma'am,%0A%0A`;
-      message += `This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.%0A%0A`;
-
-      // Add product details if available
-      if (task.products?.length > 0) {
-        message += `🛒 *Products*:%0A`;
-        task.products.forEach((p, i) => {
-          message += `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ""}%0A`;
-        });
-        message += `%0A`;
-      }
-
-      message += `Thanks,%0A${salesPersonName}%0A`;
-
-      if (salesPersonPhone) {
-        message += `${salesPersonPhone}`;
-      }
-
-      // For WhatsApp Web/Desktop, we can only send one image at a time
-      // So we'll send the first product image or visiting card
-      let imageToSend = "";
-
-      // Check for product images first
+      // 1. Add product images
       if (task.products?.length > 0) {
         for (const product of task.products) {
           if (product.images && product.images.length > 0) {
-            imageToSend = product.images[0];
-            break;
-          }
-        }
-      }
-
-      // If no product images, use visiting card
-      if (!imageToSend && user?.visitingCardImage) {
-        imageToSend = user.visitingCardImage;
-      }
-
-      if (imageToSend) {
-        // Encode the image URL for WhatsApp
-        const encodedImageUrl = encodeURIComponent(imageToSend);
-
-        // Create WhatsApp link with image
-        // Note: This approach only works if the image is publicly accessible
-        window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
-
-        // Show instructions for sending multiple images
-        setTimeout(() => {
-          Swal.fire({
-            title: "Sending Images on WhatsApp",
-            html: `
-            <p>To send images through WhatsApp:</p>
-            <ol class="text-left pl-4 mt-2">
-              <li>Wait for the WhatsApp chat to open</li>
-              <li>Click the attachment button (paperclip icon)</li>
-              <li>Select "Photos & Videos" or "Document"</li>
-              <li>Select the images you want to send</li>
-              <li>Add any additional message and press send</li>
-            </ol>
-            <p class="mt-3 text-sm text-gray-600">Note: You may need to download the images first from the task details.</p>
-          `,
-            icon: "info",
-            confirmButtonText: "OK",
-          });
-        }, 1000);
-      } else {
-        // If no images, just send the text message
-        window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
-      }
-    } catch (error) {
-      console.error("Error sending WhatsApp message:", error);
-      toast.error("Failed to open WhatsApp");
-    } finally {
-      setWhatsappLoading(false);
-    }
-  };
-
-  // Function to download all images and message for WhatsApp with a single click
-  const downloadImagesForWhatsApp = (task) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Show loading indicator
-        toast.loading("Preparing files for download...");
-
-        // Collect all product images
-        const productImages = [];
-        if (task.products?.length > 0) {
-          for (const product of task.products) {
-            if (product.images && product.images.length > 0) {
-              for (const imageUrl of product.images) {
-                // Extract filename from URL or generate one
-                const urlParts = imageUrl.split("/");
-                let fileName = urlParts[urlParts.length - 1];
-
-                // If the URL has query parameters, remove them
-                if (fileName.includes("?")) {
-                  fileName = fileName.split("?")[0];
-                }
-
-                // If we can't determine the file extension, default to jpg
-                if (!fileName.includes(".")) {
-                  fileName = `${product.name.replace(/\s+/g, "_")}.jpg`;
-                }
-
-                productImages.push({
-                  url: imageUrl,
-                  name: fileName,
-                });
-              }
+            for (const imageUrl of product.images) {
+              allImages.push({
+                url: imageUrl,
+                name: `${product.name.replace(/\s+/g, "_")}_${Date.now()}.jpg`,
+                type: 'product'
+              });
             }
           }
         }
+      }
 
-        // Get visiting card image
-        if (user?.visitingCard) {
-          const visitingCardUrl = user.visitingCard;
-          const urlParts = visitingCardUrl.split("/");
-          let fileName = urlParts[urlParts.length - 1];
+      // 2. Add visiting card image from user context
+      if (user?.visitingCardImage) {
+        allImages.push({
+          url: user.visitingCardImage,
+          name: `VisitingCard_${user.name?.replace(/\s+/g, "_") || "Sales"}_${Date.now()}.jpg`,
+          type: 'visitingCard'
+        });
+      }
 
-          if (fileName.includes("?")) {
-            fileName = fileName.split("?")[0];
-          }
+      if (allImages.length === 0) {
+        toast.dismiss();
+        toast.error("No images available to download");
+        resolve();
+        return;
+      }
 
-          if (!fileName.includes(".")) {
-            fileName = "VisitingCard.jpg";
-          }
+      // Create message text file
+      const salesPersonName = user?.name || "Sales Representative";
+      const salesPersonPhone = user?.phone || "";
 
-          productImages.push({
-            url: visitingCardUrl,
-            name: fileName,
-          });
-        }
-
-        if (productImages.length === 0) {
-          toast.dismiss();
-          toast.error("No images available to download");
-          resolve(); // Resolve instead of reject since this isn't an error case
-          return;
-        }
-
-        // Create message text file
-        const salesPersonName = user?.name || "Sales Representative";
-        const salesPersonPhone = user?.phone || "";
-
-        const messageContent = `Dear Sir/Ma'am,
+      const messageContent = `Dear Sir/Ma'am,
 
 This is regarding your requirement of packaging requirement in EPS/Pulp. Please find Product Catalogue.
 
+${task.products?.length > 0 ? `\nProducts:\n${task.products.map((p, i) => `${i + 1}. ${p.name} ${p.unit ? `(${p.unit})` : ''}`).join('\n')}\n` : ''}
+
 Thanks,
 ${salesPersonName}
-${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ""}`;
+${salesPersonPhone ? `Phone: ${salesPersonPhone}` : ''}`;
 
-        // Download all images and message file sequentially
-        let successCount = 0;
-        let failCount = 0;
+      // Download message file first
+      try {
+        const messageBlob = new Blob([messageContent], { type: "text/plain" });
+        const messageUrl = URL.createObjectURL(messageBlob);
+        const messageLink = document.createElement('a');
+        messageLink.href = messageUrl;
+        messageLink.download = `Product_Details_${task.title.replace(/\s+/g, '_')}.txt`;
+        document.body.appendChild(messageLink);
+        messageLink.click();
+        document.body.removeChild(messageLink);
+        URL.revokeObjectURL(messageUrl);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error("Failed to create message file:", error);
+      }
 
-        // First download the message file
+      // Download all images
+      let successCount = 0;
+      
+      for (let i = 0; i < allImages.length; i++) {
+        const img = allImages[i];
+        
         try {
-          toast.loading("Creating message file...");
-
-          const messageBlob = new Blob([messageContent], {
-            type: "text/plain",
-          });
-          const messageBlobUrl = window.URL.createObjectURL(messageBlob);
-
-          const a = document.createElement("a");
-          a.href = messageBlobUrl;
-          a.download = "Message_to_Customer.txt";
+          toast.loading(`Downloading image ${i + 1} of ${allImages.length}...`);
+          
+          // Fetch with timeout and retry logic
+          const response = await fetch(img.url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          
+          const blob = await response.blob();
+          
+          // Create download link
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = img.name;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-
-          window.URL.revokeObjectURL(messageBlobUrl);
-
+          
+          // Clean up
+          URL.revokeObjectURL(url);
           successCount++;
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        } catch (error) {
-          console.error("Failed to create message file:", error);
-          failCount++;
-        }
-
-        // Then download all images
-        for (let i = 0; i < productImages.length; i++) {
-          const img = productImages[i];
-
-          try {
-            // Update loading message
-            toast.loading(
-              `Downloading image ${i + 1} of ${productImages.length}...`
-            );
-
-            // Fetch the image
-            const response = await fetch(img.url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-
-            // Create and trigger download
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = img.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            // Clean up the blob URL
-            window.URL.revokeObjectURL(blobUrl);
-
-            successCount++;
-
-            // Small delay between downloads to avoid browser issues
-            if (i < productImages.length - 1) {
-              await new Promise((resolve) => setTimeout(resolve, 300));
-            }
-          } catch (error) {
-            console.error(`Failed to download ${img.name}:`, error);
-            failCount++;
+          
+          // Delay between downloads
+          if (i < allImages.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 800));
           }
+        } catch (error) {
+          console.error(`Failed to download ${img.name}:`, error);
         }
-
-        // Show result summary
-        toast.dismiss();
-
-        if (failCount === 0) {
-          toast.success(
-            `Successfully downloaded ${successCount} files (${productImages.length} images + message)`
-          );
-        } else if (successCount === 0) {
-          toast.error(`Failed to download all ${failCount} files`);
-        } else {
-          toast.success(
-            `Downloaded ${successCount} files, failed to download ${failCount}`
-          );
-        }
-
-        resolve({ successCount, failCount }); // Resolve with download results
-      } catch (error) {
-        console.error("Error preparing download:", error);
-        toast.dismiss();
-        toast.error("Failed to prepare files for download");
-        reject(error); // Reject the promise on error
       }
-    });
-  };
+
+      // Show result
+      toast.dismiss();
+      
+      if (successCount > 0) {
+        toast.success(`Downloaded ${successCount} image(s) + message file`);
+        
+        // Show instructions for WhatsApp
+        setTimeout(() => {
+          Swal.fire({
+            title: "Next Steps for WhatsApp",
+            html: `
+              <p>Files have been downloaded. Now:</p>
+              <ol class="text-left pl-4 mt-2 text-sm">
+                <li>Open WhatsApp</li>
+                <li>Select the customer chat</li>
+                <li>Attach all downloaded images</li>
+                <li>Send the message file content</li>
+                <li>Add any personal message</li>
+              </ol>
+              <p class="mt-3 text-xs text-gray-600">Look for downloaded files in your Downloads folder</p>
+            `,
+            icon: "info",
+            confirmButtonText: "Got it",
+          });
+        }, 1000);
+      } else {
+        toast.error("Failed to download images");
+      }
+
+      resolve({ successCount });
+    } catch (error) {
+      console.error("Error in download process:", error);
+      toast.dismiss();
+      toast.error("Failed to prepare files for download");
+      reject(error);
+    }
+  });
+};
 
   // Combined function to download images and open WhatsApp
   const handleWhatsAppWithAutoDownload = async (task) => {
