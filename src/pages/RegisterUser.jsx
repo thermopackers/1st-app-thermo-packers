@@ -91,7 +91,8 @@ const [limit] = useState(10); // You can make this configurable if needed
     try {
       const formData = new FormData();
       formData.append('name', name);
-      formData.append('email', email);
+            const userEmail = email.trim() === '' ? 'abc@gmail.com' : email;
+      formData.append('email', userEmail);
       formData.append('phone', phone);
       formData.append('role', role);
       formData.append('productionSection', JSON.stringify(productionSection));
@@ -181,9 +182,14 @@ setPersonalPhone('');
 
       fetchUsers();
 
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Operation failed');
-    } finally {
+   } catch (err) {
+  const errorMessage = err.response?.data?.message || 
+                      err.response?.data?.error || 
+                      err.message || 
+                      'Operation failed';
+  toast.error(errorMessage);
+  console.error('Operation error:', err.response?.data || err);
+} finally {
       setIsSubmitting(false); // Stop loading regardless of success/error
     }
   };
