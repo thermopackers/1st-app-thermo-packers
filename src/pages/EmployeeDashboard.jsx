@@ -421,6 +421,7 @@ const sendWhatsAppWithImages = async (task) => {
 };
 
 // Improved function to download all images and visiting card
+// Improved function to download all images and visiting card
 const downloadImagesForWhatsApp = (task) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -444,13 +445,18 @@ const downloadImagesForWhatsApp = (task) => {
         }
       }
 
-      // 2. Add visiting card image from user context
-      if (user?.visitingCardImage) {
+      // 2. Add visiting card image from user context - check multiple possible field names
+      const visitingCardUrl = user?.visitingCard || user?.visitingCardImage;
+      if (visitingCardUrl) {
         filesToDownload.push({
-          url: user.visitingCardImage,
+          url: visitingCardUrl,
           name: `VisitingCard_${user.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Sales'}.jpg`,
           type: 'visitingCard'
         });
+        
+        console.log("📇 Visiting card found:", visitingCardUrl);
+      } else {
+        console.log("❌ No visiting card found in user object:", user);
       }
 
       if (filesToDownload.length === 0) {
@@ -459,6 +465,8 @@ const downloadImagesForWhatsApp = (task) => {
         resolve();
         return;
       }
+
+      console.log("📦 Files to download:", filesToDownload);
 
       // Download all files sequentially
       let successCount = 0;
@@ -496,6 +504,7 @@ const downloadImagesForWhatsApp = (task) => {
             }, 1000);
             
             successCount++;
+            console.log(`✅ Downloaded: ${file.name}`);
             
             // Delay between downloads
             if (i < filesToDownload.length - 1) {
@@ -511,9 +520,9 @@ const downloadImagesForWhatsApp = (task) => {
           
           // Try alternative method for CORS issues
           try {
-            // Fallback: Create an image element and canvas download
             await downloadImageAlternative(file);
             successCount++;
+            console.log(`✅ Downloaded via fallback: ${file.name}`);
           } catch (fallbackError) {
             console.error(`Fallback also failed for ${file.name}:`, fallbackError);
           }
@@ -603,9 +612,13 @@ const downloadImageAlternative = (file) => {
 
 // Simple method as last resort - opens images in new tabs
 const downloadImagesSimple = async (task) => {
+  const openedTabs = [];
+  
   // Open visiting card
-  if (user?.visitingCardImage) {
-    window.open(user.visitingCardImage, '_blank');
+  const visitingCardUrl = user?.visitingCard || user?.visitingCardImage;
+  if (visitingCardUrl) {
+    window.open(visitingCardUrl, '_blank');
+    openedTabs.push("Visiting Card");
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   
@@ -615,27 +628,33 @@ const downloadImagesSimple = async (task) => {
       if (product.images && product.images.length > 0) {
         for (const imageUrl of product.images) {
           window.open(imageUrl, '_blank');
+          openedTabs.push(`Product: ${product.name}`);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
     }
   }
   
-  Swal.fire({
-    title: "Manual Download Required",
-    html: `
-      <p>Images have been opened in new tabs.</p>
-      <p class="text-sm mt-2">Please manually save each image:</p>
-      <ol class="text-left pl-4 mt-1 text-sm">
-        <li>Long press on each image (mobile)</li>
-        <li>Or right-click → Save Image (desktop)</li>
-        <li>Save all images to your device</li>
-        <li>Then share via WhatsApp</li>
-      </ol>
-    `,
-    icon: "info",
-    confirmButtonText: "OK"
-  });
+  if (openedTabs.length > 0) {
+    Swal.fire({
+      title: "Manual Download Required",
+      html: `
+        <p>${openedTabs.length} image(s) have been opened in new tabs.</p>
+        <p class="text-sm mt-2">Please manually save each image:</p>
+        <ol class="text-left pl-4 mt-1 text-sm">
+          <li>Long press on each image (mobile)</li>
+          <li>Or right-click → Save Image (desktop)</li>
+          <li>Save all images to your device</li>
+          <li>Then share via WhatsApp</li>
+        </ol>
+        <p class="mt-3 text-xs text-gray-600">Files opened: ${openedTabs.join(', ')}</p>
+      `,
+      icon: "info",
+      confirmButtonText: "OK"
+    });
+  } else {
+    toast.error("No images available to download");
+  }
 };
 
 // Helper function to open WhatsApp directly
