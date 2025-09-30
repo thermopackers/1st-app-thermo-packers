@@ -91,7 +91,8 @@ const [limit] = useState(10); // You can make this configurable if needed
     try {
       const formData = new FormData();
       formData.append('name', name);
-            const userEmail = email.trim() === '' ? 'abc@gmail.com' : email;
+            // Add unique dummy email if no email is provided
+      const userEmail = email.trim() === '' ? `dummy_${Date.now()}@gmail.com` : email;
       formData.append('email', userEmail);
       formData.append('phone', phone);
       formData.append('role', role);
