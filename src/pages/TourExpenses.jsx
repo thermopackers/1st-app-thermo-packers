@@ -5,11 +5,13 @@ import InternalNavbar from "../components/InternalNavbar";
 import imageCompression from "browser-image-compression";
 
 export default function TourExpenses() {
-  const [date, setDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [location, setLocation] = useState("");
   const [expenses, setExpenses] = useState([{ description: "", amount: "" }]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false); // <-- loader state
+const [moneyTaken, setMoneyTaken] = useState([{ date: "", amount: "", remarks: "" }]);
 
   const addExpense = () => setExpenses([...expenses, { description: "", amount: "" }]);
   const removeExpense = (index) => setExpenses(expenses.filter((_, i) => i !== index));
@@ -35,16 +37,19 @@ export default function TourExpenses() {
 
   const removeFile = (index) => setFiles(files.filter((_, i) => i !== index));
   const total = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
-
+const moneyTakenTotal = moneyTaken.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0);
+const balance = moneyTakenTotal - total;
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true); // show loader
     try {
       const formData = new FormData();
-      formData.append("date", date);
+formData.append("startDate", startDate);
+formData.append("endDate", endDate);
       formData.append("location", location);
       formData.append("expenses", JSON.stringify(expenses));
       formData.append("total", total);
+      formData.append("moneyTaken", JSON.stringify(moneyTaken));
       files.forEach((file) => formData.append("files", file));
 
       await axiosInstance.post("/tour-expenses", formData, {
@@ -52,9 +57,11 @@ export default function TourExpenses() {
       });
 
       toast.success("Tour expenses submitted!");
-      setDate("");
+setStartDate("");
+setEndDate("");
       setLocation("");
       setExpenses([{ description: "", amount: "" }]);
+        setMoneyTaken([{ date: "", amount: "", remarks: "" }]);
       setFiles([]);
     } catch (err) {
       toast.error("Failed to submit expenses");
@@ -63,6 +70,9 @@ export default function TourExpenses() {
       setLoading(false); // hide loader
     }
   };
+
+  const addMoneyTaken = () => setMoneyTaken([...moneyTaken, { date: "", amount: "", remarks: "" }]);
+const removeMoneyTaken = (index) => setMoneyTaken(moneyTaken.filter((_, i) => i !== index));
 
   return (
     <>
@@ -79,18 +89,29 @@ export default function TourExpenses() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium">Date</label>
-            <input
-              type="date"
-              lang="en-GB"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              required
-            />
-          </div>
+   {/* Tour Start Date */}
+ <div>
+   <label className="block text-sm font-medium">Tour Start Date</label>
+   <input
+     type="date"
+     value={startDate}
+     onChange={(e) => setStartDate(e.target.value)}
+     className="mt-1 w-full rounded-lg border px-3 py-2"
+     required
+   />
+ </div>
+
+ {/* Tour End Date */}
+ <div>
+   <label className="block text-sm font-medium">Tour End Date</label>
+   <input
+     type="date"
+     value={endDate}
+     onChange={(e) => setEndDate(e.target.value)}
+     className="mt-1 w-full rounded-lg border px-3 py-2"
+     required
+   />
+ </div>
 
           {/* Location */}
           <div>
@@ -195,7 +216,84 @@ export default function TourExpenses() {
             </div>
           </div>
 
-          {/* Submit */}
+        
+{/* Money Taken for Tour Expenses */}
+<div className="mt-6">
+  <h3 className="font-bold text-lg mb-2">💰 Money Taken for Tour Expenses</h3>
+  <table className="w-full border text-sm">
+    <thead className="bg-slate-100">
+      <tr>
+        <th className="p-2 border">Date</th>
+        <th className="p-2 border">Amount</th>
+        <th className="p-2 border">Remarks</th>
+        <th className="p-2 border">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {moneyTaken.map((m, index) => (
+        <tr key={index}>
+          <td className="p-2 border">
+            <input
+              type="date"
+              value={m.date}
+              onChange={(e) => {
+                const newData = [...moneyTaken];
+                newData[index].date = e.target.value;
+                setMoneyTaken(newData);
+              }}
+              className="w-full border rounded px-2 py-1"
+              required
+            />
+          </td>
+          <td className="p-2 border">
+            <input
+              type="number"
+              value={m.amount}
+              onChange={(e) => {
+                const newData = [...moneyTaken];
+                newData[index].amount = e.target.value;
+                setMoneyTaken(newData);
+              }}
+              className="w-full border rounded px-2 py-1"
+              required
+            />
+          </td>
+          <td className="p-2 border">
+            <input
+              type="text"
+              value={m.remarks}
+              onChange={(e) => {
+                const newData = [...moneyTaken];
+                newData[index].remarks = e.target.value;
+                setMoneyTaken(newData);
+              }}
+              className="w-full border rounded px-2 py-1"
+            />
+          </td>
+          <td className="p-2 border text-center">
+            {moneyTaken.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeMoneyTaken(index)}
+                className="text-red-600"
+              >
+                ✖
+              </button>
+            )}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <button
+    type="button"
+    onClick={addMoneyTaken}
+    className="mt-2 px-3 py-1 bg-indigo-600 text-white rounded"
+  >
+    ➕ Add Row
+  </button>
+</div>
+  {/* Submit */}
           <button
             type="submit"
             disabled={loading} // prevent double submit
@@ -203,6 +301,54 @@ export default function TourExpenses() {
           >
             Submit Tour Expenses
           </button>
+
+{/* Tour Expenses Breakup */}
+<div className="mt-6">
+  <h3 className="font-bold text-lg mb-2">📊 Tour Expenses Breakup</h3>
+  <table className="w-full border text-sm">
+    <thead className="bg-slate-100">
+      <tr>
+        <th className="p-2 border">Expense Description</th>
+        <th className="p-2 border">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {expenses.map((exp, index) => (
+        <tr key={index}>
+          <td className="p-2 border">{exp.description || "—"}</td>
+          <td className="p-2 border">₹{exp.amount || 0}</td>
+        </tr>
+      ))}
+    </tbody>
+    <tfoot>
+      <tr className="font-bold">
+        <td className="p-2 border">TOTAL</td>
+        <td className="p-2 border">₹{total}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{/* Totals Summary */}
+<div className="mt-6 p-4 bg-slate-100 rounded-lg">
+  <div className="flex justify-between font-semibold text-lg">
+    <span>Total Expenses:</span>
+    <span className="text-red-600">₹{total}</span>
+  </div>
+  <div className="flex justify-between font-semibold text-lg">
+    <span>Total Money Taken:</span>
+    <span className="text-blue-600">₹{moneyTakenTotal}</span>
+  </div>
+  <div className={`flex justify-between font-bold text-lg mt-2 ${
+    balance >= 0 ? "text-green-600" : "text-red-600"
+  }`}>
+    <span>Balance:</span>
+    <span>
+      {balance >= 0 ? `₹${balance} Remaining` : `₹${Math.abs(balance)} Over Spent`}
+    </span>
+  </div>
+</div>
+
         </form>
       </div>
 

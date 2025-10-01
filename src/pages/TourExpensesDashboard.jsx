@@ -117,27 +117,37 @@ export default function TourExpensesDashboard() {
                     <th className="p-2 border">Location</th>
                     <th className="p-2 border">Expenses</th>
                     <th className="p-2 border">Total</th>
+                                                            <th className="p-2 border">Money Taken</th>
+<th className="p-2 border">Balance</th>
                     <th className="p-2 border">Files</th>
                     {user.role === "accounts" && 
                     <th className="p-2 border">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((exp) => (
+                  {expenses.map((exp) => {
+                    // Calculate money taken total
+const moneyTakenTotal = exp.moneyTaken?.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0) || 0;
+
+// Calculate balance
+const balance = moneyTakenTotal - exp.total;
+
+                  return(
                     <tr key={exp._id} className="text-center">
                       {user?.role === "accounts" && (
                         <td className="p-2 border">
                           {exp.user?.name || "—"}
                         </td>
                       )}
-                      <td className="p-2 border">
-                        {new Date(exp.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
-                      </td>
+                     <td className="p-2 border">
+  {new Date(exp.startDate).toLocaleDateString("en-GB")} 
+  – 
+  {new Date(exp.endDate).toLocaleDateString("en-GB")}
+</td>
+
                       <td className="p-2 border">{exp.location}</td>
+            
+
                       <td className="p-2 border text-left">
                         <ul className="list-disc list-inside">
                           {exp.expenses.map((e, idx) => (
@@ -153,6 +163,25 @@ export default function TourExpensesDashboard() {
                       <td className="p-2 border font-bold text-green-600">
                         ₹{exp.total}
                       </td>
+                      <td className="p-2 border text-left">
+  <ul className="list-disc list-inside">
+    {exp.moneyTaken.map((m, idx) => (
+      <li key={idx}>
+        {new Date(m.date).toLocaleDateString("en-GB")} – 
+        ₹{m.amount} ({m.remarks || "—"})
+      </li>
+    ))}
+  </ul>
+  <div className="font-semibold mt-1">
+    Total: <span className="text-blue-600">₹{moneyTakenTotal}</span>
+  </div>
+</td>
+<td className={`p-2 border font-bold ${
+  balance >= 0 ? "text-green-600" : "text-red-600"
+}`}>
+  {balance >= 0 ? `₹${balance} Remaining` : `₹${Math.abs(balance)} Over Spent`}
+</td>
+
 <td className="p-2 border">
   <div className="flex flex-wrap gap-2 justify-center">
     {exp.files.map((fileData, idx) => (
@@ -185,7 +214,7 @@ export default function TourExpensesDashboard() {
       </button>
     </td>}
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

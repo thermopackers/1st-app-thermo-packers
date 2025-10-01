@@ -738,7 +738,8 @@ const fetchUsers = async (page = 1, query = "") => {
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
               <tr>
                 <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Photo</th>
+                <th className="px-4 py-2">Profile Photo</th>
+                <th className="px-4 py-2">Front Face Picture</th>  {/* NEW COLUMN */}
                 <th className="px-4 py-2">Visiting Card</th>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
@@ -775,6 +776,21 @@ const fetchUsers = async (page = 1, query = "") => {
                       </div>
                     )}
                   </td>
+                  <td className="px-4 py-2">
+  {u.frontFacePicture ? (
+    <img
+      src={u.frontFacePicture}
+      alt="Front Face"
+      className="h-10 w-10 rounded-full object-cover cursor-pointer"
+      loading="lazy"
+      onClick={() => showDocument(u.frontFacePicture, "Front Face")}
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+      <span className="text-gray-500 text-xs">No photo</span>
+    </div>
+  )}
+</td>
                   <td className="px-4 py-2">
                     {u.visitingCard ? (
                       <a href={u.visitingCard} target="_blank" rel="noopener noreferrer">
@@ -827,14 +843,7 @@ const fetchUsers = async (page = 1, query = "") => {
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
                   <td className="px-4 py-2">
                     <div className="flex flex-col gap-2 text-xs">
-                      {u.frontFacePicture && (
-                        <button
-                          onClick={() => showDocument(u.frontFacePicture, "Front Face")}
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                        >
-                          Front Face
-                        </button>
-                      )}
+                      
 
                       {u.aadharCard?.map((url, idx) => (
                         <button
