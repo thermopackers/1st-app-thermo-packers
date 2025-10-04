@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 import imageCompression from "browser-image-compression";
 import ShowInternalImagesButton from "./ShowInternalImagesButton";
+import axiosInstance from "../axiosInstance";
+import Swal from 'sweetalert2';
 
 Modal.setAppElement("#root");
 
@@ -33,6 +35,81 @@ const [cncFormData, setCNCFormData] = useState({
   quantity: "",
   drawingName: "",
 });
+const [selectedProductFiles, setSelectedProductFiles] = useState([]);
+const [showGradeDropdown, setShowGradeDropdown] = useState(false);
+const [gradeProducts, setGradeProducts] = useState([]);
+const [filteredGrades, setFilteredGrades] = useState([]);
+const [danaFormData, setDanaFormData] = useState({
+  typeOfRawBlock: "",
+ densityValue: "",     // 🧠 for number only (e.g., "21")
+  densityType: "",      // 🧠 from button (e.g., "FR")
+  recycledDana: "",
+  weight: "",
+  grade: "",
+});
+// Fetch Thermocol Dana Raw Material products for grade dropdown
+// Fetch Thermocol Dana Raw Material products for grade dropdown
+useEffect(() => {
+  const fetchGradeProducts = async () => {
+    try {
+      // First, get all categories to find the correct category ID
+      const categoriesResponse = await axiosInstance.get('/categories');
+      const categories = categoriesResponse.data || [];
+      
+      // Find the category with name "Thermocol Dana Raw Material"
+      const danaCategory = categories.find(cat => 
+        cat.name === "Thermocol Dana Raw Material"
+      );
+      
+      if (danaCategory) {
+        // Now fetch products with this category ID
+        const response = await axiosInstance.get(`/purchase-products?category=${danaCategory._id}`);
+        setGradeProducts(response.data.data || []);
+        setFilteredGrades(response.data.data || []);
+      } else {
+        console.warn('Thermocol Dana Raw Material category not found');
+        setGradeProducts([]);
+        setFilteredGrades([]);
+      }
+    } catch (error) {
+      console.error('Error fetching grade products:', error);
+      setGradeProducts([]);
+      setFilteredGrades([]);
+    }
+  };
+  
+  if (isOpen && type === "dana") {
+    fetchGradeProducts();
+  }
+}, [isOpen, type]);
+// Filter grade products based on search input
+useEffect(() => {
+  if (danaFormData.grade) {
+    const filtered = gradeProducts.filter(product =>
+      product.name.toLowerCase().includes(danaFormData.grade.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(danaFormData.grade.toLowerCase()))
+    );
+    setFilteredGrades(filtered);
+  } else {
+    setFilteredGrades(gradeProducts);
+  }
+}, [danaFormData.grade, gradeProducts]);
+// Close dropdown when clicking outside
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (!event.target.closest('.grade-dropdown-container')) {
+      setShowGradeDropdown(false);
+    }
+  };
+
+  if (showGradeDropdown) {
+    document.addEventListener('mousedown', handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [showGradeDropdown]);
 const handleCNCChange = (field, value) => {
   setCNCFormData({ ...cncFormData, [field]: value });
 };
@@ -75,14 +152,7 @@ const [danaBeadsFormData, setDanaBeadsFormData] = useState({
     remarks: "",
   });
 
-const [danaFormData, setDanaFormData] = useState({
-  typeOfRawBlock: "",
- densityValue: "",     // 🧠 for number only (e.g., "21")
-  densityType: "",      // 🧠 from button (e.g., "FR")
-  recycledDana: "",
-  weight: "",
-  grade: "",
-});
+
 
 
 
@@ -345,6 +415,67 @@ const handleRemoveDrawingFile = (index) => {
   const product =
     products?.find((p) => p.name === selectedOrder?.product) || null;
 
+    const handleFilePreview = (file, fileName) => {
+  const fileUrl = typeof file === "string" ? file : file?.url || "";
+  
+  if (!fileUrl) {
+    Swal.fire({
+      icon: 'error',
+      title: 'File Error',
+      text: 'File URL not found',
+    });
+    return;
+  }
+
+  const isImage = fileUrl.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+  const isPdf = fileUrl.match(/\.pdf$/i);
+
+  if (isImage) {
+    Swal.fire({
+      imageUrl: fileUrl,
+      imageAlt: fileName || "File Preview",
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: "auto",
+      background: "#f9fafb",
+      customClass: {
+        popup: "rounded-xl shadow-lg",
+      },
+    });
+  } else if (isPdf) {
+    Swal.fire({
+      title: fileName || "PDF Preview",
+      html: `<iframe src="${fileUrl}" width="100%" height="500px" style="border:none;"></iframe>`,
+      width: "80%",
+      showCloseButton: true,
+      showConfirmButton: false,
+      background: "#f9fafb",
+      customClass: {
+        popup: "rounded-xl shadow-lg",
+      },
+    });
+  } else {
+    Swal.fire({
+      title: fileName || "File Preview",
+      html: `
+        <div class="text-center py-4">
+          <div class="text-4xl mb-2">📎</div>
+          <p class="text-gray-600 mb-4">This file type cannot be previewed</p>
+          <a href="${fileUrl}" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 no-underline">
+            Download File
+          </a>
+        </div>
+      `,
+      showCloseButton: true,
+      showConfirmButton: false,
+      background: "#f9fafb",
+      customClass: {
+        popup: "rounded-xl shadow-lg",
+      },
+    });
+  }
+};
+
   return (
     <>
       <Modal
@@ -517,14 +648,120 @@ const handleRemoveDrawingFile = (index) => {
   className={inputClass("weight")}
 />
 
-      <label className="font-bold text-xl">Grade of Raw Material:</label>
-     <input
-  type="text"
-  placeholder="Grade"
-  value={danaFormData.grade}
-  onChange={(e) => handleDanaChange("grade", e.target.value)}
-  className={inputClass("grade")}
-/>
+  <label className="font-bold text-xl">Grade of Raw Material:</label>
+<div className="relative grade-dropdown-container">
+  <input
+    type="text"
+    placeholder="Search or select grade..."
+    value={danaFormData.grade}
+    onChange={(e) => {
+      handleDanaChange("grade", e.target.value);
+      setShowGradeDropdown(true);
+    }}
+    onFocus={() => setShowGradeDropdown(true)}
+    className={inputClass("grade")}
+  />
+  
+  {showGradeDropdown && (
+    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+      {filteredGrades.length > 0 ? (
+        filteredGrades.map((product) => (
+          <div
+            key={product._id}
+            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+            onClick={() => {
+              handleDanaChange("grade", product.name);
+              setShowGradeDropdown(false);
+              setSelectedProductFiles(product.files || []); // Store files for display
+            }}
+          >
+            <div className="font-medium">{product.name}</div>
+            {product.description && (
+              <div className="text-sm text-gray-500 truncate">
+                {product.description}
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-2 text-gray-500">
+          {gradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+{/* Display files for selected product */}
+{selectedProductFiles.length > 0 && (
+  <div className="mt-4">
+    <label className="font-bold text-xl mb-2 block">Product Files:</label>
+    <div className="flex flex-wrap gap-3">
+      {selectedProductFiles.map((file, index) => {
+        const fileUrl = typeof file === "string" ? file : file?.url || "";
+        const isImage = fileUrl.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+        const isPdf = fileUrl.match(/\.pdf$/i);
+        const fileName = typeof file === "string" 
+          ? `File ${index + 1}` 
+          : file?.filename || `File ${index + 1}`;
+
+        return (
+          <div
+            key={index}
+            className="relative group cursor-pointer border rounded-lg p-2 bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+            onClick={() => handleFilePreview(file, fileName)}
+          >
+            {/* File Preview Thumbnail */}
+            <div className="w-16 h-16 flex items-center justify-center bg-white rounded border">
+              {isImage ? (
+                <img
+                  src={fileUrl}
+                  alt={fileName}
+                  className="w-full h-full object-cover rounded"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/broken-image.png";
+                  }}
+                />
+              ) : isPdf ? (
+                <div className="text-center">
+                  <div className="text-2xl text-red-600">📄</div>
+                  <div className="text-xs mt-1 text-gray-600">PDF</div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="text-2xl text-blue-600">📎</div>
+                  <div className="text-xs mt-1 text-gray-600">File</div>
+                </div>
+              )}
+            </div>
+            
+            {/* File Name */}
+            <div className="mt-2 text-xs text-gray-700 truncate max-w-[80px]">
+              {fileName}
+            </div>
+            
+            {/* Hover effect */}
+            <div className="absolute inset-0 bg-blue-500 bg-opacity-10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+              <span className="text-blue-600 font-semibold text-sm">View</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{selectedProductFiles.length > 0 && (
+  <div className="mt-2">
+    <button
+      type="button"
+      onClick={() => setSelectedProductFiles([])}
+      className="text-sm text-red-600 hover:text-red-800 underline"
+    >
+      Clear Files
+    </button>
+  </div>
+)}
     </section>
   </>
 )}

@@ -78,3 +78,7 @@ select[multiple] option:checked {
 .flex-1 {
   flex: 1;
 }
+
+.grade-dropdown-container .absolute {
+  z-index: 1000;
+}
