@@ -480,6 +480,8 @@ const fetchUsers = async (page = 1, query = "") => {
                   <option value="">Select</option>
                   <option value="operator">Operator</option>
                   <option value="helper">Helper</option>
+                                    <option value="driver">Driver</option>
+                  <option value="staff">Staff</option>
                 </select>
               </div>
 
