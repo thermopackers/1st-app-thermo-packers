@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import FaceRegistrationModal from '../components/FaceRegistrationModal';
 import FileInput from '../components/FileInput';
 import Swal from "sweetalert2";
+import { useUserContext } from '../context/UserContext';
 
 const RegisterUser = () => {
+  const { user: currentUser } = useUserContext();
   const [currentPage, setCurrentPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
 const [totalUsers, setTotalUsers] = useState(0);
@@ -684,7 +686,7 @@ setAllowTourExpenses(false);
               </div>
             )}
 
-            {role !== 'suppliers' && (
+           {role !== 'suppliers' && (
   <div className="space-y-3">
     <div className="flex items-center space-x-2">
       <input
@@ -699,60 +701,64 @@ setAllowTourExpenses(false);
       </label>
     </div>
     
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="vehiclesManagement"
-        checked={allowVehiclesManagement}
-        onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
-        Allow Vehicles Management
-      </label>
-    </div>
-    
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="hr"
-        checked={allowHR}
-        onChange={() => setAllowHR(!allowHR)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="hr" className="text-sm text-gray-700">
-        Allow HR (Human Resource)
-      </label>
-    </div>
-    
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="plantMaintenance"
-        checked={allowPlantMaintenance}
-        onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
-        Allow Plant & Machinery Maintenance
-      </label>
-    </div>
-    
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="tourExpenses"
-        checked={allowTourExpenses}
-        onChange={() => setAllowTourExpenses(!allowTourExpenses)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="tourExpenses" className="text-sm text-gray-700">
-        Allow Tour Expenses
-      </label>
-    </div>
+    {/* Only show these checkboxes for specific admin users */}
+    {(currentUser?.email === "thermopackers@gmail.com" || currentUser?.email === "it.thermopackers@gmail.com") && (
+      <>
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="vehiclesManagement"
+            checked={allowVehiclesManagement}
+            onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
+            Allow Vehicles Management
+          </label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="hr"
+            checked={allowHR}
+            onChange={() => setAllowHR(!allowHR)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="hr" className="text-sm text-gray-700">
+            Allow HR (Human Resource)
+          </label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="plantMaintenance"
+            checked={allowPlantMaintenance}
+            onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
+            Allow Plant & Machinery Maintenance
+          </label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="tourExpenses"
+            checked={allowTourExpenses}
+            onChange={() => setAllowTourExpenses(!allowTourExpenses)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="tourExpenses" className="text-sm text-gray-700">
+            Allow Tour Expenses
+          </label>
+        </div>
+      </>
+    )}
   </div>
 )}
-
             <button
               type="submit"
               disabled={isSubmitting}
