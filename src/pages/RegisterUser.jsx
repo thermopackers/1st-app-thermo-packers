@@ -28,8 +28,12 @@ const [limit] = useState(10); // You can make this configurable if needed
   const [editUserId, setEditUserId] = useState(null);
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
-  const [allowAttendance, setAllowAttendance] = useState(false);
-  const [role, setRole] = useState('');
+const [allowAttendance, setAllowAttendance] = useState(false);
+const [allowVehiclesManagement, setAllowVehiclesManagement] = useState(false);
+const [allowHR, setAllowHR] = useState(false);
+const [allowPlantMaintenance, setAllowPlantMaintenance] = useState(false);
+const [allowTourExpenses, setAllowTourExpenses] = useState(false);  
+const [role, setRole] = useState('');
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
@@ -97,7 +101,11 @@ const [limit] = useState(10); // You can make this configurable if needed
       formData.append('phone', phone);
       formData.append('role', role);
       formData.append('productionSection', JSON.stringify(productionSection));
-      formData.append('allowAttendance', allowAttendance);
+formData.append('allowAttendance', allowAttendance);
+formData.append('allowVehiclesManagement', allowVehiclesManagement);
+formData.append('allowHR', allowHR);
+formData.append('allowPlantMaintenance', allowPlantMaintenance);
+formData.append('allowTourExpenses', allowTourExpenses);
       formData.append("dob", dob);
       formData.append("address", address);
 formData.append("emergencyNumber", emergencyNumber);
@@ -163,8 +171,11 @@ formData.append("personalPhone", personalPhone);
       setVisitingCardPreview('');
       setIsEditing(false);
       setEditUserId(null);
-      setAllowAttendance(false);
-
+setAllowAttendance(false);
+setAllowVehiclesManagement(false);
+setAllowHR(false);
+setAllowPlantMaintenance(false);
+setAllowTourExpenses(false);
       setDob('');
       setAddress('');
 setEmergencyNumber('');
@@ -272,8 +283,11 @@ const fetchUsers = async (page = 1, query = "") => {
     setPhone(user.phone?.replace('+91', '') || "");
     setRole(user.role || "sales");
     setProductionSection(user.productionSection || []);
-    setAllowAttendance(user.allowAttendance || false);
-
+setAllowAttendance(user.allowAttendance || false);
+setAllowVehiclesManagement(user.allowVehiclesManagement || false);
+setAllowHR(user.allowHR || false);
+setAllowPlantMaintenance(user.allowPlantMaintenance || false);
+setAllowTourExpenses(user.allowTourExpenses || false);
     setDob(user.dob ? formatDateForInput(user.dob) : "");
     setAddress(user.address || "");
     setEmergencyNumber(user.emergencyNumber || "");
@@ -312,8 +326,11 @@ const fetchUsers = async (page = 1, query = "") => {
     setPhone("");
     setRole("sales");
     setProductionSection([]);
-    setAllowAttendance(false);
-
+setAllowAttendance(false);
+setAllowVehiclesManagement(false);
+setAllowHR(false);
+setAllowPlantMaintenance(false);
+setAllowTourExpenses(false);
     // Reset existing files
     setExistingFrontFace([]);
     setExistingAadharCard([]);
@@ -668,19 +685,73 @@ const fetchUsers = async (page = 1, query = "") => {
             )}
 
             {role !== 'suppliers' && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="attendance"
-                  checked={allowAttendance}
-                  onChange={() => setAllowAttendance(!allowAttendance)}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="attendance" className="text-sm text-gray-700">
-                  Allow for Attendance
-                </label>
-              </div>
-            )}
+  <div className="space-y-3">
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="attendance"
+        checked={allowAttendance}
+        onChange={() => setAllowAttendance(!allowAttendance)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="attendance" className="text-sm text-gray-700">
+        Allow for Attendance
+      </label>
+    </div>
+    
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="vehiclesManagement"
+        checked={allowVehiclesManagement}
+        onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
+        Allow Vehicles Management
+      </label>
+    </div>
+    
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="hr"
+        checked={allowHR}
+        onChange={() => setAllowHR(!allowHR)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="hr" className="text-sm text-gray-700">
+        Allow HR (Human Resource)
+      </label>
+    </div>
+    
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="plantMaintenance"
+        checked={allowPlantMaintenance}
+        onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
+        Allow Plant & Machinery Maintenance
+      </label>
+    </div>
+    
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="tourExpenses"
+        checked={allowTourExpenses}
+        onChange={() => setAllowTourExpenses(!allowTourExpenses)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="tourExpenses" className="text-sm text-gray-700">
+        Allow Tour Expenses
+      </label>
+    </div>
+  </div>
+)}
 
             <button
               type="submit"

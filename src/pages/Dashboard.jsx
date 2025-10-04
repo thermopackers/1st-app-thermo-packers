@@ -695,13 +695,11 @@ useEffect(() => {
               </div>
 
               {/* Dispatch & Mileage */}
-              {["packaging", "admin", "accounts"].includes(
-                user.role
-              ) && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 text-center">
-                    Vehicles Management
-                  </h3>
+            {(user.allowVehiclesManagement || ["packaging", "admin", "accounts"].includes(user.role)) && (
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h3 className="text-2xl font-bold text-slate-900 text-center">
+      Vehicles Management
+    </h3>
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <NavLink to="/assign-dispatch">
                       <button className="w-full rounded-xl bg-sky-600 px-4 py-5 text-white shadow hover:bg-sky-700">
@@ -859,7 +857,7 @@ useEffect(() => {
           <section className="mt-8">
                
               {/* HR / Accounts Section */}
-{["admin","accounts"].includes(user.role) && (
+{(user.allowHR || ["admin","accounts"].includes(user.role)) && (
   <section className="mt-8">
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-2xl font-bold text-slate-900 text-center">
@@ -909,7 +907,7 @@ useEffect(() => {
 
 
               {user.allowAttendance && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="text-2xl font-bold text-slate-900 text-center">
                     Attendance Logs
                   </h3>
@@ -980,7 +978,7 @@ useEffect(() => {
             </section>
           )}
           {/* Plant & Machinery Maintenance */}
-{["accounts", "admin"].includes(user.role) && (
+{(user.allowPlantMaintenance || ["accounts", "admin"].includes(user.role)) && (
   <div className="rounded-2xl mt-8 border border-slate-200 bg-white p-5 shadow-sm">
     <h3 className="text-2xl font-bold text-slate-900 text-center">
       Plant & Machinery Maintenance
@@ -998,7 +996,7 @@ useEffect(() => {
   </div>
 )}
 {/* Tour Expenses Section for Sales */}
-{["sales", "accounts"].includes(user.role) && (
+{(user.allowTourExpenses || ["sales", "accounts"].includes(user.role)) && (
   <section className="mt-8">
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-xl font-bold text-slate-900 text-center">
