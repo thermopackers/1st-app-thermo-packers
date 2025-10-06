@@ -26,7 +26,8 @@ const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
   const currentPage = parseInt(searchParams.get("page")) || 1;
   const navigate = useNavigate();
-
+  const [uploadingFiles, setUploadingFiles] = useState({});
+const [deletingFiles, setDeletingFiles] = useState({});
   const ordersPerPage = 10;
  useEffect(() => {
     axiosInstance
@@ -184,6 +185,217 @@ const handleSaveEditedSlip = async (orderId, formData) => {
     );
   }
 
+
+const handleFileUpload = async (orderId, files) => {
+  if (!files || files.length === 0) return;
+
+  setUploadingFiles(prev => ({ ...prev, [orderId]: true }));
+  
+  try {
+    const formData = new FormData();
+    Array.from(files).forEach(file => {
+      formData.append('files', file); // Note: 'files' matches the multer field name
+    });
+
+    const response = await axiosInstance.put(
+      `/orders/${orderId}/cnc-finished-files`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      }
+    );
+
+    // Update local state with the files from backend response
+    setOrders(prev => prev.map(order => 
+      order._id === orderId 
+        ? { 
+            ...order, 
+            cncFinishedFiles: response.data.order.cncFinishedFiles
+          }
+        : order
+    ));
+
+    toast.success('Files uploaded successfully to Cloudinary!');
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    toast.error('Failed to upload files');
+  } finally {
+    setUploadingFiles(prev => ({ ...prev, [orderId]: false }));
+  }
+};
+
+const handleDeleteFile = async (orderId, fileId) => {
+  // Show confirmation dialog first
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "This file will be permanently deleted.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it!",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  // Set loading state for this specific file
+  setDeletingFiles(prev => ({ ...prev, [fileId]: true }));
+
+  try {
+    console.log("Deleting file - Order:", orderId, "File ID:", fileId);
+    
+    // Encode the fileId to handle special characters like slashes
+    const encodedFileId = encodeURIComponent(fileId);
+    console.log("Encoded File ID:", encodedFileId);
+    
+    await axiosInstance.delete(`/orders/${orderId}/cnc-finished-files/${encodedFileId}`);
+    
+    // Remove from local state
+    setOrders(prev => prev.map(order => 
+      order._id === orderId 
+        ? { 
+            ...order, 
+            cncFinishedFiles: order.cncFinishedFiles.filter(file => file.public_id !== fileId)
+          }
+        : order
+    ));
+    
+    // Show success message
+    await Swal.fire({
+      title: "Deleted!",
+      text: "File has been deleted successfully.",
+      icon: "success",
+      timer: 2000,
+      showConfirmButton: false
+    });
+    
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    // Show error message
+    await Swal.fire({
+      title: "Error!",
+      text: error.response?.data?.message || "Failed to delete file. Please try again.",
+      icon: "error",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#d33",
+    });
+  } finally {
+    // Clear loading state
+    setDeletingFiles(prev => ({ ...prev, [fileId]: false }));
+  }
+};
+
+// File preview handler
+const handleFilePreview = (file) => {
+  const fileExtension = file.originalName.split('.').pop()?.toLowerCase();
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
+  const isPDF = fileExtension === 'pdf';
+  
+  if (isImage) {
+    // Show image in modal
+    Swal.fire({
+      title: file.originalName,
+      html: `
+        <div class="text-center">
+          <img src="${file.url}" alt="${file.originalName}" 
+               class="max-w-full max-h-96 mx-auto rounded-lg shadow-lg" 
+               style="max-height: 70vh; object-fit: contain;" />
+          <div class="mt-4 text-sm text-gray-600">
+            <a href="${file.url}" target="_blank" 
+               class="text-blue-600 hover:underline">
+               📎 Open in new tab
+            </a>
+          </div>
+        </div>
+      `,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: 'auto',
+      padding: '20px',
+      background: '#f8fafc'
+    });
+  } else if (isPDF) {
+    // Show PDF in modal
+    Swal.fire({
+      title: file.originalName,
+      html: `
+        <div class="text-center">
+          <iframe src="${file.url}" 
+                  class="w-full h-96 border rounded-lg" 
+                  style="min-height: 500px;">
+          </iframe>
+          <div class="mt-4 text-sm text-gray-600">
+            <a href="${file.url}" target="_blank" 
+               class="text-blue-600 hover:underline">
+               📎 Open in new tab
+            </a>
+          </div>
+        </div>
+      `,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: '80%',
+      padding: '20px',
+      background: '#f8fafc'
+    });
+  } else {
+    // For other file types, show download option
+    Swal.fire({
+      title: file.originalName,
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">📄</div>
+          <p class="text-gray-600 mb-4">This file type cannot be previewed.</p>
+          <div class="space-y-2">
+            <a href="${file.url}" target="_blank" 
+               class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+               📎 Open in new tab
+            </a>
+            <br>
+            <a href="${file.url}" download="${file.originalName}"
+               class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+               ⬇️ Download file
+            </a>
+          </div>
+        </div>
+      `,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: 'auto',
+      padding: '20px'
+    });
+  }
+};
+
+// Helper function to show file icons
+const getFileIcon = (fileName) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  const iconMap = {
+    // Images
+    'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'webp': '🖼️', 'bmp': '🖼️',
+    // Documents
+    'pdf': '📕',
+    'doc': '📄', 'docx': '📄',
+    'xls': '📊', 'xlsx': '📊',
+    'ppt': '📑', 'pptx': '📑',
+    'txt': '📝',
+    // Default
+    'default': '📎'
+  };
+  
+  return iconMap[extension] || iconMap.default;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -297,6 +509,7 @@ const handleSaveEditedSlip = async (orderId, formData) => {
     <th className="px-4 py-3">Slip</th>
     <th className="px-4 py-3">Status</th>
     <th className="px-4 py-3">CNC Status</th>
+    <th className="px-4 py-3">Finished Product Pictures</th>
                       <th className="px-4 py-3">Delete This order from here</th>
   </tr>
 </thead>
@@ -394,7 +607,57 @@ const handleSaveEditedSlip = async (orderId, formData) => {
 </span>
 
 </td>
-
+<td className="px-4 py-2">
+  <div className="flex flex-col space-y-2">
+    {/* File Upload Input */}
+    <input
+      type="file"
+      multiple
+      accept="image/*,.pdf,.doc,.docx"
+      onChange={(e) => handleFileUpload(order._id, e.target.files)}
+      disabled={uploadingFiles[order._id]}
+      className="text-sm text-gray-700 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+    />
+    
+    {/* Uploading Indicator */}
+    {uploadingFiles[order._id] && (
+      <div className="text-blue-600 text-xs">Uploading...</div>
+    )}
+    
+    {/* Uploaded Files List */}
+   {order.cncFinishedFiles && order.cncFinishedFiles.length > 0 && (
+  <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+    {order.cncFinishedFiles.map((file, index) => (
+      <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-2 rounded border">
+        <button
+          onClick={() => handleFilePreview(file)}
+          className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 text-left"
+          title={`Click to preview: ${file.originalName}`}
+        >
+          {getFileIcon(file.originalName)} {file.originalName}
+        </button>
+       <button
+  onClick={() => handleDeleteFile(order._id, file.public_id)}
+  disabled={deletingFiles[file.public_id]}
+  className={`ml-2 text-sm font-bold ${
+    deletingFiles[file.public_id] 
+      ? 'text-gray-400 cursor-not-allowed' 
+      : 'text-red-500 hover:text-red-700'
+  }`}
+  title={deletingFiles[file.public_id] ? "Deleting..." : "Delete file"}
+>
+  {deletingFiles[file.public_id] ? (
+    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+  ) : (
+    '×'
+  )}
+</button>
+      </div>
+    ))}
+  </div>
+)}
+  </div>
+</td>
 <td className="px-4 py-2">
   <div className="flex flex-col space-y-2">
     <button

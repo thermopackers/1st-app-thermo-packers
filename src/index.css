@@ -82,3 +82,17 @@ select[multiple] option:checked {
 .grade-dropdown-container .absolute {
   z-index: 1000;
 }
+
+/* Add to your main CSS file */
+.swal2-popup {
+  border-radius: 12px !important;
+}
+
+.swal2-close {
+  font-size: 24px !important;
+  color: #666 !important;
+}
+
+.swal2-close:hover {
+  color: #333 !important;
+}
