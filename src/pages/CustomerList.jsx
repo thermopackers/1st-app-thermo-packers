@@ -132,6 +132,7 @@ const handlePageChange = (newPage) => {
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
+                                <th className="p-3 border">Instructions</th>
                 <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
                 <th className="p-3 border">Customer Handled / Managed By</th>
@@ -146,6 +147,21 @@ const handlePageChange = (newPage) => {
                   <td className="p-3 border">{c.phone}</td>
                   <td className="p-3 border">{c.email}</td>
                   <td className="p-3 border whitespace-pre-line">{c.address}</td>
+                   <td className="p-3 border max-w-xs"> {/* ✅ NEW CELL */}
+                    {c.instructions ? (
+                      <div 
+                        className="whitespace-pre-line text-sm text-gray-700 max-h-20 overflow-y-auto"
+                        title={c.instructions}
+                      >
+                        {c.instructions.length > 100 
+                          ? `${c.instructions.substring(0, 100)}...` 
+                          : c.instructions
+                        }
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="p-3 border">
   {c.locationLink ? (
     <a

@@ -301,7 +301,17 @@ if (!customer.company || customer.company.trim() === "") {
               className="w-full border p-2 rounded"
             />
           </div>
-
+<div>
+  <label className="block mb-1 font-semibold">Special Instructions regarding Customer</label>
+  <textarea
+    name="instructions"
+    value={customer.instructions || ""}
+    onChange={handleChange}
+    rows={3}
+    className="w-full border p-2 rounded"
+    placeholder="Add any special instructions or notes for this customer..."
+  />
+</div>
           <div>
             <label className="block mb-1 font-semibold">GST Documents</label>
             <input

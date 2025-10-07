@@ -17,6 +17,7 @@ const [gstError, setGstError] = useState("");
     email: "",
     address: "",
       locationLink: "", // ✅ New field
+        instructions: "", // ✅ NEW FIELD
   });
 const [submitting, setSubmitting] = useState(false);
 
@@ -257,7 +258,19 @@ await axiosInstance.post("/customers", payload);
   />
 </div>
 
-
+<div>
+  <label className="block mb-1 font-medium text-gray-700">
+    Special Instructions regarding Customer
+  </label>
+  <textarea
+    name="instructions"
+    value={formData.instructions}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+    placeholder="Add any special instructions or notes for this customer..."
+    rows={3}
+  />
+</div>
            <button
   type="submit"
   disabled={submitting}
