@@ -92,6 +92,7 @@ onChange={handleSearchChange}
                 <th className="border px-3 py-2 text-left">Internal Product Sheet - Images (E.g. Weight of product on Kanda, Mould Photo, Size of product, picture of product from multiple angles etc)</th>
                 <th className="border px-3 py-2 text-left">Name</th>
                 <th className="border px-3 py-2 text-left">Unit</th>
+                                <th className="border px-3 py-2 text-left">Internal Description(Comments)</th>
                  <th className="border px-3 py-2 text-left">HSN No.</th> {/* ✅ NEW */}
     <th className="border px-3 py-2 text-left">GST %</th>   {/* ✅ NEW */}
                 <th className="border px-3 py-2 text-left">Stock Status</th>
@@ -161,6 +162,18 @@ onClick={() =>
 
                   <td className="border px-3 py-2">{p.name}</td>
                   <td className="border px-3 py-2">{p.unit}</td>
+                   <td className="border px-3 py-2 max-w-xs">
+            {p.description ? (
+              <div 
+                className="text-sm text-gray-700 line-clamp-3 cursor-help"
+                title={p.description} // Show full description on hover
+              >
+                {p.description}
+              </div>
+            ) : (
+              <span className="text-gray-400 italic">—</span>
+            )}
+          </td>
                   <td className="border px-3 py-2">{p.hsnCode || <span className="text-gray-400">—</span>}</td>
 <td className="border px-3 py-2">
   {p.gstPercent != null ? `${p.gstPercent}%` : <span className="text-gray-400">—</span>}

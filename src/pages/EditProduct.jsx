@@ -18,6 +18,7 @@ export default function EditProduct() {
     quantity: 0,
     hsnCode: "",
     gstPercent: "",
+      description: "", // 🆕 Add this line
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +47,7 @@ export default function EditProduct() {
           quantity: res.data.quantity || 0,
           hsnCode: res.data.hsnCode || "",
           gstPercent: res.data.gstPercent || "",
+            description: res.data.description || "", // 🆕 Add this line
         });
 
         // Existing product images
@@ -163,41 +165,42 @@ const handleRemoveInternal = (indexToRemove) => {
   });
 };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setIsSubmitting(true);
 
-    try {
-      const data = new FormData();
-      data.append("name", formData.name);
-      data.append("unit", formData.unit);
-      data.append("sizes", JSON.stringify(formData.sizes));
-      data.append("quantity", formData.quantity);
-      data.append("hsnCode", formData.hsnCode);
-      data.append("gstPercent", formData.gstPercent);
+  try {
+    const data = new FormData();
+    data.append("name", formData.name);
+    data.append("unit", formData.unit);
+    data.append("sizes", JSON.stringify(formData.sizes));
+    data.append("quantity", formData.quantity);
+    data.append("hsnCode", formData.hsnCode);
+    data.append("gstPercent", formData.gstPercent);
+    data.append("description", formData.description || ""); // 🆕 Make sure this line is included
 
-      // Images
-      images.forEach((imgFile) => data.append("images", imgFile));
-      removedImages.forEach((imgPath) => data.append("removedImages[]", imgPath));
+    // Images
+    images.forEach((imgFile) => data.append("images", imgFile));
+    removedImages.forEach((imgPath) => data.append("removedImages[]", imgPath));
 
-      // 🆕 Internal
-      internalImages.forEach((file) => data.append("internalImages", file));
-      removedInternalImages.forEach((filePath) => data.append("removedInternalImages[]", filePath));
+    // 🆕 Internal
+    internalImages.forEach((file) => data.append("internalImages", file));
+    removedInternalImages.forEach((filePath) => data.append("removedInternalImages[]", filePath));
 
-      await axiosInstance.put(`/products-multer/${id}`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    await axiosInstance.put(`/products-multer/${id}`, data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      toast.success("Product updated successfully");
-      navigate("/all-products");
-    } catch (err) {
-      console.error(err);
-      setError("Failed to update product");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    toast.success("Product updated successfully");
+    navigate("/all-products");
+  } catch (err) {
+    console.error(err);
+    setError("Failed to update product");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-600">{error}</p>;
@@ -214,14 +217,46 @@ const handleRemoveInternal = (indexToRemove) => {
       </button>
 
       <div className="max-w-lg mx-auto p-6 relative">
-        <h2 className="text-xl font-bold mb-4">Edit Product</h2>
+        <h2 className="text-xl font-bold mb-4">Edit Sales Product</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Basic fields */}
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full border p-2 rounded" required />
-          <input type="text" name="unit" value={formData.unit} onChange={handleChange} className="w-full border p-2 rounded" required />
-          <input type="text" name="sizes" value={formData.sizes.join(", ")} onChange={handleSizesChange} className="w-full border p-2 rounded" />
-          <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} className="w-full border p-2 rounded" placeholder="HSN Code" />
-          <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
+          {/* Basic fields with labels */}
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Product Name *</label>
+    <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full border p-2 rounded" required />
+  </div>
+
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Unit *</label>
+    <input type="text" name="unit" value={formData.unit} onChange={handleChange} className="w-full border p-2 rounded" required />
+  </div>
+
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Sizes</label>
+    <input type="text" name="sizes" value={formData.sizes.join(", ")} onChange={handleSizesChange} className="w-full border p-2 rounded" />
+  </div>
+
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">HSN Code</label>
+    <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} className="w-full border p-2 rounded" placeholder="HSN Code" />
+  </div>
+
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">GST Percentage</label>
+    <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
+  </div>
+
+  {/* 🆕 Description Field */}
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
+    <textarea 
+      name="description" 
+      value={formData.description} 
+      onChange={handleChange} 
+      placeholder="Product Description"
+      rows="4"
+      className="w-full border p-2 rounded"
+    />
+  </div>
 
  {/* Product images */}
 <label className="block font-semibold">Product Sheet Images</label>
