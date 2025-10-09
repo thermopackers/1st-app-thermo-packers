@@ -11,7 +11,7 @@ export default function AddPurchaseProduct() {
   const isEdit = !!id;
 
   const [form, setForm] = useState({
-    name: "", unit: "", hsnCode: "", gstPercent: "", price: "", description: "", category: ""
+    name: "", unit: "", hsnCode: "", gstPercent: "", price: "", description: "", category: "", comment: ""
   });
 
   const [files, setFiles] = useState([]);
@@ -419,7 +419,20 @@ const allInternal = [...existingInternalFiles, ...uploadedInternal];
 )}
 </div>
 
-
+<div>
+  <label className="block font-semibold mb-1" htmlFor="comment">
+    Internal Description(Comments)
+  </label>
+  <textarea
+    id="comment"
+    name="comment"
+    value={form.comment}
+    onChange={handleChange}
+    placeholder="Enter any additional comments or notes about this product"
+    className="w-full border p-2 rounded"
+    rows="3"
+  />
+</div>
   <button type="submit" className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
     {isEdit ? "💾 Update Product" : "✅ Submit Purchase Product"}
   </button>

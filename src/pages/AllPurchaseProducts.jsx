@@ -141,6 +141,7 @@ useEffect(() => {
                   <th className="p-3">Price</th>
                     <th className="p-3">Current Stock in Hand</th>
                   <th className="p-3">Description</th>
+                      <th className="p-3">Internal Description(Comments)</th> {/* 🆕 Add comment column */}
                   <th className="p-3">Product Sheet Images</th>
                       <th className="p-3">Internal Product Sheet Images</th>
                   <th className="p-3">Actions</th>
@@ -176,6 +177,8 @@ useEffect(() => {
     {prod.stock || 0} {prod.unit}
   </span>
 </td>                    <td className="p-3 max-w-xs text-left">{prod.description}</td>
+<td className="p-3 max-w-xs text-left">{prod.comment || "—"}</td> {/* 🆕 Add comment cell */}
+
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2 justify-center">
                         {prod.files?.map((file, index) => {
@@ -358,7 +361,7 @@ onClick={() => {
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="text-center p-4 text-gray-500">
+                    <td colSpan="10" className="text-center p-4 text-gray-500">
                       No purchase products found.
                     </td>
                   </tr>
