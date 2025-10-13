@@ -20,6 +20,7 @@ export default function App() {
     "/tour-expenses",
     "/tour-expenses-dashboard",
     "/important-numbers",
+    "/maintenance/air-compressors",
     "/view-rfqs",
     "/edit-rfq",
     "/register/assistant",

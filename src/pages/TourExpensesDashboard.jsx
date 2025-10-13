@@ -78,7 +78,7 @@ export default function TourExpensesDashboard() {
       <div className="max-w-6xl mx-auto mt-8 p-6 bg-white shadow rounded-xl">
         <h2 className="text-2xl font-bold text-slate-800 mb-4 text-center">
           {user?.role === "accounts"
-            ? "All Sales Expenses"
+            ? "All Tour Expenses"
             : "My Tour Expenses"}
         </h2>
 
