@@ -54,6 +54,7 @@ import TourExpenses from "../pages/TourExpenses";
 import TourExpensesDashboard from "../pages/TourExpensesDashboard";
 import ImportantNumbers from "../components/ImportantNumbers";
 import AirCompressorMaintenance from "../pages/AirCompressorMaintenance";
+import BoilerMaintenance from "../pages/BoilerMaintenance";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -552,6 +553,15 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["accounts","admin"]}>
       <PageWrapper><AirCompressorMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/maintenance/boiler"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><BoilerMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
 />

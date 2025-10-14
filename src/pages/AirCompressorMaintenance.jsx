@@ -236,13 +236,13 @@ const formatDate = (dateString) => {
             <thead className="bg-blue-600 text-white">
               <tr>
                 <th className="border px-3 py-2">Date</th>
-                <th className="border px-3 py-2">Compressor Running Hours</th>
-                <th className="border px-3 py-2">Foam Cleaning</th>
-                <th className="border px-3 py-2">Current Consumption (A)</th>
-                <th className="border px-3 py-2">Maintenance Activity</th>
-                <th className="border px-3 py-2">Oil Added</th>
-                <th className="border px-3 py-2">Sign</th>
-                <th className="border px-3 py-2">Remarks</th>
+                <th className="border px-3 py-2">Compressor Running Hours (Dont mention Loading Hours, Mention Running Hours)</th>
+                <th className="border px-3 py-2">Compressor Suction Foam Cleaning Done (Yes/No)</th>
+                <th className="border px-3 py-2">Compressor Current Consumption in Amperes (A)</th>
+                <th className="border px-3 py-2">Type of Maintenance Activity Done (Mention Air Filters, Oil Filters, Air/Oil separator changed)</th> 
+                <th className="border px-3 py-2">Quantity of Oil Added</th>
+                <th className="border px-3 py-2">Sign of Plant Manager</th>
+                <th className="border px-3 py-2">Remarks (Mention any Maintenance Required)</th>
                 <th className="border px-3 py-2">Files</th>
                 <th className="border px-3 py-2">Actions</th>
               </tr>
