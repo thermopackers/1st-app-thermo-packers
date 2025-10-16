@@ -55,6 +55,8 @@ import TourExpensesDashboard from "../pages/TourExpensesDashboard";
 import ImportantNumbers from "../components/ImportantNumbers";
 import AirCompressorMaintenance from "../pages/AirCompressorMaintenance";
 import BoilerMaintenance from "../pages/BoilerMaintenance";
+import EarthingMaintenance from "../pages/EarthingMaintenance";
+import PageNotFound from "../pages/PageNotFound";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -567,6 +569,14 @@ export default function AppRoutes() {
 />
 
 <Route
+  path="/maintenance/earthing"
+  element={
+    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+      <PageWrapper><EarthingMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
   path="/add-supplier"
   element={
     <ProtectedRoute allowedRoles={["accounts"]}>
@@ -712,6 +722,14 @@ element={
                   <PageWrapper><Dashboard /></PageWrapper>
                 </ProtectedRoute>
               }
+            />
+             <Route 
+              path="*" 
+              element={
+                <PageWrapper>
+                  <PageNotFound />
+                </PageWrapper>
+              } 
             />
 
           </Routes>

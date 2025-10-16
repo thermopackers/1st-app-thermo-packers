@@ -23,6 +23,7 @@ export default function App() {
     "/maintenance/air-compressors",
     "/view-rfqs",
     "/maintenance/boiler",
+    "/maintenance/earthing",
     "/edit-rfq",
     "/register/assistant",
     "/drawing-upload-form",
