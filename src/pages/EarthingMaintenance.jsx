@@ -432,7 +432,9 @@ export default function EarthingMaintenance() {
                   return (
                     <tr key={entry._id}>
                       <td className="border px-3 py-2">{entry.earthingNo}</td>
-                      <td className="border px-3 py-2">{entry.date}</td>
+<td className="border px-3 py-2">
+  {new Date(entry.date).toLocaleDateString("en-GB")}
+</td>
                       <td className="border px-3 py-2">
                         {isEditing ? (
                           <select
