@@ -278,15 +278,15 @@ export default function EarthingMaintenance() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Date of Activity</label>
-              <input
-                type="text"
-                readOnly
-                value={new Date().toLocaleDateString()}
-                className="border rounded p-2 w-full bg-gray-100"
-              />
-            </div>
+           <div>
+  <label className="block text-sm font-medium mb-1">Date of Activity</label>
+  <input
+    type="text"
+    readOnly
+    value={new Date().toLocaleDateString('en-GB')} // Use UK format for dd/mm/yyyy
+    className="border rounded p-2 w-full bg-gray-100"
+  />
+</div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Water Top Up Done</label>
@@ -350,42 +350,59 @@ export default function EarthingMaintenance() {
           </button>
         </form>
 
-        {/* FILTER SECTION */}
-        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2 text-gray-700">
-                Filter by Date
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="border rounded p-2 flex-1"
-                  list="dateSuggestions"
-                />
-                <datalist id="dateSuggestions">
-                  {uniqueDates.map(date => (
-                    <option key={date} value={date} />
-                  ))}
-                </datalist>
-                {filterDate && (
-                  <button
-                    onClick={clearFilter}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">
-              Showing {filteredLogs.length} of {logs.length} entries
-              {filterDate && ` for ${filterDate}`}
-            </div>
-          </div>
-        </div>
+      {/* FILTER SECTION */}
+<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+  <div className="flex flex-col sm:flex-row gap-4 items-center">
+    <div className="flex-1">
+      <label className="block text-sm font-medium mb-2 text-gray-700">
+        Filter by Date (dd/mm/yyyy)
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="dd/mm/yyyy"
+          value={filterDate}
+          onChange={(e) => {
+            // Allow only numbers and slashes
+            const value = e.target.value.replace(/[^0-9/]/g, '');
+            setFilterDate(value);
+          }}
+          onBlur={(e) => {
+            // Auto-format on blur
+            const value = e.target.value;
+            if (value.length === 8 && !value.includes('/')) {
+              // If user entered ddmmyyyy without slashes, format it
+              const formatted = `${value.slice(0,2)}/${value.slice(2,4)}/${value.slice(4,8)}`;
+              setFilterDate(formatted);
+            }
+          }}
+          className="border rounded p-2 flex-1"
+          list="dateSuggestions"
+        />
+        <datalist id="dateSuggestions">
+          {uniqueDates.map(date => (
+            <option key={date} value={date} />
+          ))}
+        </datalist>
+        {filterDate && (
+          <button
+            onClick={clearFilter}
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        Format: dd/mm/yyyy (e.g., 25/12/2023)
+      </p>
+    </div>
+    <div className="text-sm text-gray-600">
+      Showing {filteredLogs.length} of {logs.length} entries
+      {filterDate && ` for ${filterDate}`}
+    </div>
+  </div>
+</div>
 
         {/* TABLE */}
         <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
