@@ -407,65 +407,7 @@ const generateNextEarthingNo = () => {
           </button>
         </form>
 
- {/* FILTER SECTION */}
-<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-  <div className="flex flex-col sm:flex-row gap-4 items-center">
-    <div className="flex-1">
-      <label className="block text-sm font-medium mb-2 text-gray-700">
-        Filter by Date
-      </label>
-      <div className="flex gap-2">
-        <input
-          type="date"
-          value={filterDate ? convertToYYYYMMDD(filterDate) : ""}
-          onChange={(e) => handleDateFilterChange(e.target.value)}
-          className="border rounded p-2 flex-1"
-        />
-        {filterDate && (
-          <button
-            onClick={() => {
-              setFilterDate("");
-              setPage(1);
-              fetchLogs(1);
-            }}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </div>
-    <div className="text-sm text-gray-600">
-      Showing {filteredLogs.length} entries
-      {filterDate && ` for ${filterDate}`}
-      {!filterDate && ` out of ${totalRecords} total`}
-    </div>
-  </div>
-  
-  {/* Date suggestions dropdown */}
-  {!filterDate && (
-    <div className="mt-4">
-      <label className="block text-sm font-medium mb-2 text-gray-700">
-        Quick Date Filters
-      </label>
-      <select 
-        onChange={(e) => {
-          if (e.target.value) {
-            setFilterDate(e.target.value);
-            setPage(1);
-            fetchLogs(1, e.target.value);
-          }
-        }}
-        className="border rounded p-2 w-full"
-      >
-        <option value="">Select a date</option>
-        {uniqueDates.map(date => (
-          <option key={date} value={date}>{date}</option>
-        ))}
-      </select>
-    </div>
-  )}
-</div>
+
         {/* TABLE */}
         <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
           <table className="min-w-full border border-slate-300 text-sm text-center">
