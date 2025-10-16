@@ -46,6 +46,13 @@ export default function EarthingMaintenance() {
     }
   }, [logs, filterDate]);
 
+  // Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
+  const convertToYYYYMMDD = (dateString) => {
+    if (!dateString) return "";
+    const [day, month, year] = dateString.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+
   // ✅ Fetch logs with pagination
   const fetchLogs = async (pageNum) => {
     try {
@@ -255,7 +262,14 @@ export default function EarthingMaintenance() {
   };
 
   // Get unique dates for dropdown suggestions
-  const uniqueDates = [...new Set(logs.map(entry => entry.date))].sort().reverse();
+  const uniqueDates = [...new Set(logs.map(entry => entry.date))].sort((a, b) => {
+    // Sort dates in dd/mm/yyyy format
+    const [dayA, monthA, yearA] = a.split('/').map(Number);
+    const [dayB, monthB, yearB] = b.split('/').map(Number);
+    const dateA = new Date(yearA, monthA - 1, dayA);
+    const dateB = new Date(yearB, monthB - 1, dayB);
+    return dateB - dateA; // Descending order (newest first)
+  });
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -278,15 +292,15 @@ export default function EarthingMaintenance() {
               />
             </div>
 
-           <div>
-  <label className="block text-sm font-medium mb-1">Date of Activity</label>
-  <input
-    type="text"
-    readOnly
-    value={new Date().toLocaleDateString('en-GB')} // Use UK format for dd/mm/yyyy
-    className="border rounded p-2 w-full bg-gray-100"
-  />
-</div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Date of Activity</label>
+              <input
+                type="text"
+                readOnly
+                value={new Date().toLocaleDateString('en-GB')}
+                className="border rounded p-2 w-full bg-gray-100"
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Water Top Up Done</label>
@@ -350,59 +364,46 @@ export default function EarthingMaintenance() {
           </button>
         </form>
 
-      {/* FILTER SECTION */}
-<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-  <div className="flex flex-col sm:flex-row gap-4 items-center">
-    <div className="flex-1">
-      <label className="block text-sm font-medium mb-2 text-gray-700">
-        Filter by Date (dd/mm/yyyy)
-      </label>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="dd/mm/yyyy"
-          value={filterDate}
-          onChange={(e) => {
-            // Allow only numbers and slashes
-            const value = e.target.value.replace(/[^0-9/]/g, '');
-            setFilterDate(value);
-          }}
-          onBlur={(e) => {
-            // Auto-format on blur
-            const value = e.target.value;
-            if (value.length === 8 && !value.includes('/')) {
-              // If user entered ddmmyyyy without slashes, format it
-              const formatted = `${value.slice(0,2)}/${value.slice(2,4)}/${value.slice(4,8)}`;
-              setFilterDate(formatted);
-            }
-          }}
-          className="border rounded p-2 flex-1"
-          list="dateSuggestions"
-        />
-        <datalist id="dateSuggestions">
-          {uniqueDates.map(date => (
-            <option key={date} value={date} />
-          ))}
-        </datalist>
-        {filterDate && (
-          <button
-            onClick={clearFilter}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-gray-500 mt-1">
-        Format: dd/mm/yyyy (e.g., 25/12/2023)
-      </p>
-    </div>
-    <div className="text-sm text-gray-600">
-      Showing {filteredLogs.length} of {logs.length} entries
-      {filterDate && ` for ${filterDate}`}
-    </div>
-  </div>
-</div>
+        {/* FILTER SECTION */}
+        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Filter by Date
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={filterDate ? convertToYYYYMMDD(filterDate) : ""}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (selectedDate) {
+                      // Convert yyyy-mm-dd to dd/mm/yyyy
+                      const [year, month, day] = selectedDate.split('-');
+                      const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+                      setFilterDate(formattedDate);
+                    } else {
+                      setFilterDate("");
+                    }
+                  }}
+                  className="border rounded p-2 flex-1"
+                />
+                {filterDate && (
+                  <button
+                    onClick={clearFilter}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              Showing {filteredLogs.length} of {logs.length} entries
+              {filterDate && ` for ${filterDate}`}
+            </div>
+          </div>
+        </div>
 
         {/* TABLE */}
         <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
@@ -432,9 +433,7 @@ export default function EarthingMaintenance() {
                   return (
                     <tr key={entry._id}>
                       <td className="border px-3 py-2">{entry.earthingNo}</td>
-<td className="border px-3 py-2">
-  {new Date(entry.date).toLocaleDateString("en-GB")}
-</td>
+                      <td className="border px-3 py-2">{entry.date}</td>
                       <td className="border px-3 py-2">
                         {isEditing ? (
                           <select
