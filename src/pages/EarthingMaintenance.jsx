@@ -4,6 +4,8 @@ import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 
 export default function EarthingMaintenance() {
+  // Add this to your state declarations
+const [totalRecords, setTotalRecords] = useState(0);
   const [logs, setLogs] = useState([]);
   const [form, setForm] = useState({
     earthingNo: "",
@@ -32,19 +34,10 @@ export default function EarthingMaintenance() {
     fetchLogs(page);
   }, [page]);
 
-  useEffect(() => {
-    generateNextEarthingNo();
-  }, [logs]);
+useEffect(() => {
+  generateNextEarthingNo();
+}, [logs, filteredLogs]); // Add filteredLogs as dependency
 
-  // Apply date filter whenever logs or filterDate changes
-  useEffect(() => {
-    if (filterDate) {
-      const filtered = logs.filter(entry => entry.date === filterDate);
-      setFilteredLogs(filtered);
-    } else {
-      setFilteredLogs(logs);
-    }
-  }, [logs, filterDate]);
 
   // Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
   const convertToYYYYMMDD = (dateString) => {
@@ -53,30 +46,49 @@ export default function EarthingMaintenance() {
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   };
 
-  // ✅ Fetch logs with pagination
-  const fetchLogs = async (pageNum) => {
-    try {
-      const res = await axiosInstance.get(`/earthing?page=${pageNum}&limit=10`);
-      setLogs(res.data.logs);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching logs:", err);
+// ✅ Fetch logs with pagination and optional date filter
+const fetchLogs = async (pageNum, dateFilter = "") => {
+  try {
+    let url = `/earthing?page=${pageNum}&limit=10`;
+    if (dateFilter) {
+      url += `&date=${dateFilter}`;
     }
-  };
+    
+    const res = await axiosInstance.get(url);
+    setLogs(res.data.logs);
+    setTotalPages(res.data.totalPages);
+    setTotalRecords(res.data.totalRecords); // Add this line
+    
+    // Always set filteredLogs to the API response
+    setFilteredLogs(res.data.logs);
+  } catch (err) {
+    console.error("Error fetching logs:", err);
+  }
+};
 
-  // ✅ Auto-generate Earthing No
-  const generateNextEarthingNo = () => {
-    if (logs.length === 0) {
-      setForm((prev) => ({ ...prev, earthingNo: "Earth1" }));
-    } else {
-      // find highest number
-      const numbers = logs
-        .map((l) => parseInt(l.earthingNo?.replace(/\D/g, "")))
-        .filter((n) => !isNaN(n));
-      const max = numbers.length > 0 ? Math.max(...numbers) : 0;
-      setForm((prev) => ({ ...prev, earthingNo: `Earth${max + 1}` }));
-    }
-  };
+// Update your filter handler
+const handleDateFilter = (date) => {
+  setFilterDate(date);
+  setPage(1); // Reset to first page when filtering
+  fetchLogs(1, date);
+};
+
+  // ✅ Auto-generate Earthing No - Improved version
+const generateNextEarthingNo = () => {
+  // Use all logs (not filtered logs) for number generation
+  const allLogsForNumbering = filterDate ? logs : filteredLogs;
+  
+  if (allLogsForNumbering.length === 0) {
+    setForm((prev) => ({ ...prev, earthingNo: "Earth1" }));
+  } else {
+    // find highest number from all available logs
+    const numbers = allLogsForNumbering
+      .map((l) => parseInt(l.earthingNo?.replace(/\D/g, "")))
+      .filter((n) => !isNaN(n));
+    const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+    setForm((prev) => ({ ...prev, earthingNo: `Earth${max + 1}` }));
+  }
+};
 
   // ✅ Add new entry
   const handleSubmit = async (e) => {
@@ -364,47 +376,79 @@ export default function EarthingMaintenance() {
           </button>
         </form>
 
-        {/* FILTER SECTION */}
-        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2 text-gray-700">
-                Filter by Date
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={filterDate ? convertToYYYYMMDD(filterDate) : ""}
-                  onChange={(e) => {
-                    const selectedDate = e.target.value;
-                    if (selectedDate) {
-                      // Convert yyyy-mm-dd to dd/mm/yyyy
-                      const [year, month, day] = selectedDate.split('-');
-                      const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-                      setFilterDate(formattedDate);
-                    } else {
-                      setFilterDate("");
-                    }
-                  }}
-                  className="border rounded p-2 flex-1"
-                />
-                {filterDate && (
-                  <button
-                    onClick={clearFilter}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">
-              Showing {filteredLogs.length} of {logs.length} entries
-              {filterDate && ` for ${filterDate}`}
-            </div>
-          </div>
-        </div>
-
+     {/* FILTER SECTION */}
+<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+  <div className="flex flex-col sm:flex-row gap-4 items-center">
+    <div className="flex-1">
+      <label className="block text-sm font-medium mb-2 text-gray-700">
+        Filter by Date
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={filterDate ? convertToYYYYMMDD(filterDate) : ""}
+          onChange={(e) => {
+            const selectedDate = e.target.value;
+            if (selectedDate) {
+              // Convert yyyy-mm-dd to dd/mm/yyyy
+              const [year, month, day] = selectedDate.split('-');
+              const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+              setFilterDate(formattedDate);
+              setPage(1); // Reset to first page
+              fetchLogs(1, formattedDate); // Call API with filter
+            } else {
+              setFilterDate("");
+              setPage(1);
+              fetchLogs(1); // Call API without filter
+            }
+          }}
+          className="border rounded p-2 flex-1"
+        />
+        {filterDate && (
+          <button
+            onClick={() => {
+              setFilterDate("");
+              setPage(1);
+              fetchLogs(1); // Fetch without filter
+            }}
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+    <div className="text-sm text-gray-600">
+      Showing {filteredLogs.length} entries
+      {filterDate && ` for ${filterDate}`}
+      {!filterDate && ` out of ${totalRecords} total`}
+    </div>
+  </div>
+  
+  {/* Date suggestions dropdown */}
+  {!filterDate && (
+    <div className="mt-4">
+      <label className="block text-sm font-medium mb-2 text-gray-700">
+        Quick Date Filters
+      </label>
+      <select 
+        onChange={(e) => {
+          if (e.target.value) {
+            setFilterDate(e.target.value);
+            setPage(1);
+            fetchLogs(1, e.target.value); // Call API with selected date
+          }
+        }}
+        className="border rounded p-2 w-full"
+      >
+        <option value="">Select a date</option>
+        {uniqueDates.map(date => (
+          <option key={date} value={date}>{date}</option>
+        ))}
+      </select>
+    </div>
+  )}
+</div>
         {/* TABLE */}
         <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
           <table className="min-w-full border border-slate-300 text-sm text-center">
@@ -605,28 +649,36 @@ export default function EarthingMaintenance() {
           </table>
         </div>
 
-        {/* PAGINATION - Only show when not filtering */}
-        {!filterDate && (
-          <div className="flex justify-center items-center gap-2 mt-4">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span>
-              Page {page} of {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
+      {/* PAGINATION - Show when not filtering OR when server-side filtering is implemented */}
+{(!filterDate || totalPages > 1) && (
+  <div className="flex justify-center items-center gap-2 mt-4">
+    <button
+      disabled={page === 1}
+      onClick={() => {
+        const newPage = page - 1;
+        setPage(newPage);
+        fetchLogs(newPage, filterDate);
+      }}
+      className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
+    >
+      Prev
+    </button>
+    <span>
+      Page {page} of {totalPages}
+    </span>
+    <button
+      disabled={page === totalPages}
+      onClick={() => {
+        const newPage = page + 1;
+        setPage(newPage);
+        fetchLogs(newPage, filterDate);
+      }}
+      className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
+    >
+      Next
+    </button>
+  </div>
+)}
       </div>
     </div>
   );
