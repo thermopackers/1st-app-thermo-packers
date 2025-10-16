@@ -40,29 +40,60 @@ useEffect(() => {
 
 
   // Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
-  const convertToYYYYMMDD = (dateString) => {
-    if (!dateString) return "";
-    const [day, month, year] = dateString.split('/');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  };
+const convertToYYYYMMDD = (dateString) => {
+  if (!dateString) return "";
+  const [day, month, year] = dateString.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
 
-// ✅ Fetch logs with pagination and optional date filter
+// Helper function to convert yyyy-mm-dd to dd/mm/yyyy
+const convertToDDMMYYYY = (dateString) => {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split('-');
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+};
+
+// ✅ Fetch logs with pagination and date filter - IMPROVED
 const fetchLogs = async (pageNum, dateFilter = "") => {
   try {
+    setLoading(true);
     let url = `/earthing?page=${pageNum}&limit=10`;
     if (dateFilter) {
-      url += `&date=${dateFilter}`;
+      url += `&date=${encodeURIComponent(dateFilter)}`;
     }
+    
+    console.log("Fetching URL:", url); // Debug log
     
     const res = await axiosInstance.get(url);
     setLogs(res.data.logs);
     setTotalPages(res.data.totalPages);
-    setTotalRecords(res.data.totalRecords); // Add this line
+    setTotalRecords(res.data.totalRecords);
     
     // Always set filteredLogs to the API response
     setFilteredLogs(res.data.logs);
+    
+    console.log("Fetched logs:", res.data.logs.length); // Debug log
   } catch (err) {
     console.error("Error fetching logs:", err);
+    Swal.fire("Error", "Failed to fetch logs", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Update your date input handler
+const handleDateFilterChange = (selectedDate) => {
+  if (selectedDate) {
+    // Convert yyyy-mm-dd to dd/mm/yyyy for filtering
+    const [year, month, day] = selectedDate.split('-');
+    const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    setFilterDate(formattedDate);
+    setPage(1);
+    fetchLogs(1, formattedDate);
+  } else {
+    setFilterDate("");
+    setPage(1);
+    fetchLogs(1);
   }
 };
 
@@ -376,7 +407,7 @@ const generateNextEarthingNo = () => {
           </button>
         </form>
 
-     {/* FILTER SECTION */}
+ {/* FILTER SECTION */}
 <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
   <div className="flex flex-col sm:flex-row gap-4 items-center">
     <div className="flex-1">
@@ -387,21 +418,7 @@ const generateNextEarthingNo = () => {
         <input
           type="date"
           value={filterDate ? convertToYYYYMMDD(filterDate) : ""}
-          onChange={(e) => {
-            const selectedDate = e.target.value;
-            if (selectedDate) {
-              // Convert yyyy-mm-dd to dd/mm/yyyy
-              const [year, month, day] = selectedDate.split('-');
-              const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-              setFilterDate(formattedDate);
-              setPage(1); // Reset to first page
-              fetchLogs(1, formattedDate); // Call API with filter
-            } else {
-              setFilterDate("");
-              setPage(1);
-              fetchLogs(1); // Call API without filter
-            }
-          }}
+          onChange={(e) => handleDateFilterChange(e.target.value)}
           className="border rounded p-2 flex-1"
         />
         {filterDate && (
@@ -409,7 +426,7 @@ const generateNextEarthingNo = () => {
             onClick={() => {
               setFilterDate("");
               setPage(1);
-              fetchLogs(1); // Fetch without filter
+              fetchLogs(1);
             }}
             className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
           >
@@ -436,7 +453,7 @@ const generateNextEarthingNo = () => {
           if (e.target.value) {
             setFilterDate(e.target.value);
             setPage(1);
-            fetchLogs(1, e.target.value); // Call API with selected date
+            fetchLogs(1, e.target.value);
           }
         }}
         className="border rounded p-2 w-full"
