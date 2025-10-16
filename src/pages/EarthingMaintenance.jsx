@@ -24,6 +24,10 @@ export default function EarthingMaintenance() {
   const [existingFiles, setExistingFiles] = useState([]);
   const [deletingFiles, setDeletingFiles] = useState({});
 
+  // Filter
+  const [filterDate, setFilterDate] = useState("");
+  const [filteredLogs, setFilteredLogs] = useState([]);
+
   useEffect(() => {
     fetchLogs(page);
   }, [page]);
@@ -31,6 +35,16 @@ export default function EarthingMaintenance() {
   useEffect(() => {
     generateNextEarthingNo();
   }, [logs]);
+
+  // Apply date filter whenever logs or filterDate changes
+  useEffect(() => {
+    if (filterDate) {
+      const filtered = logs.filter(entry => entry.date === filterDate);
+      setFilteredLogs(filtered);
+    } else {
+      setFilteredLogs(logs);
+    }
+  }, [logs, filterDate]);
 
   // ✅ Fetch logs with pagination
   const fetchLogs = async (pageNum) => {
@@ -113,72 +127,72 @@ export default function EarthingMaintenance() {
     setEditFiles([]);
   };
 
-const saveEdit = async (id) => {
-  try {
-    setLoading(true);
-    
-    // Get files marked for deletion
-    const filesToDelete = deletingFiles[id] || [];
-    
-    // Delete files from Cloudinary FIRST
-    if (filesToDelete.length > 0) {
-      await Promise.all(
-        filesToDelete.map(fileUrl => 
-          axiosInstance.delete('/earthing/file', { data: { fileUrl } })
-        )
-      );
-    }
+  const saveEdit = async (id) => {
+    try {
+      setLoading(true);
+      
+      // Get files marked for deletion
+      const filesToDelete = deletingFiles[id] || [];
+      
+      // Delete files from Cloudinary FIRST
+      if (filesToDelete.length > 0) {
+        await Promise.all(
+          filesToDelete.map(fileUrl => 
+            axiosInstance.delete('/earthing/file', { data: { fileUrl } })
+          )
+        );
+      }
 
-    // Create the updated files array (existing files minus deleted ones)
-    const updatedFiles = existingFiles.filter(file => !filesToDelete.includes(file));
+      // Create the updated files array (existing files minus deleted ones)
+      const updatedFiles = existingFiles.filter(file => !filesToDelete.includes(file));
 
-    const updatedData = { 
-      ...editForm, 
-      uploadedFiles: updatedFiles // Use the filtered files
-    };
+      const updatedData = { 
+        ...editForm, 
+        uploadedFiles: updatedFiles // Use the filtered files
+      };
 
-    // Upload new files if any
-    if (editFiles.length > 0) {
-      const fd = new FormData();
-      editFiles.forEach((f) => fd.append("files", f));
-      const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // Upload new files if any
+      if (editFiles.length > 0) {
+        const fd = new FormData();
+        editFiles.forEach((f) => fd.append("files", f));
+        const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        updatedData.uploadedFiles = [...updatedFiles, ...uploadRes.data.urls];
+      }
+
+      // Save the updated data to database
+      await axiosInstance.put(`/earthing/${id}`, updatedData);
+      
+      // Clean up states
+      setEditingId(null);
+      setEditForm({});
+      setEditFiles([]);
+      setExistingFiles([]);
+      setDeletingFiles(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
       });
-      updatedData.uploadedFiles = [...updatedFiles, ...uploadRes.data.urls];
+      
+      // Refresh the logs to show updated data
+      fetchLogs(page);
+      Swal.fire("Updated!", "Entry updated successfully", "success");
+    } catch (err) {
+      console.error("Error updating log:", err);
+      Swal.fire("Error", "Failed to update entry", "error");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Save the updated data to database
-    await axiosInstance.put(`/earthing/${id}`, updatedData);
-    
-    // Clean up states
+  const cancelEdit = () => {
     setEditingId(null);
     setEditForm({});
     setEditFiles([]);
     setExistingFiles([]);
-    setDeletingFiles(prev => {
-      const newState = { ...prev };
-      delete newState[id];
-      return newState;
-    });
-    
-    // Refresh the logs to show updated data
-    fetchLogs(page);
-    Swal.fire("Updated!", "Entry updated successfully", "success");
-  } catch (err) {
-    console.error("Error updating log:", err);
-    Swal.fire("Error", "Failed to update entry", "error");
-  } finally {
-    setLoading(false);
-  }
-};
-
-const cancelEdit = () => {
-  setEditingId(null);
-  setEditForm({});
-  setEditFiles([]);
-  setExistingFiles([]);
-  setDeletingFiles({});
-};
+    setDeletingFiles({});
+  };
 
   const openFileModal = (url) => {
     const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -194,46 +208,55 @@ const cancelEdit = () => {
     } else window.open(url, "_blank");
   };
 
+  // Delete existing file during editing
+  const deleteExistingFile = async (fileUrl, entryId) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "This file will be deleted when you save changes!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+      });
 
-// Delete existing file during editing - SIMPLIFIED VERSION
-const deleteExistingFile = async (fileUrl, entryId) => {
-  try {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: "This file will be deleted when you save changes!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    });
+      if (result.isConfirmed) {
+        // Remove from UI immediately
+        setExistingFiles(prev => prev.filter(file => file !== fileUrl));
+        
+        // Track files to be deleted when saving
+        setDeletingFiles(prev => ({
+          ...prev,
+          [entryId]: [...(prev[entryId] || []), fileUrl]
+        }));
 
-    if (result.isConfirmed) {
-      // Remove from UI immediately
-      setExistingFiles(prev => prev.filter(file => file !== fileUrl));
-      
-      // Track files to be deleted when saving
-      setDeletingFiles(prev => ({
-        ...prev,
-        [entryId]: [...(prev[entryId] || []), fileUrl]
-      }));
-
-      Swal.fire('Marked for deletion!', 'File will be removed when you save changes.', 'success');
+        Swal.fire('Marked for deletion!', 'File will be removed when you save changes.', 'success');
+      }
+    } catch (err) {
+      console.error('Error in delete process:', err);
+      Swal.fire('Error', 'Failed to mark file for deletion', 'error');
     }
-  } catch (err) {
-    console.error('Error in delete process:', err);
-    Swal.fire('Error', 'Failed to mark file for deletion', 'error');
-  }
-};
-// Remove file from new files during editing
-const removeNewFile = (index) => {
-  setEditFiles(prev => prev.filter((_, i) => i !== index));
-};
+  };
 
-// Add files during editing
-const handleEditFilesChange = (e) => {
-  setEditFiles(Array.from(e.target.files));
-};
+  // Remove file from new files during editing
+  const removeNewFile = (index) => {
+    setEditFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Add files during editing
+  const handleEditFilesChange = (e) => {
+    setEditFiles(Array.from(e.target.files));
+  };
+
+  // Clear date filter
+  const clearFilter = () => {
+    setFilterDate("");
+  };
+
+  // Get unique dates for dropdown suggestions
+  const uniqueDates = [...new Set(logs.map(entry => entry.date))].sort().reverse();
+
   return (
     <div className="min-h-screen bg-slate-100">
       <InternalNavbar />
@@ -327,6 +350,43 @@ const handleEditFilesChange = (e) => {
           </button>
         </form>
 
+        {/* FILTER SECTION */}
+        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Filter by Date
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="border rounded p-2 flex-1"
+                  list="dateSuggestions"
+                />
+                <datalist id="dateSuggestions">
+                  {uniqueDates.map(date => (
+                    <option key={date} value={date} />
+                  ))}
+                </datalist>
+                {filterDate && (
+                  <button
+                    onClick={clearFilter}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              Showing {filteredLogs.length} of {logs.length} entries
+              {filterDate && ` for ${filterDate}`}
+            </div>
+          </div>
+        </div>
+
         {/* TABLE */}
         <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
           <table className="min-w-full border border-slate-300 text-sm text-center">
@@ -343,202 +403,212 @@ const handleEditFilesChange = (e) => {
               </tr>
             </thead>
             <tbody>
-              {logs.map((entry) => {
-                const isEditing = editingId === entry._id;
-                return (
-                  <tr key={entry._id}>
-                    <td className="border px-3 py-2">{entry.earthingNo}</td>
-                    <td className="border px-3 py-2">{entry.date}</td>
-                    <td className="border px-3 py-2">
-                      {isEditing ? (
-                        <select
-                          value={editForm.waterTopUp}
-                          onChange={(e) => setEditForm({ ...editForm, waterTopUp: e.target.value })}
-                          className="border rounded p-1 w-full"
-                        >
-                          <option value="No">No</option>
-                          <option value="Yes">Yes</option>
-                        </select>
-                      ) : (
-                        entry.waterTopUp
-                      )}
-                    </td>
-                    <td className="border px-3 py-2">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editForm.earthingCurrent}
-                          onChange={(e) => setEditForm({ ...editForm, earthingCurrent: e.target.value })}
-                          className="w-full border rounded p-1"
-                        />
-                      ) : (
-                        entry.earthingCurrent
-                      )}
-                    </td>
-                    <td className="border px-3 py-2">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editForm.sign}
-                          onChange={(e) => setEditForm({ ...editForm, sign: e.target.value })}
-                          className="w-full border rounded p-1"
-                        />
-                      ) : (
-                        entry.sign
-                      )}
-                    </td>
-
-            <td className="border px-3 py-2">
-  <div className="flex flex-wrap gap-1 justify-center">
-    {/* Show entry files when NOT editing */}
-    {!isEditing && entry.uploadedFiles?.map((url, i) => (
-      <div key={`view-${i}`} className="relative">
-        <button
-          onClick={() => openFileModal(url)}
-          className="border rounded p-1 hover:bg-gray-100 transition"
-        >
-          {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-            <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
-          ) : (
-            <span>📄</span>
-          )}
-        </button>
-      </div>
-    ))}
-    
-    {/* Show editing interface when editing */}
-    {isEditing && (
-      <>
-        {/* Existing Files with delete option */}
-        {existingFiles.map((url, i) => (
-          <div key={`existing-${i}`} className="relative group">
-            <button
-              onClick={() => openFileModal(url)}
-              className="border rounded p-1 hover:bg-gray-100 transition"
-            >
-              {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
+              {filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="border px-3 py-4 text-gray-500">
+                    {filterDate ? `No entries found for ${filterDate}` : "No entries found"}
+                  </td>
+                </tr>
               ) : (
-                <span>📄</span>
-              )}
-            </button>
-            <button
-              onClick={() => deleteExistingFile(url, entry._id)}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Delete file"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        
-        {/* New Files (during editing) */}
-        {editFiles.map((file, i) => (
-          <div key={`new-${i}`} className="relative group">
-            <div className="border rounded p-1 bg-blue-50">
-              {file.type.startsWith('image/') ? (
-                <img 
-                  src={URL.createObjectURL(file)} 
-                  alt={`New file ${i + 1}`} 
-                  className="w-12 h-12 object-cover" 
-                />
-              ) : (
-                <span>📄 {file.name}</span>
-              )}
-            </div>
-            <button
-              onClick={() => removeNewFile(i)}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Remove file"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        
-        {/* File Upload Input (during editing) */}
-        <div className="flex items-center justify-center">
-          <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition">
-            📁 Add Files
-            <input
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              onChange={handleEditFilesChange}
-              className="hidden"
-            />
-          </label>
-        </div>
-      </>
-    )}
-  </div>
-</td>
-
-<td className="border px-3 py-2">
-  {isEditing ? (
-    <textarea
-      value={editForm.remarks}
-      onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
-      className="w-full border rounded p-1"
-      rows={2}
-    />
-  ) : (
-    entry.remarks
-  )}
-</td>
-
-                    <td className="border px-3 py-2">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={() => saveEdit(entry._id)}
-                            className="bg-green-600 text-white px-2 py-1 rounded mr-2"
+                filteredLogs.map((entry) => {
+                  const isEditing = editingId === entry._id;
+                  return (
+                    <tr key={entry._id}>
+                      <td className="border px-3 py-2">{entry.earthingNo}</td>
+                      <td className="border px-3 py-2">{entry.date}</td>
+                      <td className="border px-3 py-2">
+                        {isEditing ? (
+                          <select
+                            value={editForm.waterTopUp}
+                            onChange={(e) => setEditForm({ ...editForm, waterTopUp: e.target.value })}
+                            className="border rounded p-1 w-full"
                           >
-                            Save
-                          </button>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        ) : (
+                          entry.waterTopUp
+                        )}
+                      </td>
+                      <td className="border px-3 py-2">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editForm.earthingCurrent}
+                            onChange={(e) => setEditForm({ ...editForm, earthingCurrent: e.target.value })}
+                            className="w-full border rounded p-1"
+                          />
+                        ) : (
+                          entry.earthingCurrent
+                        )}
+                      </td>
+                      <td className="border px-3 py-2">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editForm.sign}
+                            onChange={(e) => setEditForm({ ...editForm, sign: e.target.value })}
+                            className="w-full border rounded p-1"
+                          />
+                        ) : (
+                          entry.sign
+                        )}
+                      </td>
+
+                      <td className="border px-3 py-2">
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {/* Show entry files when NOT editing */}
+                          {!isEditing && entry.uploadedFiles?.map((url, i) => (
+                            <div key={`view-${i}`} className="relative">
+                              <button
+                                onClick={() => openFileModal(url)}
+                                className="border rounded p-1 hover:bg-gray-100 transition"
+                              >
+                                {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                  <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
+                                ) : (
+                                  <span>📄</span>
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                          
+                          {/* Show editing interface when editing */}
+                          {isEditing && (
+                            <>
+                              {/* Existing Files with delete option */}
+                              {existingFiles.map((url, i) => (
+                                <div key={`existing-${i}`} className="relative group">
+                                  <button
+                                    onClick={() => openFileModal(url)}
+                                    className="border rounded p-1 hover:bg-gray-100 transition"
+                                  >
+                                    {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                      <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
+                                    ) : (
+                                      <span>📄</span>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => deleteExistingFile(url, entry._id)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Delete file"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              
+                              {/* New Files (during editing) */}
+                              {editFiles.map((file, i) => (
+                                <div key={`new-${i}`} className="relative group">
+                                  <div className="border rounded p-1 bg-blue-50">
+                                    {file.type.startsWith('image/') ? (
+                                      <img 
+                                        src={URL.createObjectURL(file)} 
+                                        alt={`New file ${i + 1}`} 
+                                        className="w-12 h-12 object-cover" 
+                                      />
+                                    ) : (
+                                      <span>📄 {file.name}</span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => removeNewFile(i)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Remove file"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              
+                              {/* File Upload Input (during editing) */}
+                              <div className="flex items-center justify-center">
+                                <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition">
+                                  📁 Add Files
+                                  <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*,.pdf"
+                                    onChange={handleEditFilesChange}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="border px-3 py-2">
+                        {isEditing ? (
+                          <textarea
+                            value={editForm.remarks}
+                            onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
+                            className="w-full border rounded p-1"
+                            rows={2}
+                          />
+                        ) : (
+                          entry.remarks
+                        )}
+                      </td>
+
+                      <td className="border px-3 py-2">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => saveEdit(entry._id)}
+                              className="bg-green-600 text-white px-2 py-1 rounded mr-2"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="bg-gray-400 text-white px-2 py-1 rounded"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={cancelEdit}
-                            className="bg-gray-400 text-white px-2 py-1 rounded"
+                            onClick={() => startEditing(entry)}
+                            className="bg-yellow-500 text-white px-2 py-1 rounded"
                           >
-                            Cancel
+                            Edit
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => startEditing(entry)}
-                          className="bg-yellow-500 text-white px-2 py-1 rounded"
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* PAGINATION */}
-        <div className="flex justify-center items-center gap-2 mt-4">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-          >
-            Prev
-          </button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
+        {/* PAGINATION - Only show when not filtering */}
+        {!filterDate && (
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
