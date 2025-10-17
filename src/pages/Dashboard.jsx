@@ -220,9 +220,9 @@ export default function Dashboard() {
             transition={{ duration: 2, repeat: Infinity }}
           >
             <img
-              src="/images/original.png"
+              src="/images/loader.jpg"
               alt="Loading"
-              className="w-12 h-12 object-cover"
+              className="w-12 h-12 object-cover rounded-2xl"
             />
           </motion.div>
           <motion.div
