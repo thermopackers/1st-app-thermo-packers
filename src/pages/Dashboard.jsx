@@ -7,60 +7,109 @@ import AssistantInvitationForm from "../components/AssistantInvitationForm";
 import DocumentNotifications from "../components/DocumentNotifications";
 import VehicleDocumentsView from "../components/VehicleDocumentsView";
 import Swal from "sweetalert2";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-const [showDocs, setShowDocs] = useState(false);
-const [showDocNotifications, setShowDocNotifications] = useState(false);
-const [searchQuery, setSearchQuery] = useState("");
-const [searchResults, setSearchResults] = useState([]);
-const [showSearchResults, setShowSearchResults] = useState(false);
-const [searchLoading, setSearchLoading] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
+  const [showDocNotifications, setShowDocNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
-  const [invitationLink, setInvitationLink] = useState(null); // kept for compatibility
+  const [invitationLink, setInvitationLink] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-const [driverVehicle, setDriverVehicle] = useState(null);
-const [docNotifCount, setDocNotifCount] = useState(0);
+  const [driverVehicle, setDriverVehicle] = useState(null);
+  const [docNotifCount, setDocNotifCount] = useState(0);
 
-useEffect(() => {
-  if (!user || user.role !== "driver") return;
-  const token = localStorage.getItem("token");
-  const fetchVehicle = async () => {
-    try {
-      const res = await axiosInstance.get("/vehicles/all", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const vehicle = res.data.find((v) => v.driverEmail === user.email);
-      setDriverVehicle(vehicle);
-    } catch (err) {
-      console.error("❌ Failed to fetch driver vehicle", err);
-    }
-  };
-  fetchVehicle();
-}, [user]);
-
-useEffect(() => {
-  if (user?.role !== "accounts") return;
-  const token = localStorage.getItem("token");
-
-  const fetchDocNotifCount = async () => {
-    try {
-     const res = await axiosInstance.get(`/vehicle-documents/notifications/expiring`, {
-       headers: { Authorization: `Bearer ${token}` },
-     });
-     setDocNotifCount(res.data.length || 0); 
-    } catch (err) {
-      console.error("Failed to fetch document notifications count", err);
+  // Animation variants
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut"
+      }
     }
   };
 
-  fetchDocNotifCount();
-}, [user]);
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const cardHover = {
+    hover: {
+      y: -8,
+      scale: 1.02,
+      boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+      transition: {
+        duration: 0.3,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  const buttonHover = {
+    hover: {
+      scale: 1.05,
+      transition: {
+        duration: 0.2,
+        ease: "easeInOut"
+      }
+    },
+    tap: {
+      scale: 0.95
+    }
+  };
+
+  useEffect(() => {
+    if (!user || user.role !== "driver") return;
+    const token = localStorage.getItem("token");
+    const fetchVehicle = async () => {
+      try {
+        const res = await axiosInstance.get("/vehicles/all", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const vehicle = res.data.find((v) => v.driverEmail === user.email);
+        setDriverVehicle(vehicle);
+      } catch (err) {
+        console.error("❌ Failed to fetch driver vehicle", err);
+      }
+    };
+    fetchVehicle();
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== "accounts") return;
+    const token = localStorage.getItem("token");
+
+    const fetchDocNotifCount = async () => {
+      try {
+        const res = await axiosInstance.get(`/vehicle-documents/notifications/expiring`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDocNotifCount(res.data.length || 0); 
+      } catch (err) {
+        console.error("Failed to fetch document notifications count", err);
+      }
+    };
+
+    fetchDocNotifCount();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -77,11 +126,6 @@ useEffect(() => {
     };
     fetchNotifications();
   }, [user, page]);
-
-  useEffect(() => {
-    // helpful for debugging navigation; retained from original
-    // console.log("🚩 Navigated to:", location.pathname);
-  }, [location]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -108,14 +152,93 @@ useEffect(() => {
     fetchUser();
   }, [navigate]);
 
+  const handleSearch = async (query) => {
+    if (!query.trim()) {
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const [purchaseRes, salesRes] = await Promise.all([
+        axiosInstance.get(`/purchase-products?search=${query}&limit=5`),
+        axiosInstance.get(`/products-multer?search=${query}&limit=5`)
+      ]);
+
+      const purchaseProducts = purchaseRes.data.data || [];
+      const salesProducts = salesRes.data.products || [];
+
+      const results = [
+        ...purchaseProducts.map(p => ({
+          ...p,
+          type: 'purchase',
+          id: p._id,
+          name: p.name,
+          unit: p.unit,
+          price: p.price
+        })),
+        ...salesProducts.map(p => ({
+          ...p,
+          type: 'sales',
+          id: p._id,
+          name: p.name,
+          unit: p.unit,
+          price: p.price
+        }))
+      ];
+
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (err) {
+      console.error("Search error:", err);
+      Swal.fire({
+        title: "Search Error",
+        text: "Failed to search products",
+        icon: "error",
+        confirmButtonColor: "#2563eb",
+        background: '#f8fafc',
+        customClass: {
+          popup: 'rounded-2xl'
+        }
+      });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-slate-200 animate-pulse" />
-          <div className="w-12 h-12 border-4 border-slate-300 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-700 font-medium">Initializing Dashboard...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+        <motion.div
+          className="flex flex-col items-center gap-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.div
+            className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center shadow-lg"
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <img
+              src="/images/original.png"
+              alt="Loading"
+              className="w-12 h-12 object-cover"
+            />
+          </motion.div>
+          <motion.div
+            className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <motion.p
+            className="text-blue-700 font-semibold text-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            Preparing your dashboard...
+          </motion.p>
+        </motion.div>
       </div>
     );
   }
@@ -125,952 +248,1172 @@ useEffect(() => {
     n.message?.toLowerCase()?.includes("follow-up")
   );
 
-  const handleSearch = async (query) => {
-  if (!query.trim()) {
-    setShowSearchResults(false);
-    return;
-  }
+  const DashboardSection = ({ children, className = "" }) => (
+    <motion.section
+      className={`mb-8 ${className}`}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-50px" }}
+      variants={staggerContainer}
+    >
+      {children}
+    </motion.section>
+  );
 
-  setSearchLoading(true);
-  try {
-    // Search both purchase and sales products
-    const [purchaseRes, salesRes] = await Promise.all([
-      axiosInstance.get(`/purchase-products?search=${query}&limit=5`),
-      axiosInstance.get(`/products-multer?search=${query}&limit=5`)
-    ]);
+  const DashboardCard = ({ children, className = "", variants = fadeInUp }) => (
+    <motion.div
+      className={`bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 ${className}`}
+      variants={variants}
+      whileHover="hover"
+    >
+      {children}
+    </motion.div>
+  );
 
-    const purchaseProducts = purchaseRes.data.data || [];
-    const salesProducts = salesRes.data.products || [];
+  const ActionButton = ({ to, onClick, children, className = "", icon, variant = "primary" }) => {
+    const variants = {
+      primary: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+      success: "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
+      warning: "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
+      danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+      indigo: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+      purple: "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+      pink: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
+    };
 
-    // Combine and format results
-    const results = [
-      ...purchaseProducts.map(p => ({
-        ...p,
-        type: 'purchase',
-        id: p._id,
-        name: p.name,
-        unit: p.unit,
-        price: p.price
-      })),
-      ...salesProducts.map(p => ({
-        ...p,
-        type: 'sales',
-        id: p._id,
-        name: p.name,
-        unit: p.unit,
-        price: p.price
-      }))
-    ];
+    const buttonContent = (
+      <motion.button
+        className={`w-full text-white p-6 rounded-2xl shadow-lg transition-all duration-300 group ${variants[variant]} ${className}`}
+        whileHover="hover"
+        whileTap="tap"
+        variants={buttonHover}
+        onClick={onClick}
+      >
+        <div className="flex flex-col items-center text-center">
+          {icon && <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{icon}</div>}
+          {children}
+        </div>
+      </motion.button>
+    );
 
-    setSearchResults(results);
-    setShowSearchResults(true);
-  } catch (err) {
-    console.error("Search error:", err);
-    toast.error("Failed to search products");
-  } finally {
-    setSearchLoading(false);
-  }
-};
+    if (to) {
+      return <NavLink to={to}>{buttonContent}</NavLink>;
+    }
+
+    return buttonContent;
+  };
+
   return (
     <>
-<InternalNavbar />
+      <InternalNavbar />
 
-{/* Add Search Bar */}
-<div className="sticky top-13 md:top-20 z-40 bg-white/90 backdrop-blur-sm shadow-sm py-3 px-4 border-b">
-  <div className="max-w-6xl mx-auto flex items-center gap-2">
-    <input
-      type="text"
-      placeholder="🔍 Search purchase or sales products..."
-      value={searchQuery}
-      onChange={(e) => {
-        setSearchQuery(e.target.value);
-        handleSearch(e.target.value);
-      }}
-      className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    />
-    {searchLoading && (
-      <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-    )}
-  </div>
-</div>
-
-{/* Search Results Dropdown */}
-{showSearchResults && (
-  <div className="fixed inset-x-0 top-32 z-50 max-w-2xl mx-auto bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto">
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-semibold text-gray-800">Search Results</h3>
-        <button 
-          onClick={() => setShowSearchResults(false)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          ✕
-        </button>
-      </div>
-      
-      {searchResults.length === 0 ? (
-        <p className="text-gray-500 text-center py-4">No products found</p>
-      ) : (
-        <div className="space-y-2">
-          {searchResults.map((product) => (
-            <div 
-              key={`${product.type}-${product.id}`}
-              onClick={() => {
-                if (product.type === 'purchase') {
-                  navigate(`/purchase-products/edit/${product.id}`);
-                } else {
-                  navigate(`/products/edit/${product.id}`);
-                }
-                setShowSearchResults(false);
-                setSearchQuery("");
+      {/* Enhanced Search Bar */}
+      <motion.div 
+        className="sticky top-14 md:top-20 z-40 bg-white/95 backdrop-blur-md shadow-lg py-4 px-4 border-b border-gray-200"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="🔍 Search purchase or sales products..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                handleSearch(e.target.value);
               }}
-              className="p-3 border border-gray-100 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    {product.unit} • {product.type === 'purchase' ? 'Purchase' : 'Sales'} Product
-                  </p>
-                </div>
-                {product.price && (
-                  <span className="text-indigo-600 font-medium">₹{product.price}</span>
-                )}
+              className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
+            />
+            {searchLoading && (
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
-      )}
-    </div>
-  </div>
-)}
-      {/* top banner for attendance quick entry (unchanged logic) */}
-      {user.allowAttendance && (
-        <div className="bg-white/80 backdrop-blur shadow-sm p-4 md:p-5">
-          <div className="mx-auto max-w-6xl">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-semibold text-slate-800 text-center">
-                📋 Mark Attendance
-              </h2>
-              <div className="mt-3 flex justify-center">
-                <button
-                  onClick={() => navigate("/attendance")}
-                  className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-white shadow hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      </motion.div>
+
+      {/* Enhanced Search Results */}
+      <AnimatePresence>
+        {showSearchResults && (
+          <motion.div
+            className="fixed inset-x-0 top-32 z-50 max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-800 text-lg">Search Results</h3>
+                <button 
+                  onClick={() => setShowSearchResults(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100"
                 >
-                  Go to Attendance Page
+                  ✕
                 </button>
               </div>
+              
+              {searchResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">🔍</div>
+                  <p className="text-gray-500">No products found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchResults.map((product) => (
+                    <motion.div 
+                      key={`${product.type}-${product.id}`}
+                      onClick={() => {
+                        if (product.type === 'purchase') {
+                          navigate(`/purchase-products/edit/${product.id}`);
+                        } else {
+                          navigate(`/products/edit/${product.id}`);
+                        }
+                        setShowSearchResults(false);
+                        setSearchQuery("");
+                      }}
+                      className="p-4 border border-gray-100 rounded-xl hover:bg-blue-50 cursor-pointer transition-all duration-300 group"
+                      whileHover={{ x: 5 }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                            {product.name}
+                          </h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {product.unit} • <span className={`font-medium ${product.type === 'purchase' ? 'text-green-600' : 'text-purple-600'}`}>
+                              {product.type === 'purchase' ? 'Purchase' : 'Sales'} Product
+                            </span>
+                          </p>
+                        </div>
+                        {product.price && (
+                          <span className="text-blue-600 font-bold">₹{product.price}</span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Enhanced Attendance Banner */}
+      {user.allowAttendance && (
+        <motion.div
+          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-6 shadow-lg"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="mx-auto max-w-7xl px-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold">📋 Mark Your Attendance</h2>
+                <p className="text-blue-100 mt-1">Quickly record your daily check-in</p>
+              </div>
+              <motion.button
+                onClick={() => navigate("/attendance")}
+                className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span>Go to Attendance</span>
+                <span>→</span>
+              </motion.button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
-      <div className="flex justify-end mx-auto max-w-6xl mt-4 px-4">
-  {user.role === "accounts" && (
-    <button
-      onClick={() => setShowDocNotifications((prev) => !prev)}
-      className="relative flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow hover:bg-slate-100 border"
-    >
-      <span className="text-xl">🔔</span>
-      <span className="hidden sm:inline text-sm font-medium">Documents</span>
 
-      {/* Badge */}
-      {docNotifCount > 0 && (
-  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-    {docNotifCount}
-  </span>
-)}
-    </button>
+      {/* Enhanced Documents Notification */}
+      <div className="flex justify-end mx-auto max-w-7xl mt-6 px-4">
+        {user.role === "accounts" && (
+          <motion.button
+            onClick={() => setShowDocNotifications((prev) => !prev)}
+            className="relative flex items-center gap-3 bg-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-300 group"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl group-hover:scale-110 transition-transform">📋</div>
+            <span className="font-medium text-gray-700">Document Alerts</span>
+            {docNotifCount > 0 && (
+              <motion.span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 500 }}
+              >
+                {docNotifCount}
+              </motion.span>
+            )}
+          </motion.button>
+        )}
+      </div>
+
+      {showDocNotifications && (
+        <motion.div
+          className="mx-auto max-w-7xl px-4 mt-4"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+        >
+          <div className="rounded-2xl border border-blue-200 bg-white shadow-xl overflow-hidden">
+            <DocumentNotifications setDocNotifCount={setDocNotifCount} />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Main Dashboard Content */}
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+          <motion.div 
+            className="mb-6 hidden md:block"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg hover:shadow-xl text-gray-700 font-medium transition-all duration-300 group"
+              whileHover={{ x: -5 }}
+            >
+              <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
+              Back to Previous
+            </button>
+          </motion.div>
+
+          {/* Enhanced Profile Header */}
+          <DashboardSection>
+            <DashboardCard className="p-8">
+            <div className="flex flex-col items-center gap-8">
+  {/* Profile Picture - Always Centered */}
+  <motion.div 
+    className="flex flex-col items-center"
+    whileHover={{ scale: 1.05 }}
+    transition={{ type: "spring", stiffness: 300 }}
+  >
+    {user.profilePicture ? (
+      <img
+        src={user.profilePicture}
+        alt="Profile"
+        className="w-45 h-45 md:w-45 md:h-45 rounded-full object-cover border-4 border-blue-200 shadow-lg"
+      />
+    ) : (
+      <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg">
+        <span className="text-3xl md:text-4xl font-bold text-white">
+          {user.name?.charAt(0)?.toUpperCase()}
+        </span>
+      </div>
+    )}
+    <p className="mt-3 text-xs text-slate-500 text-center max-w-[200px]">
+      Download and set a Profile Picture for WhatsApp, Gmail, etc.
+    </p>
+  </motion.div>
+
+  {/* User Info - Always Centered */}
+  <div className="text-center flex-1">
+    <motion.h1 
+      className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"
+      variants={fadeInUp}
+    >
+      Welcome back, <span className="text-blue-600">{user.name}</span>! 👋
+    </motion.h1>
+    <motion.p 
+      className="text-lg text-gray-600 mb-1"
+      variants={fadeInUp}
+    >
+      {user.email}
+    </motion.p>
+    {!(user.role === "suppliers" || user.role === "viewer") && (
+      <motion.span 
+        className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mt-2"
+        variants={fadeInUp}
+      >
+        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+      </motion.span>
+    )}
+  </div>
+
+  {/* Visiting Card - Centered */}
+  {user.visitingCard && (
+    <motion.div
+      className="flex justify-center"
+      variants={fadeInUp}
+    >
+      <button
+        onClick={() =>
+          Swal.fire({
+            title: "Your Visiting Card",
+            imageUrl: user.visitingCard,
+            imageAlt: "Visiting Card",
+            confirmButtonText: "Close",
+            confirmButtonColor: "#2563eb",
+            width: "auto",
+            background: '#f8fafc',
+            customClass: {
+              popup: 'rounded-2xl'
+            }
+          })
+        }
+        className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <span>📇</span>
+        View or Download Visiting Card
+      </button>
+    </motion.div>
   )}
 </div>
-{showDocNotifications && (
-  <div className="mx-auto max-w-6xl px-4 mt-3 transition-all duration-300">
-    <div className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-      <DocumentNotifications setDocNotifCount={setDocNotifCount} />
-    </div>
-  </div>
-)}
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-        <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 pt-4 md:pt-8 pb-12">
-          {/* Back button on md+ only */}
-          <div className="mb-4 hidden md:block">
-            <button
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm text-white shadow hover:bg-slate-900"
-              onClick={() => navigate(-1)}
-            >
-              <span aria-hidden>↩️</span> Back
-            </button>
-          </div>
 
-          {/* Profile header */}
-          {user.role !== "driver" ? (
-            <header className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4">
-                <div className="flex flex-col items-center">
-                  {user.profilePicture ? (
-                    <img
-                      src={user.profilePicture}
-                      alt="Profile"
-                      className="h-45 w-45 sm:h-45 sm:w-45 rounded-full object-cover border-2 border-indigo-200 shadow"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-indigo-200 shadow">
-                      <span className="text-3xl font-bold text-indigo-600">
-                        {user.name?.charAt(0)?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <p className="mt-2 text-xs text-slate-500 text-center leading-tight">
-                    Download and set a Profile Picture for WhatsApp, Gmail, etc.
-                  </p>
-                  {user.visitingCard && (
-  <div className="mt-4 text-center">
-    <button
-      onClick={() =>
-        Swal.fire({
-          title: "Visiting Card",
-          imageUrl: user.visitingCard,
-          imageAlt: "Visiting Card",
-          confirmButtonText: "Close",
-          confirmButtonColor: "#4F46E5", // Indigo
-          width: "auto",
-        })
-      }
-      className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"
-    >
-      View or Download Visiting Card
-    </button>
-  </div>
-)}
-
-                </div>
-
-                <div className="text-center sm:text-left">
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-                    Welcome 👋,{" "}
-                    <span className="font-extrabold">{user.name}</span>{" "}
-                    {!(user.role === "suppliers" || user.role === "viewer") && (
-                      <span className="ml-1 align-middle text-sm text-slate-600">
-                        ({user.role})
-                      </span>
-                    )}
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-600 break-all">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-
-              {/* Follow-up banner */}
+              {/* Follow-up Notifications */}
               {followUps.length > 0 && (
-                <div className="mt-6 rounded-xl border-l-4 border-amber-400 bg-amber-50 p-4">
-                  <h3 className="text-sm font-semibold text-amber-900">
-                    🔔 Follow-Up Reminders
+                <motion.div
+                  className="mt-6 bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <h3 className="font-semibold text-amber-900 text-lg mb-3 flex items-center gap-2">
+                    🔔 Follow-up Reminders
                   </h3>
-                  <ul className="mt-2 space-y-1">
+                  <div className="space-y-2">
                     {followUps.map((note, idx) => (
-                      <li key={idx} className="text-sm text-slate-800">
-                        • {note.message}{" "}
+                      <div key={idx} className="flex items-center gap-3 text-amber-800">
+                        <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+                        <span className="flex-1">{note.message}</span>
                         {note.link && (
                           <NavLink
                             to={note.link}
-                            className="text-indigo-600 underline-offset-2 hover:underline ml-1"
+                            className="text-blue-600 hover:text-blue-700 font-medium text-sm underline"
                           >
-                            View
+                            View Details
                           </NavLink>
                         )}
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                  
                   {totalPages > 1 && (
-                    <div className="mt-3 flex items-center justify-end gap-2 text-sm">
+                    <div className="mt-4 flex items-center justify-end gap-2">
                       <button
                         onClick={() => setPage((p) => Math.max(p - 1, 1))}
                         disabled={page === 1}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 disabled:opacity-50"
+                        className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 disabled:opacity-50 hover:bg-amber-100 transition-colors"
                       >
-                        Prev
+                        Previous
                       </button>
-                      <span className="px-2">
+                      <span className="px-3 text-amber-700 font-medium">
                         Page {page} of {totalPages}
                       </span>
                       <button
-                        onClick={() =>
-                          setPage((p) => Math.min(p + 1, totalPages))
-                        }
+                        onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
                         disabled={page === totalPages}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 disabled:opacity-50"
+                        className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 disabled:opacity-50 hover:bg-amber-100 transition-colors"
                       >
                         Next
                       </button>
                     </div>
                   )}
-                </div>
+                </motion.div>
               )}
-               
-            </header>
-          ) : (
-            // Driver header
-            <header className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex flex-col items-center">
-                  {user.profilePicture ? (
-                    <img
-                      src={user.profilePicture}
-                      alt="Profile"
-                      className="h-45 w-45 sm:h-45 sm:w-45 rounded-full object-cover border-2 border-indigo-200 shadow"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-indigo-200 shadow">
-                      <span className="text-3xl font-bold text-indigo-600">
-                        {user.name?.charAt(0)?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <p className="mt-2 text-xs text-slate-500 text-center leading-tight">
-                    Download and set a Profile Picture for WhatsApp, Gmail, etc.
-                  </p>
-                </div>
-                <div className="text-center sm:text-left">
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-                    Welcome 👋 to your Dashboard!
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-600 break-all">
-                    {user.name} • {user.email}
-                  </p>
-                </div>
-              </div>
-            </header>
-          )}
+            </DashboardCard>
+          </DashboardSection>
 
-          {/* Driver quick section */}
+          {/* Enhanced Driver Section */}
           {user.role === "driver" && (
-            <section className="mt-6">
-              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5">
-                <h3 className="text-lg font-bold text-teal-900">
-                  My Dispatch Plans
-                </h3>
-                <p className="mt-1 text-sm text-teal-800">
-                  View your assigned daily dispatch plans.
-                </p>
-                <NavLink to="/my-plans">
-                  <button className="mt-4 inline-flex items-center rounded-lg bg-teal-600 px-4 py-2.5 text-white shadow hover:bg-teal-700">
-                    Go to My Plans
-                  </button>
-                </NavLink>
+            <DashboardSection>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Dispatch Plans */}
+                <DashboardCard>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                    <span className="text-3xl">🚚</span>
+                    My Dispatch Plans
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    View your assigned daily dispatch plans and delivery schedules
+                  </p>
+                  <ActionButton 
+                    to="/my-plans" 
+                    variant="indigo"
+                    icon="📋"
+                  >
+                    <div className="text-xl font-semibold mb-2">View Dispatch Plans</div>
+                    <div className="text-indigo-100 text-sm opacity-90">
+                      Check your daily assignments
+                    </div>
+                  </ActionButton>
+                </DashboardCard>
+
+                {/* Vehicle Documents */}
+                {driverVehicle && (
+                  <DashboardCard>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                      <span className="text-3xl">📄</span>
+                      Vehicle Documents
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Manage insurance, tax, pollution, and permit renewals
+                    </p>
+                    <div className="space-y-4">
+                      <motion.button
+                        onClick={() => setShowDocs(prev => !prev)}
+                        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {showDocs ? "Hide Documents" : "View Documents"}
+                      </motion.button>
+
+                      <AnimatePresence>
+                        {showDocs && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                          >
+                            <VehicleDocumentsView vehicleNumber={driverVehicle.vehicleNumber} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </DashboardCard>
+                )}
               </div>
-            </section>
-            
+            </DashboardSection>
           )}
-{user.role === "driver" && driverVehicle && (
-  <section className="mt-6">
-    <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
-      <h3 className="text-lg font-bold text-indigo-900">📄 My Vehicle Documents</h3>
-      <p className="mt-1 text-sm text-indigo-800">
-        View insurance, tax, pollution, and permit renewals for your vehicle.
-      </p>
 
-      {/* Toggle Button */}
-      <button
-        onClick={() => setShowDocs(prev => !prev)}
-        className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow"
-      >
-        {showDocs ? "Hide Documents" : "View Documents"}
-      </button>
-
-      {/* Conditionally render documents */}
-      {showDocs && (
-        <div className="mt-4">
-          <VehicleDocumentsView vehicleNumber={driverVehicle.vehicleNumber} />
-        </div>
-      )}
-    </div>
-  </section>
-)}
-
-
-          {/* SALES ORDERS */}
+          {/* Enhanced Sales Orders Section */}
           {(["sales", "admin", "accounts"].includes(user.role) ||
             (user.role === "production" &&
               user.productionSection?.some((s) =>
                 ["blockMoulding", "cnc"].includes(s)
               ))) && (
-            <section className="mt-8">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 text-center">
-                  SALES ORDERS
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
+                  📦 Sales Orders Management
                 </h3>
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <NavLink to="/add-order">
-                    <button className="w-full rounded-xl bg-emerald-600 px-4 py-5 text-white shadow hover:bg-emerald-700">
-                      ➕ Add New Sales Order
-                      <div className="mt-1 text-xs font-normal opacity-90">
-                        (Check if customer exists before adding)
-                      </div>
-                    </button>
-                  </NavLink>
-                  <NavLink to="/orders">
-                    <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-                      📂 View / Edit Sales Orders
-                      <div className="mt-1 text-xs font-normal opacity-90">
-                        (Manage old/existing orders)
-                      </div>
-                    </button>
-                  </NavLink>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ActionButton 
+                    to="/add-order" 
+                    variant="success"
+                    icon="➕"
+                  >
+                    <div className="text-xl font-semibold mb-2">Add New Sales Order</div>
+                    <div className="text-green-100 text-sm opacity-90">
+                      Check customer details before creating
+                    </div>
+                  </ActionButton>
+
+                  <ActionButton 
+                    to="/orders" 
+                    variant="primary"
+                    icon="📂"
+                  >
+                    <div className="text-xl font-semibold mb-2">Manage Sales Orders</div>
+                    <div className="text-blue-100 text-sm opacity-90">
+                      View, edit, and manage existing orders
+                    </div>
+                  </ActionButton>
                 </div>
-              </div>
-            </section>
+              </DashboardCard>
+            </DashboardSection>
           )}
 
-          {/* Production / Packaging / Dispatch hub */}
-          {["production", "packaging", "dispatch", "accounts"].includes(
-            user.role
-          ) && (
-            <section className="mt-8">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 text-center">
-                  Go To All Type of Production / Dispatch Sections
+          {/* Enhanced Production Sections */}
+          {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
+                  🏭 Go To All Type of Production / Dispatch Sections
                 </h3>
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(user.role === "accounts" ||
-                    user.role === "production") && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {(user.role === "accounts" || user.role === "production") && (
                     <>
                       {(user.role === "accounts" ||
                         user.productionSection?.includes("blockMoulding")) && (
-                        <NavLink
-                          to="/production-dashboard?type=dana"
-                          className="h-full"
+                        <ActionButton 
+                          to="/production-dashboard?type=dana" 
+                          variant="indigo"
+                          icon="🏭"
                         >
-                          <button className="w-full min-h-[84px] rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
+                          <div className="text-lg font-semibold mb-2">Block Molding</div>
+                          <div className="text-indigo-100 text-xs opacity-90">
                             EPS/Thermocol Block Molding Production Section
-                          </button>
-                        </NavLink>
+                          </div>
+                        </ActionButton>
                       )}
                       
- {user.role === "accounts" && (
-                    <NavLink to="/dana-beads-dashboard" className="h-full">
-                      <button className="w-full min-h-[84px] rounded-xl bg-pink-600 px-4 py-5 text-white shadow hover:bg-pink-700">
-                        EPS/Thermocol Dana / Beads Production Section
-                      </button>
-                    </NavLink>
-                  )}
+                      {user.role === "accounts" && (
+                        <ActionButton 
+                          to="/dana-beads-dashboard" 
+                          variant="pink"
+                          icon="●"
+                        >
+                          <div className="text-lg font-semibold mb-2">Dana / Beads</div>
+                          <div className="text-pink-100 text-xs opacity-90">
+                            EPS/Thermocol Dana / Beads Production Section
+                          </div>
+                        </ActionButton>
+                      )}
 
                       {(user.role === "accounts" ||
                         user.productionSection?.includes("shapeMoulding")) && (
-                        <NavLink
-                          to="/production-dashboard?type=shape"
-                          className="h-full"
+                        <ActionButton 
+                          to="/production-dashboard?type=shape" 
+                          variant="purple"
+                          icon="🔷"
                         >
-                          <button className="w-full min-h-[84px] rounded-xl bg-purple-600 px-4 py-5 text-white shadow hover:bg-purple-700">
+                          <div className="text-lg font-semibold mb-2">Shape Molding</div>
+                          <div className="text-purple-100 text-xs opacity-90">
                             EPS/Thermocol Shape Molding Production Section
-                          </button>
-                        </NavLink>
+                          </div>
+                        </ActionButton>
                       )}
                     </>
                   )}
 
-                 
-
                   {(user.role === "dispatch" || user.role === "accounts") && (
-                    <NavLink to="/dispatch-dashboard" className="h-full">
-                      <button className="w-full min-h-[84px] rounded-xl bg-blue-600 px-4 py-5 text-white shadow hover:bg-blue-700">
+                    <ActionButton 
+                      to="/dispatch-dashboard" 
+                      variant="primary"
+                      icon="🚛"
+                    >
+                      <div className="text-lg font-semibold mb-2">Sheet Cutting</div>
+                      <div className="text-blue-100 text-xs opacity-90">
                         EPS/Thermocol Sheet Cutting & Dispatch Section
-                      </button>
-                    </NavLink>
+                      </div>
+                    </ActionButton>
                   )}
 
                   {(user.role === "packaging" || user.role === "accounts") && (
-                    <NavLink to="/packaging-dashboard" className="h-full">
-                      <button className="w-full min-h-[84px] rounded-xl bg-green-600 px-4 py-5 text-white shadow hover:bg-green-700">
-                        EPS/Thermocol Shape Moulding Packaging & Dispatch
-                        Section
-                      </button>
-                    </NavLink>
+                    <ActionButton 
+                      to="/packaging-dashboard" 
+                      variant="success"
+                      icon="📦"
+                    >
+                      <div className="text-lg font-semibold mb-2">Packaging</div>
+                      <div className="text-green-100 text-xs opacity-90">
+                         EPS/Thermocol Shape Moulding Packaging & Dispatch Section
+                      </div>
+                    </ActionButton>
                   )}
 
                   {(user.role === "accounts" ||
                     (user.role === "production" &&
                       user.productionSection?.includes("cnc"))) && (
-                    <NavLink to="/cnc-dashboard" className="h-full">
-                      <button className="w-full min-h-[84px] rounded-xl bg-yellow-600 px-4 py-5 text-white shadow hover:bg-yellow-700">
+                    <ActionButton 
+                      to="/cnc-dashboard" 
+                      variant="warning"
+                      icon="⚡"
+                    >
+                      <div className="text-lg font-semibold mb-2">CNC Section</div>
+                      <div className="text-amber-100 text-xs opacity-90">
                         EPS/Thermocol CNC Hot Wire / CNC Router Section
-                      </button>
-                    </NavLink>
+                      </div>
+                    </ActionButton>
                   )}
                 </div>
-              </div>
-            </section>
+              </DashboardCard>
+            </DashboardSection>
           )}
 
-          {/* Admin Tools */}
+          {/* Enhanced Admin Tools */}
           {user.role === "admin" && (
-            <section className="mt-8">
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-                <h3 className="text-lg font-bold text-amber-900">Admin Tools</h3>
-                <p className="mt-1 text-sm text-amber-900/80">
-                  You have access to manage users and view all orders.
-                </p>
-                <NavLink to="/admin-dashboard">
-                  <button className="mt-4 inline-flex items-center rounded-lg bg-amber-600 px-4 py-2.5 text-white shadow hover:bg-amber-700">
-                    Go to Admin Panel
-                  </button>
-                </NavLink>
-              </div>
-            </section>
+            <DashboardSection>
+              <DashboardCard className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                <div className="text-center">
+                  <div className="text-4xl mb-4">🛠️</div>
+                  <h3 className="text-2xl font-bold text-amber-900 mb-3">Admin Tools</h3>
+                  <p className="text-amber-700 mb-6">
+                    Full access to manage users, permissions, and system settings
+                  </p>
+                  <ActionButton 
+                    to="/admin-dashboard" 
+                    variant="warning"
+                    icon="⚙️"
+                    className="max-w-md mx-auto"
+                  >
+                    <div className="text-xl font-semibold">Admin Panel</div>
+                  </ActionButton>
+                </div>
+              </DashboardCard>
+            </DashboardSection>
           )}
 
-          {/* Tasks + Assets + Dispatch/Mileage + Material Requisition */}
-          <section className="mt-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Tasks */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 text-center">
-                  TASKS / TO DO / WORK GIVEN INFORMATION
+          {/* Enhanced Main Grid Section */}
+          <DashboardSection>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Enhanced Tasks Section */}
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">✅</span>
+                 TASKS / TO DO / WORK GIVEN INFORMATION
                 </h3>
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="relative">
-                    <NavLink to="/my-tasks">
-                      <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-                        My Tasks / Assigned Work
-                        <div className="mt-1 text-xs font-normal opacity-90">
-                          View and complete assigned personal tasks
-                        </div>
-                      </button>
-                    </NavLink>
+                    <ActionButton 
+                      to="/my-tasks" 
+                      variant="primary"
+                      icon="📝"
+                    >
+                      <div className="text-lg font-semibold mb-2">My Tasks / Assigned Work</div>
+                      <div className="text-blue-100 text-sm opacity-90">
+                        View and complete assigned personal tasks
+                      </div>
+                    </ActionButton>
                     {unreadCount > 0 && (
-                      <span className="absolute -right-2 -top-2 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white shadow">
-                        {unreadCount}
-                      </span>
+                      <motion.span 
+                        className="absolute -top-2 -right-2 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500 }}
+                      >
+                        {unreadCount} new
+                      </motion.span>
                     )}
                   </div>
 
                   {["accounts"].includes(user.role) && (
-                    <NavLink to="/task-dashboard">
-                      <button className="w-full rounded-xl bg-rose-600 px-4 py-5 text-white shadow hover:bg-rose-700">
-                        Task Dashboard
-                        <div className="mt-1 text-xs font-normal opacity-90">
-                          Assign / View / Edit / Delete Task
-                        </div>
-                      </button>
-                    </NavLink>
+                    <ActionButton 
+                      to="/task-dashboard" 
+                      variant="danger"
+                      icon="👥"
+                    >
+                      <div className="text-lg font-semibold mb-2">Task Dashboard</div>
+                      <div className="text-red-100 text-sm opacity-90">
+                        Assign / View / Edit / Delete Task
+                      </div>
+                    </ActionButton>
                   )}
                 </div>
-              </div>
+              </DashboardCard>
 
-              {/* Assets */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900 text-center">
-                  Assets of Thermo Packers
+              {/* Enhanced Assets Section */}
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">💼</span>
+                  Assets Management
                 </h3>
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <NavLink to="/my-assets">
-                    <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-                      My Assets
-                      <div className="mt-1 text-sm font-normal opacity-90">
-                        View assets assigned to you
-                      </div>
-                    </button>
-                  </NavLink>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <ActionButton 
+                    to="/my-assets" 
+                    variant="primary"
+                    icon="📦"
+                    className="h-full"
+                  >
+                    <div className="text-sm font-semibold mb-1">My Assets</div>
+                    <div className="text-blue-100 text-xs opacity-90">
+                      View assigned assets
+                    </div>
+                  </ActionButton>
 
                   {["accounts"].includes(user.role) && (
                     <>
-                      <NavLink to="/issue-asset">
-                        <button className="w-full rounded-xl bg-emerald-600 px-4 py-5 text-white shadow hover:bg-emerald-700">
-                          Issue Assets to Employees
-                          <div className="mt-1 text-sm font-normal opacity-90">
-                            Click to issue assets
-                          </div>
-                        </button>
-                      </NavLink>
-                      <NavLink to="/asset-management">
-                        <button className="w-full rounded-xl bg-yellow-600 px-4 py-5 text-white shadow hover:bg-yellow-700">
-                          Manage Assets
-                          <div className="mt-1 text-sm font-normal opacity-90">
-                            Click to manage all assets
-                          </div>
-                        </button>
-                      </NavLink>
+                      <ActionButton 
+                        to="/issue-asset" 
+                        variant="success"
+                        icon="🎁"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Issue Assets to Employees</div>
+                        <div className="text-green-100 text-xs opacity-90">
+                          Click to issue assets
+                        </div>
+                      </ActionButton>
+                      <ActionButton 
+                        to="/asset-management" 
+                        variant="warning"
+                        icon="🛠️"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Manage Assets</div>
+                        <div className="text-amber-100 text-xs opacity-90">
+                         Click to manage all assets
+                        </div>
+                      </ActionButton>
                     </>
                   )}
                 </div>
-              </div>
+              </DashboardCard>
 
-              {/* Dispatch & Mileage */}
-            {(user.allowVehiclesManagement || ["packaging", "admin", "accounts"].includes(user.role)) && (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h3 className="text-2xl font-bold text-slate-900 text-center">
-      Vehicles Management
-    </h3>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <NavLink to="/assign-dispatch">
-                      <button className="w-full rounded-xl bg-sky-600 px-4 py-5 text-white shadow hover:bg-sky-700">
-                        Assign Dispatch Plan
-                        <div className="mt-1 text-sm font-normal opacity-90">
-                          Plan and assign tasks to drivers/vehicles
+              {/* Enhanced Vehicles Management */}
+              {(user.allowVehiclesManagement || ["packaging", "admin", "accounts"].includes(user.role)) && (
+                <DashboardCard>
+                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    <span className="text-3xl">🚗</span>
+                    Vehicles Management
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ActionButton 
+                      to="/assign-dispatch" 
+                      variant="primary"
+                      icon="📋"
+                    >
+                      <div className="text-lg font-semibold mb-2">Assign Dispatch Plan</div>
+                      <div className="text-blue-100 text-sm opacity-90">
+                        Plan and assign tasks to drivers/vehicles
+                      </div>
+                    </ActionButton>
+
+                    {["admin", "accounts"].includes(user.role) && (
+                      <ActionButton 
+                        to="/mileage-chart" 
+                        variant="indigo"
+                        icon="📊"
+                      >
+                        <div className="text-lg font-semibold mb-2">Vehicle Mileage Reports</div>
+                        <div className="text-indigo-100 text-sm opacity-90">
+                          View KM/L for vehicles
                         </div>
-                      </button>
-                    </NavLink>
-
-                    {["admin", "accounts"].includes(user.role) && (
-                      <NavLink to="/mileage-chart">
-                        <button className="w-full rounded-xl bg-indigo-600 px-4 py-5 text-white shadow hover:bg-indigo-700">
-                          Vehicle Mileage Report
-                          <div className="mt-1 text-sm font-normal opacity-90">
-                            View KM/L for each vehicle
-                          </div>
-                        </button>
-                      </NavLink>
+                      </ActionButton>
                     )}
+                    
                     {["admin", "accounts"].includes(user.role) && (
-                      <NavLink to="/registered-vehicles">
-                        <button className="w-full rounded-xl bg-green-600 px-4 py-5 text-white shadow hover:bg-green-700">
-                          Vehicles Maintenance Log Book & Documents
-                          <div className="mt-1 text-sm font-normal opacity-90">
-                            Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
-                          </div>
-                          <span>Add / Remove Vehicles</span>
-                        </button>
-                      </NavLink>
+                      <ActionButton 
+                        to="/registered-vehicles" 
+                        variant="success"
+                        icon="📄"
+                        className="md:col-span-2"
+                      >
+                        <div className="text-lg font-semibold mb-2">Vehicles Maintenance Log Book & Documents</div>
+                        <div className="text-green-100 text-sm opacity-90">
+                          Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
+                        </div>
+                      </ActionButton>
                     )}
                   </div>
-                </div>
+                </DashboardCard>
               )}
 
-              {/* Material Requisition */}
-              {["admin", "sales", "accounts", "dispatch", "packaging", "production"].includes(
-                user.role
-              ) && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 text-center">
+              {/* Enhanced Material Requisition */}
+              {["admin", "sales", "accounts", "dispatch", "packaging", "production"].includes(user.role) && (
+                <DashboardCard>
+                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    <span className="text-3xl">📋</span>
                     Material Requisition
                   </h3>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <NavLink to="/material-requisition">
-                      <button className="w-full rounded-xl bg-rose-600 px-4 py-5 text-white shadow hover:bg-rose-700">
-                        Material Requisition Form
-                        <div className="mt-1 text-sm font-normal opacity-90">
-                          Submit a new requisition for raw materials
-                        </div>
-                      </button>
-                    </NavLink>
-                    <NavLink to="/requisition-slips">
-                      <button className="w-full rounded-xl bg-amber-600 px-4 py-5 text-white shadow hover:bg-amber-700">
-                        View Requisition Slips
-                        <div className="mt-1 text-sm font-normal opacity-90">
-                          View/download all requisition PDFs
-                        </div>
-                      </button>
-                    </NavLink>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ActionButton 
+                      to="/material-requisition" 
+                      variant="danger"
+                      icon="📝"
+                    >
+                      <div className="text-lg font-semibold mb-2">New Requisition Form</div>
+                      <div className="text-red-100 text-sm opacity-90">
+                        Submit a new requisition for raw materials
+                      </div>
+                    </ActionButton>
+                    
+                    <ActionButton 
+                      to="/requisition-slips" 
+                      variant="warning"
+                      icon="📑"
+                    >
+                      <div className="text-lg font-semibold mb-2">View Requisition Slips</div>
+                      <div className="text-amber-100 text-sm opacity-90">
+                        View/download all requisition PDFs
+                      </div>
+                    </ActionButton>
                   </div>
-                </div>
+                </DashboardCard>
               )}
             </div>
-          </section>
+          </DashboardSection>
 
-          {/* QUOTATION / PROFORMA + Sales/Customers */}
-          <section className="mt-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Quotation / Proforma */}
-              {!["driver", "dispatch", "packaging"].includes(
-                user.role
-              ) && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 text-center">
+          {/* Enhanced Quotation & Sales Sections */}
+          <DashboardSection>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Enhanced Quotation Section */}
+              {!["driver", "dispatch", "packaging"].includes(user.role) && (
+                <DashboardCard>
+                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    <span className="text-3xl">💰</span>
                     QUOTATION / PROFORMA INVOICE / ESTIMATE
                   </h3>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <NavLink to="/proforma-invoice">
-                      <button className="w-full rounded-xl bg-emerald-600 px-4 py-5 text-white shadow hover:bg-emerald-700">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <ActionButton 
+                      to="/proforma-invoice" 
+                      variant="success"
+                      icon="✨"
+                    >
+                      <div className="text-lg font-semibold mb-2">Create Quotation</div>
+                      <div className="text-green-100 text-sm opacity-90">
                         Make New Quotation / Proforma / Estimate
-                      </button>
-                    </NavLink>
-                    <NavLink to="/proforma-dashboard">
-                      <button className="w-full rounded-xl bg-slate-600 px-4 py-5 text-white shadow hover:bg-slate-700">
+                      </div>
+                    </ActionButton>
+                    
+                    <ActionButton 
+                      to="/proforma-dashboard" 
+                      variant="primary"
+                      icon="📊"
+                    >
+                      <div className="text-lg font-semibold mb-2">View Quotations</div>
+                      <div className="text-blue-100 text-sm opacity-90">
                         View Old Quotation / Proforma / Estimate
-                      </button>
-                    </NavLink>
+                      </div>
+                    </ActionButton>
                   </div>
 
                   {["accounts"].includes(user.role) && (
-                    <>
-                      <h4 className="mt-6 text-xl font-bold text-slate-900 text-center">
+                    <div className="border-t border-gray-200 pt-6">
+                      <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
                         Purchase Product / Suppliers
                       </h4>
-                      <div className="mt-3 flex justify-center">
-                        <button
-                          onClick={() =>
-                            navigate("/purchase-products-suppliers")
-                          }
-                          className="rounded-xl bg-blue-600 px-6 py-3 text-white shadow hover:bg-blue-700"
+                      <div className="flex justify-center">
+                        <ActionButton 
+                          onClick={() => navigate("/purchase-products-suppliers")}
+                          variant="indigo"
+                          icon="🏪"
+                          className="max-w-md"
                         >
-                          Purchase Product / Suppliers
-                        </button>
+                          <div className="text-lg font-semibold">Purchase Product / Suppliers</div>
+                        </ActionButton>
                       </div>
-                    </>
+                    </div>
                   )}
-                </div>
+                </DashboardCard>
               )}
 
-              {/* Sales Products + Customers */}
+              {/* Enhanced Sales & Customers Section */}
               {["admin", "sales", "accounts"].includes(user.role) && (
                 <div className="space-y-6">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-xl font-bold text-slate-900 text-center">
-                      SALES - PRODUCTS Information
+                  <DashboardCard>
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+                      <span className="text-2xl">📈</span>
+                      Sales Products
                     </h3>
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <NavLink to="/add-product">
-                        <button className="w-full rounded-xl bg-lime-600 px-4 py-5 text-white shadow hover:bg-lime-700">
-                          Add new PRODUCT
-                        </button>
-                      </NavLink>
-                      <NavLink to="/all-products">
-                        <button className="w-full rounded-xl bg-yellow-600 px-4 py-5 text-white shadow hover:bg-yellow-700">
-                          View / Edit / Delete PRODUCT
-                        </button>
-                      </NavLink>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <ActionButton 
+                        to="/add-product" 
+                        variant="success"
+                        icon="➕"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Add new Product</div>
+                        <div className="text-green-100 text-xs opacity-90">
+                          New sales product
+                        </div>
+                      </ActionButton>
+                      
+                      <ActionButton 
+                        to="/all-products" 
+                        variant="warning"
+                        icon="📋"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Manage Products</div>
+                        <div className="text-amber-100 text-xs opacity-90">
+                          View / Edit / Delete Products
+                        </div>
+                      </ActionButton>
                     </div>
-                  </div>
+                  </DashboardCard>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-xl font-bold text-slate-900 text-center">
-                      CUSTOMERS - Information
+                  <DashboardCard>
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+                      <span className="text-2xl">👥</span>
+                      Customers
                     </h3>
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <NavLink to="/add-customer">
-                        <button className="w-full rounded-xl bg-cyan-600 px-4 py-5 text-white shadow hover:bg-cyan-700">
-                          Add New CUSTOMER
-                        </button>
-                      </NavLink>
-                      <NavLink to="/customers">
-                        <button className="w-full rounded-xl bg-violet-600 px-4 py-5 text-white shadow hover:bg-violet-700">
-                          View / Edit / Delete CUSTOMER
-                        </button>
-                      </NavLink>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <ActionButton 
+                        to="/add-customer" 
+                        variant="primary"
+                        icon="➕"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Add new Customer</div>
+                        <div className="text-blue-100 text-xs opacity-90">
+                          New customer profile
+                        </div>
+                      </ActionButton>
+                      
+                      <ActionButton 
+                        to="/customers" 
+                        variant="purple"
+                        icon="📊"
+                        className="h-full"
+                      >
+                        <div className="text-sm font-semibold mb-1">Manage Customers</div>
+                        <div className="text-purple-100 text-xs opacity-90">
+                          View / Edit / Delete Customer
+                        </div>
+                      </ActionButton>
                     </div>
-                  </div>
+                  </DashboardCard>
                 </div>
               )}
             </div>
-          </section>
+          </DashboardSection>
 
-          {/* Admin register + Attendance Logs */}
-          <section className="mt-8">
-               
-              {/* HR / Accounts Section */}
-{(user.allowHR || ["admin","accounts"].includes(user.role)) && (
-  <section className="mt-8">
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-2xl font-bold text-slate-900 text-center">
-        HR (Human Resource)
-      </h3>
-      <p className="mt-1 text-sm text-slate-600 text-center">
-        Employee ID proof, Salary Sheets, ESIC, EPFO etc.
-      </p>
+          {/* Enhanced HR Section */}
+          {(user.allowHR || ["admin","accounts"].includes(user.role)) && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">👨‍💼</span>
+                  HR (Human Resource)
+                </h3>
+                <p className="text-gray-600 text-center mb-6">
+                  Employee management, ID Proof, Salary Sheets, ESIC, EPFO, and more
+                </p>
 
-      {/* Buttons grid */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Add Employee */}
-        <NavLink to="/register-user">
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-5 text-white shadow hover:bg-blue-700">
-            ➕ Add / View / Edit / Delete Employees
-          </button>
-        </NavLink>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <ActionButton 
+                    to="/register-user" 
+                    variant="primary"
+                    icon="👥"
+                  >
+                    <div className="text-lg font-semibold mb-2">Employee Management</div>
+                    <div className="text-blue-100 text-sm opacity-90">
+                       ➕ Add / View / Edit / Delete Employees
+                    </div>
+                  </ActionButton>
 
-       {/* ESIC */}
-<button
-  disabled
-  className="w-full rounded-xl bg-green-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed"
->
-  📑 ESIC Monthly Challan & Payment Receipts
-</button>
-
-{/* EPFO */}
-<button
-  disabled
-  className="w-full rounded-xl bg-purple-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed"
->
-  📑 EPFO Monthly Challan & Payment Receipts
-</button>
-
-{/* Salary Sheets */}
-<button
-  disabled
-  className="w-full rounded-xl bg-rose-400 px-4 py-5 text-white shadow opacity-60 cursor-not-allowed sm:col-span-2"
->
-  📊 Monthly Salary Sheets
-</button>
-
-      </div>
-    </div>
-  </section>
-)}
-
-
-              {user.allowAttendance && (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-2xl font-bold text-slate-900 text-center">
-                    Attendance Logs
-                  </h3>
-                  <NavLink to="/attendance-logs">
-                    <button className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-4 text-white shadow hover:bg-emerald-700">
-                      Attendance Logs
-                      <div className="mt-1 text-sm font-normal opacity-90">
-                        View daily check-ins and attendance
+                  <motion.div
+                    className="opacity-60 cursor-not-allowed"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="text-3xl mb-3">📑</div>
+                        <div className="text-lg font-semibold mb-2">ESIC Management</div>
+                        <div className="text-gray-200 text-sm opacity-90">
+                          ESIC Monthly Challan & Payment Receipts
+                        </div>
                       </div>
-                    </button>
-                  </NavLink>
-                </div>
-              )}
-           </section>
+                    </div>
+                  </motion.div>
 
-          {/* Supplier / Viewer block */}
-          {(user.role === "suppliers" ||
-            user.role === "accounts" ||
-            user.role === "viewer") && (
-            <section className="mt-8">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900 text-center">
+                  <motion.div
+                    className="opacity-60 cursor-not-allowed"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="text-3xl mb-3">📑</div>
+                        <div className="text-lg font-semibold mb-2">EPFO Management</div>
+                        <div className="text-gray-200 text-sm opacity-90">
+                          EPFO Monthly Challan & Payment Receipts
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    className="opacity-60 cursor-not-allowed md:col-span-2"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="text-3xl mb-3">📊</div>
+                        <div className="text-lg font-semibold mb-2">Salary Sheets</div>
+                        <div className="text-gray-200 text-sm opacity-90">
+                          Monthly Salary Sheets
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              </DashboardCard>
+            </DashboardSection>
+          )}
+
+          {/* Enhanced Attendance Logs */}
+          {user.allowAttendance && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">📅</span>
+                  Attendance Management
+                </h3>
+                <ActionButton 
+                  to="/attendance-logs" 
+                  variant="success"
+                  icon="📊"
+                  className="max-w-2xl mx-auto"
+                >
+                  <div className="text-xl font-semibold mb-2">View Attendance Logs</div>
+                  <div className="text-green-100 text-sm opacity-90">
+                    View Daily check-ins and attendance records
+                  </div>
+                </ActionButton>
+              </DashboardCard>
+            </DashboardSection>
+          )}
+
+          {/* Enhanced Supplier Section */}
+          {(user.role === "suppliers" || user.role === "accounts" || user.role === "viewer") && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">🎨</span>
                   Pattern Orders & Status
                 </h3>
 
                 {user.role === "suppliers" && (
-                  <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-                    <div className="flex flex-col items-center gap-3">
-                      <button
+                  <motion.div
+                    className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 mb-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex flex-col items-center gap-4">
+                      <motion.button
                         onClick={() => setShowInviteForm(!showInviteForm)}
-                        className="rounded-lg bg-emerald-600 px-4 py-2.5 text-white shadow hover:bg-emerald-700"
+                        className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-emerald-700 transition-all duration-300 flex items-center gap-2"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        {showInviteForm ? "Cancel" : "Invite Assistant"}
-                      </button>
+                        {showInviteForm ? (
+                          <>❌ Cancel Invitation</>
+                        ) : (
+                          <>👥 Invite Assistant</>
+                        )}
+                      </motion.button>
 
-                      {showInviteForm && (
-                        <div className="w-full">
-                          <AssistantInvitationForm
-                            supplierId={user._id}
-                            onInviteSent={(link) => setInvitationLink(link)}
-                          />
-                        </div>
-                      )}
+                      <AnimatePresence>
+                        {showInviteForm && (
+                          <motion.div
+                            className="w-full"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                          >
+                            <AssistantInvitationForm
+                              supplierId={user._id}
+                              onInviteSent={(link) => setInvitationLink(link)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {(user.role === "suppliers" ||
-                    user.role === "viewer") && (
-                    <button
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(user.role === "suppliers" || user.role === "viewer") && (
+                    <ActionButton 
                       onClick={() => navigate("/drawing-upload-form")}
-                      className="w-full rounded-xl bg-orange-600 px-4 py-5 text-white shadow hover:bg-orange-700"
+                      variant="warning"
+                      icon="📝"
                     >
-                      📝 Submit New Drawing for making EPS/Thermocol Pattern
-                    </button>
+                      <div className="text-lg font-semibold mb-2">Submit Drawing</div>
+                      <div className="text-amber-100 text-sm opacity-90">
+                        Submit New Drawing for making EPS/Thermocol Pattern
+                      </div>
+                    </ActionButton>
                   )}
 
-                  <button
+                  <ActionButton 
                     onClick={() => navigate("/drawing-orders-table")}
-                    className="w-full rounded-xl bg-teal-600 px-4 py-5 text-white shadow hover:bg-teal-700"
+                    variant="success"
+                    icon="📊"
                   >
-                    📊 View Old Patterns Orders Quotation & Price Finalization
-                    Real Time Status of Orders
-                  </button>
+                    <div className="text-lg font-semibold mb-2">View Orders</div>
+                    <div className="text-green-100 text-sm opacity-90">
+                      View Old Patterns Orders Quotation & Price Finalization Real Time Status of Orders
+                    </div>
+                  </ActionButton>
                 </div>
-              </div>
-            </section>
+              </DashboardCard>
+            </DashboardSection>
           )}
-          {/* Plant & Machinery Maintenance */}
-{(user.allowPlantMaintenance || ["accounts", "admin"].includes(user.role)) && (
-  <div className="rounded-2xl mt-8 border border-slate-200 bg-white p-5 shadow-sm">
-    <h3 className="text-2xl font-bold text-slate-900 text-center">
-      Plant & Machinery Maintenance
-    </h3>
-    <div className="mt-4 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4">
-      <NavLink to="/plant-machinery-maintenance">
-        <button className="w-full rounded-xl bg-rose-600 px-4 py-5 text-white shadow hover:bg-rose-700">
-          Maintenance Dashboard
-          <div className="mt-1 text-sm font-normal opacity-90">
-            Plant & Machinery Maintenance Dashboard
-          </div>
-        </button>
-      </NavLink>
-    </div>
-  </div>
-)}
-{/* Tour Expenses Section for Sales */}
-{(user.allowTourExpenses || ["sales", "accounts"].includes(user.role)) && (
-  <section className="mt-8">
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-xl font-bold text-slate-900 text-center">
-        Tour Expenses
-      </h3>
 
-      {/* Buttons grid */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Add Expenses */}
-        <NavLink to="/tour-expenses" className="w-full">
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-5 text-white shadow-md hover:bg-blue-700 transition">
-            <div className="text-base font-semibold">➕ Add Tour Expenses</div>
-            <div className="mt-1 text-xs font-normal opacity-90">
-              Submit & track your travel expenses
-            </div>
-          </button>
-        </NavLink>
+          {/* Enhanced Plant & Machinery */}
+          {(user.allowPlantMaintenance || ["accounts", "admin"].includes(user.role)) && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">⚙️</span>
+                  Plant & Machinery Maintenance
+                </h3>
+                <ActionButton 
+                  to="/plant-machinery-maintenance" 
+                  variant="danger"
+                  icon="🔧"
+                  className="max-w-2xl mx-auto"
+                >
+                  <div className="text-xl font-semibold mb-2">Maintenance Dashboard</div>
+                  <div className="text-red-100 text-sm opacity-90">
+                    Plant & machinery maintenance tracking
+                  </div>
+                </ActionButton>
+              </DashboardCard>
+            </DashboardSection>
+          )}
 
-        {/* View Expenses */}
-        <NavLink to="/tour-expenses-dashboard" className="w-full">
-          <button className="w-full rounded-xl bg-purple-600 px-4 py-5 text-white shadow-md hover:bg-purple-700 transition">
-            <div className="text-base font-semibold">📊 View Tour Expenses</div>
-            <div className="mt-1 text-xs font-normal opacity-90">
-              Dashboard & reports
-            </div>
-          </button>
-        </NavLink>
-      </div>
-    </div>
-  </section>
-)}
+          {/* Enhanced Tour Expenses */}
+          {(user.allowTourExpenses || ["sales", "accounts"].includes(user.role)) && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">✈️</span>
+                  Tour Expenses
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <ActionButton 
+                    to="/tour-expenses" 
+                    variant="primary"
+                    icon="➕"
+                  >
+                    <div className="text-lg font-semibold mb-2">Add Tour Expenses</div>
+                    <div className="text-blue-100 text-sm opacity-90">
+                      Submit travel expenses
+                    </div>
+                  </ActionButton>
 
-{/* Important Numbers Section */}
-{["admin", "accounts"].includes(user.role) && (
-  <section className="mt-8">
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-2xl font-bold text-slate-900 text-center">
-        Important Numbers
-      </h3>
-      <p className="mt-1 text-sm text-slate-600 text-center">
-        Manage and view important contact numbers
-      </p>
+                  <ActionButton 
+                    to="/tour-expenses-dashboard" 
+                    variant="purple"
+                    icon="📊"
+                  >
+                    <div className="text-lg font-semibold mb-2">View Tour Expenses</div>
+                    <div className="text-purple-100 text-sm opacity-90">
+                      Dashboard & reports
+                    </div>
+                  </ActionButton>
+                </div>
+              </DashboardCard>
+            </DashboardSection>
+          )}
 
-      <div className="mt-6 flex justify-center">
-        <NavLink to="/important-numbers">
-          <button className="rounded-xl bg-blue-600 px-6 py-3 text-white shadow hover:bg-blue-700 transition">
-            📞 Manage Important Numbers
-          </button>
-        </NavLink>
-      </div>
-    </div>
-  </section>
-)}
-
-{/* View Important Numbers for other roles */}
-{!["admin", "accounts"].includes(user.role) && (
-  <section className="mt-8">
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-2xl font-bold text-slate-900 text-center">
-        Important Numbers
-      </h3>
-      
-      <div className="mt-6 flex justify-center">
-        <NavLink to="/important-numbers">
-          <button className="rounded-xl bg-green-600 px-6 py-3 text-white shadow hover:bg-green-700 transition">
-            📞 View Important Numbers
-          </button>
-        </NavLink>
-      </div>
-    </div>
-  </section>
-)}
-
-
+          {/* Enhanced Important Numbers */}
+          <DashboardSection>
+            <DashboardCard>
+              <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                <span className="text-3xl">📞</span>
+                Important Numbers
+              </h3>
+              <div className="text-center">
+                <p className="text-gray-600 mb-6">
+                  {["admin", "accounts"].includes(user.role) 
+                    ? "Manage and view important contact numbers"
+                    : "View important contact numbers"
+                  }
+                </p>
+                <ActionButton 
+                  to="/important-numbers" 
+                  variant={["admin", "accounts"].includes(user.role) ? "primary" : "success"}
+                  icon="📱"
+                  className="max-w-md mx-auto"
+                >
+                  <div className="text-xl font-semibold">
+                    {["admin", "accounts"].includes(user.role) 
+                      ? "Manage Important Numbers" 
+                      : "View Important Numbers"
+                    }
+                  </div>
+                </ActionButton>
+              </div>
+            </DashboardCard>
+          </DashboardSection>
         </div>
       </main>
     </>
