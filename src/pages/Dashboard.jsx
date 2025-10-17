@@ -214,17 +214,7 @@ export default function Dashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <motion.div
-            className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center shadow-lg"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <img
-              src="/images/loader.jpg"
-              alt="Loading"
-              className="w-12 h-12 object-cover rounded-2xl"
-            />
-          </motion.div>
+    
           <motion.div
             className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
             animate={{ rotate: 360 }}
