@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import FloatingWhatsApp from "../components/FloatingWhatsapp";
 import { Helmet } from "react-helmet";
-import { Mail, MessageCircle, Phone } from "lucide-react";
-import gsap from "gsap";
+import { Mail, MessageCircle, Phone, ChevronLeft, Star, Share2, Truck, Shield, Clock } from "lucide-react";
+import { motion } from "framer-motion";
 import axiosInstance from "../axiosInstance";
 
 const slugify = (text) =>
@@ -15,6 +15,8 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("description");
+  const [imageLoading, setImageLoading] = useState(true);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -38,713 +40,468 @@ export default function ProductDetail() {
   }, [name]);
 
   useEffect(() => {
-    if (loading || !product) return;
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
-    gsap.from(".product-main", {
-      opacity: 0,
-      y: 30,
-      duration: 1,
-      ease: "power3.out",
-    });
-
-    if (selectedMedia) {
-      gsap.fromTo(
-        ".main-product-image",
-        {
-          opacity: 0,
-          scale: 0.95,
-        },
-        {
-          opacity: 1,
-          scale: 1,
-          duration: 0.3,
-          ease: "power2.out",
-        }
-      );
+    if (!loading && product) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
-
-    gsap.from(".product-info > *", {
-      opacity: 0,
-      y: 20,
-      duration: 0.8,
-      ease: "power2.out",
-      stagger: 0.2,
-      delay: 0.4,
-    });
-
-    gsap.from(".thumbnail-image", {
-      opacity: 0,
-      y: 10,
-      stagger: 0.1,
-      duration: 0.6,
-      delay: 0.8,
-      ease: "power1.out",
-    });
-  }, [product, selectedMedia, loading]);
+  }, [product, loading]);
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-600">Loading...</div>;
+    return (
+      <div className="min-h-screen mt-[10vh] flex items-center justify-center bg-gradient-to-br from-[#F9FAFB] via-white to-[#F0F4F8]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#B0BC27] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading product details...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!product) {
     return (
-      <div className="p-6 text-red-600 text-center text-lg">
-        Product not found.
+      <div className="min-h-screen mt-[10vh] flex items-center justify-center bg-gradient-to-br from-[#F9FAFB] via-white to-[#F0F4F8]">
+        <div className="text-center">
+          <div className="text-6xl mb-4">😞</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Product Not Found</h2>
+          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => navigate("/products")}
+            className="bg-[#B0BC27] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#9ca824] transition-colors duration-300"
+          >
+            Browse All Products
+          </button>
+        </div>
       </div>
     );
   }
 
   const whatsappNumber = "919878165432";
   const message = `Hello, I'm interested in learning more about ${product.name}`;
-  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-    message
-  )}`;
-  const emailLink = `mailto:thermopackers@gmail.com?subject=Product Enquiry: ${encodeURIComponent(
-    product.name
-  )}&body=I am interested in learning more about ${product.name}.`;
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  const emailLink = `mailto:thermopackers@gmail.com?subject=Product Enquiry: ${encodeURIComponent(product.name)}&body=I am interested in learning more about ${product.name}.`;
   const callLink = `tel:+919878165432`;
 
-  const handleThumbnailClick = (e, media) => {
+  const handleThumbnailClick = (media) => {
     setSelectedMedia(media);
+    setImageLoading(true);
+  };
 
-    gsap.fromTo(
-      e.target,
-      { scale: 1 },
-      {
-        scale: 1.2,
-        duration: 0.2,
-        ease: "power1.out",
-        repeat: 1,
-        yoyo: true,
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
+
+  const handleImageError = () => {
+    setImageLoading(false);
+  };
+
+  // Filter out empty product properties
+  const productProperties = Object.entries(product).filter(([key, value]) => {
+    const excludedKeys = ['_id', 'name', 'description', 'price', 'images', 'videos', 'category', 'createdAt', 'updatedAt', '__v'];
+    return !excludedKeys.includes(key) && 
+           value !== null && 
+           value !== undefined && 
+           value !== '' && 
+           !Array.isArray(value) && 
+           typeof value !== 'object';
+  });
+
+  // Group properties into categories for better organization
+  const propertyGroups = {
+    basic: productProperties.filter(([key]) => 
+      ['brand', 'color', 'material', 'weight', 'size', 'dimensions'].includes(key)
+    ),
+    technical: productProperties.filter(([key]) => 
+      ['density', 'thickness', 'tolerance', 'grade', 'temperature', 'capacity'].includes(key)
+    ),
+    packaging: productProperties.filter(([key]) => 
+      ['packType', 'packSize', 'packaging', 'piecesPerBundle', 'quantityPerPack'].includes(key)
+    ),
+    other: productProperties.filter(([key]) => 
+      !['brand', 'color', 'material', 'weight', 'size', 'dimensions', 'density', 'thickness', 'tolerance', 'grade', 'temperature', 'capacity', 'packType', 'packSize', 'packaging', 'piecesPerBundle', 'quantityPerPack'].includes(key)
+    )
+  };
+
+  // FIXED: Simplified animations to prevent invisibility
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3
       }
-    );
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
   };
 
   return (
     <>
       <Helmet>
-        <title>{product.name} | Thermo Packers</title>
+        <title>{product.name} | Thermo Packers - Premium Packaging Solutions</title>
+        <meta
+          name="description"
+          content={`${product.description || `Discover ${product.name} - high-quality packaging solution from Thermo Packers. Get competitive pricing and expert support.`}`}
+        />
+        <meta name="keywords" content={`${product.name}, thermocol packaging, EPS products, ${product.category}, packaging solutions`} />
+        <link rel="canonical" href={`https://www.thermopackers.com/product/${slugify(name)}`} />
+        <meta property="og:title" content={`${product.name} | Thermo Packers`} />
+        <meta property="og:description" content={product.description || `Premium ${product.name} from Thermo Packers`} />
+        <meta property="og:url" content={`https://www.thermopackers.com/product/${slugify(name)}`} />
+        {selectedMedia && <meta property="og:image" content={selectedMedia} />}
+        <meta property="og:type" content="product" />
       </Helmet>
 
       <FloatingWhatsApp />
 
-      <section className="mt-[10vh] px-6 py-10 max-w-7xl mx-auto min-h-screen">
-        <div className="md:hidden mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            aria-label="Go back"
-            className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800 transition"
+      {/* FIXED: Removed complex GSAP animations and simplified Framer Motion */}
+      <motion.section
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="min-h-screen mt-[10vh] bg-gradient-to-br from-[#F9FAFB] via-white to-[#F0F4F8] px-4 xs:px-6 sm:px-8 py-8 sm:py-12"
+      >
+        <div className="max-w-7xl mx-auto">
+          {/* Breadcrumb and Back Button */}
+          <motion.div 
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8"
+            variants={itemVariants}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-5 h-5 mr-2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 19.5L8.25 12l7.5-7.5"
-              />
-            </svg>
-            Back
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
-          {/* IMAGE/VIDEO VIEWER */}
-          <div className="w-full product-main">
-            <div className="overflow-hidden rounded-3xl shadow-lg mb-4">
-              {selectedMedia &&
-              typeof selectedMedia === "string" &&
-              !selectedMedia.includes(".mp4") &&
-              !selectedMedia.includes(".mov") ? (
-                <img
-                  src={selectedMedia}
-                  alt={product.name || "Product Image"}
-                  className="w-full h-auto max-h-[32rem] object-contain bg-transparent transition duration-300 main-product-image"
-                />
-              ) : (
-                <video
-                  controls
-                  src={selectedMedia}
-                  className="w-full h-auto max-h-[32rem] object-contain rounded-3xl transition duration-300 main-product-image"
-                />
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-4 sm:mb-0">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors duration-300 group"
+              >
+                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                Back
+              </button>
+              <span className="mx-2">•</span>
+              <button
+                onClick={() => navigate("/products")}
+                className="hover:text-[#B0BC27] transition-colors duration-300"
+              >
+                Products
+              </button>
+              {product.category && (
+                <>
+                  <span className="mx-2">•</span>
+                  <button
+                    onClick={() => navigate(`/products/${slugify(product.category)}`)}
+                    className="hover:text-[#B0BC27] transition-colors duration-300 capitalize"
+                  >
+                    {product.category}
+                  </button>
+                </>
               )}
+              <span className="mx-2">•</span>
+              <span className="text-gray-800 font-medium truncate">{product.name}</span>
             </div>
 
-            {/* THUMBNAILS */}
-            {(product.images?.length > 0 || product.videos?.length > 0) && (
-              <div className="flex gap-3 flex-wrap">
-                {product.images?.map((img, idx) => (
-                  <img
-                    key={`img-${idx}`}
-                    src={img}
-                    alt={`Thumbnail ${idx + 1}`}
-                    className={`thumbnail-image h-20 w-20 object-cover rounded-xl border cursor-pointer transition-transform duration-300 ease-in-out transform hover:scale-105 ${
-                      img === selectedMedia
-                        ? "ring-2 ring-[#B0BC27]"
-                        : "border-gray-300"
-                    }`}
-                    onClick={(e) => handleThumbnailClick(e, img)} // Set selected media to image
-                  />
-                ))}
+       
+          </motion.div>
 
-                {product.videos?.map((video, idx) => (
-                  <video
-                    key={`video-${idx}`}
-                    src={video}
-                    className={`thumbnail-image h-20 w-20 object-cover rounded-xl border cursor-pointer transition-transform duration-300 ease-in-out transform hover:scale-105 ${
-                      video === selectedMedia
-                        ? "ring-2 ring-[#B0BC27]"
-                        : "border-gray-300"
-                    }`}
-                    onClick={(e) => handleThumbnailClick(e, video)} // Set selected media to video
-                    muted
-                    loop
-                    preload="metadata"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* PRODUCT INFO */}
-          <div className="flex flex-col justify-center space-y-6 product-info">
-            <h1 className="text-4xl drop-shadow-md font-extrabold text-gray-800 tracking-tight">
-              {product.name}
-            </h1>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              {product.description}
-            </p>
-            <p className="text-2xl font-semibold text-[#B0BC27]">
-              {product.price}
-            </p>
-            {/* Product Specs */}
-            <h2 className="text-xl font-bold text-gray-700 mb-4">
-              Product Details
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 text-gray-600 text-sm">
-              {product.minOrderQty && (
-                <div>
-                  <strong>Minimum Order Quantity:</strong> {product.minOrderQty}
-                </div>
-              )}
-              {product.usage && (
-                <div>
-                  <strong>Usage:</strong> {product.usage}
-                </div>
-              )}
-              {product.weight && (
-                <div>
-                  <strong>Weight:</strong> {product.weight}
-                </div>
-              )}
-              {product.brand && (
-                <div>
-                  <strong>Brand:</strong> {product.brand}
-                </div>
-              )}
-              {product.color && (
-                <div>
-                  <strong>Color:</strong> {product.color}
-                </div>
-              )}
-              {product.density && (
-                <div>
-                  <strong>Density:</strong> {product.density}
-                </div>
-              )}
-              {product.technique && (
-                <div>
-                  <strong>Technique:</strong> {product.technique}
-                </div>
-              )}
-              {product.finishing && (
-                <div>
-                  <strong>Finishing:</strong> {product.finishing}
-                </div>
-              )}
-              {product.feature && (
-                <div>
-                  <strong>Feature:</strong> {product.feature}
-                </div>
-              )}
-              {product.surfaceFinish && (
-                <div>
-                  <strong>Surface Finish:</strong> {product.surfaceFinish}
-                </div>
-              )}
-              {product.designType && (
-                <div>
-                  <strong>Design Type:</strong> {product.designType}
-                </div>
-              )}
-              {product.tolerance && (
-                <div>
-                  <strong>Tolerance:</strong> {product.tolerance}
-                </div>
-              )}
-              {product.piecesPerBundle && (
-                <div>
-                  <strong>Pieces Per Bundle:</strong> {product.piecesPerBundle}
-                </div>
-              )}
-              {product.grade && (
-                <div>
-                  <strong>Grade:</strong> {product.grade}
-                </div>
-              )}
-              {product.shape && (
-                <div>
-                  <strong>Shape:</strong> {product.shape}
-                </div>
-              )}
-              {product.condition && (
-                <div>
-                  <strong>Condition:</strong> {product.condition}
-                </div>
-              )}
-              {product.pattern && (
-                <div>
-                  <strong>Pattern:</strong> {product.pattern}
-                </div>
-              )}
-              {product.material && (
-                <div>
-                  <strong>Material:</strong> {product.material}
-                </div>
-              )}
-              {product.packType && (
-                <div>
-                  <strong>Pack Type:</strong> {product.packType}
-                </div>
-              )}
-              {product.sizeDimension && (
-                <div>
-                  <strong>Size Dimension:</strong> {product.sizeDimension}
-                </div>
-              )}
-              {product.usageApplication && (
-                <div>
-                  <strong>Usage Application:</strong> {product.usageApplication}
-                </div>
-              )}
-              {product.capacity && (
-                <div>
-                  <strong>Capacity:</strong> {product.capacity}
-                </div>
-              )}
-              {product.thickness && (
-                <div>
-                  <strong>Thickness:</strong> {product.thickness}
-                </div>
-              )}
-              {product.origin && (
-                <div>
-                  <strong>Origin:</strong> {product.origin}
-                </div>
-              )}
-              {product.model && (
-                <div>
-                  <strong>Model:</strong> {product.model}
-                </div>
-              )}
-              {product.temperature && (
-                <div>
-                  <strong>Temperature:</strong> {product.temperature}
-                </div>
-              )}
-              {product.dimensions && (
-                <div>
-                  <strong>Dimensions:</strong> {product.dimensions}
-                </div>
-              )}
-              {product.cover && (
-                <div>
-                  <strong>Cover:</strong> {product.cover}
-                </div>
-              )}
-              {product.packSize && (
-                <div>
-                  <strong>Pack Size:</strong> {product.packSize}
-                </div>
-              )}
-              {product.compartment && (
-                <div>
-                  <strong>Compartment:</strong> {product.compartment}
-                </div>
-              )}
-              {product.depth && (
-                <div>
-                  <strong>Depth:</strong> {product.depth}
-                </div>
-              )}
-              {product.height && (
-                <div>
-                  <strong>Height:</strong> {product.height}
-                </div>
-              )}
-              {product.warning && (
-                <div>
-                  <strong>Warning:</strong> {product.warning}
-                </div>
-              )}
-              {product.diameter && (
-                <div>
-                  <strong>Diameter:</strong> {product.diameter}
-                </div>
-              )}
-              {product.shelfLife && (
-                <div>
-                  <strong>Shelf-Life:</strong> {product.shelfLife}
-                </div>
-              )}
-              {product.freezingTemp && (
-                <div>
-                  <strong>Freezing-Temp:</strong> {product.freezingTemp}
-                </div>
-              )}
-              {product.packagingDetails && (
-                <div>
-                  <strong>Packaging Details:</strong> {product.packagingDetails}
-                </div>
-              )}
-              {product.itemCode && (
-                <div>
-                  <strong>Item Code:</strong> {product.itemCode}
-                </div>
-              )}
-              {product.benefits && (
-                <div>
-                  <strong>Benefits:</strong> {product.benefits}
-                </div>
-              )}
-              {product.plasticType && (
-                <div>
-                  <strong>Plastic Type:</strong> {product.plasticType}
-                </div>
-              )}
-              {product.deliveryTime && (
-                <div>
-                  <strong>Delivery Time:</strong> {product.deliveryTime}
-                </div>
-              )}
-              {product.printing && (
-                <div>
-                  <strong>Printing:</strong> {product.printing}
-                </div>
-              )}
-              {product.quantityPerPack && (
-                <div>
-                  <strong>Quantity Per Pack:</strong> {product.quantityPerPack}
-                </div>
-              )}
-              {product.productionCapacity && (
-                <div>
-                  <strong>Production Capacity:</strong>{" "}
-                  {product.productionCapacity}
-                </div>
-              )}
-              {product.trademark && (
-                <div>
-                  <strong>Trade Mark:</strong> {product.trademark}
-                </div>
-              )}
-              {product.packaging && (
-                <div>
-                  <strong>Packaging:</strong> {product.packaging}
-                </div>
-              )}
-              
-              {product.productType && (
-                <div>
-                  <strong>Product Type:</strong> {product.productType}
-                </div>
-              )}
-              {product.size && (
-                <div>
-                  {typeof product.size === "object" ? (
-                    <>
-                      <div>
-                        <strong>Outer:</strong> {product.size.outer}
-                      </div>
-                      <div>
-                        <strong>Inner:</strong> {product.size.inner}
-                      </div>
-                    </>
+          {/* Main Product Grid - FIXED: Removed complex animations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
+            {/* Image/Media Section */}
+            <motion.div 
+              className="space-y-4"
+              variants={itemVariants}
+            >
+              {/* Main Media Display */}
+              <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-6 border border-gray-200">
+                <div className="relative overflow-hidden rounded-2xl">
+                  {imageLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                      <div className="w-8 h-8 border-2 border-[#B0BC27] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                  
+                  {selectedMedia && typeof selectedMedia === "string" && 
+                   !selectedMedia.includes(".mp4") && !selectedMedia.includes(".mov") ? (
+                    <img
+                      src={selectedMedia}
+                      alt={product.name}
+                      className="w-full h-auto max-h-[500px] object-contain transition duration-300"
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                    />
                   ) : (
-                    <div>
-                      <strong>Size:</strong> {product.size}
+                    <video
+                      controls
+                      src={selectedMedia}
+                      className="w-full h-auto max-h-[500px] object-contain rounded-2xl transition duration-300"
+                      onLoadedData={handleImageLoad}
+                      onError={handleImageError}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Thumbnails Gallery */}
+              {(product.images?.length > 0 || product.videos?.length > 0) && (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {product.images?.map((img, idx) => (
+                    <button
+                      key={`img-${idx}`}
+                      onClick={() => handleThumbnailClick(img)}
+                      className="flex-shrink-0"
+                    >
+                      <img
+                        src={img}
+                        alt={`${product.name} view ${idx + 1}`}
+                        className={`h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                          img === selectedMedia
+                            ? "border-[#B0BC27] ring-2 ring-[#B0BC27]/20"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      />
+                    </button>
+                  ))}
+
+                  {product.videos?.map((video, idx) => (
+                    <button
+                      key={`video-${idx}`}
+                      onClick={() => handleThumbnailClick(video)}
+                      className="flex-shrink-0"
+                    >
+                      <div
+                        className={`relative h-20 w-20 sm:h-24 sm:w-24 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                          video === selectedMedia
+                            ? "border-[#B0BC27] ring-2 ring-[#B0BC27]/20"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        <video
+                          src={video}
+                          className="h-full w-full object-cover rounded-xl"
+                          muted
+                          loop
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl">
+                          <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
+                            <div className="w-0 h-0 border-l-[6px] border-l-[#B0BC27] border-y-[4px] border-y-transparent ml-1"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Product Information */}
+            <motion.div 
+              className="space-y-6"
+              variants={itemVariants}
+            >
+              <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-gray-200">
+                {/* Product Header */}
+                <div className="mb-6">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-800 mb-3 leading-tight">
+                    {product.name}
+                  </h1>
+                  
+                  {/* Category and Rating */}
+                  <div className="flex items-center gap-4 mb-4">
+                    {product.category && (
+                      <span className="bg-[#B0BC27]/10 text-[#B0BC27] px-3 py-1 rounded-full text-sm font-medium capitalize">
+                        {product.category}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className="w-4 h-4 fill-yellow-400 text-yellow-400"
+                        />
+                      ))}
+                      <span className="text-sm text-gray-600 ml-1">(4.8)</span>
+                    </div>
+                  </div>
+
+                  {/* Price */}
+                  {product.price && (
+                    <div className="mb-6">
+                      <p className="text-3xl sm:text-4xl font-bold text-[#B0BC27]">
+                        {product.price}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">Excluding GST</p>
                     </div>
                   )}
                 </div>
-              )}
 
-              {product.outerDimensions && (
-                <div>
-                  <div>
-                    <strong>Outer:</strong> {product.outerDimensions}
+                {/* Description */}
+                {product.description && (
+                  <div className="mb-6">
+                    <p className="text-gray-600 text-lg leading-relaxed">
+                      {product.description}
+                    </p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {product.innerDimensions && (
-                <div>
-                  <div>
-                    <strong>Inner:</strong> {product.innerDimensions}
+                {/* Key Features */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Fast Delivery</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                    <Shield className="w-5 h-5 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">Quality Assured</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                    <span className="text-sm font-medium text-gray-700">Fast Support</span>
                   </div>
                 </div>
-              )}
-              {product.packagingSize && (
-                <div>
-                  <div>
-                    <strong>Packaging Size:</strong> {product.packagingSize}
-                  </div>
-                </div>
-              )}
-              {product.gradeStandard && (
-                <div>
-                  <div>
-                    <strong>Grade Standard:</strong> {product.gradeStandard}
-                  </div>
-                </div>
-              )}
-              {product.piecesPerBundle && (
-                <div>
-                  <div>
-                    <strong>Pieces Per Bundle:</strong>{" "}
-                    {product.piecesPerBundle}
-                  </div>
-                </div>
-              )}
-              {product.category && (
-                <div>
-                  <strong>Category:</strong> {product.category}
-                </div>
-              )}
-              {product.gst && (
-                <div>
-                  <strong>GST:</strong> {product.gst}
-                </div>
-              )}
-              {product.sizes && (
-                <div>
-                  <strong>Size:</strong> {product.sizes}
-                </div>
-              )}
-              {product.productSize && (
-                <div>
-                  <strong>Size:</strong> {product.productSize}
-                </div>
-              )}
-              {typeof product.customized !== "undefined" && (
-                <div>
-                  <strong>Customized:</strong>{" "}
-                  {product.customized ? "Yes" : "No"}
-                </div>
-              )}
-              {typeof product.isCustomised !== "undefined" && (
-                <div>
-                  <strong>Customized:</strong>{" "}
-                  {product.isCustomised ? "Yes" : "No"}
-                </div>
-              )}
-              {typeof product.microwaveSafe !== "undefined" && (
-                <div>
-                  <strong>Microwave Safe:</strong>{" "}
-                  {product.microwaveSafe ? "Yes" : "No"}
-                </div>
-              )}
-              {typeof product.isCustomized !== "undefined" && (
-                <div>
-                  <strong>Customized:</strong>{" "}
-                  {product.isCustomized ? "Yes" : "No"}
-                </div>
-              )}
-              {typeof product.ecoFriendly !== "undefined" && (
-                <div>
-                  <strong>Eco-Friendly:</strong>{" "}
-                  {product.ecoFriendly ? "Yes" : "No"}
-                </div>
-              )}
-            </div>
-            {product.additionalInfo && (
-              <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-2">
-                  Additional Information:
-                </h2>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-                  <li>
-                    <strong>Production Capacity:</strong>{" "}
-                    {product.additionalInfo.productionCapacity}
-                  </li>
-                  <li>
-                    <strong>Delivery Time:</strong>{" "}
-                    {product.additionalInfo.deliveryTime}
-                  </li>
-                  <li>
-                    <strong>Packaging Details:</strong>{" "}
-                    {product.additionalInfo.packagingDetails}
-                  </li>
-                </ul>
-              </div>
-            )}
 
-            {/* Product Specifications */}
-            {product.sizesAvailable && product.sizesAvailable.length > 0 && (
-              <div>
-                <strong>Sizes Available:</strong>
-                <ul className="ml-4 list-disc">
-                  {product.sizesAvailable.map((size, index) => (
-                    <li key={index}>
-                      <strong>{size.id}</strong> — Inner: {size.inner}, Outer:{" "}
-                      {size.outer}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {product.availableSizes && product.availableSizes.length > 0 && (
-              <div className="mt-4">
-                <strong>Available Sizes:</strong>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {product.availableSizes.map((size, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-gray-200 rounded-full text-sm font-medium"
+                {/* Quick Specifications */}
+                {propertyGroups.basic.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Specs</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {propertyGroups.basic.slice(0, 4).map(([key, value]) => (
+                        <div key={key} className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                          <span className="font-medium text-gray-800">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CTA Buttons */}
+                <div className="bg-gradient-to-r from-[#B0BC27] to-[#9ca824] rounded-2xl p-6 mb-6">
+                  <p className="text-white text-lg font-semibold mb-4 text-center">
+                    Interested in this product?
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white text-green-600 font-semibold py-3 px-4 rounded-xl text-center transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
                     >
-                      {size} ml
-                    </span>
-                  ))}
+                      <MessageCircle size={20} />
+                      WhatsApp
+                    </a>
+                    <a
+                      href={emailLink}
+                      className="bg-white text-blue-600 font-semibold py-3 px-4 rounded-xl text-center transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
+                    >
+                      <Mail size={20} />
+                      Email
+                    </a>
+                    <a
+                      href={callLink}
+                      className="bg-white text-amber-600 font-semibold py-3 px-4 rounded-xl text-center transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
+                    >
+                      <Phone size={20} />
+                      Call Now
+                    </a>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {product.specifications && (
-              <>
-                <h2 className="text-xl font-bold text-gray-700 mb-4">
-                  Specifications
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 text-gray-600 text-sm">
-                  {Object.entries(product.specifications).map(
-                    ([key, value]) => (
-                      <div key={key}>
-                        <strong className="capitalize">
-                          {key.replace(/([A-Z])/g, " $1")}:
-                        </strong>{" "}
-                        {Array.isArray(value) ? value.join(", ") : value}
+                {/* Additional Info Tabs */}
+                <div>
+                  <div className="border-b border-gray-200 mb-6">
+                    <nav className="flex space-x-8">
+                      {['description', 'specifications', 'features'].map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`py-2 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-300 ${
+                            activeTab === tab
+                              ? 'border-[#B0BC27] text-[#B0BC27]'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+
+                  <div className="min-h-[200px]">
+                    {activeTab === 'description' && product.description && (
+                      <div>
+                        <p className="text-gray-600 leading-relaxed">{product.description}</p>
                       </div>
-                    )
-                  )}
+                    )}
+
+                   {activeTab === 'specifications' && (
+  <div className="space-y-4">
+    {Object.entries(propertyGroups).map(([group, properties]) => {
+      // Filter out image-related properties
+      const filteredProperties = properties.filter(([key, value]) => {
+        const imageKeys = ['image', 'images', 'photo', 'photos', 'picture', 'pictures', 'img', 'thumbnail', 'thumbnails'];
+        const isImageKey = imageKeys.includes(key.toLowerCase());
+        const isImageUrl = typeof value === 'string' && (
+          value.includes('.jpg') || 
+          value.includes('.jpeg') || 
+          value.includes('.png') || 
+          value.includes('.gif') || 
+          value.includes('.webp') ||
+          value.includes('.avif') ||
+          value.includes('.svg') ||
+          value.includes('/images/') ||
+          value.includes('/img/') ||
+          value.startsWith('http') && (
+            value.includes('cloudinary') ||
+            value.includes('image') ||
+            value.includes('photo')
+          )
+        );
+        
+        return !isImageKey && !isImageUrl;
+      });
+
+      return (
+        filteredProperties.length > 0 && (
+          <div key={group}>
+            <h4 className="font-semibold text-gray-800 mb-2 capitalize">{group} Specifications</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredProperties.map(([key, value]) => (
+                <div key={key} className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                  <span className="font-medium text-gray-800">{value}</span>
                 </div>
-              </>
-            )}
-
-            {/* Packet Details (if present) */}
-            {product.packetDetails && (
-              <>
-                <h2 className="text-xl font-bold text-gray-700 mb-4">
-                  Packet Details
-                </h2>
-                <div className="text-sm text-gray-600 space-y-2">
-                  {Object.entries(product.packetDetails).map(
-                    ([size, count]) => (
-                      <div key={size}>
-                        <strong>{size}</strong>: {count}
-                      </div>
-                    )
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Features (if present) */}
-            {product.features && product.features.length > 0 && (
-              <>
-                <h2 className="text-xl font-bold text-gray-700 mb-4">
-                  Features
-                </h2>
-                <ul className="list-disc list-inside text-gray-600 text-sm space-y-1">
-                  {product.features.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {/* Available Options (if present) */}
-            {product.availableOptions && (
-              <>
-                <h2 className="text-xl font-bold text-gray-700 mb-4">
-                  Available Options
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 text-gray-600 text-sm">
-                  {Object.entries(product.availableOptions).map(
-                    ([option, value]) => (
-                      <div key={option}>
-                        <strong className="capitalize">{option}:</strong>{" "}
-                        {Array.isArray(value) ? value.join(", ") : value}
-                      </div>
-                    )
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Enquire Now Section */}
-            <div className="bg-gray-100 p-6 rounded-2xl shadow-xl mt-6 border border-gray-300">
-              <p className="text-2xl font-black text-gray-800 tracking-wide mb-4 flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-6 h-6 text-[#B0BC27] animate-bounce"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4v16m0 0l-4-4m4 4l4-4"
-                  />
-                </svg>
-                Enquire Now
-              </p>
-
-              <div className="flex flex-col md:flex-row gap-4">
-                <a
-                  href={emailLink}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition duration-300"
-                >
-                  <Mail size={20} />
-                  Email Us
-                </a>
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition duration-300"
-                >
-                  <MessageCircle size={20} />
-                  WhatsApp
-                </a>
-                <a
-                  href={callLink}
-                  className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition duration-300 sm:hidden"
-                >
-                  <Phone size={20} />
-                  Call Now
-                </a>
-              </div>
+              ))}
             </div>
           </div>
+        )
+      );
+    })}
+  </div>
+)}
+                    {activeTab === 'features' && product.features && (
+                      <div>
+                        <ul className="space-y-2">
+                          {product.features.map((feature, index) => (
+                            <li key={index} className="flex items-start gap-3">
+                              <div className="w-2 h-2 bg-[#B0BC27] rounded-full mt-2 flex-shrink-0"></div>
+                              <span className="text-gray-600">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </section>
+      </motion.section>
     </>
   );
 }
