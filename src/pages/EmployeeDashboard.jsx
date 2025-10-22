@@ -741,7 +741,7 @@ const saveContactToPhone = (task) => {
         </button>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <h1 className="text-2xl font-semibold text-center md:text-left">
-            My ToDos
+            My Assigned Tasks
           </h1>
 
           <div className="flex flex-wrap gap-3 items-center justify-center md:justify-end">
