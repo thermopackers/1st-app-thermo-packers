@@ -12,7 +12,7 @@ const [form, setForm] = useState({
    bankName: "", vendorCategory: []
 });
 const [gstError, setGstError] = useState("");
-
+const [existingChequeCloudFiles, setExistingChequeCloudFiles] = useState([]);
 const [chequeFiles, setChequeFiles] = useState([]);
 const [chequePreviewUrls, setChequePreviewUrls] = useState([]);
 const [frequentProducts, setFrequentProducts] = useState([]);
@@ -67,6 +67,10 @@ const fetchSupplier = async () => {
 
     setExistingCloudFiles(supplier.files || []);
     setPreviewUrls(supplier.files?.map(f => f.url || f) || []);
+
+    // ✅ Load existing cheque files
+    setExistingChequeCloudFiles(supplier.chequeFiles || []);
+    setChequePreviewUrls(supplier.chequeFiles?.map(f => f.url || f) || []);
 
     // ✅ Fetch frequently purchased items
     try {
@@ -169,39 +173,39 @@ const handleChange = (e) => {
 
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
   if (form.gstNumber && form.gstNumber.length !== 15) {
-  setGstError("GST number must be exactly 15 characters.");
-  toast.error("GST number must be exactly 15 characters.");
-  return;
-}
+    setGstError("GST number must be exactly 15 characters.");
+    toast.error("GST number must be exactly 15 characters.");
+    return;
+  }
 
-    try {
-      toast.loading(id ? "Updating..." : "Uploading files...");
-     const { gstUploads, chequeUploads } = await uploadToCloudinary();
-toast.dismiss();
+  try {
+    toast.loading(id ? "Updating..." : "Uploading files...");
+    const { gstUploads, chequeUploads } = await uploadToCloudinary();
+    toast.dismiss();
 
-const payload = {
-  ...form,
-  files: [...existingCloudFiles, ...gstUploads],
-  chequeFiles: chequeUploads
-};
+    const payload = {
+      ...form,
+      files: [...existingCloudFiles, ...gstUploads],
+      chequeFiles: [...existingChequeCloudFiles, ...chequeUploads] // Include existing cheque files
+    };
 
-      if (id) {
-        await axiosInstance.put(`/suppliers/${id}`, payload);
-        toast.success("Supplier updated");
-      } else {
-        await axiosInstance.post("/suppliers", payload);
-        toast.success("Supplier added");
-      }
-
-      navigate("/all-suppliers");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit");
+    if (id) {
+      await axiosInstance.put(`/suppliers/${id}`, payload);
+      toast.success("Supplier updated");
+    } else {
+      await axiosInstance.post("/suppliers", payload);
+      toast.success("Supplier added");
     }
-  };
+
+    navigate("/all-suppliers");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to submit");
+  }
+};
 const handleChequeFileChange = (e) => {
   const selectedFiles = Array.from(e.target.files);
   const previews = selectedFiles.map(file =>
@@ -211,6 +215,17 @@ const handleChequeFileChange = (e) => {
   setChequePreviewUrls(prev => [...prev, ...previews]);
 };
 
+const handleRemoveChequeFile = (index) => {
+  if (index < existingChequeCloudFiles.length) {
+    // Remove existing cloud file
+    setExistingChequeCloudFiles(prev => prev.filter((_, i) => i !== index));
+  } else {
+    // Remove local file
+    const localFileIndex = index - existingChequeCloudFiles.length;
+    setChequeFiles(prev => prev.filter((_, i) => i !== localFileIndex));
+  }
+  setChequePreviewUrls(prev => prev.filter((_, i) => i !== index));
+};
   return (
     <>
       <InternalNavbar />
@@ -367,11 +382,43 @@ const handleChequeFileChange = (e) => {
     className="w-full border p-2 rounded"
   />
 </div>
- {chequePreviewUrls.length > 0 && (
+
+{/* Cheque Files Preview - Shows both existing and new files */}
+{(existingChequeCloudFiles.length > 0 || chequePreviewUrls.length > 0) && (
   <div className="flex flex-wrap gap-3 mt-3">
-    {chequePreviewUrls.map((preview, i) => (
+    {/* Existing cheque files from cloud */}
+    {existingChequeCloudFiles.map((file, i) => (
       <div
-        key={i}
+        key={`existing-${i}`}
+        className="relative border rounded bg-blue-50 w-24 h-24 flex items-center justify-center overflow-hidden"
+      >
+        {file.url?.includes('.pdf') ? (
+          <span className="text-3xl text-blue-600">📄</span>
+        ) : (
+          <img
+            src={file.url}
+            alt={`existing-cheque-${i}`}
+            className="object-cover w-full h-full"
+          />
+        )}
+        {/* Remove button for existing files */}
+        <button
+          type="button"
+          onClick={() => handleRemoveChequeFile(i)}
+          className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+        >
+          ×
+        </button>
+        <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-xs text-center py-1">
+          Existing
+        </div>
+      </div>
+    ))}
+    
+    {/* New cheque files to be uploaded */}
+    {chequePreviewUrls.slice(existingChequeCloudFiles.length).map((preview, i) => (
+      <div
+        key={`new-${i}`}
         className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden"
       >
         {preview === "pdf" || preview.includes(".pdf") ? (
@@ -379,21 +426,21 @@ const handleChequeFileChange = (e) => {
         ) : (
           <img
             src={preview}
-            alt={`cheque-${i}`}
+            alt={`new-cheque-${i}`}
             className="object-cover w-full h-full"
           />
         )}
-        {/* ❌ Remove Button */}
+        {/* Remove button for new files */}
         <button
           type="button"
-          onClick={() => {
-            setChequeFiles(prev => prev.filter((_, idx) => idx !== i));
-            setChequePreviewUrls(prev => prev.filter((_, idx) => idx !== i));
-          }}
+          onClick={() => handleRemoveChequeFile(existingChequeCloudFiles.length + i)}
           className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
         >
           ×
         </button>
+        <div className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-xs text-center py-1">
+          New
+        </div>
       </div>
     ))}
   </div>
