@@ -47,7 +47,7 @@ const formatDateForDisplay = (dateString) => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await axiosInstance.get("/customers");
+        const response = await axiosInstance.get("/customers/all");
         console.log("API Response:", response.data);
         
         let customersData = [];

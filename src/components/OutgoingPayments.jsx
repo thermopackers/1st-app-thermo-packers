@@ -131,7 +131,7 @@ useEffect(() => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await axiosInstance.get('/suppliers');
+      const response = await axiosInstance.get('/suppliers/all');
       console.log('Suppliers API response:', response.data); // Debug log
       
       // Handle different response structures
