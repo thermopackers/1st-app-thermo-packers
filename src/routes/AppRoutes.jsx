@@ -57,6 +57,9 @@ import AirCompressorMaintenance from "../pages/AirCompressorMaintenance";
 import BoilerMaintenance from "../pages/BoilerMaintenance";
 import EarthingMaintenance from "../pages/EarthingMaintenance";
 import PageNotFound from "../pages/PageNotFound";
+import IncomingPaymentForm from "../pages/IncomingPaymentForm";
+import PaymentRecords from "../pages/PaymentRecords";
+import OutgoingPayments from "../components/OutgoingPayments";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -694,6 +697,34 @@ element={
     </ProtectedRoute>
   }
 />
+
+<Route
+path="/incoming-payment"
+element={
+    <ProtectedRoute allowedRoles={["accounts","sales"]}>
+      <PageWrapper><IncomingPaymentForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+path="/payment-records"
+element={
+    <ProtectedRoute allowedRoles={["accounts","sales"]}>
+      <PageWrapper><PaymentRecords /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/outgoing-payment"
+  element={
+    <ProtectedRoute allowedRoles={["accounts"]}>
+      <PageWrapper><OutgoingPayments /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 <Route
 path="/edit-rfq/:id"
 element={

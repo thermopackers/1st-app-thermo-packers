@@ -8,10 +8,12 @@ import DocumentNotifications from "../components/DocumentNotifications";
 import VehicleDocumentsView from "../components/VehicleDocumentsView";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
+import IncomingPaymentForm from "./IncomingPaymentForm";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
   const [showDocNotifications, setShowDocNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1025,7 +1027,6 @@ export default function Dashboard() {
               {!["driver", "dispatch", "packaging"].includes(user.role) && (
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
-                    <span className="text-3xl">💰</span>
                     QUOTATION / PROFORMA INVOICE / ESTIMATE
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1071,7 +1072,52 @@ export default function Dashboard() {
                   )}
                 </DashboardCard>
               )}
+{(["accounts", "sales"].includes(user.role)) && (
+  <DashboardCard>
+    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+      <span className="text-2xl">📥</span>
+      Bank Incoming Payment
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <ActionButton 
+        to="/payment-records"
+        variant="primary"
+        icon="📥"
+        className="h-full"
+      >
+        <div className="text-sm font-semibold mb-1">Manage Incoming Payments</div>
+        <div className="text-blue-100 text-xs opacity-90">
+          Daily Cheques/RTGS/UPI/NEFT/Payment from Customers to Thermo Packers
+        </div>
+      </ActionButton>
+    </div>
+  </DashboardCard>
+)}
 
+{/* Outgoing Payments - Only for Accounts Role */}
+{user.role === "accounts" && (
+  <DashboardCard>
+    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+      <span className="text-2xl">📤</span>
+      Bank Outgoing Payments
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <ActionButton 
+        to="/outgoing-payment"
+        variant="warning"
+        icon="📤"
+        className="h-full"
+      >
+        <div className="text-sm font-semibold mb-1">Manage Outgoing Payments</div>
+        <div className="text-amber-100 text-xs opacity-90">
+          Daily Cheques/RTGS/UPI/NEFT/Payment to Suppliers/Vendors
+        </div>
+      </ActionButton>
+      
+    
+    </div>
+  </DashboardCard>
+)}
               {/* Enhanced Sales & Customers Section */}
               {["admin", "sales", "accounts"].includes(user.role) && (
                 <div className="space-y-6">
@@ -1405,6 +1451,9 @@ export default function Dashboard() {
             </DashboardCard>
           </DashboardSection>
         </div>
+        {showPaymentForm && (
+  <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />
+)}
       </main>
     </>
   );
