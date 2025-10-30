@@ -19,6 +19,7 @@ const [uploadProgress, setUploadProgress] = useState(0);
    const [filterSupplier, setFilterSupplier] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
   const [filteredPayments, setFilteredPayments] = useState([]);
   // Filter payments based on supplier and date range
 useEffect(() => {
@@ -736,29 +737,68 @@ const calculateNextBillNo = () => {
 />
             </div>
 
-            {/* Supplier Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Supplier Name *
-              </label>
-              <select
-                name="supplierName"
-                value={formData.supplierName}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Supplier</option>
-                {Array.isArray(suppliers) && suppliers.map(supplier => (
-                  <option key={supplier._id || supplier.id} value={supplier.name || supplier.supplierName}>
-                    {supplier.name || supplier.supplierName || 'Unnamed Supplier'}
-                  </option>
-                ))}
-              </select>
-              {(!Array.isArray(suppliers) || suppliers.length === 0) && (
-                <p className="text-red-500 text-sm mt-1">No suppliers available</p>
-              )}
+            {/* Supplier Name with Search */}
+<div className="relative">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Supplier Name *
+  </label>
+  <div className="relative">
+    <input
+      type="text"
+      name="supplierName"
+      value={formData.supplierName}
+      onChange={handleInputChange}
+      onFocus={() => setIsSupplierDropdownOpen(true)}
+      onBlur={() => setTimeout(() => setIsSupplierDropdownOpen(false), 200)}
+      placeholder="Type to search suppliers..."
+      required
+      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </div>
+  
+  {/* Search Dropdown */}
+  {isSupplierDropdownOpen && suppliers.length > 0 && (
+    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+      {suppliers
+        .filter(supplier => {
+          const supplierName = supplier.name || supplier.supplierName || '';
+          return supplierName.toLowerCase().includes(formData.supplierName.toLowerCase());
+        })
+        .map(supplier => (
+          <div
+            key={supplier._id || supplier.id}
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                supplierName: supplier.name || supplier.supplierName
+              }));
+              setIsSupplierDropdownOpen(false);
+            }}
+            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+          >
+            <div className="font-medium text-gray-900">
+              {supplier.name || supplier.supplierName || 'Unnamed Supplier'}
             </div>
+            {supplier.contactNumber && (
+              <div className="text-sm text-gray-500">
+                {supplier.contactNumber}
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  )}
+  
+  {(!Array.isArray(suppliers) || suppliers.length === 0) && (
+    <p className="text-red-500 text-sm mt-1">No suppliers available</p>
+  )}
+</div>
 
         {/* Bill No */}
 <div>
@@ -921,24 +961,27 @@ const calculateNextBillNo = () => {
   {/* Filters Section - ADD THIS */}
   <div className="mb-6 p-4 bg-gray-50 rounded-lg">
     <div className="flex flex-col md:flex-row gap-4 items-end">
-      {/* Supplier Filter */}
-      <div className="flex-1">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Filter by Supplier
-        </label>
-        <select
-          value={filterSupplier}
-          onChange={(e) => setFilterSupplier(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Suppliers</option>
-          {Array.isArray(suppliers) && suppliers.map(supplier => (
-            <option key={supplier._id || supplier.id} value={supplier.name || supplier.supplierName}>
-              {supplier.name || supplier.supplierName || 'Unnamed Supplier'}
-            </option>
-          ))}
-        </select>
-      </div>
+  
+  {/* Supplier Filter with Search */}
+<div className="flex-1 relative">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Filter by Supplier
+  </label>
+  <div className="relative">
+    <input
+      type="text"
+      value={filterSupplier}
+      onChange={(e) => setFilterSupplier(e.target.value)}
+      placeholder="Type to search suppliers..."
+      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </div>
+  </div>
+</div>
 
       {/* Date From Filter */}
       <div className="flex-1">
@@ -1067,20 +1110,23 @@ const calculateNextBillNo = () => {
                           />
                         </td>
                         <td className="px-6 py-4">
-                          <select
-                            name="supplierName"
-                            value={editFormData.supplierName}
-                            onChange={handleEditInputChange}
-                            required
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                          >
-                            <option value="">Select Supplier</option>
-                            {Array.isArray(suppliers) && suppliers.map(supplier => (
-                              <option key={supplier._id} value={supplier.name}>
-                                {supplier.name}
-                              </option>
-                            ))}
-                          </select>
+                          <input
+  type="text"
+  name="supplierName"
+  value={editFormData.supplierName}
+  onChange={handleEditInputChange}
+  required
+  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+  placeholder="Type supplier name"
+  list="supplier-list"
+/>
+<datalist id="supplier-list">
+  {Array.isArray(suppliers) && suppliers.map(supplier => (
+    <option key={supplier._id} value={supplier.name || supplier.supplierName}>
+      {supplier.name || supplier.supplierName}
+    </option>
+  ))}
+</datalist>
                         </td>
                         <td className="px-6 py-4">
                           <input
