@@ -36,7 +36,7 @@ const formatDateForDisplay = (dateString) => {
     remarks: "",
     files: []
   });
-  
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -90,17 +90,17 @@ const formatDateForDisplay = (dateString) => {
           console.log("Fetched payment data:", payment);
           
           setFormData({
-            dateOfPayment: new Date(payment.dateOfPayment).toISOString().split('T')[0],
-            customerName: payment.customerName,
-            modeOfPayment: payment.modeOfPayment,
-            chequeDate: payment.chequeDate ? new Date(payment.chequeDate).toISOString().split('T')[0] : "",
-            chequeNumber: payment.chequeNumber || "",
-            bankName: payment.bankName || "",
-            cashGivenTo: payment.cashGivenTo || "",
-            amount: payment.amount.toString(),
-            remarks: payment.remarks || "",
-            files: payment.files || []
-          });
+  dateOfPayment: new Date(payment.dateOfPayment).toISOString().split('T')[0],
+  customerName: payment.customerName,
+  modeOfPayment: payment.modeOfPayment,
+  chequeDate: payment.chequeDate ? new Date(payment.chequeDate).toISOString().split('T')[0] : "",
+  chequeNumber: payment.chequeNumber || "",
+  bankName: payment.bankName || "",
+  cashGivenTo: payment.cashGivenTo || "",
+  amount: payment.amount.toString(),
+  remarks: payment.remarks || "",
+  files: payment.files || []
+});
           
           setIsEditing(true);
         } catch (error) {
@@ -121,13 +121,18 @@ const formatDateForDisplay = (dateString) => {
     }
   }, [editPaymentId, onClose]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+const handleInputChange = (e) => {
+  const { name, value } = e.target;
+  setFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+
+  // Auto-open dropdown when typing in customer name field
+  if (name === 'customerName' && value.length > 0) {
+    setIsCustomerDropdownOpen(true);
+  }
+};
 
  // Replace the deleteFileFromCloudinary function and removeFile function with:
 
@@ -405,30 +410,83 @@ const removeFile = async (index) => {
 </p>
             </div>
 
-            {/* Customer Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Customer Name *
-              </label>
-              <select
-                name="customerName"
-                value={formData.customerName}
-                onChange={handleInputChange}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                required
-              >
-                <option value="">Select Customer</option>
-                {Array.isArray(customers) && customers.length > 0 ? (
-                  customers.map((customer) => (
-                    <option key={customer._id} value={customer.name}>
-                      {customer.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>Loading customers...</option>
-                )}
-              </select>
+           {/* Customer Name with Search */}
+<div className="relative">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Customer Name *
+  </label>
+  <div className="relative">
+    <input
+      type="text"
+      name="customerName"
+      value={formData.customerName}
+      onChange={handleInputChange}
+      onFocus={() => setIsCustomerDropdownOpen(true)}
+      onBlur={() => setTimeout(() => setIsCustomerDropdownOpen(false), 200)}
+      placeholder="Type to search customers..."
+      required
+      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+    />
+    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </div>
+  
+  {/* Search Dropdown */}
+  {isCustomerDropdownOpen && customers.length > 0 && (
+    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+      {customers
+        .filter(customer => {
+          const customerName = customer.name || '';
+          return customerName.toLowerCase().includes(formData.customerName.toLowerCase());
+        })
+        .map(customer => (
+          <div
+            key={customer._id}
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                customerName: customer.name
+              }));
+              setIsCustomerDropdownOpen(false);
+            }}
+            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+          >
+            <div className="font-medium text-gray-900">
+              {customer.name}
             </div>
+            {customer.email && (
+              <div className="text-sm text-gray-500 mt-1">
+                {customer.email}
+              </div>
+            )}
+            {customer.phone && (
+              <div className="text-sm text-gray-500">
+                📞 {customer.phone}
+              </div>
+            )}
+          </div>
+        ))
+      }
+      
+      {/* No results message */}
+      {customers.filter(customer => 
+        customer.name?.toLowerCase().includes(formData.customerName.toLowerCase())
+      ).length === 0 && (
+        <div className="px-4 py-3 text-gray-500 text-center">
+          No customers found matching "{formData.customerName}"
+        </div>
+      )}
+    </div>
+  )}
+  
+  {/* Loading state */}
+  {customers.length === 0 && (
+    <p className="text-gray-500 text-sm mt-1">Loading customers...</p>
+  )}
+</div>
 
             {/* Mode of Payment */}
             <div>
