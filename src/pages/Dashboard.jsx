@@ -9,6 +9,7 @@ import VehicleDocumentsView from "../components/VehicleDocumentsView";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import IncomingPaymentForm from "./IncomingPaymentForm";
+import ProductCustomerSearch from "../components/ProductCustomerSearch";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -326,6 +327,8 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+
+<ProductCustomerSearch />
 
       {/* Enhanced Search Results */}
       <AnimatePresence>
