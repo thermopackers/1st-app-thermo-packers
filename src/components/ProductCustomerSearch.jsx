@@ -274,7 +274,7 @@ export default function ProductCustomerSearch() {
                         {customer.customerName}
                       </h5>
                       <div className="space-y-1 text-sm text-gray-600">
-                        <p><span className="font-medium">Company:</span> {customer.company || "URP"}</p>
+                        <p><span className="font-medium">GST:</span> {customer.company || "URP"}</p>
                         <p><span className="font-medium">Phone:</span> {customer.phone || "-"}</p>
                         <p><span className="font-medium">Email:</span> {customer.email || "-"}</p>
                         <p><span className="font-medium">Total Orders:</span> {customer.totalOrders || 0}</p>
