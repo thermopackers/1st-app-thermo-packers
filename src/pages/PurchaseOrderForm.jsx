@@ -128,7 +128,6 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
       const item = productEntries[i];
       item.gstPercent = item.gstPercent || "0"; // ✅ Add this line
 
-      console.log("item", item);
 
       // Validate required fields
       if (!item.name || !item.qty || !item.price || !item.gstPercent) {
@@ -537,7 +536,6 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
               publicId,
               resourceType,
             });
-            console.log("✅ Old PDF deleted from Cloudinary");
           } catch (err) {
             console.error("❌ Failed to delete old PDF:", err);
           }

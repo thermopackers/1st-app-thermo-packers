@@ -89,9 +89,9 @@ export default function AppRoutes() {
   const { user, loading } = useUserContext();
   const location = useLocation();
 
-  useEffect(() => {
-    console.log("User updated:", user);
-  }, [user]);
+//   useEffect(() => {
+//     console.log("User updated:", user);
+//   }, [user]);
 
   if (loading) {
     return (
