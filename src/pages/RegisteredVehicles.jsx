@@ -474,8 +474,8 @@ const parseUserRoles = (user) => {
                         Manage Docs
                       </button>
                       
-                      {user.role === "accounts" && (
-                        <button
+{userRoles.includes("accounts") && (
+                          <button
                           onClick={() => setSelectedMaintenanceVehicle(vehicle)}
                           className="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-4 py-2 rounded-lg font-medium hover:bg-purple-100 transition-colors duration-200 text-sm"
                         >
