@@ -245,11 +245,9 @@ const handleDeleteFile = async (orderId, fileId) => {
   setDeletingFiles(prev => ({ ...prev, [fileId]: true }));
 
   try {
-    console.log("Deleting file - Order:", orderId, "File ID:", fileId);
     
     // Encode the fileId to handle special characters like slashes
     const encodedFileId = encodeURIComponent(fileId);
-    console.log("Encoded File ID:", encodedFileId);
     
     await axiosInstance.delete(`/orders/${orderId}/cnc-finished-files/${encodedFileId}`);
     

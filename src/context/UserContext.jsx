@@ -21,7 +21,6 @@ export const UserProvider = ({ children }) => {
         typeof parsedUser.role[0] === 'string' && parsedUser.role[0].startsWith('[')) {
       try {
         parsedUser.role = JSON.parse(parsedUser.role[0]);
-        console.log('✅ Parsed user roles:', parsedUser.role);
       } catch (err) {
         console.error('Failed to parse user roles:', err);
       }
@@ -30,7 +29,6 @@ export const UserProvider = ({ children }) => {
     else if (typeof parsedUser.role === 'string' && parsedUser.role.startsWith('[')) {
       try {
         parsedUser.role = JSON.parse(parsedUser.role);
-        console.log('✅ Parsed user roles:', parsedUser.role);
       } catch (err) {
         console.error('Failed to parse user roles:', err);
       }
@@ -43,10 +41,8 @@ export const UserProvider = ({ children }) => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
       
-      console.log('🔍 UserContext: Token exists?', !!token);
       
       if (!token) {
-        console.log('🔍 UserContext: No token, setting user to null');
         setUser(null);
         setToken(null);
         setLoading(false);
@@ -54,7 +50,6 @@ export const UserProvider = ({ children }) => {
       }
 
       try {
-        console.log('🔍 UserContext: Fetching user data...');
         const res = await axiosInstance.get("/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -62,7 +57,6 @@ export const UserProvider = ({ children }) => {
         // ✅ PARSE THE USER ROLES
         const parsedUser = parseUserRoles(res.data);
         
-        console.log('🔍 UserContext: User data fetched and parsed:', parsedUser);
         setUser(parsedUser);
         setToken(token);
       } catch (err) {
@@ -71,7 +65,6 @@ export const UserProvider = ({ children }) => {
         setUser(null);
         setToken(null);
       } finally {
-        console.log('🔍 UserContext: Setting loading to false');
         setLoading(false);
       }
     };
@@ -79,7 +72,6 @@ export const UserProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  console.log('🔄 UserContext State:', { user, loading, token });
 
   return (
     <UserContext.Provider value={{ 

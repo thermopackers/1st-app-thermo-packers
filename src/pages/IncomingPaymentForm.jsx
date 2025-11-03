@@ -48,7 +48,6 @@ const formatDateForDisplay = (dateString) => {
     const fetchCustomers = async () => {
       try {
         const response = await axiosInstance.get("/customers/all");
-        console.log("API Response:", response.data);
         
         let customersData = [];
         
@@ -62,7 +61,6 @@ const formatDateForDisplay = (dateString) => {
           customersData = response.data.data.customers;
         }
         
-        console.log("Processed customers data:", customersData);
         setCustomers(customersData);
         
       } catch (error) {
@@ -87,7 +85,6 @@ const formatDateForDisplay = (dateString) => {
           const response = await axiosInstance.get(`/incoming-payments/${editPaymentId}`);
           const payment = response.data.data;
           
-          console.log("Fetched payment data:", payment);
           
           setFormData({
   dateOfPayment: new Date(payment.dateOfPayment).toISOString().split('T')[0],
@@ -139,7 +136,6 @@ const handleInputChange = (e) => {
 // Function to delete file from Cloudinary via backend
 const deleteFileFromCloudinary = async (fileUrl) => {
   try {
-    console.log("Deleting file via backend:", fileUrl);
     
     const response = await axiosInstance.post("/cloudinary/delete", {
       fileUrl: fileUrl
@@ -149,7 +145,6 @@ const deleteFileFromCloudinary = async (fileUrl) => {
       throw new Error(response.data.message);
     }
 
-    console.log("Cloudinary deletion result:", response.data);
     return true;
   } catch (error) {
     console.error("Error deleting file from Cloudinary:", error);
@@ -282,7 +277,6 @@ const removeFile = async (index) => {
         amount: parseFloat(formData.amount)
       };
 
-      console.log("Submitting payload:", payload);
 
       let response;
       if (isEditing) {
@@ -291,7 +285,6 @@ const removeFile = async (index) => {
         response = await axiosInstance.post("/incoming-payments", payload);
       }
       
-      console.log("Response:", response);
       
       Swal.fire({
         title: "Success!",

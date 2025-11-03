@@ -19,7 +19,6 @@ const SlipFormModal = ({
   const isProduction = type === "production";
   const isPackaging = type === "packaging" || type === "shape-packaging";
   const isShapeOnly = type === "shape-packaging";
-  console.log("pop",products);
   
   const shouldShowShapeSlip =
     isShapeOnly ||

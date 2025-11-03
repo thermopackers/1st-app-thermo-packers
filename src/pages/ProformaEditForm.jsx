@@ -59,10 +59,6 @@ useEffect(() => {
     const id = location.pathname.split("/").pop();
     const res = await axiosInstance.get(`/proforma/${id}`);
     const invoice = res.data.invoice;
-
-    console.log("Invoice data:", invoice);
-    console.log("First product CNC data:", invoice.products[0]?.isCNC, invoice.products[0]?.cncLength);
-
     // ✅ Use nullish coalescing (??) so values like false or 0 are preserved
     const productsWithCNCDefaults = invoice.products.map(product => ({
       ...product,

@@ -32,7 +32,6 @@ export default function OutgoingPaymentForm({ onClose, editPaymentId = null }) {
     const fetchSuppliers = async () => {
       try {
         const response = await axiosInstance.get("/suppliers");
-        console.log("Suppliers API Response:", response.data);
         
         let suppliersData = [];
         
@@ -44,7 +43,6 @@ export default function OutgoingPaymentForm({ onClose, editPaymentId = null }) {
           suppliersData = response.data.suppliers;
         }
         
-        console.log("Processed suppliers data:", suppliersData);
         setSuppliers(suppliersData);
         
       } catch (error) {
@@ -69,7 +67,6 @@ export default function OutgoingPaymentForm({ onClose, editPaymentId = null }) {
           const response = await axiosInstance.get(`/outgoing-payments/${editPaymentId}`);
           const payment = response.data.data;
           
-          console.log("Fetched outgoing payment data:", payment);
           
           setFormData({
             dateOfPayment: new Date(payment.dateOfPayment).toISOString().split('T')[0],
@@ -137,7 +134,6 @@ export default function OutgoingPaymentForm({ onClose, editPaymentId = null }) {
         amount: parseFloat(formData.amount)
       };
 
-      console.log("Submitting outgoing payment:", payload);
 
       let response;
       if (isEditing) {
@@ -146,7 +142,6 @@ export default function OutgoingPaymentForm({ onClose, editPaymentId = null }) {
         response = await axiosInstance.post("/outgoing-payments", payload);
       }
       
-      console.log("Response:", response);
       
       Swal.fire({
         title: "Success!",

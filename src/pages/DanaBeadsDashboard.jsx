@@ -58,7 +58,6 @@ const parseUserRoles = (user) => {
   const cardsRef = useRef([]);
   const navigate = useNavigate();
   const orderContainerRef = useRef(null);
-console.log("filteredOrders",filteredOrders);
 const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
 

@@ -4,12 +4,6 @@ import { Navigate } from 'react-router-dom';
 const ProtectedRoute = ({ children, allowedRoles, mustBeMainAccount = false, isAssistantRoute = false }) => {
   const { user, loading } = useUserContext();
 
-  console.log('🔐 ProtectedRoute State:', {
-    userExists: !!user,
-    user: user,
-    loading: loading
-  });
-
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -49,20 +43,13 @@ const ProtectedRoute = ({ children, allowedRoles, mustBeMainAccount = false, isA
 
   const userRoles = parseUserRoles(user);
 
-  console.log('🔐 Final User Roles:', userRoles);
 
   // Check if user has at least one of the allowed roles
   if (allowedRoles && allowedRoles.length > 0) {
     const hasAllowedRole = userRoles.some(role => allowedRoles.includes(role));
     
-    console.log('🔐 Role Check Result:', {
-      userRoles,
-      allowedRoles,
-      hasAllowedRole
-    });
     
     if (!hasAllowedRole) {
-      console.log('🚫 Access denied - no matching roles');
       return <Navigate to="/unauthorized" replace />;
     }
   }
@@ -71,7 +58,6 @@ const ProtectedRoute = ({ children, allowedRoles, mustBeMainAccount = false, isA
   if (mustBeMainAccount) {
     const hasSupplierRole = userRoles.includes('suppliers');
     if (hasSupplierRole && user.isAssistant) {
-      console.log('🚫 Access denied - must be main supplier account');
       return <Navigate to="/unauthorized" replace />;
     }
   }
@@ -80,12 +66,10 @@ const ProtectedRoute = ({ children, allowedRoles, mustBeMainAccount = false, isA
   if (isAssistantRoute) {
     const hasSupplierRole = userRoles.includes('suppliers');
     if (!user.isAssistant || !hasSupplierRole) {
-      console.log('🚫 Access denied - assistant route requirements not met');
       return <Navigate to="/unauthorized" replace />;
     }
   }
 
-  console.log('✅ Access granted');
   return children;
 };
 

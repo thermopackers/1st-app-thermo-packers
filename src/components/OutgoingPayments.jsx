@@ -133,7 +133,6 @@ useEffect(() => {
   const fetchSuppliers = async () => {
     try {
       const response = await axiosInstance.get('/suppliers/all');
-      console.log('Suppliers API response:', response.data); // Debug log
       
       // Handle different response structures
       let suppliersData = [];
@@ -556,7 +555,6 @@ const handleRemoveEditFile = async (index) => {
         data: { public_id: fileToRemove.public_id }
       });
       
-      console.log('File deleted from Cloudinary:', fileToRemove.public_id);
       Swal.fire('Deleted!', 'File has been permanently deleted.', 'success');
     } catch (error) {
       console.error('Error deleting file from Cloudinary:', error);

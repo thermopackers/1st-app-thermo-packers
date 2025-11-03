@@ -56,8 +56,6 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [allCustomers, setAllCustomers] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
-console.log("allProducts",allProducts);
-console.log("productList",productList);
 
 
 useEffect(() => {
@@ -96,7 +94,6 @@ useEffect(() => {
   const state = location.state;
   if (state?.fromProforma && state.invoice) {
     const invoice = state.invoice;
-console.log("invoice",invoice);
 
     const customer = allCustomers.find(c => c.name === invoice.customerName);
 

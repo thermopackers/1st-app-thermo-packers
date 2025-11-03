@@ -34,7 +34,6 @@ const IssueAsset = () => {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreviews, setImagePreviews] = useState({});
-console.log("usersdd",users);
 
   // Responsive detection
   useEffect(() => {

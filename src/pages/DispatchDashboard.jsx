@@ -20,7 +20,6 @@ const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
   
   const [products, setProducts] = useState([]);
     const [activeProductImage, setActiveProductImage] = useState(null);
-console.log("orders", orders);
 
   const [searchTerm, setSearchTerm] = useState("");
                        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;

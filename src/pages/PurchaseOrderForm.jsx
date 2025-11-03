@@ -36,7 +36,6 @@ const [status, setStatus] = useState("pending");
       imageUrls: [], // Store all image URLs
     },
   ]);
-  console.log("productEntries", productEntries);
 
   const navigate = useNavigate();
   const termsAndConditions = [

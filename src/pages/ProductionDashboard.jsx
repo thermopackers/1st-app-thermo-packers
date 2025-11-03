@@ -60,7 +60,6 @@ const typeFilter = searchParams.get("type"); // shape or dana
   const [endDate, setEndDate] = useState("");
   const [packagingReadyOrders, setPackagingReadyOrders] = useState([]);
 const type = searchParams.get('type');
-console.log("orders",orders);
 const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
 const [editType, setEditType] = useState(null); // 'shape' or 'dana'

@@ -7,7 +7,6 @@ import axiosInstance from "../axiosInstance";
 
 const FaceRegistrationModal = ({ visible, onClose, user }) => {
   const webcamRef = useRef(null);
-console.log("user in modal", user);
 
   const captureImage = () => {
     return webcamRef.current?.getScreenshot();

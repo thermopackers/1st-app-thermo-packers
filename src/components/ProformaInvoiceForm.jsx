@@ -33,7 +33,6 @@ export default function ProformaInvoiceForm() {
     customerEmail: "",         // ✅ add this field silently
   });
 const [customers, setCustomers] = useState([]);
-console.log("cus", customers);
 
 useEffect(() => {
   axiosInstance.get("/customers/all/dropdown")

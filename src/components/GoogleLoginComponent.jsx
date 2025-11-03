@@ -30,7 +30,6 @@
 //       });
       
 //       setUser(userRes.data);
-//       console.log("userRes.data",userRes.data);
       
 //       toast.success('Login successful!');
       
@@ -134,7 +133,6 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
       });
       
       setUser(userRes.data);
-      console.log("User data after login:", userRes.data);
       
       toast.success('Login successful!');
       

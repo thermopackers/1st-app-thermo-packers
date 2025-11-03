@@ -13,7 +13,6 @@ export default function CompletedOrdersDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentPage = parseInt(searchParams.get("page")) || 1;
   const navigate = useNavigate();
-console.log("orders",orders);
 
   const fetchOrders = async () => {
     setLoading(true);

@@ -62,7 +62,6 @@ const fetchLogs = async (pageNum, dateFilter = "") => {
       url += `&date=${encodeURIComponent(dateFilter)}`;
     }
     
-    console.log("Fetching URL:", url); // Debug log
     
     const res = await axiosInstance.get(url);
     setLogs(res.data.logs);
@@ -72,7 +71,6 @@ const fetchLogs = async (pageNum, dateFilter = "") => {
     // Always set filteredLogs to the API response
     setFilteredLogs(res.data.logs);
     
-    console.log("Fetched logs:", res.data.logs.length); // Debug log
   } catch (err) {
     console.error("Error fetching logs:", err);
     Swal.fire("Error", "Failed to fetch logs", "error");

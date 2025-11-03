@@ -19,7 +19,6 @@ const [gstError, setGstError] = useState("");
   const [removedDocs, setRemovedDocs] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [frequentProducts, setFrequentProducts] = useState([]);
-console.log("allUsers",allUsers);
 
 useEffect(() => {
   async function fetchUsers() {

@@ -89,10 +89,7 @@ const [role, setRole] = useState([]);
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-      console.log('🔍 Submitting roles:', role);
-  console.log('🔍 Role type:', typeof role);
-  console.log('🔍 Role is array:', Array.isArray(role));
-   // ✅ FIX: Check if role includes production, not if role equals production
+// ✅ FIX: Check if role includes production, not if role equals production
   if (Array.isArray(role) && role.includes('production') && productionSection.length === 0) {
     toast.error('Please select at least one production section.');
     return;
@@ -215,13 +212,11 @@ setPersonalPhone('');
 
 const fetchUsers = async (page = 1, query = "") => {
   try {
-    console.log('🔍 Fetching users from:', `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`);
     
     const res = await axiosInstance.get(
       `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`
     );
     
-    console.log('✅ Users fetched successfully:', res.data);
     setUsers(res.data.users);
     setCurrentPage(res.data.pagination.currentPage);
     setTotalPages(res.data.pagination.totalPages);

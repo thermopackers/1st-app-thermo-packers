@@ -40,12 +40,10 @@ export default function OrdersList() {
   const [activeProductImage, setActiveProductImage] = useState(null);
   const [resolvedPOUrls, setResolvedPOUrls] = useState({});
   const [customers, setCustomers] = useState([]);
-console.log("customers",customers);
 
 useEffect(() => {
   axiosInstance.get("/customers")
     .then(res => {
-      console.log("Customers API response:", res.data); // 👈 check what comes here
       setCustomers(Array.isArray(res.data) ? res.data : res.data.customers || []);
     })
     .catch(err => console.error("Error fetching customers:", err));
@@ -68,7 +66,6 @@ const getCustomerPhone = (name) => {
       return false;
     }
   };
-  console.log("orders", orders);
 
   useEffect(() => {
     const resolveAllPOCopyUrls = async () => {
@@ -378,22 +375,12 @@ setRole(roles);
       params.ageFilter = sortOrder;
     }
 
-    console.log("🔍 DEBUG - Fetching orders with:", {
-      roles: roles,
-      params: params,
-      filters: filters
-    });
+  
 
     let url = "/orders";
     const res = await axiosInstance.get(url, {
       headers: { Authorization: `Bearer ${token}` },
       params,
-    });
-
-    console.log("📦 DEBUG - Orders response:", {
-      totalOrders: res.data.orders?.length,
-      totalPages: res.data.totalPages,
-      orders: res.data.orders
     });
 
     setOrders(res.data.orders);
@@ -500,7 +487,6 @@ useEffect(() => {
             )
           );
           
-          console.log(`Order ${order.shortId} automatically marked as completed`);
         } catch (err) {
           console.error("Failed to auto-complete order:", err);
         }
@@ -888,7 +874,6 @@ Customer: order.customerName || order.customer?.name || "",
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
   }, [orders]);
-console.log("sortedOrders",sortedOrders);
 
   // ✅ Mark order as completed with confirmation
   const handleComplete = async (id) => {

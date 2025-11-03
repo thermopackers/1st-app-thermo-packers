@@ -139,7 +139,6 @@ const parseUserRoles = (user) => {
         allDates: allDates
       }));
       
-      console.log("📊 Monthly report response:", reportWithSundays);
       setReport(reportWithSundays);
     } catch (err) {
       console.error("❌ Error fetching monthly report:", err.response?.data || err);

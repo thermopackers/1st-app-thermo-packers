@@ -84,7 +84,6 @@ const handleMultipleFilesChange = async (e, fieldName, folderName) => {
     e.preventDefault();
     try {
       const res = await axiosInstance.post('/drawing-orders', formData);
-      console.log('Saved:', res.data);
       toast.success('Order submitted successfully!');
       navigate('/drawing-orders-table');
       setFormData({

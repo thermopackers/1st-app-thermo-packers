@@ -13,7 +13,6 @@ export default function PurchaseOrdersList() {
   const [loadingOrders, setLoadingOrders] = useState([]); // Add this line instead
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
-  console.log("orders",orders);
   
 const navigate = useNavigate();
   // Fetch orders with pagination and search
