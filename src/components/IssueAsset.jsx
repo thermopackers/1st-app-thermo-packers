@@ -34,6 +34,7 @@ const IssueAsset = () => {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreviews, setImagePreviews] = useState({});
+console.log("usersdd",users);
 
   // Responsive detection
   useEffect(() => {
@@ -260,9 +261,9 @@ const IssueAsset = () => {
                     >
                       <option value="">-- Select a User --</option>
                       {users.map(user => (
-                        <option key={user._id} value={user._id}>
-                          {user.name} ({user.email}) - {user.role}
-                        </option>
+                       <option key={user._id} value={user._id}>
+  {user.name} ({user.email}) - {Array.isArray(user.role) ? user.role.join(', ') : user.role}
+</option>
                       ))}
                       <option value="manual">➕ Other (Not in List)</option>
                     </select>

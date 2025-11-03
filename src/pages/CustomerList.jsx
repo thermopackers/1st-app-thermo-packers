@@ -7,6 +7,36 @@ import { useUserContext } from "../context/UserContext";
 
 export default function CustomerList() {
     const { user } = useUserContext();
+    // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+  const userRoles = user ? parseUserRoles(user) : [];
+
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -90,8 +120,8 @@ const handlePageChange = (newPage) => {
   }}
   className="mb-4 w-full px-4 py-2 border border-gray-300 rounded-md"
 />
-{user.role !== "sales" && (
-<input
+{!userRoles.includes("sales") && (
+  <input
   type="text"
   placeholder="Search by Sales Name or Email"
   value={addedBySearch}
@@ -105,8 +135,7 @@ const handlePageChange = (newPage) => {
 
 
         <div className="overflow-x-auto w-full rounded-lg shadow">
-          {user.role !== "sales" && (
-
+{!userRoles.includes("sales") && (
           <select
   value={selectedSalesId}
   onChange={(e) => {

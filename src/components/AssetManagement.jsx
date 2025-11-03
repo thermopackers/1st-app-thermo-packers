@@ -26,6 +26,22 @@ const AssetImage = memo(({ imgUrl, onClick }) => {
 });
 
 const AssetManagement = ({ hideNavbar }) => {
+  // ✅ ADD THIS HELPER FUNCTION
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  if (Array.isArray(user.role)) {
+    if (user.role.length === 1 && typeof user.role[0] === 'string') {
+      return user.role;
+    }
+    return user.role;
+  }
+  
+  return [user.role];
+};
+
   const [assets, setAssets] = useState([]);
   const [isEdit, setIsEdit] = useState(false);
   const [editAsset, setEditAsset] = useState(null);
@@ -40,23 +56,26 @@ const AssetManagement = ({ hideNavbar }) => {
   const { user } = useUserContext();
   const navigate = useNavigate();
 
+  // ✅ Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
+
   useEffect(() => {
     const fetchAssets = async () => {
       try {
         const res = await axiosInstance.get("/assets/all-assets", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
- 
         setAssets(res.data);
       } catch (err) {
         console.error("Error fetching assets:", err);
       }
     };
 
-    if (user && (user.role === "admin" || user.role === "accounts")) {
+    // ✅ FIXED: Use userRoles instead of user.role
+    if (user && (userRoles.includes("admin") || userRoles.includes("accounts"))) {
       fetchAssets();
     }
-  }, [user]);
+  }, [user, userRoles]); // ✅ Add userRoles to dependency array
 
   const deleteAsset = async (id) => {
     if (!window.confirm("Are you sure you want to delete this asset?")) return;

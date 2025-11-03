@@ -20,6 +20,31 @@ const DOCUMENT_TYPES = {
 
 export default function VehicleDocumentsView({ vehicleNumber }) {
   const { token, user } = useUserContext();
+   // ✅ Add this helper function
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    // If role is already an array, return it directly
+    if (Array.isArray(user.role)) {
+      return user.role;
+    }
+    
+    // If it's a string (legacy format), try to parse it
+    if (typeof user.role === 'string') {
+      try {
+        return JSON.parse(user.role);
+      } catch (parseError) {
+        return [user.role];
+      }
+    }
+    
+    return [user.role];
+  };
+
+  // ✅ Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -173,8 +198,8 @@ const openInSwal = (url, isImage) => {
       )}
 
       {/* ❌ delete button */}
-     {user?.role !== "driver" && (
-  <button
+{!userRoles.includes("driver") && (
+    <button
     onClick={(e) => {
       e.stopPropagation(); // prevent opening swal when deleting
       handleDeleteFile(doc._id, url);

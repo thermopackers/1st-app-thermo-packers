@@ -10,6 +10,49 @@ import { useUserContext } from "../context/UserContext";
 import EditPackagingSlipForm from "../components/EditPackagingSlipForm";
 
 const PackagingDashboard = () => {
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  
+  // Case 1: Already a proper array (your current format)
+  if (Array.isArray(user.role)) {
+    // Check if it's an array of strings (new format)
+    if (user.role.length > 0 && typeof user.role[0] === 'string') {
+      // If it's a JSON string inside array (old format)
+      if (user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        // It's already a proper array of role strings (new format)
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } 
+  // Case 2: String that might be JSON
+  else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } 
+  // Case 3: Single value
+  else {
+    userRoles = [user.role];
+  }
+  
+  // Ensure we always return an array
+  return Array.isArray(userRoles) ? userRoles : [userRoles];
+};
   const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
                        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
@@ -32,7 +75,34 @@ const currentPage = parseInt(searchParams.get("page")) || 1;
   const orderContainerRef = useRef(null);
  const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
+  // ✅ Add userRoles declaration
+  const userRoles = user ? parseUserRoles(user) : [];
 
+   // Check if user has access to packaging dashboard
+  useEffect(() => {
+    if (user && !userRoles.some(role => ["packaging", "accounts", "admin", "production"].includes(role))) {
+      Swal.fire({
+        title: "Access Denied",
+        text: "You don't have permission to access the Packaging Dashboard",
+        icon: "error",
+        confirmButtonText: "OK"
+      }).then(() => {
+        navigate("/dashboard");
+      });
+    }
+  }, [user, userRoles, navigate]);
+
+  // If no user or unauthorized, show loading
+  if (!user || !userRoles.some(role => ["packaging", "accounts", "admin", "production"].includes(role))) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+          <p className="text-purple-700 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
       const po = order.po || "N/A";

@@ -5,6 +5,35 @@ import { useUserContext } from '../context/UserContext';
 import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
 
+// Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
 const ROWS_PER_PAGE = 5;
 
 const PackagingReport = () => {
@@ -18,6 +47,9 @@ const PackagingReport = () => {
   const [filterDate, setFilterDate] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // ✅ Parse user roles properly
+  const userRoles = user ? parseUserRoles(user) : [];
+
   useEffect(() => {
     const debounced = debounce(() => {
       setSearchTerm(rawSearchTerm);
@@ -26,20 +58,21 @@ const PackagingReport = () => {
     debounced();
     return () => debounced.cancel();
   }, [rawSearchTerm]);
-useEffect(() => {
-  const fetchProducts = async () => {
-    try {
-      const res = await axiosInstance.get('/products/all-backend-products', {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      setProductOptions(res.data || []);
-    } catch (err) {
-      console.error('Failed to load product list', err);
-    }
-  };
 
-  if (user) fetchProducts();
-}, [user]);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axiosInstance.get('/products/all-backend-products', {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        setProductOptions(res.data || []);
+      } catch (err) {
+        console.error('Failed to load product list', err);
+      }
+    };
+
+    if (user) fetchProducts();
+  }, [user]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,10 +100,11 @@ useEffect(() => {
       }
     };
 
-    if (user.role === 'accounts' || user.role === 'packaging') {
+    // ✅ Use parsed userRoles instead of user.role
+    if (userRoles.includes('accounts') || userRoles.includes('packaging')) {
       fetchData();
     }
-  }, [user, currentPage, searchTerm, filterDate]);
+  }, [user, currentPage, searchTerm, filterDate, userRoles]);
 
   const handleInputChange = (date, index, field, value) => {
     const updated = { ...groupedData };
@@ -94,7 +128,7 @@ useEffect(() => {
       packedQty: '',
       balanceStock: '',
       tapeUsed: '',
-        isNew: true, // ✅ mark unsaved rows
+      isNew: true, // ✅ mark unsaved rows
     };
 
     const updated = {
@@ -102,48 +136,47 @@ useEffect(() => {
       [today]: groupedData[today] ? [...groupedData[today], newRow] : [newRow],
     };
 
-      // ✅ Reassign srNo
-  updated[today] = updated[today].map((r, idx) => ({
-    ...r,
-    srNo: idx + 1,
-  }));
+    // ✅ Reassign srNo
+    updated[today] = updated[today].map((r, idx) => ({
+      ...r,
+      srNo: idx + 1,
+    }));
     setGroupedData(updated);
     setCurrentPage(1);
   };
 
   const handleDeleteRow = async (date, index) => {
-  const updated = { ...groupedData };
-  const row = updated[date]?.[index];
-  if (!row) return;
+    const updated = { ...groupedData };
+    const row = updated[date]?.[index];
+    if (!row) return;
 
-  // If saved (has _id), delete from DB
-  if (row._id) {
-    try {
-      await axiosInstance.delete(`/packaging-report/delete/${row._id}`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      toast.success("Row deleted from server.");
-    } catch (err) {
-      console.error("Delete error:", err);
-      toast.error("Failed to delete row from server.");
-      return;
+    // If saved (has _id), delete from DB
+    if (row._id) {
+      try {
+        await axiosInstance.delete(`/packaging-report/delete/${row._id}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        toast.success("Row deleted from server.");
+      } catch (err) {
+        console.error("Delete error:", err);
+        toast.error("Failed to delete row from server.");
+        return;
+      }
     }
-  }
 
-  // Remove from UI
-  updated[date].splice(index, 1);
-  if (updated[date].length === 0) {
-    delete updated[date];
-  } else {
-    updated[date] = updated[date].map((r, idx) => ({
-      ...r,
-      srNo: idx + 1,
-    }));
-  }
+    // Remove from UI
+    updated[date].splice(index, 1);
+    if (updated[date].length === 0) {
+      delete updated[date];
+    } else {
+      updated[date] = updated[date].map((r, idx) => ({
+        ...r,
+        srNo: idx + 1,
+      }));
+    }
 
-  setGroupedData(updated);
-};
-
+    setGroupedData(updated);
+  };
 
   const handleSave = async () => {
     const flatData = Object.values(groupedData).flat();
@@ -152,13 +185,13 @@ useEffect(() => {
         headers: { Authorization: `Bearer ${user.token}` },
       });
 
-       // ✅ Remove isNew after saving
-    const cleaned = {};
-    for (const date in groupedData) {
-      cleaned[date] = groupedData[date].map(({ isNew, ...rest }) => rest);
-    }
+      // ✅ Remove isNew after saving
+      const cleaned = {};
+      for (const date in groupedData) {
+        cleaned[date] = groupedData[date].map(({ isNew, ...rest }) => rest);
+      }
 
-    setGroupedData(cleaned);
+      setGroupedData(cleaned);
       toast.success('Data saved successfully!');
     } catch (err) {
       toast.error('Failed to save data');
@@ -168,12 +201,26 @@ useEffect(() => {
 
   const paginatedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a));
 
-  if (!(user.role === 'accounts' || user.role === 'packaging')) return null;
-const flatRows = Object.entries(groupedData)
-  .flatMap(([date, rows]) =>
-    rows.map((row) => ({ ...row, __date: date }))
-  );
-const paginatedRows = flatRows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+  // ✅ Use userRoles for access control
+  if (!(userRoles.includes('accounts') || userRoles.includes('packaging'))) {
+    return (
+      <>
+        <InternalNavbar />
+        <div className="w-screen px-4 mt-8 mb-12">
+          <div className="text-center py-10">
+            <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to access this page.</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const flatRows = Object.entries(groupedData)
+    .flatMap(([date, rows]) =>
+      rows.map((row) => ({ ...row, __date: date }))
+    );
+  const paginatedRows = flatRows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
 
   return (
     <>
@@ -185,7 +232,7 @@ const paginatedRows = flatRows.slice((currentPage - 1) * ROWS_PER_PAGE, currentP
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
           <input
             type="text"
-placeholder="Search Lady or Product"
+            placeholder="Search Lady or Product"
             value={rawSearchTerm}
             onChange={(e) => setRawSearchTerm(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 w-full sm:w-1/3"
@@ -240,151 +287,150 @@ placeholder="Search Lady or Product"
                   ))}
                 </tr>
               </thead>
-            <tbody>
-  {paginatedDates.length === 0 ? (
-    <tr>
-      <td colSpan={11} className="text-center py-4 text-gray-500">No data available</td>
-    </tr>
-  ) : (
-    (() => {
-      let serialNo = (currentPage - 1) * ROWS_PER_PAGE;
+              <tbody>
+                {paginatedDates.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="text-center py-4 text-gray-500">No data available</td>
+                  </tr>
+                ) : (
+                  (() => {
+                    let serialNo = (currentPage - 1) * ROWS_PER_PAGE;
 
-      return paginatedDates.map((date) => {
-        const rows = groupedData[date];
-        const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
+                    return paginatedDates.map((date) => {
+                      const rows = groupedData[date];
+                      const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
 
-        return (
-          <React.Fragment key={date}>
-            {rows.map((row, idx) => {
-              serialNo += 1;
+                      return (
+                        <React.Fragment key={date}>
+                          {rows.map((row, idx) => {
+                            serialNo += 1;
 
-              return (
-                <tr
-                  key={`${date}-${idx}`}
-                  className={
-                    row.isNew
-                      ? 'bg-green-200 border-green-500'
-                      : idx % 2 === 0
-                      ? 'bg-gray-50'
-                      : ''
-                  }
-                >
-                  <td className="px-2 py-1 text-center">{serialNo}</td>
-                  <td className="px-2 py-1 text-center">
-                    <input
-                      type="date"
-                      value={row.date}
-                      max={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="text"
-                      value={row.ladyName}
-                      onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Name"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      list={`product-options-${date}-${idx}`}
-                      value={row.productionProduct}
-                      onChange={(e) => handleInputChange(date, idx, 'productionProduct', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Type or select product"
-                    />
-                    <datalist id={`product-options-${date}-${idx}`}>
-                      {productOptions.map((prod, i) => (
-                        <option key={i} value={prod.productName || prod.name} />
-                      ))}
-                    </datalist>
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      value={row.productWeight}
-                      onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Grams"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      value={row.dryWeight}
-                      onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Dry (grams)"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="text"
-                      value={row.polytheneSize}
-                      onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Size"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      value={row.packedQty}
-                      onChange={(e) => handleInputChange(date, idx, 'packedQty', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Qty"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      value={row.balanceStock}
-                      onChange={(e) => handleInputChange(date, idx, 'balanceStock', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Balance"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      value={row.tapeUsed}
-                      onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="Tapes"
-                    />
-                  </td>
-                  <td className="px-2 py-1 text-center">
-                    {!row._id && !row.ladyName && !row.productionProduct && !row.packedQty ? (
-                      <button
-                        onClick={() => handleDeleteRow(date, idx)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                      >
-                        Delete
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
+                            return (
+                              <tr
+                                key={`${date}-${idx}`}
+                                className={
+                                  row.isNew
+                                    ? 'bg-green-200 border-green-500'
+                                    : idx % 2 === 0
+                                    ? 'bg-gray-50'
+                                    : ''
+                                }
+                              >
+                                <td className="px-2 py-1 text-center">{serialNo}</td>
+                                <td className="px-2 py-1 text-center">
+                                  <input
+                                    type="date"
+                                    value={row.date}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="text"
+                                    value={row.ladyName}
+                                    onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Name"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    list={`product-options-${date}-${idx}`}
+                                    value={row.productionProduct}
+                                    onChange={(e) => handleInputChange(date, idx, 'productionProduct', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Type or select product"
+                                  />
+                                  <datalist id={`product-options-${date}-${idx}`}>
+                                    {productOptions.map((prod, i) => (
+                                      <option key={i} value={prod.productName || prod.name} />
+                                    ))}
+                                  </datalist>
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="number"
+                                    value={row.productWeight}
+                                    onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Grams"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="number"
+                                    value={row.dryWeight}
+                                    onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Dry (grams)"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="text"
+                                    value={row.polytheneSize}
+                                    onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Size"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="number"
+                                    value={row.packedQty}
+                                    onChange={(e) => handleInputChange(date, idx, 'packedQty', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Qty"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="number"
+                                    value={row.balanceStock}
+                                    onChange={(e) => handleInputChange(date, idx, 'balanceStock', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Balance"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <input
+                                    type="number"
+                                    value={row.tapeUsed}
+                                    onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
+                                    className="border rounded px-2 py-1 w-full"
+                                    placeholder="Tapes"
+                                  />
+                                </td>
+                                <td className="px-2 py-1 text-center">
+                                  {!row._id && !row.ladyName && !row.productionProduct && !row.packedQty ? (
+                                    <button
+                                      onClick={() => handleDeleteRow(date, idx)}
+                                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                    >
+                                      Delete
+                                    </button>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            );
+                          })}
 
-            {/* Total Row for each date */}
-            <tr className="bg-yellow-100 font-semibold text-gray-900">
-              <td colSpan={7} className="text-right px-3 py-2">
-                Total Packed Qty for {date}
-              </td>
-              <td className="text-center">{totalPackedQty}</td>
-              <td colSpan={3}></td>
-            </tr>
-          </React.Fragment>
-        );
-      });
-    })()
-  )}
-</tbody>
-
+                          {/* Total Row for each date */}
+                          <tr className="bg-yellow-100 font-semibold text-gray-900">
+                            <td colSpan={7} className="text-right px-3 py-2">
+                              Total Packed Qty for {date}
+                            </td>
+                            <td className="text-center">{totalPackedQty}</td>
+                            <td colSpan={3}></td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    });
+                  })()
+                )}
+              </tbody>
             </table>
           </div>
         )}

@@ -12,6 +12,36 @@ import IncomingPaymentForm from "./IncomingPaymentForm";
 import ProductCustomerSearch from "../components/ProductCustomerSearch";
 
 export default function Dashboard() {
+ // Helper function to parse roles properly
+ const parseUserRoles = (user) => {
+    // ✅ Add null check
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    let userRoles = [];
+    if (Array.isArray(user.role)) {
+      if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        userRoles = user.role;
+      }
+    } else if (typeof user.role === 'string') {
+      try {
+        userRoles = JSON.parse(user.role);
+      } catch (parseError) {
+        userRoles = [user.role];
+      }
+    } else {
+      userRoles = [user.role];
+    }
+    return userRoles;
+  };
+
   const navigate = useNavigate();
   const location = useLocation();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -31,17 +61,20 @@ export default function Dashboard() {
   const [driverVehicle, setDriverVehicle] = useState(null);
   const [docNotifCount, setDocNotifCount] = useState(0);
 
+    // ✅ ADD THIS LINE - Declare userRoles at component level
+  const userRoles = user ? parseUserRoles(user) : [];
+
   // Animation variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: {
         duration: 0.6,
-        ease: "easeOut"
-      }
-    }
+        ease: "easeOut",
+      },
+    },
   };
 
   const staggerContainer = {
@@ -49,9 +82,9 @@ export default function Dashboard() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   const cardHover = {
@@ -61,9 +94,9 @@ export default function Dashboard() {
       boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
       transition: {
         duration: 0.3,
-        ease: "easeInOut"
-      }
-    }
+        ease: "easeInOut",
+      },
+    },
   };
 
   const buttonHover = {
@@ -71,48 +104,55 @@ export default function Dashboard() {
       scale: 1.05,
       transition: {
         duration: 0.2,
-        ease: "easeInOut"
-      }
+        ease: "easeInOut",
+      },
     },
     tap: {
-      scale: 0.95
-    }
+      scale: 0.95,
+    },
   };
 
-  useEffect(() => {
-    if (!user || user.role !== "driver") return;
-    const token = localStorage.getItem("token");
-    const fetchVehicle = async () => {
-      try {
-        const res = await axiosInstance.get("/vehicles/all", {
+useEffect(() => {
+  // ✅ Fix: Add null check
+  if (!user) return;
+  if (!userRoles.includes("driver")) return;
+  
+  const token = localStorage.getItem("token");
+  const fetchVehicle = async () => {
+    try {
+      const res = await axiosInstance.get("/vehicles/all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const vehicle = res.data.find((v) => v.driverEmail === user.email);
+      setDriverVehicle(vehicle);
+    } catch (err) {
+      console.error("❌ Failed to fetch driver vehicle", err);
+    }
+  };
+  fetchVehicle();
+}, [user,userRoles]);
+
+useEffect(() => {
+  // ✅ Fix: Add null check
+  if (!user) return;
+  if (!userRoles.includes("accounts")) return;
+  
+  const token = localStorage.getItem("token");
+  const fetchDocNotifCount = async () => {
+    try {
+      const res = await axiosInstance.get(
+        `/vehicle-documents/notifications/expiring`,
+        {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        const vehicle = res.data.find((v) => v.driverEmail === user.email);
-        setDriverVehicle(vehicle);
-      } catch (err) {
-        console.error("❌ Failed to fetch driver vehicle", err);
-      }
-    };
-    fetchVehicle();
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.role !== "accounts") return;
-    const token = localStorage.getItem("token");
-
-    const fetchDocNotifCount = async () => {
-      try {
-        const res = await axiosInstance.get(`/vehicle-documents/notifications/expiring`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDocNotifCount(res.data.length || 0); 
-      } catch (err) {
-        console.error("Failed to fetch document notifications count", err);
-      }
-    };
-
-    fetchDocNotifCount();
-  }, [user]);
+        }
+      );
+      setDocNotifCount(res.data.length || 0);
+    } catch (err) {
+      console.error("Failed to fetch document notifications count", err);
+    }
+  };
+  fetchDocNotifCount();
+}, [user,userRoles]);
 
   useEffect(() => {
     if (!user) return;
@@ -165,29 +205,29 @@ export default function Dashboard() {
     try {
       const [purchaseRes, salesRes] = await Promise.all([
         axiosInstance.get(`/purchase-products?search=${query}&limit=5`),
-        axiosInstance.get(`/products-multer?search=${query}&limit=5`)
+        axiosInstance.get(`/products-multer?search=${query}&limit=5`),
       ]);
 
       const purchaseProducts = purchaseRes.data.data || [];
       const salesProducts = salesRes.data.products || [];
 
       const results = [
-        ...purchaseProducts.map(p => ({
+        ...purchaseProducts.map((p) => ({
           ...p,
-          type: 'purchase',
+          type: "purchase",
           id: p._id,
           name: p.name,
           unit: p.unit,
-          price: p.price
+          price: p.price,
         })),
-        ...salesProducts.map(p => ({
+        ...salesProducts.map((p) => ({
           ...p,
-          type: 'sales',
+          type: "sales",
           id: p._id,
           name: p.name,
           unit: p.unit,
-          price: p.price
-        }))
+          price: p.price,
+        })),
       ];
 
       setSearchResults(results);
@@ -199,10 +239,10 @@ export default function Dashboard() {
         text: "Failed to search products",
         icon: "error",
         confirmButtonColor: "#2563eb",
-        background: '#f8fafc',
+        background: "#f8fafc",
         customClass: {
-          popup: 'rounded-2xl'
-        }
+          popup: "rounded-2xl",
+        },
       });
     } finally {
       setSearchLoading(false);
@@ -217,7 +257,6 @@ export default function Dashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-    
           <motion.div
             className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
             animate={{ rotate: 360 }}
@@ -263,15 +302,28 @@ export default function Dashboard() {
     </motion.div>
   );
 
-  const ActionButton = ({ to, onClick, children, className = "", icon, variant = "primary" }) => {
+  const ActionButton = ({
+    to,
+    onClick,
+    children,
+    className = "",
+    icon,
+    variant = "primary",
+  }) => {
     const variants = {
-      primary: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
-      success: "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
-      warning: "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
-      danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
-      indigo: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
-      purple: "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
-      pink: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
+      primary:
+        "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+      success:
+        "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
+      warning:
+        "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
+      danger:
+        "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+      indigo:
+        "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+      purple:
+        "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+      pink: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700",
     };
 
     const buttonContent = (
@@ -283,7 +335,11 @@ export default function Dashboard() {
         onClick={onClick}
       >
         <div className="flex flex-col items-center text-center">
-          {icon && <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{icon}</div>}
+          {icon && (
+            <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">
+              {icon}
+            </div>
+          )}
           {children}
         </div>
       </motion.button>
@@ -301,7 +357,7 @@ export default function Dashboard() {
       <InternalNavbar />
 
       {/* Enhanced Search Bar */}
-      <motion.div 
+      <motion.div
         className="sticky top-14 md:top-20 z-40 bg-white/95 backdrop-blur-md shadow-lg py-4 px-4 border-b border-gray-200"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -328,7 +384,7 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-<ProductCustomerSearch />
+      <ProductCustomerSearch />
 
       {/* Enhanced Search Results */}
       <AnimatePresence>
@@ -341,15 +397,17 @@ export default function Dashboard() {
           >
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-gray-800 text-lg">Search Results</h3>
-                <button 
+                <h3 className="font-bold text-gray-800 text-lg">
+                  Search Results
+                </h3>
+                <button
                   onClick={() => setShowSearchResults(false)}
                   className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100"
                 >
                   ✕
                 </button>
               </div>
-              
+
               {searchResults.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-2">🔍</div>
@@ -358,10 +416,10 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {searchResults.map((product) => (
-                    <motion.div 
+                    <motion.div
                       key={`${product.type}-${product.id}`}
                       onClick={() => {
-                        if (product.type === 'purchase') {
+                        if (product.type === "purchase") {
                           navigate(`/purchase-products/edit/${product.id}`);
                         } else {
                           navigate(`/products/edit/${product.id}`);
@@ -378,13 +436,25 @@ export default function Dashboard() {
                             {product.name}
                           </h4>
                           <p className="text-sm text-gray-600 mt-1">
-                            {product.unit} • <span className={`font-medium ${product.type === 'purchase' ? 'text-green-600' : 'text-purple-600'}`}>
-                              {product.type === 'purchase' ? 'Purchase' : 'Sales'} Product
+                            {product.unit} •{" "}
+                            <span
+                              className={`font-medium ${
+                                product.type === "purchase"
+                                  ? "text-green-600"
+                                  : "text-purple-600"
+                              }`}
+                            >
+                              {product.type === "purchase"
+                                ? "Purchase"
+                                : "Sales"}{" "}
+                              Product
                             </span>
                           </p>
                         </div>
                         {product.price && (
-                          <span className="text-blue-600 font-bold">₹{product.price}</span>
+                          <span className="text-blue-600 font-bold">
+                            ₹{product.price}
+                          </span>
                         )}
                       </div>
                     </motion.div>
@@ -407,8 +477,12 @@ export default function Dashboard() {
           <div className="mx-auto max-w-7xl px-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold">📋 Mark Your Attendance</h2>
-                <p className="text-blue-100 mt-1">Quickly record your daily check-in</p>
+                <h2 className="text-xl md:text-2xl font-bold">
+                  📋 Mark Your Attendance
+                </h2>
+                <p className="text-blue-100 mt-1">
+                  Quickly record your daily check-in
+                </p>
               </div>
               <motion.button
                 onClick={() => navigate("/attendance")}
@@ -426,17 +500,19 @@ export default function Dashboard() {
 
       {/* Enhanced Documents Notification */}
       <div className="flex justify-end mx-auto max-w-7xl mt-6 px-4">
-        {user.role === "accounts" && (
+        {userRoles.includes("accounts") && (
           <motion.button
             onClick={() => setShowDocNotifications((prev) => !prev)}
             className="relative flex items-center gap-3 bg-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-300 group"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <div className="text-2xl group-hover:scale-110 transition-transform">📋</div>
+            <div className="text-2xl group-hover:scale-110 transition-transform">
+              📋
+            </div>
             <span className="font-medium text-gray-700">Document Alerts</span>
             {docNotifCount > 0 && (
-              <motion.span 
+              <motion.span
                 className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -466,7 +542,7 @@ export default function Dashboard() {
       <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
-          <motion.div 
+          <motion.div
             className="mb-6 hidden md:block"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -476,7 +552,9 @@ export default function Dashboard() {
               className="inline-flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg hover:shadow-xl text-gray-700 font-medium transition-all duration-300 group"
               whileHover={{ x: -5 }}
             >
-              <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
+              <span className="text-xl group-hover:-translate-x-1 transition-transform">
+                ←
+              </span>
               Back to Previous
             </button>
           </motion.div>
@@ -484,86 +562,90 @@ export default function Dashboard() {
           {/* Enhanced Profile Header */}
           <DashboardSection>
             <DashboardCard className="p-8">
-            <div className="flex flex-col items-center gap-8">
-  {/* Profile Picture - Always Centered */}
-  <motion.div 
-    className="flex flex-col items-center"
-    whileHover={{ scale: 1.05 }}
-    transition={{ type: "spring", stiffness: 300 }}
-  >
-    {user.profilePicture ? (
-      <img
-        src={user.profilePicture}
-        alt="Profile"
-        className="w-45 h-45 md:w-45 md:h-45 rounded-full object-cover border-4 border-blue-200 shadow-lg"
-      />
-    ) : (
-      <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg">
-        <span className="text-3xl md:text-4xl font-bold text-white">
-          {user.name?.charAt(0)?.toUpperCase()}
-        </span>
-      </div>
-    )}
-    <p className="mt-3 text-xs text-slate-500 text-center max-w-[200px]">
-      Download and set a Profile Picture for WhatsApp, Gmail, etc.
-    </p>
-  </motion.div>
+              <div className="flex flex-col items-center gap-8">
+                {/* Profile Picture - Always Centered */}
+                <motion.div
+                  className="flex flex-col items-center"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  {user.profilePicture ? (
+                    <img
+                      src={user.profilePicture}
+                      alt="Profile"
+                      className="w-45 h-45 md:w-45 md:h-45 rounded-full object-cover border-4 border-blue-200 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg">
+                      <span className="text-3xl md:text-4xl font-bold text-white">
+                        {user.name?.charAt(0)?.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <p className="mt-3 text-xs text-slate-500 text-center max-w-[200px]">
+                    Download and set a Profile Picture for WhatsApp, Gmail, etc.
+                  </p>
+                </motion.div>
 
-  {/* User Info - Always Centered */}
-  <div className="text-center flex-1">
-    <motion.h1 
-      className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"
-      variants={fadeInUp}
-    >
-      Welcome back, <span className="text-blue-600">{user.name}</span>! 👋
-    </motion.h1>
-    <motion.p 
-      className="text-lg text-gray-600 mb-1"
-      variants={fadeInUp}
-    >
-      {user.email}
-    </motion.p>
-    {!(user.role === "suppliers" || user.role === "viewer") && (
-      <motion.span 
-        className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mt-2"
-        variants={fadeInUp}
-      >
-        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-      </motion.span>
-    )}
-  </div>
+                {/* User Info - Always Centered */}
+                <div className="text-center flex-1">
+                  <motion.h1
+                    className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"
+                    variants={fadeInUp}
+                  >
+                    Welcome back,{" "}
+                    <span className="text-blue-600">{user.name}</span>! 👋
+                  </motion.h1>
+                  <motion.p
+                    className="text-lg text-gray-600 mb-1"
+                    variants={fadeInUp}
+                  >
+                    {user.email}
+                  </motion.p>
+{!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (                    <motion.span
+                      className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mt-2"
+                      variants={fadeInUp}
+                    >
+                      {parseUserRoles(user)
+                        .map(
+                          (role) => role.charAt(0).toUpperCase() + role.slice(1)
+                        )
+                        .join(", ")}{" "}
+                    </motion.span>
+                  )}
+                </div>
 
-  {/* Visiting Card - Centered */}
-  {user.visitingCard && (
-    <motion.div
-      className="flex justify-center"
-      variants={fadeInUp}
-    >
-      <button
-        onClick={() =>
-          Swal.fire({
-            title: "Your Visiting Card",
-            imageUrl: user.visitingCard,
-            imageAlt: "Visiting Card",
-            confirmButtonText: "Close",
-            confirmButtonColor: "#2563eb",
-            width: "auto",
-            background: '#f8fafc',
-            customClass: {
-              popup: 'rounded-2xl'
-            }
-          })
-        }
-        className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <span>📇</span>
-        View or Download Visiting Card
-      </button>
-    </motion.div>
-  )}
-</div>
+                {/* Visiting Card - Centered */}
+                {user.visitingCard && (
+                  <motion.div
+                    className="flex justify-center"
+                    variants={fadeInUp}
+                  >
+                    <button
+                      onClick={() =>
+                        Swal.fire({
+                          title: "Your Visiting Card",
+                          imageUrl: user.visitingCard,
+                          imageAlt: "Visiting Card",
+                          confirmButtonText: "Close",
+                          confirmButtonColor: "#2563eb",
+                          width: "auto",
+                          background: "#f8fafc",
+                          customClass: {
+                            popup: "rounded-2xl",
+                          },
+                        })
+                      }
+                      className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span>📇</span>
+                      View or Download Visiting Card
+                    </button>
+                  </motion.div>
+                )}
+              </div>
 
               {/* Follow-up Notifications */}
               {followUps.length > 0 && (
@@ -578,7 +660,10 @@ export default function Dashboard() {
                   </h3>
                   <div className="space-y-2">
                     {followUps.map((note, idx) => (
-                      <div key={idx} className="flex items-center gap-3 text-amber-800">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 text-amber-800"
+                      >
                         <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
                         <span className="flex-1">{note.message}</span>
                         {note.link && (
@@ -592,7 +677,7 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                  
+
                   {totalPages > 1 && (
                     <div className="mt-4 flex items-center justify-end gap-2">
                       <button
@@ -606,7 +691,9 @@ export default function Dashboard() {
                         Page {page} of {totalPages}
                       </span>
                       <button
-                        onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                        onClick={() =>
+                          setPage((p) => Math.min(p + 1, totalPages))
+                        }
                         disabled={page === totalPages}
                         className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 disabled:opacity-50 hover:bg-amber-100 transition-colors"
                       >
@@ -620,251 +707,274 @@ export default function Dashboard() {
           </DashboardSection>
 
           {/* Enhanced Driver Section */}
-          {user.role === "driver" && (
-            <DashboardSection>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Dispatch Plans */}
-                <DashboardCard>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-                    <span className="text-3xl">🚚</span>
-                    My Dispatch Plans
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    View your assigned daily dispatch plans and delivery schedules
-                  </p>
-                  <ActionButton 
-                    to="/my-plans" 
-                    variant="indigo"
-                    icon="📋"
-                  >
-                    <div className="text-xl font-semibold mb-2">View Dispatch Plans</div>
-                    <div className="text-indigo-100 text-sm opacity-90">
-                      Check your daily assignments
-                    </div>
-                  </ActionButton>
-                </DashboardCard>
+         {userRoles.includes("driver") && (
 
-                {/* Vehicle Documents */}
-                {driverVehicle && (
-                  <DashboardCard>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-                      <span className="text-3xl">📄</span>
-                      Vehicle Documents
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      Manage insurance, tax, pollution, and permit renewals
-                    </p>
-                    <div className="space-y-4">
-                      <motion.button
-                        onClick={() => setShowDocs(prev => !prev)}
-                        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {showDocs ? "Hide Documents" : "View Documents"}
-                      </motion.button>
+                <DashboardSection>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Dispatch Plans */}
+                    <DashboardCard>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                        <span className="text-3xl">🚚</span>
+                        My Dispatch Plans
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        View your assigned daily dispatch plans and delivery
+                        schedules
+                      </p>
+                      <ActionButton to="/my-plans" variant="indigo" icon="📋">
+                        <div className="text-xl font-semibold mb-2">
+                          View Dispatch Plans
+                        </div>
+                        <div className="text-indigo-100 text-sm opacity-90">
+                          Check your daily assignments
+                        </div>
+                      </ActionButton>
+                    </DashboardCard>
 
-                      <AnimatePresence>
-                        {showDocs && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
+                    {/* Vehicle Documents */}
+                    {driverVehicle && (
+                      <DashboardCard>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                          <span className="text-3xl">📄</span>
+                          Vehicle Documents
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          Manage insurance, tax, pollution, and permit renewals
+                        </p>
+                        <div className="space-y-4">
+                          <motion.button
+                            onClick={() => setShowDocs((prev) => !prev)}
+                            className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                           >
-                            <VehicleDocumentsView vehicleNumber={driverVehicle.vehicleNumber} />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                            {showDocs ? "Hide Documents" : "View Documents"}
+                          </motion.button>
+
+                          <AnimatePresence>
+                            {showDocs && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                              >
+                                <VehicleDocumentsView
+                                  vehicleNumber={driverVehicle.vehicleNumber}
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </DashboardCard>
+                    )}
+                  </div>
+                </DashboardSection>
+              )}
+          {/* Enhanced Sales Orders Section */}
+       {(userRoles.some((role) =>
+  ["sales", "admin", "accounts"].includes(role)
+) ||
+  (userRoles.includes("production") &&
+    user.productionSection?.some((s) =>
+      ["blockMoulding", "cnc"].includes(s)
+    ))) && (
+                <DashboardSection>
+                  <DashboardCard>
+                    <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
+                      📦 Sales Orders Management
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <ActionButton to="/add-order" variant="success" icon="➕">
+                        <div className="text-xl font-semibold mb-2">
+                          Add New Sales Order
+                        </div>
+                        <div className="text-green-100 text-sm opacity-90">
+                          Check customer details before creating
+                        </div>
+                      </ActionButton>
+
+                      <ActionButton to="/orders" variant="primary" icon="📂">
+                        <div className="text-xl font-semibold mb-2">
+                          Manage Sales Orders
+                        </div>
+                        <div className="text-blue-100 text-sm opacity-90">
+                          View, edit, and manage existing orders
+                        </div>
+                      </ActionButton>
                     </div>
                   </DashboardCard>
-                )}
-              </div>
-            </DashboardSection>
-          )}
+                </DashboardSection>
+              )}
 
-          {/* Enhanced Sales Orders Section */}
-          {(["sales", "admin", "accounts"].includes(user.role) ||
-            (user.role === "production" &&
-              user.productionSection?.some((s) =>
-                ["blockMoulding", "cnc"].includes(s)
-              ))) && (
-            <DashboardSection>
-              <DashboardCard>
-                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
-                  📦 Sales Orders Management
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ActionButton 
-                    to="/add-order" 
-                    variant="success"
-                    icon="➕"
-                  >
-                    <div className="text-xl font-semibold mb-2">Add New Sales Order</div>
-                    <div className="text-green-100 text-sm opacity-90">
-                      Check customer details before creating
-                    </div>
-                  </ActionButton>
-
-                  <ActionButton 
-                    to="/orders" 
-                    variant="primary"
-                    icon="📂"
-                  >
-                    <div className="text-xl font-semibold mb-2">Manage Sales Orders</div>
-                    <div className="text-blue-100 text-sm opacity-90">
-                      View, edit, and manage existing orders
-                    </div>
-                  </ActionButton>
-                </div>
-              </DashboardCard>
-            </DashboardSection>
-          )}
 
           {/* Enhanced Production Sections */}
-          {["production", "packaging", "dispatch", "accounts"].includes(user.role) && (
-            <DashboardSection>
-              <DashboardCard>
-                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
-                  🏭 Go To All Type of Production / Dispatch Sections
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(user.role === "accounts" || user.role === "production") && (
-                    <>
-                      {(user.role === "accounts" ||
-                        user.productionSection?.includes("blockMoulding")) && (
-                        <ActionButton 
-                          to="/production-dashboard?type=dana" 
-                          variant="indigo"
-                          icon="🏭"
+        {userRoles.some((role) =>
+  ["production", "packaging", "dispatch", "accounts"].includes(role)
+) && (
+                <DashboardSection>
+                  <DashboardCard>
+                    <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
+                      🏭 Go To All Type of Production / Dispatch Sections
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Also update individual checks inside */}
+                      {(userRoles.includes("accounts") ||
+                        userRoles.includes("production")) && (
+                        <>
+                          {(userRoles.includes("accounts") ||
+                            user.productionSection?.includes(
+                              "blockMoulding"
+                            )) && (
+                            <ActionButton
+                              to="/production-dashboard?type=dana"
+                              variant="indigo"
+                              icon="🏭"
+                            >
+                              <div className="text-lg font-semibold mb-2">
+                                Block Molding
+                              </div>
+                              <div className="text-indigo-100 text-xs opacity-90">
+                                EPS/Thermocol Block Molding Production Section
+                              </div>
+                            </ActionButton>
+                          )}
+
+                          {userRoles.includes("accounts") && (
+                            <ActionButton
+                              to="/dana-beads-dashboard"
+                              variant="pink"
+                              icon="●"
+                            >
+                              <div className="text-lg font-semibold mb-2">
+                                Dana / Beads
+                              </div>
+                              <div className="text-pink-100 text-xs opacity-90">
+                                EPS/Thermocol Dana / Beads Production Section
+                              </div>
+                            </ActionButton>
+                          )}
+
+                          {(userRoles.includes("accounts") ||
+                            user.productionSection?.includes(
+                              "shapeMoulding"
+                            )) && (
+                            <ActionButton
+                              to="/production-dashboard?type=shape"
+                              variant="purple"
+                              icon="🔷"
+                            >
+                              <div className="text-lg font-semibold mb-2">
+                                Shape Molding
+                              </div>
+                              <div className="text-purple-100 text-xs opacity-90">
+                                EPS/Thermocol Shape Molding Production Section
+                              </div>
+                            </ActionButton>
+                          )}
+                        </>
+                      )}
+
+                      {(userRoles.includes("dispatch") ||
+                        userRoles.includes("accounts")) && (
+                        <ActionButton
+                          to="/dispatch-dashboard"
+                          variant="primary"
+                          icon="🚛"
                         >
-                          <div className="text-lg font-semibold mb-2">Block Molding</div>
-                          <div className="text-indigo-100 text-xs opacity-90">
-                            EPS/Thermocol Block Molding Production Section
+                          <div className="text-lg font-semibold mb-2">
+                            Sheet Cutting
+                          </div>
+                          <div className="text-blue-100 text-xs opacity-90">
+                            EPS/Thermocol Sheet Cutting & Dispatch Section
                           </div>
                         </ActionButton>
                       )}
-                      
-                      {user.role === "accounts" && (
-                        <ActionButton 
-                          to="/dana-beads-dashboard" 
-                          variant="pink"
-                          icon="●"
+
+                      {(userRoles.includes("packaging") ||
+                        userRoles.includes("accounts")) && (
+                        <ActionButton
+                          to="/packaging-dashboard"
+                          variant="success"
+                          icon="📦"
                         >
-                          <div className="text-lg font-semibold mb-2">Dana / Beads</div>
-                          <div className="text-pink-100 text-xs opacity-90">
-                            EPS/Thermocol Dana / Beads Production Section
+                          <div className="text-lg font-semibold mb-2">
+                            Packaging
+                          </div>
+                          <div className="text-green-100 text-xs opacity-90">
+                            EPS/Thermocol Shape Moulding Packaging & Dispatch
+                            Section
                           </div>
                         </ActionButton>
                       )}
 
-                      {(user.role === "accounts" ||
-                        user.productionSection?.includes("shapeMoulding")) && (
-                        <ActionButton 
-                          to="/production-dashboard?type=shape" 
-                          variant="purple"
-                          icon="🔷"
+                      {(userRoles.includes("accounts") ||
+                        (userRoles.includes("production") &&
+                          user.productionSection?.includes("cnc"))) && (
+                        <ActionButton
+                          to="/cnc-dashboard"
+                          variant="warning"
+                          icon="⚡"
                         >
-                          <div className="text-lg font-semibold mb-2">Shape Molding</div>
-                          <div className="text-purple-100 text-xs opacity-90">
-                            EPS/Thermocol Shape Molding Production Section
+                          <div className="text-lg font-semibold mb-2">
+                            CNC Section
+                          </div>
+                          <div className="text-amber-100 text-xs opacity-90">
+                            EPS/Thermocol CNC Hot Wire / CNC Router Section
                           </div>
                         </ActionButton>
                       )}
-                    </>
-                  )}
-
-                  {(user.role === "dispatch" || user.role === "accounts") && (
-                    <ActionButton 
-                      to="/dispatch-dashboard" 
-                      variant="primary"
-                      icon="🚛"
-                    >
-                      <div className="text-lg font-semibold mb-2">Sheet Cutting</div>
-                      <div className="text-blue-100 text-xs opacity-90">
-                        EPS/Thermocol Sheet Cutting & Dispatch Section
-                      </div>
-                    </ActionButton>
-                  )}
-
-                  {(user.role === "packaging" || user.role === "accounts") && (
-                    <ActionButton 
-                      to="/packaging-dashboard" 
-                      variant="success"
-                      icon="📦"
-                    >
-                      <div className="text-lg font-semibold mb-2">Packaging</div>
-                      <div className="text-green-100 text-xs opacity-90">
-                         EPS/Thermocol Shape Moulding Packaging & Dispatch Section
-                      </div>
-                    </ActionButton>
-                  )}
-
-                  {(user.role === "accounts" ||
-                    (user.role === "production" &&
-                      user.productionSection?.includes("cnc"))) && (
-                    <ActionButton 
-                      to="/cnc-dashboard" 
-                      variant="warning"
-                      icon="⚡"
-                    >
-                      <div className="text-lg font-semibold mb-2">CNC Section</div>
-                      <div className="text-amber-100 text-xs opacity-90">
-                        EPS/Thermocol CNC Hot Wire / CNC Router Section
-                      </div>
-                    </ActionButton>
-                  )}
-                </div>
-              </DashboardCard>
-            </DashboardSection>
-          )}
+                    </div>
+                  </DashboardCard>
+                </DashboardSection>
+              )}
 
           {/* Enhanced Admin Tools */}
-          {user.role === "admin" && (
-            <DashboardSection>
-              <DashboardCard className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-                <div className="text-center">
-                  <div className="text-4xl mb-4">🛠️</div>
-                  <h3 className="text-2xl font-bold text-amber-900 mb-3">Admin Tools</h3>
-                  <p className="text-amber-700 mb-6">
-                    Full access to manage users, permissions, and system settings
-                  </p>
-                  <ActionButton 
-                    to="/admin-dashboard" 
-                    variant="warning"
-                    icon="⚙️"
-                    className="max-w-md mx-auto"
-                  >
-                    <div className="text-xl font-semibold">Admin Panel</div>
-                  </ActionButton>
-                </div>
-              </DashboardCard>
-            </DashboardSection>
-          )}
+        {userRoles.includes("admin") && (
 
+                <DashboardSection>
+                  <DashboardCard className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                    <div className="text-center">
+                      <div className="text-4xl mb-4">🛠️</div>
+                      <h3 className="text-2xl font-bold text-amber-900 mb-3">
+                        Admin Tools
+                      </h3>
+                      <p className="text-amber-700 mb-6">
+                        Full access to manage users, permissions, and system
+                        settings
+                      </p>
+                      <ActionButton
+                        to="/admin-dashboard"
+                        variant="warning"
+                        icon="⚙️"
+                        className="max-w-md mx-auto"
+                      >
+                        <div className="text-xl font-semibold">Admin Panel</div>
+                      </ActionButton>
+                    </div>
+                  </DashboardCard>
+                </DashboardSection>
+              )}
           {/* Enhanced Main Grid Section */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
               {/* Enhanced Tasks Section */}
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                   <span className="text-3xl">✅</span>
-                 TASKS / TO DO / WORK GIVEN INFORMATION
+                  TASKS / TO DO / WORK GIVEN INFORMATION
                 </h3>
                 <div className="grid grid-cols-1 gap-6">
                   <div className="relative">
-                    <ActionButton 
-                      to="/my-tasks" 
-                      variant="primary"
-                      icon="📝"
-                    >
-                      <div className="text-lg font-semibold mb-2">My Tasks / Assigned Work</div>
+                    <ActionButton to="/my-tasks" variant="primary" icon="📝">
+                      <div className="text-lg font-semibold mb-2">
+                        My Tasks / Assigned Work
+                      </div>
                       <div className="text-blue-100 text-sm opacity-90">
                         View and complete assigned personal tasks
                       </div>
                     </ActionButton>
                     {unreadCount > 0 && (
-                      <motion.span 
+                      <motion.span
                         className="absolute -top-2 -right-2 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -875,18 +985,20 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  {["accounts"].includes(user.role) && (
-                    <ActionButton 
-                      to="/task-dashboard" 
-                      variant="danger"
-                      icon="👥"
-                    >
-                      <div className="text-lg font-semibold mb-2">Task Dashboard</div>
-                      <div className="text-red-100 text-sm opacity-90">
-                        Assign / View / Edit / Delete Task
-                      </div>
-                    </ActionButton>
-                  )}
+                {(userRoles.includes("accounts") || userRoles.includes("production")) && (
+  <ActionButton
+    to="/task-dashboard"
+    variant="danger"
+    icon="👥"
+  >
+    <div className="text-lg font-semibold mb-2">
+      Task Dashboard
+    </div>
+    <div className="text-red-100 text-sm opacity-90">
+      Assign / View / Edit / Delete Task
+    </div>
+  </ActionButton>
+)}
                 </div>
               </DashboardCard>
 
@@ -897,8 +1009,8 @@ export default function Dashboard() {
                   Assets Management
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <ActionButton 
-                    to="/my-assets" 
+                  <ActionButton
+                    to="/my-assets"
                     variant="primary"
                     icon="📦"
                     className="h-full"
@@ -909,28 +1021,32 @@ export default function Dashboard() {
                     </div>
                   </ActionButton>
 
-                  {["accounts"].includes(user.role) && (
+                  {userRoles.includes("accounts") && (
                     <>
-                      <ActionButton 
-                        to="/issue-asset" 
+                      <ActionButton
+                        to="/issue-asset"
                         variant="success"
                         icon="🎁"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Issue Assets to Employees</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Issue Assets to Employees
+                        </div>
                         <div className="text-green-100 text-xs opacity-90">
                           Click to issue assets
                         </div>
                       </ActionButton>
-                      <ActionButton 
-                        to="/asset-management" 
+                      <ActionButton
+                        to="/asset-management"
                         variant="warning"
                         icon="🛠️"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Manage Assets</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Manage Assets
+                        </div>
                         <div className="text-amber-100 text-xs opacity-90">
-                         Click to manage all assets
+                          Click to manage all assets
                         </div>
                       </ActionButton>
                     </>
@@ -939,47 +1055,58 @@ export default function Dashboard() {
               </DashboardCard>
 
               {/* Enhanced Vehicles Management */}
-              {(user.allowVehiclesManagement || ["packaging", "admin", "accounts"].includes(user.role)) && (
+            {(user.allowVehiclesManagement ||
+  userRoles.some((role) =>
+    ["admin", "accounts"].includes(role)
+  )) && (
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     <span className="text-3xl">🚗</span>
                     Vehicles Management
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <ActionButton 
-                      to="/assign-dispatch" 
+                    <ActionButton
+                      to="/assign-dispatch"
                       variant="primary"
                       icon="📋"
                     >
-                      <div className="text-lg font-semibold mb-2">Assign Dispatch Plan</div>
+                      <div className="text-lg font-semibold mb-2">
+                        Assign Dispatch Plan
+                      </div>
                       <div className="text-blue-100 text-sm opacity-90">
                         Plan and assign tasks to drivers/vehicles
                       </div>
                     </ActionButton>
 
-                    {["admin", "accounts"].includes(user.role) && (
-                      <ActionButton 
-                        to="/mileage-chart" 
+                    {userRoles.some(role => ["admin", "accounts"].includes(role)) && (
+                      <ActionButton
+                        to="/mileage-chart"
                         variant="indigo"
                         icon="📊"
                       >
-                        <div className="text-lg font-semibold mb-2">Vehicle Mileage Reports</div>
+                        <div className="text-lg font-semibold mb-2">
+                          Vehicle Mileage Reports
+                        </div>
                         <div className="text-indigo-100 text-sm opacity-90">
                           View KM/L for vehicles
                         </div>
                       </ActionButton>
                     )}
-                    
-                    {["admin", "accounts"].includes(user.role) && (
-                      <ActionButton 
-                        to="/registered-vehicles" 
+
+                    {userRoles.some(role => ["admin", "accounts"].includes(role)) && (
+                      <ActionButton
+                        to="/registered-vehicles"
                         variant="success"
                         icon="📄"
                         className="md:col-span-2"
                       >
-                        <div className="text-lg font-semibold mb-2">Vehicles Maintenance Log Book & Documents</div>
+                        <div className="text-lg font-semibold mb-2">
+                          Vehicles Maintenance Log Book & Documents
+                        </div>
                         <div className="text-green-100 text-sm opacity-90">
-                          Reistered Vehicles Documents, RC, Vehicle Pictures and Due Date for Insurance, Registration Tax, Pollution, Fitness, All India Permit, Pollution etc.
+                          Reistered Vehicles Documents, RC, Vehicle Pictures and
+                          Due Date for Insurance, Registration Tax, Pollution,
+                          Fitness, All India Permit, Pollution etc.
                         </div>
                       </ActionButton>
                     )}
@@ -988,30 +1115,43 @@ export default function Dashboard() {
               )}
 
               {/* Enhanced Material Requisition */}
-              {["admin", "sales", "accounts", "dispatch", "packaging", "production"].includes(user.role) && (
+              {userRoles.some((role) =>
+                [
+                  "admin",
+                  "sales",
+                  "accounts",
+                  "dispatch",
+                  "packaging",
+                  "production",
+                ].includes(role)
+              ) && (
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     <span className="text-3xl">📋</span>
                     Material Requisition
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <ActionButton 
-                      to="/material-requisition" 
+                    <ActionButton
+                      to="/material-requisition"
                       variant="danger"
                       icon="📝"
                     >
-                      <div className="text-lg font-semibold mb-2">New Requisition Form</div>
+                      <div className="text-lg font-semibold mb-2">
+                        New Requisition Form
+                      </div>
                       <div className="text-red-100 text-sm opacity-90">
                         Submit a new requisition for raw materials
                       </div>
                     </ActionButton>
-                    
-                    <ActionButton 
-                      to="/requisition-slips" 
+
+                    <ActionButton
+                      to="/requisition-slips"
                       variant="warning"
                       icon="📑"
                     >
-                      <div className="text-lg font-semibold mb-2">View Requisition Slips</div>
+                      <div className="text-lg font-semibold mb-2">
+                        View Requisition Slips
+                      </div>
                       <div className="text-amber-100 text-sm opacity-90">
                         View/download all requisition PDFs
                       </div>
@@ -1025,104 +1165,119 @@ export default function Dashboard() {
           {/* Enhanced Quotation & Sales Sections */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
               {/* Enhanced Quotation Section */}
-              {!["driver", "dispatch", "packaging"].includes(user.role) && (
+              {!userRoles.some((role) =>
+                ["driver", "dispatch", "packaging"].includes(role)
+              ) && (
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     QUOTATION / PROFORMA INVOICE / ESTIMATE
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <ActionButton 
-                      to="/proforma-invoice" 
+                    <ActionButton
+                      to="/proforma-invoice"
                       variant="success"
                       icon="✨"
                     >
-                      <div className="text-lg font-semibold mb-2">Create Quotation</div>
+                      <div className="text-lg font-semibold mb-2">
+                        Create Quotation
+                      </div>
                       <div className="text-green-100 text-sm opacity-90">
                         Make New Quotation / Proforma / Estimate
                       </div>
                     </ActionButton>
-                    
-                    <ActionButton 
-                      to="/proforma-dashboard" 
+
+                    <ActionButton
+                      to="/proforma-dashboard"
                       variant="primary"
                       icon="📊"
                     >
-                      <div className="text-lg font-semibold mb-2">View Quotations</div>
+                      <div className="text-lg font-semibold mb-2">
+                        View Quotations
+                      </div>
                       <div className="text-blue-100 text-sm opacity-90">
                         View Old Quotation / Proforma / Estimate
                       </div>
                     </ActionButton>
                   </div>
 
-                  {["accounts"].includes(user.role) && (
+                  {userRoles.includes("accounts") && (
                     <div className="border-t border-gray-200 pt-6">
                       <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
                         Purchase Product / Suppliers
                       </h4>
                       <div className="flex justify-center">
-                        <ActionButton 
-                          onClick={() => navigate("/purchase-products-suppliers")}
+                        <ActionButton
+                          onClick={() =>
+                            navigate("/purchase-products-suppliers")
+                          }
                           variant="indigo"
                           icon="🏪"
                           className="max-w-md"
                         >
-                          <div className="text-lg font-semibold">Purchase Product / Suppliers</div>
+                          <div className="text-lg font-semibold">
+                            Purchase Product / Suppliers
+                          </div>
                         </ActionButton>
                       </div>
                     </div>
                   )}
                 </DashboardCard>
               )}
-{(["accounts", "sales"].includes(user.role)) && (
-  <DashboardCard>
-    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
-      <span className="text-2xl">📥</span>
-      Bank Incoming Payment
-    </h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <ActionButton 
-        to="/payment-records"
-        variant="primary"
-        icon="📥"
-        className="h-full"
-      >
-        <div className="text-sm font-semibold mb-1">Manage Incoming Payments</div>
-        <div className="text-blue-100 text-xs opacity-90">
-          Daily Cheques/RTGS/UPI/NEFT/Payment from Customers to Thermo Packers
-        </div>
-      </ActionButton>
-    </div>
-  </DashboardCard>
-)}
+              {(userRoles.includes("accounts") ||
+                userRoles.includes("sales")) && (
+                <DashboardCard>
+                  <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+                    <span className="text-2xl">📥</span>
+                    Bank Incoming Payment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ActionButton
+                      to="/payment-records"
+                      variant="primary"
+                      icon="📥"
+                      className="h-full"
+                    >
+                      <div className="text-sm font-semibold mb-1">
+                        Manage Incoming Payments
+                      </div>
+                      <div className="text-blue-100 text-xs opacity-90">
+                        Daily Cheques/RTGS/UPI/NEFT/Payment from Customers to
+                        Thermo Packers
+                      </div>
+                    </ActionButton>
+                  </div>
+                </DashboardCard>
+              )}
 
-{/* Outgoing Payments - Only for Accounts Role */}
-{user.role === "accounts" && (
-  <DashboardCard>
-    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
-      <span className="text-2xl">📤</span>
-      Bank Outgoing Payments
-    </h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <ActionButton 
-        to="/outgoing-payment"
-        variant="warning"
-        icon="📤"
-        className="h-full"
-      >
-        <div className="text-sm font-semibold mb-1">Manage Outgoing Payments</div>
-        <div className="text-amber-100 text-xs opacity-90">
-          Daily Cheques/RTGS/UPI/NEFT/Payment to Suppliers/Vendors
-        </div>
-      </ActionButton>
-      
-    
-    </div>
-  </DashboardCard>
-)}
+              {/* Outgoing Payments - Only for Accounts Role */}
+              {userRoles.includes("accounts") && (
+                <DashboardCard>
+                  <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+                    <span className="text-2xl">📤</span>
+                    Bank Outgoing Payments
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ActionButton
+                      to="/outgoing-payment"
+                      variant="warning"
+                      icon="📤"
+                      className="h-full"
+                    >
+                      <div className="text-sm font-semibold mb-1">
+                        Manage Outgoing Payments
+                      </div>
+                      <div className="text-amber-100 text-xs opacity-90">
+                        Daily Cheques/RTGS/UPI/NEFT/Payment to Suppliers/Vendors
+                      </div>
+                    </ActionButton>
+                  </div>
+                </DashboardCard>
+              )}
               {/* Enhanced Sales & Customers Section */}
-              {["admin", "sales", "accounts"].includes(user.role) && (
+              {userRoles.some((role) =>
+                ["admin", "sales", "accounts"].includes(role)
+              ) && (
                 <div className="space-y-6">
                   <DashboardCard>
                     <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
@@ -1130,25 +1285,29 @@ export default function Dashboard() {
                       Sales Products
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <ActionButton 
-                        to="/add-product" 
+                      <ActionButton
+                        to="/add-product"
                         variant="success"
                         icon="➕"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Add new Product</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Add new Product
+                        </div>
                         <div className="text-green-100 text-xs opacity-90">
                           New sales product
                         </div>
                       </ActionButton>
-                      
-                      <ActionButton 
-                        to="/all-products" 
+
+                      <ActionButton
+                        to="/all-products"
                         variant="warning"
                         icon="📋"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Manage Products</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Manage Products
+                        </div>
                         <div className="text-amber-100 text-xs opacity-90">
                           View / Edit / Delete Products
                         </div>
@@ -1162,25 +1321,29 @@ export default function Dashboard() {
                       Customers
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <ActionButton 
-                        to="/add-customer" 
+                      <ActionButton
+                        to="/add-customer"
                         variant="primary"
                         icon="➕"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Add new Customer</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Add new Customer
+                        </div>
                         <div className="text-blue-100 text-xs opacity-90">
                           New customer profile
                         </div>
                       </ActionButton>
-                      
-                      <ActionButton 
-                        to="/customers" 
+
+                      <ActionButton
+                        to="/customers"
                         variant="purple"
                         icon="📊"
                         className="h-full"
                       >
-                        <div className="text-sm font-semibold mb-1">Manage Customers</div>
+                        <div className="text-sm font-semibold mb-1">
+                          Manage Customers
+                        </div>
                         <div className="text-purple-100 text-xs opacity-90">
                           View / Edit / Delete Customer
                         </div>
@@ -1193,7 +1356,8 @@ export default function Dashboard() {
           </DashboardSection>
 
           {/* Enhanced HR Section */}
-          {(user.allowHR || ["admin","accounts"].includes(user.role)) && (
+          {(user.allowHR ||
+            userRoles.some((role) => ["admin", "accounts"].includes(role))) && (
             <DashboardSection>
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
@@ -1201,18 +1365,17 @@ export default function Dashboard() {
                   HR (Human Resource)
                 </h3>
                 <p className="text-gray-600 text-center mb-6">
-                  Employee management, ID Proof, Salary Sheets, ESIC, EPFO, and more
+                  Employee management, ID Proof, Salary Sheets, ESIC, EPFO, and
+                  more
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ActionButton 
-                    to="/register-user" 
-                    variant="primary"
-                    icon="👥"
-                  >
-                    <div className="text-lg font-semibold mb-2">Employee Management</div>
+                  <ActionButton to="/register-user" variant="primary" icon="👥">
+                    <div className="text-lg font-semibold mb-2">
+                      Employee Management
+                    </div>
                     <div className="text-blue-100 text-sm opacity-90">
-                       ➕ Add / View / Edit / Delete Employees
+                      ➕ Add / View / Edit / Delete Employees
                     </div>
                   </ActionButton>
 
@@ -1223,7 +1386,9 @@ export default function Dashboard() {
                     <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
                       <div className="flex flex-col items-center text-center">
                         <div className="text-3xl mb-3">📑</div>
-                        <div className="text-lg font-semibold mb-2">ESIC Management</div>
+                        <div className="text-lg font-semibold mb-2">
+                          ESIC Management
+                        </div>
                         <div className="text-gray-200 text-sm opacity-90">
                           ESIC Monthly Challan & Payment Receipts
                         </div>
@@ -1238,7 +1403,9 @@ export default function Dashboard() {
                     <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
                       <div className="flex flex-col items-center text-center">
                         <div className="text-3xl mb-3">📑</div>
-                        <div className="text-lg font-semibold mb-2">EPFO Management</div>
+                        <div className="text-lg font-semibold mb-2">
+                          EPFO Management
+                        </div>
                         <div className="text-gray-200 text-sm opacity-90">
                           EPFO Monthly Challan & Payment Receipts
                         </div>
@@ -1253,7 +1420,9 @@ export default function Dashboard() {
                     <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
                       <div className="flex flex-col items-center text-center">
                         <div className="text-3xl mb-3">📊</div>
-                        <div className="text-lg font-semibold mb-2">Salary Sheets</div>
+                        <div className="text-lg font-semibold mb-2">
+                          Salary Sheets
+                        </div>
                         <div className="text-gray-200 text-sm opacity-90">
                           Monthly Salary Sheets
                         </div>
@@ -1273,13 +1442,15 @@ export default function Dashboard() {
                   <span className="text-3xl">📅</span>
                   Attendance Management
                 </h3>
-                <ActionButton 
-                  to="/attendance-logs" 
+                <ActionButton
+                  to="/attendance-logs"
                   variant="success"
                   icon="📊"
                   className="max-w-2xl mx-auto"
                 >
-                  <div className="text-xl font-semibold mb-2">View Attendance Logs</div>
+                  <div className="text-xl font-semibold mb-2">
+                    View Attendance Logs
+                  </div>
                   <div className="text-green-100 text-sm opacity-90">
                     View Daily check-ins and attendance records
                   </div>
@@ -1289,7 +1460,9 @@ export default function Dashboard() {
           )}
 
           {/* Enhanced Supplier Section */}
-          {(user.role === "suppliers" || user.role === "accounts" || user.role === "viewer") && (
+          {userRoles.some((role) =>
+            ["suppliers", "accounts", "viewer"].includes(role)
+          ) && (
             <DashboardSection>
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
@@ -1297,7 +1470,7 @@ export default function Dashboard() {
                   Pattern Orders & Status
                 </h3>
 
-                {user.role === "suppliers" && (
+                {userRoles.includes("suppliers") && (
                   <motion.div
                     className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 mb-6"
                     initial={{ opacity: 0, y: 20 }}
@@ -1337,27 +1510,31 @@ export default function Dashboard() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(user.role === "suppliers" || user.role === "viewer") && (
-                    <ActionButton 
+{(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (                    <ActionButton
                       onClick={() => navigate("/drawing-upload-form")}
                       variant="warning"
                       icon="📝"
                     >
-                      <div className="text-lg font-semibold mb-2">Submit Drawing</div>
+                      <div className="text-lg font-semibold mb-2">
+                        Submit Drawing
+                      </div>
                       <div className="text-amber-100 text-sm opacity-90">
                         Submit New Drawing for making EPS/Thermocol Pattern
                       </div>
                     </ActionButton>
                   )}
 
-                  <ActionButton 
+                  <ActionButton
                     onClick={() => navigate("/drawing-orders-table")}
                     variant="success"
                     icon="📊"
                   >
-                    <div className="text-lg font-semibold mb-2">View Orders</div>
+                    <div className="text-lg font-semibold mb-2">
+                      View Orders
+                    </div>
                     <div className="text-green-100 text-sm opacity-90">
-                      View Old Patterns Orders Quotation & Price Finalization Real Time Status of Orders
+                      View Old Patterns Orders Quotation & Price Finalization
+                      Real Time Status of Orders
                     </div>
                   </ActionButton>
                 </div>
@@ -1366,20 +1543,23 @@ export default function Dashboard() {
           )}
 
           {/* Enhanced Plant & Machinery */}
-          {(user.allowPlantMaintenance || ["accounts", "admin"].includes(user.role)) && (
+          {(user.allowPlantMaintenance ||
+            userRoles.some((role) => ["accounts", "admin"].includes(role))) && (
             <DashboardSection>
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                   <span className="text-3xl">⚙️</span>
                   Plant & Machinery Maintenance
                 </h3>
-                <ActionButton 
-                  to="/plant-machinery-maintenance" 
+                <ActionButton
+                  to="/plant-machinery-maintenance"
                   variant="danger"
                   icon="🔧"
                   className="max-w-2xl mx-auto"
                 >
-                  <div className="text-xl font-semibold mb-2">Maintenance Dashboard</div>
+                  <div className="text-xl font-semibold mb-2">
+                    Maintenance Dashboard
+                  </div>
                   <div className="text-red-100 text-sm opacity-90">
                     Plant & machinery maintenance tracking
                   </div>
@@ -1389,7 +1569,8 @@ export default function Dashboard() {
           )}
 
           {/* Enhanced Tour Expenses */}
-          {(user.allowTourExpenses || ["sales", "accounts"].includes(user.role)) && (
+          {(user.allowTourExpenses ||
+            userRoles.some((role) => ["sales", "accounts"].includes(role))) && (
             <DashboardSection>
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
@@ -1397,23 +1578,23 @@ export default function Dashboard() {
                   Tour Expenses
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ActionButton 
-                    to="/tour-expenses" 
-                    variant="primary"
-                    icon="➕"
-                  >
-                    <div className="text-lg font-semibold mb-2">Add Tour Expenses</div>
+                  <ActionButton to="/tour-expenses" variant="primary" icon="➕">
+                    <div className="text-lg font-semibold mb-2">
+                      Add Tour Expenses
+                    </div>
                     <div className="text-blue-100 text-sm opacity-90">
                       Submit travel expenses
                     </div>
                   </ActionButton>
 
-                  <ActionButton 
-                    to="/tour-expenses-dashboard" 
+                  <ActionButton
+                    to="/tour-expenses-dashboard"
                     variant="purple"
                     icon="📊"
                   >
-                    <div className="text-lg font-semibold mb-2">View Tour Expenses</div>
+                    <div className="text-lg font-semibold mb-2">
+                      View Tour Expenses
+                    </div>
                     <div className="text-purple-100 text-sm opacity-90">
                       Dashboard & reports
                     </div>
@@ -1432,22 +1613,21 @@ export default function Dashboard() {
               </h3>
               <div className="text-center">
                 <p className="text-gray-600 mb-6">
-                  {["admin", "accounts"].includes(user.role) 
+                  {userRoles.some((role) =>
+                    ["admin", "accounts"].includes(role)
+                  )
                     ? "Manage and view important contact numbers"
-                    : "View important contact numbers"
-                  }
+                    : "View important contact numbers"}
                 </p>
-                <ActionButton 
-                  to="/important-numbers" 
-                  variant={["admin", "accounts"].includes(user.role) ? "primary" : "success"}
+                <ActionButton
+                  to="/important-numbers"
+                  variant={userRoles.some(role => ["admin", "accounts"].includes(role)) ? "primary" : "success"}
                   icon="📱"
                   className="max-w-md mx-auto"
                 >
                   <div className="text-xl font-semibold">
-                    {["admin", "accounts"].includes(user.role) 
-                      ? "Manage Important Numbers" 
-                      : "View Important Numbers"
-                    }
+{userRoles.some(role => ["admin", "accounts"].includes(role))                      ? "Manage Important Numbers"
+                      : "View Important Numbers"}
                   </div>
                 </ActionButton>
               </div>
@@ -1455,8 +1635,8 @@ export default function Dashboard() {
           </DashboardSection>
         </div>
         {showPaymentForm && (
-  <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />
-)}
+          <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />
+        )}
       </main>
     </>
   );

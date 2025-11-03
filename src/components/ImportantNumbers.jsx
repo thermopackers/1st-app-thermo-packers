@@ -4,6 +4,35 @@ import axiosInstance from '../axiosInstance';
 import InternalNavbar from '../components/InternalNavbar';
 import Swal from 'sweetalert2';
 
+// Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
 const ImportantNumbers = () => {
   const [user, setUser] = useState(null);
   const [numbers, setNumbers] = useState([]);
@@ -18,6 +47,10 @@ const ImportantNumbers = () => {
   const navigate = useNavigate();
 
   const roles = ['admin', 'accounts', 'sales', 'production', 'dispatch', 'packaging', 'driver'];
+
+  // ✅ Get user roles properly
+  const userRoles = user ? parseUserRoles(user) : [];
+  const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -109,11 +142,6 @@ const ImportantNumbers = () => {
     }
   };
 
-  // REMOVE this filteredNumbers line completely - backend now handles filtering
-  // const filteredNumbers = numbers.filter(number => 
-  //   number.visibleToRoles.includes(user?.role) || user?.role === 'admin' || user?.role === 'accounts'
-  // );
-
   if (loading) {
     return (
       <>
@@ -142,8 +170,8 @@ const ImportantNumbers = () => {
             <p className="text-gray-600">Manage and view important contact numbers</p>
           </div>
 
-          {/* Add/Edit Form - Only for admin/accounts */}
-          {(user?.role === 'admin' || user?.role === 'accounts') && (
+          {/* ✅ FIX: Use hasAdminAccess instead of user?.role check */}
+          {hasAdminAccess && (
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-semibold mb-4">
                 {editingId ? 'Edit Number' : 'Add New Number'}
@@ -243,10 +271,10 @@ const ImportantNumbers = () => {
             </div>
           )}
 
-          {/* Numbers List - Use numbers directly instead of filteredNumbers */}
+          {/* ✅ FIX: Use hasAdminAccess instead of user?.role check */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">
-              {user?.role === 'admin' || user?.role === 'accounts' 
+              {hasAdminAccess 
                 ? 'All Important Numbers' 
                 : 'Numbers Visible to You'
               }
@@ -260,7 +288,8 @@ const ImportantNumbers = () => {
                   <div key={number._id} className="border rounded-lg p-4 bg-gray-50">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-semibold text-lg">{number.title}</h3>
-                      {(user?.role === 'admin' || user?.role === 'accounts') && (
+                      {/* ✅ FIX: Use hasAdminAccess instead of user?.role check */}
+                      {hasAdminAccess && (
                         <div className="flex gap-1">
                           <button
                             onClick={() => handleEdit(number)}

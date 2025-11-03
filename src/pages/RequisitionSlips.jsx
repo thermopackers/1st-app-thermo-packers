@@ -11,6 +11,51 @@ const MySwal = withReactContent(Swal);
 
 export default function RequisitionSlips() {
   const { user } = useUserContext();
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  
+  // Case 1: Already a proper array (your new format)
+  if (Array.isArray(user.role)) {
+    // Check if it's an array with actual role strings
+    if (user.role.length > 0 && typeof user.role[0] === 'string') {
+      // If it's a JSON string inside array (old format), parse it
+      if (user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        // It's already a proper array of role strings (new format)
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } 
+  // Case 2: String that might be JSON
+  else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } 
+  // Case 3: Single role
+  else {
+    userRoles = [user.role];
+  }
+  
+  // Ensure we always return an array
+  return Array.isArray(userRoles) ? userRoles : [userRoles];
+};
+  const userRoles = user ? parseUserRoles(user) : [];
+
   const [slips, setSlips] = useState([]);
   const [page, setPage] = useState(1);
   const [assigningSlipId, setAssigningSlipId] = useState(null);
@@ -36,7 +81,7 @@ export default function RequisitionSlips() {
   }, []);
 
   useEffect(() => {
-    if (!user?._id || !user?.role) return;
+  if (!user?._id || !userRoles.length) return;
 
     setLoading(true);
     axiosInstance
@@ -58,7 +103,7 @@ export default function RequisitionSlips() {
         Swal.fire("Error", "Failed to load requisition slips", "error");
       })
       .finally(() => setLoading(false));
-  }, [page, search, user]);
+  }, [page, search, user, userRoles]);
 
   const formatDateDDMMYYYY = (d) => {
     if (!d) return "";
@@ -215,8 +260,7 @@ export default function RequisitionSlips() {
     }
   };
 
-  const canEditDelete = user?.role === "admin" || user?.role === "accounts";
-
+const canEditDelete = userRoles.includes("admin") || userRoles.includes("accounts");
   return (
     <>
       <InternalNavbar />

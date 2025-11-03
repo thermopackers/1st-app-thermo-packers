@@ -35,7 +35,7 @@ const [allowVehiclesManagement, setAllowVehiclesManagement] = useState(false);
 const [allowHR, setAllowHR] = useState(false);
 const [allowPlantMaintenance, setAllowPlantMaintenance] = useState(false);
 const [allowTourExpenses, setAllowTourExpenses] = useState(false);  
-const [role, setRole] = useState('');
+const [role, setRole] = useState([]);
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
@@ -88,10 +88,15 @@ const [role, setRole] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (role === 'production' && productionSection.length === 0) {
-      toast.error('Please select at least one production section.');
-      return;
-    }
+
+      console.log('🔍 Submitting roles:', role);
+  console.log('🔍 Role type:', typeof role);
+  console.log('🔍 Role is array:', Array.isArray(role));
+   // ✅ FIX: Check if role includes production, not if role equals production
+  if (Array.isArray(role) && role.includes('production') && productionSection.length === 0) {
+    toast.error('Please select at least one production section.');
+    return;
+  }
     setIsSubmitting(true); // Start loading
 
     try {
@@ -101,7 +106,7 @@ const [role, setRole] = useState('');
       const userEmail = email.trim() === '' ? `dummy_${Date.now()}@gmail.com` : email;
       formData.append('email', userEmail);
       formData.append('phone', phone);
-      formData.append('role', role);
+formData.append('role', JSON.stringify(role));
       formData.append('productionSection', JSON.stringify(productionSection));
 formData.append('allowAttendance', allowAttendance);
 formData.append('allowVehiclesManagement', allowVehiclesManagement);
@@ -210,14 +215,24 @@ setPersonalPhone('');
 
 const fetchUsers = async (page = 1, query = "") => {
   try {
+    console.log('🔍 Fetching users from:', `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`);
+    
     const res = await axiosInstance.get(
       `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`
     );
+    
+    console.log('✅ Users fetched successfully:', res.data);
     setUsers(res.data.users);
     setCurrentPage(res.data.pagination.currentPage);
     setTotalPages(res.data.pagination.totalPages);
     setTotalUsers(res.data.pagination.totalUsers);
   } catch (err) {
+    console.error('❌ Failed to fetch users:', {
+      error: err,
+      response: err.response,
+      status: err.response?.status,
+      data: err.response?.data
+    });
     toast.error("Failed to fetch users");
   }
 };
@@ -283,8 +298,7 @@ const fetchUsers = async (page = 1, query = "") => {
     setName(user.name || "");
     setEmail(user.email || "");
     setPhone(user.phone?.replace('+91', '') || "");
-    setRole(user.role || "sales");
-    setProductionSection(user.productionSection || []);
+setRole(Array.isArray(user.role) ? user.role : [user.role || "sales"]);    setProductionSection(user.productionSection || []);
 setAllowAttendance(user.allowAttendance || false);
 setAllowVehiclesManagement(user.allowVehiclesManagement || false);
 setAllowHR(user.allowHR || false);
@@ -326,7 +340,7 @@ setAllowTourExpenses(user.allowTourExpenses || false);
     setName("");
     setEmail("");
     setPhone("");
-    setRole("sales");
+setRole(["sales"]);
     setProductionSection([]);
 setAllowAttendance(false);
 setAllowVehiclesManagement(false);
@@ -644,24 +658,53 @@ setAllowTourExpenses(false);
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Role</label>
-              <select
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 bg-white focus:ring-2 focus:ring-blue-400 outline-none"
-              >
-                <option value="">No Role</option>
-                <option value="sales">Sales</option>
-                <option value="accounts">Accounts</option>
-                <option value="dispatch">EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section</option>
-                <option value="production">Production</option>
-                <option value="packaging">EPS/Thermocol Shape Molding, Packaging and Dispatch Section</option>
-                <option value="suppliers">Vendors/Suppliers</option> {/* ✅ NEW */}
-              </select>
-            </div>
-            {role === 'production' && (
-              <div>
+           <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Select Roles</label>
+  <div className="grid grid-cols-1 gap-3 border border-gray-300 rounded-lg p-4 bg-white">
+    {[
+      { value: "sales", label: "Sales" },
+      { value: "accounts", label: "Accounts" },
+      { value: "dispatch", label: "EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section" },
+      { value: "production", label: "Production" },
+      { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
+      { value: "suppliers", label: "Vendors/Suppliers" },
+      { value: "driver", label: "Driver" }
+    ].map((roleOption) => (
+      <label key={roleOption.value} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+        <input
+          type="checkbox"
+          value={roleOption.value}
+          checked={role.includes(roleOption.value)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setRole([...role, roleOption.value]);
+            } else {
+              setRole(role.filter(r => r !== roleOption.value));
+            }
+          }}
+          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+        />
+        <span className="text-sm text-gray-700">{roleOption.label}</span>
+      </label>
+    ))}
+  </div>
+  {role.length > 0 && (
+    <div className="mt-2 text-xs text-blue-600">
+      Selected: {role.map(r => 
+        ({
+          sales: 'Sales',
+          accounts: 'Accounts', 
+          dispatch: 'Dispatch',
+          production: 'Production',
+          packaging: 'Packaging',
+          suppliers: 'Suppliers',
+          driver: 'Driver'
+        }[r] || r)
+      ).join(', ')}
+    </div>
+  )}
+</div>
+{role.includes('production') && (              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
                 <div className="flex flex-col gap-2">
                   {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
@@ -686,8 +729,7 @@ setAllowTourExpenses(false);
               </div>
             )}
 
-           {role !== 'suppliers' && (
-  <div className="space-y-3">
+{!role.includes('suppliers') && (  <div className="space-y-3">
     <div className="flex items-center space-x-2">
       <input
         type="checkbox"
@@ -881,16 +923,18 @@ setAllowTourExpenses(false);
                   </td>
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
-                  <td className="px-4 py-2">
-                    {{
-                      sales: 'Sales',
-                      accounts: 'Accounts',
-                      dispatch: 'EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section',
-                      production: 'Production',
-                      packaging: 'EPS/Thermocol Shape Molding, Packaging and Dispatch Section',
-                      suppliers: 'Vendors/Suppliers', // ✅ ADD THIS
-                    }[u.role] || u.role}
-                  </td>
+                 <td className="px-4 py-2">
+  {Array.isArray(u.role) && u.role.length > 0 
+    ? u.role.map(r => ({
+        sales: 'Sales',
+        accounts: 'Accounts',
+        dispatch: 'Dispatch',
+        production: 'Production',
+        packaging: 'Packaging',
+        suppliers: 'Suppliers',
+      }[r] || r)).join(', ')
+    : '-'}
+</td>
                   <td className="px-4 py-2 capitalize">
                     {Array.isArray(u.productionSection) && u.productionSection.length > 0
                       ? u.productionSection.join(', ')

@@ -12,6 +12,26 @@ import toast from "react-hot-toast";
 const ITEMS_PER_PAGE = 5;
 
 const EmployeeDashboard = () => {
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  if (Array.isArray(user.role)) {
+    return user.role;
+  }
+  
+  if (typeof user.role === 'string') {
+    try {
+      return JSON.parse(user.role);
+    } catch (parseError) {
+      return [user.role];
+    }
+  }
+  
+  return [user.role];
+};
   const { tasks, loading, markTaskDone, fetchTasks } = useToDo();
   const { user } = useUserContext();
   const [notifiedTasks, setNotifiedTasks] = useState([]);
@@ -26,6 +46,9 @@ const EmployeeDashboard = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
 
+    // ✅ Add userRoles declaration
+  const userRoles = user ? parseUserRoles(user) : [];
+  
   // Responsive detection
   useEffect(() => {
     const handleResize = () => {
@@ -680,8 +703,7 @@ const EmployeeDashboard = () => {
                     )}
 
                     {/* Follow-up Form */}
-                    {task.isOrderFollowUp && task.assignedBy?.role === "accounts" && (() => {
-                      const followUps = task.followUps || [];
+{task.isOrderFollowUp && task.assignedBy && parseUserRoles(task.assignedBy).includes("accounts") && (() => {                      const followUps = task.followUps || [];
                       const today = new Date().toISOString().slice(0, 10);
                       const todayFollowUp = followUps.find(
                         (entry) => new Date(entry.date).toISOString().slice(0, 10) === today

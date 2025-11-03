@@ -9,7 +9,34 @@ import VehicleDocumentManager from "../components/VehicleDocumentManager";
 import MaintenanceLogBook from "../components/MaintenanceLogBook";
 
 export default function AssignDispatchPlanForm() {
-  const { user, loading, token } = useUserContext();
+    const { user, loading, token } = useUserContext();
+
+    // ✅ Add this helper function
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    // If role is already an array, return it directly
+    if (Array.isArray(user.role)) {
+      return user.role;
+    }
+    
+    // If it's a string (legacy format), try to parse it
+    if (typeof user.role === 'string') {
+      try {
+        return JSON.parse(user.role);
+      } catch (parseError) {
+        return [user.role];
+      }
+    }
+    
+    return [user.role];
+  };
+
+  // ✅ Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
+
   const [submitting, setSubmitting] = useState(false);
   const [showVehicles, setShowVehicles] = useState(false);
   const [attachments, setAttachments] = useState([]);
@@ -95,20 +122,21 @@ export default function AssignDispatchPlanForm() {
   }, [selectedVehicle]);
 
   // Set driver vehicle for driver role
-  useEffect(() => {
-    if (user.role === "driver") {
-      const driverVehicle = registeredVehicles.find(
-        (v) => v.driverEmail === user.email
-      );
-      if (driverVehicle) {
-        setFormData((prev) => ({
-          ...prev,
-          vehicleNumber: driverVehicle.vehicleNumber,
-          driverName: user.name || driverVehicle.driverName || "",
-        }));
-      }
+useEffect(() => {
+  const userRoles = parseUserRoles(user);
+  if (userRoles.includes("driver")) {
+    const driverVehicle = registeredVehicles.find(
+      (v) => v.driverEmail === user.email
+    );
+    if (driverVehicle) {
+      setFormData((prev) => ({
+        ...prev,
+        vehicleNumber: driverVehicle.vehicleNumber,
+        driverName: user.name || driverVehicle.driverName || "",
+      }));
     }
-  }, [user, registeredVehicles]);
+  }
+}, [user, registeredVehicles]);
 
   // Audio recording functions
   const startRecording = async () => {
@@ -431,8 +459,7 @@ export default function AssignDispatchPlanForm() {
         </div>
 
         {/* Assign Dispatch Plan Form - Only for authorized roles */}
-        {user.role !== "dispatch" && user.role !== "packaging" && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+  {!userRoles.includes("dispatch") && !userRoles.includes("packaging") && (          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <svg
                 className="w-6 h-6 text-blue-600"
@@ -862,7 +889,7 @@ export default function AssignDispatchPlanForm() {
         )}
 
         {/* Dispatch Plans Table - Only for non-drivers */}
-        {user.role !== "driver" && (
+  {!userRoles.includes("driver") && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -1187,7 +1214,7 @@ export default function AssignDispatchPlanForm() {
         {/* Vehicle Management Section */}
         <div className="mt-8 space-y-6">
           {/* Register New Vehicle */}
-          {user.role !== "driver" && (
+           {!userRoles.includes("driver") && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-3">
                 <svg
@@ -1511,7 +1538,7 @@ export default function AssignDispatchPlanForm() {
                               Manage Docs
                             </button>
 
-                            {user.role === "accounts" && (
+                           {userRoles.includes("accounts") && (
                               <button
                                 onClick={() =>
                                   setSelectedMaintenanceVehicle(vehicle)
@@ -1546,8 +1573,8 @@ export default function AssignDispatchPlanForm() {
         </div>
 
         {/* Document Manager Section */}
-        {selectedVehicle && user.role === "accounts" && (
-          <div
+ {selectedVehicle && userRoles.includes("accounts") && (
+            <div
             ref={docsRef}
             className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
           >

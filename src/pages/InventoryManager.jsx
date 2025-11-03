@@ -149,17 +149,46 @@ useEffect(() => {
     currentPage * itemsPerPage
   );
 
-  if (
-    user?.role !== "dispatch" &&
-    user?.role !== "admin" &&
-    user?.role !== "accounts"
-  ) {
-    return (
-      <div className="p-6 text-center text-red-600 font-semibold text-lg">
-        🚫 Access Denied: Dispatch Only
-      </div>
-    );
+// Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
   }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
+// ✅ FIX: Handle role array properly
+const userRoles = user ? parseUserRoles(user) : [];
+const hasAccess = userRoles.some(role => ["dispatch", "admin", "accounts"].includes(role));
+
+if (!hasAccess) {
+  return (
+    <div className="p-6 text-center text-red-600 font-semibold text-lg">
+      🚫 Access Denied: Dispatch, Admin, or Accounts Only
+    </div>
+  );
+}
 
   if (loading || !isFilterInitialized) {
     return (

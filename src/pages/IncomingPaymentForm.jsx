@@ -380,7 +380,7 @@ const removeFile = async (index) => {
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {isEditing ? 'Edit Payment' : 'Record Incoming Payment'}
+              {isEditing ? 'Edit Payment' : 'Record Incoming Payment from Customer'}
             </h2>
             <button
               onClick={onClose}
@@ -391,6 +391,87 @@ const removeFile = async (index) => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Mode of Payment */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mode of Payment *
+              </label>
+              <select
+                name="modeOfPayment"
+                value={formData.modeOfPayment}
+                onChange={handleInputChange}
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                required
+              >
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+                <option value="bankTransfer">Bank Transfer</option>
+              </select>
+            </div>
+
+ {/* Conditional Fields based on Payment Mode */}
+            {formData.modeOfPayment === "cheque" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-xl">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cheque Date
+                  </label>
+                  <input
+                    type="date"
+                    name="chequeDate"
+                    value={formData.chequeDate}
+                    onChange={handleInputChange}
+                    max={getMaxDate()}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cheque Number
+                  </label>
+                  <input
+                    type="text"
+                    name="chequeNumber"
+                    value={formData.chequeNumber}
+                    onChange={handleInputChange}
+                    placeholder="Enter cheque number"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    name="bankName"
+                    value={formData.bankName}
+                    onChange={handleInputChange}
+                    placeholder="Enter bank name"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                  />
+                </div>
+              </div>
+            )}
+
+            {formData.modeOfPayment === "cash" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cash Given To
+                </label>
+                <input
+                  type="text"
+                  name="cashGivenTo"
+                  value={formData.cashGivenTo}
+                  onChange={handleInputChange}
+                  placeholder="Enter recipient name"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                />
+              </div>
+            )}
+
+
             {/* Date of Payment */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -487,86 +568,6 @@ const removeFile = async (index) => {
     <p className="text-gray-500 text-sm mt-1">Loading customers...</p>
   )}
 </div>
-
-            {/* Mode of Payment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mode of Payment *
-              </label>
-              <select
-                name="modeOfPayment"
-                value={formData.modeOfPayment}
-                onChange={handleInputChange}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                required
-              >
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="cheque">Cheque</option>
-                <option value="bankTransfer">Bank Transfer</option>
-              </select>
-            </div>
-
-            {/* Conditional Fields based on Payment Mode */}
-            {formData.modeOfPayment === "cheque" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-xl">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cheque Date
-                  </label>
-                  <input
-                    type="date"
-                    name="chequeDate"
-                    value={formData.chequeDate}
-                    onChange={handleInputChange}
-                    max={getMaxDate()}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cheque Number
-                  </label>
-                  <input
-                    type="text"
-                    name="chequeNumber"
-                    value={formData.chequeNumber}
-                    onChange={handleInputChange}
-                    placeholder="Enter cheque number"
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bank Name
-                  </label>
-                  <input
-                    type="text"
-                    name="bankName"
-                    value={formData.bankName}
-                    onChange={handleInputChange}
-                    placeholder="Enter bank name"
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                  />
-                </div>
-              </div>
-            )}
-
-            {formData.modeOfPayment === "cash" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cash Given To
-                </label>
-                <input
-                  type="text"
-                  name="cashGivenTo"
-                  value={formData.cashGivenTo}
-                  onChange={handleInputChange}
-                  placeholder="Enter recipient name"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-            )}
 
             {/* Amount */}
             <div>

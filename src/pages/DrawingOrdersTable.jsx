@@ -11,6 +11,15 @@ import withReactContent from 'sweetalert2-react-content';
 const MySwal = withReactContent(Swal);
 
 const DrawingOrdersTable = () => {
+  // Helper function to parse roles properly - SIMPLIFIED VERSION
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    // Since role is now properly stored as an array, just return it directly
+    return Array.isArray(user.role) ? user.role : [user.role];
+  };
     const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
   const [totalPages, setTotalPages] = useState(1);  // This line should already exist in your code
@@ -21,10 +30,13 @@ const [tempValues, setTempValues] = useState({});
 const [isUploading, setIsUploading] = useState(false);
 const [isDeleting, setIsDeleting] = useState(false);
 
-const isSupplierLocked = (order) =>
-  (user.role === 'suppliers' || user.role === 'viewer') && order.priceConfirmedStatus === 'confirmed';
+  // ✅ Use the simplified parseUserRoles
+  const userRoles = user ? parseUserRoles(user) : [];
 
-// Compress image file
+  const isSupplierLocked = (order) =>
+    (userRoles.includes('suppliers') || userRoles.includes('viewer')) && order.priceConfirmedStatus === 'confirmed';
+
+  // Compress image file
 const compressImage = async (file) => {
   const options = {
     maxSizeMB: 0.5,
@@ -352,7 +364,7 @@ const renderCustomerRemarksCell = (order) => (
             </div>
             
             {/* Add new remark input (for suppliers AND customers) */}
-            {(user.role === 'suppliers' || user.role === 'viewer') && (
+{(userRoles.includes('suppliers') || userRoles.includes('viewer')) && (
                 <div className="mt-2">
                     <textarea
                         placeholder="Add new remark..."
@@ -396,7 +408,7 @@ const renderThermoRemarksCell = (order) => (
             </div>
             
             {/* Add new remark input (for accounts/production) */}
-            {['accounts', 'production'].includes(user.role) && (
+{['accounts', 'production'].some(role => userRoles.includes(role)) && (
                 <div className="mt-2">
                     <textarea
                         placeholder="Add new remark..."
@@ -462,8 +474,9 @@ const renderThermoRemarksCell = (order) => (
 )}
 
       <div className="max-w-full overflow-x-auto p-6 bg-gradient-to-br from-white to-blue-50 min-h-screen transition-all duration-300 ease-in-out">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-6 tracking-tight">{user.role === "suppliers" ? "My Orders" : "All Orders By Customers" }</h1>
-
+<h1 className="text-3xl font-extrabold text-gray-800 mb-6 tracking-tight">
+  {userRoles.includes('suppliers') ? "My Orders" : "All Orders By Customers"}
+</h1>
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <input
             type="text"
@@ -508,7 +521,7 @@ const renderThermoRemarksCell = (order) => (
         'S. No', 'Date', 'Customer',  'Product Name', 'Drawing Name', 'Video of Drawing', 'Voice Instructions', 'Margin', 'Shrinkage Allowance',
         '3D Model (STEP)', 'Customer Remarks', 'Price Quoted by Supplier in Rs (GST 18% Extra)', 'Price Confirmed by Customer',
         'Thermo Packers Remarks', 'Status', 'Finished Product Image', 
-        (user.role === 'suppliers' || user.role === 'viewer') ? 'Actions' : ''
+        (userRoles.includes('suppliers') || userRoles.includes('viewer')) ? 'Actions' : ''
       ].filter(Boolean).map((header, i) => (
         <th key={i} className="px-4 py-3 border border-gray-200 font-semibold">
           {header}
@@ -544,7 +557,7 @@ const renderThermoRemarksCell = (order) => (
           </td>
           {/* Drawing Name */}
           <td className="px-4 py-3 border border-gray-200">
-            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
+            {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'drawingName' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -582,7 +595,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Drawing Video (keep existing) */}
           <td className="px-4 py-3 border border-gray-200 min-w-[240px]">
-            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
+{(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) && (
               <input
                 type="file"
                 accept="video/*"
@@ -610,7 +623,7 @@ const renderThermoRemarksCell = (order) => (
                       </div>
                     </div>
 
-                    {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order)
+                    {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order)
  && (
                       <button
                         type="button"
@@ -634,7 +647,7 @@ const renderThermoRemarksCell = (order) => (
                 controls
                 className="w-full max-w-xs"
               />
-              {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order)
+              {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order)
  && (
                 <button
                   type="button"
@@ -651,7 +664,7 @@ const renderThermoRemarksCell = (order) => (
         </td>
           {/* Margin */}
           <td className="px-4 py-3 border border-gray-200">
-            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
+            {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'margin' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -689,7 +702,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Shrinkage Allowance */}
           <td className="px-4 py-3 border border-gray-200">
-            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) ? (
+            {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) ? (
               editingStates[order._id] === 'shrinkageAllowance' ? (
                 <div className="flex items-center gap-2">
                   <input
@@ -727,7 +740,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* STEP File (keep existing) */}
           <td className="px-4 py-3 border border-gray-200">
-            {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
+            {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) && (
               <input
                 type="file"
                 accept="*"
@@ -756,7 +769,7 @@ const renderThermoRemarksCell = (order) => (
                       ) : (
                         <div className="text-blue-600 underline">View File {idx + 1}</div>
                       )}
-                      {(user.role === 'suppliers' || user.role === 'viewer') && !isSupplierLocked(order) && (
+                      {(userRoles.includes('suppliers') || userRoles.includes('viewer')) && !isSupplierLocked(order) && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -821,7 +834,7 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Price Confirmed Status (keep existing) */}
           <td className="px-4 py-3 border border-gray-200">
-            {(user.role === 'suppliers' || user.role === 'viewer') ? (
+            {(userRoles.includes('suppliers') || userRoles.includes('viewer')) ? (
               order.priceQuoted ? (
                 <select
                   value={order.priceConfirmedStatus || ''}
@@ -854,12 +867,12 @@ const renderThermoRemarksCell = (order) => (
 
           {/* Status (keep existing dropdown) */}
           <td className="px-4 py-3 border border-gray-200">
-            {['accounts', 'production'].includes(user.role) ? (
-              <select
-                value={order.status || ''}
-                onChange={(e) => handleFieldChange(order._id, 'status', e.target.value)}
-                className="border p-1 rounded w-40"
-              >
+          {['accounts', 'production'].some(role => userRoles.includes(role)) ? (
+  <select
+    value={order.status || ''}
+    onChange={(e) => handleFieldChange(order._id, 'status', e.target.value)}
+    className="border p-1 rounded w-40"
+  >
                 <option value="">Select</option>
                 <option value="not_processed">Not Processed</option>
                 <option value="in_process">In Process</option>
@@ -876,7 +889,7 @@ const renderThermoRemarksCell = (order) => (
             )}
           </td>
           <td className="px-4 py-3 border border-gray-200">
-            {['accounts', 'production'].includes(user.role) ? (
+{['accounts', 'production'].some(role => userRoles.includes(role)) ? (
               <div className="flex flex-col gap-2">
                 {Array.isArray(order.finishedProductImage) && order.finishedProductImage.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -932,8 +945,8 @@ const renderThermoRemarksCell = (order) => (
           </td>
 
         
-        {(['accounts', 'production'].includes(user.role) || 
- ((user.role === 'suppliers' || user.role === 'viewer') && order.priceConfirmedStatus !== 'confirmed')) && (
+{(['accounts', 'production'].includes(user.role) || 
+ ((userRoles.includes('suppliers') || userRoles.includes('viewer')) && order.priceConfirmedStatus !== 'confirmed')) && (
   <td className="px-4 py-3 border border-gray-200">
     <button
       onClick={() => handleDeleteOrder(order._id)}

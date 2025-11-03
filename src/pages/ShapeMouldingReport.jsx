@@ -6,7 +6,7 @@ import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 
-const ROWS_PER_PAGE = 5; // 5 dates per page
+const ROWS_PER_PAGE = 5;
 
 const ShapeMouldingReport = () => {
   const { user } = useUserContext();
@@ -19,14 +19,15 @@ const ShapeMouldingReport = () => {
   const [filterDate, setFilterDate] = useState("");
   const [groupedData, setGroupedData] = useState({});
   const [totalPages, setTotalPages] = useState(1);
-const isKnownProduct = (name) => {
-  if (!name || typeof name !== "string") return false;
-  return allProducts.some(
-    (p) =>
-      p?.name &&
-      p.name.trim().toLowerCase() === name.trim().toLowerCase()
-  );
-};
+
+  const isKnownProduct = (name) => {
+    if (!name || typeof name !== "string") return false;
+    return allProducts.some(
+      (p) =>
+        p?.name &&
+        p.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -34,8 +35,7 @@ const isKnownProduct = (name) => {
         const res = await axiosInstance.get("/products/all-backend-products", {
           headers: { Authorization: `Bearer ${user.token}` },
         });
- 
-        setAllProducts(res.data); // assuming array of products
+        setAllProducts(res.data);
       } catch (err) {
         console.error("Error fetching products:", err);
         toast.error("Failed to load product list");
@@ -43,13 +43,13 @@ const isKnownProduct = (name) => {
     };
 
     fetchProducts();
-  }, []);
+  }, [user.token]);
 
   useEffect(() => {
     const debounced = debounce(() => {
       setSearchTerm(rawSearchTerm);
       setCurrentPage(1);
-    }, 500); // delay in ms
+    }, 500);
 
     debounced();
     return () => debounced.cancel();
@@ -77,7 +77,7 @@ const isKnownProduct = (name) => {
         );
 
         if (res.data?.data) {
-          setGroupedData(res.data.data); // Object of { date: [...rows] }
+          setGroupedData(res.data.data);
           setTotalPages(res.data.totalPages);
         }
       } catch (err) {
@@ -88,17 +88,19 @@ const isKnownProduct = (name) => {
       }
     };
 
-   if (
-  user.role === "accounts" ||
-  user.productionSection?.includes("shapeMoulding")
-) {
-  fetchData();
-}
+    // ✅ Simplified role check
+    const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+    if (userRoles.includes("accounts") || user.productionSection?.includes("shapeMoulding")) {
+      fetchData();
+    }
 
   }, [user, currentPage, searchTerm, filterDate]);
 
-  if (!(user.role === "accounts" || user.productionSection?.includes("shapeMoulding")))
-  return null;
+  // ✅ Simplified access check
+  const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+  if (!(userRoles.includes("accounts") || user.productionSection?.includes("shapeMoulding"))) {
+    return null;
+  }
 
   const handleInputChange = (date, index, field, value) => {
     const updatedGrouped = { ...groupedData };
@@ -120,7 +122,7 @@ const isKnownProduct = (name) => {
       pcs: "",
       dryWt: "",
       rejects: "",
-          isNew: true, // 👈 mark new row
+      isNew: true,
     };
 
     const updatedGrouped = {
@@ -129,84 +131,79 @@ const isKnownProduct = (name) => {
     };
 
     setGroupedData(updatedGrouped);
-    setCurrentPage(1); // Optional: Reset to first page
+    setCurrentPage(1);
 
-     // 👇 Scroll to bottom after a delay to allow DOM to update
-  setTimeout(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, 100);
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
-const handleDeleteRow = async (date, index) => {
-  const updatedGrouped = { ...groupedData };
-  const rowToDelete = updatedGrouped[date]?.[index];
 
-  if (!rowToDelete) return;
+  const handleDeleteRow = async (date, index) => {
+    const updatedGrouped = { ...groupedData };
+    const rowToDelete = updatedGrouped[date]?.[index];
 
-  // If it's a saved row with _id, delete from backend
-  if (rowToDelete._id) {
-    try {
-      await axiosInstance.delete(`/production-reports/delete/${rowToDelete._id}`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      toast.success("Row deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting row:", err);
-      toast.error("Failed to delete row.");
-      return;
-    }
-  }
+    if (!rowToDelete) return;
 
-  // Remove from local state
-  updatedGrouped[date].splice(index, 1);
-
-  // Cleanup empty dates or update srNo
-  if (updatedGrouped[date].length === 0) {
-    delete updatedGrouped[date];
-  } else {
-    updatedGrouped[date] = updatedGrouped[date].map((r, idx) => ({
-      ...r,
-      srNo: idx + 1,
-    }));
-  }
-
-  setGroupedData(updatedGrouped);
-};
-
-
-const handleSave = async () => {
-  const flatData = Object.values(groupedData).flat().map((row) => ({
-    ...row,
-    product:
-      (!row.product || row.product === '__other__' || !isKnownProduct(row.product))
-        ? row.customProduct || ""
-        : row.product,
-  }));
-
-  try {
-    await axiosInstance.post(
-      "/production-reports/shape-moulding-update",
-      flatData,
-      {
-        headers: { Authorization: `Bearer ${user.token}` },
+    if (rowToDelete._id) {
+      try {
+        await axiosInstance.delete(`/production-reports/delete/${rowToDelete._id}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        toast.success("Row deleted successfully!");
+      } catch (err) {
+        console.error("Error deleting row:", err);
+        toast.error("Failed to delete row.");
+        return;
       }
-    );
-
-    // ✅ Remove isNew after successful save
-    const cleanedGrouped = {};
-    for (const date in groupedData) {
-      cleanedGrouped[date] = groupedData[date].map((row) => {
-        const { isNew, ...rest } = row; // remove isNew
-        return rest;
-      });
     }
-    setGroupedData(cleanedGrouped);
 
-    toast.success("Data saved successfully!");
-  } catch (err) {
-    console.error("Error saving shape moulding report:", err);
-    toast.error("Failed to save data");
-  }
-};
+    updatedGrouped[date].splice(index, 1);
+
+    if (updatedGrouped[date].length === 0) {
+      delete updatedGrouped[date];
+    } else {
+      updatedGrouped[date] = updatedGrouped[date].map((r, idx) => ({
+        ...r,
+        srNo: idx + 1,
+      }));
+    }
+
+    setGroupedData(updatedGrouped);
+  };
+
+  const handleSave = async () => {
+    const flatData = Object.values(groupedData).flat().map((row) => ({
+      ...row,
+      product:
+        (!row.product || row.product === '__other__' || !isKnownProduct(row.product))
+          ? row.customProduct || ""
+          : row.product,
+    }));
+
+    try {
+      await axiosInstance.post(
+        "/production-reports/shape-moulding-update",
+        flatData,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+        }
+      );
+
+      const cleanedGrouped = {};
+      for (const date in groupedData) {
+        cleanedGrouped[date] = groupedData[date].map((row) => {
+          const { isNew, ...rest } = row;
+          return rest;
+        });
+      }
+      setGroupedData(cleanedGrouped);
+
+      toast.success("Data saved successfully!");
+    } catch (err) {
+      console.error("Error saving shape moulding report:", err);
+      toast.error("Failed to save data");
+    }
+  };
 
   const paginatedDates = Object.keys(groupedData);
 
@@ -244,7 +241,7 @@ const handleSave = async () => {
           </div>
         ) : (
           <>
-            {/* Filters */}
+            {/* Filters and table content remains the same */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
               <input
                 type="text"
@@ -268,7 +265,6 @@ const handleSave = async () => {
               >
                 Reset Filters
               </button>
-              {/* Actions */}
               <div className="mt-6 flex gap-4">
                 <button
                   onClick={handleAddRow}
@@ -276,7 +272,6 @@ const handleSave = async () => {
                 >
                   Add Row
                 </button>
-
                 <button
                   onClick={handleSave}
                   className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -526,7 +521,7 @@ const handleSave = async () => {
                 Next
               </button>
             </div>
-          </>
+         </>
         )}
       </div>
     </>

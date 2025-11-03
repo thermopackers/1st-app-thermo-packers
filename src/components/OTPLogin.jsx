@@ -44,51 +44,56 @@ export default function OTPLogin({ setLoading, supplierMode = false }) {
     }
   };
 
-  const verifyOTP = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.post("/login/verify-otp", { 
-        email, 
-        otp,
-        isSupplierLogin: supplierMode 
-      });
-      const { token } = res.data;
-      localStorage.setItem("token", token);
-      const decoded = jwtDecode(token);
+const verifyOTP = async () => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.post("/login/verify-otp", { 
+      email, 
+      otp,
+      isSupplierLogin: supplierMode 
+    });
+    const { token } = res.data;
+    localStorage.setItem("token", token);
+    const decoded = jwtDecode(token);
 
-      // Strict role validation based on login mode
-      if (supplierMode) {
-        if (decoded.role !== 'suppliers') {
-          localStorage.removeItem('token');
-          throw new Error("supplier_only");
-        }
-        navigate("/dashboard");
-      } else {
-        const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging', 'driver'];
-        if (!validRoles.includes(decoded.role)) {
-          localStorage.removeItem('token');
-          throw new Error("unauthorized_role");
-        }
-        navigate("/dashboard");
+    // ✅ FIX: Handle role array properly
+    const userRoles = Array.isArray(decoded.role) ? decoded.role : [decoded.role];
+
+    // Strict role validation based on login mode
+    if (supplierMode) {
+      if (!userRoles.includes('suppliers')) {
+        localStorage.removeItem('token');
+        throw new Error("supplier_only");
       }
-
-      const userRes = await axiosInstance.get("/users/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(userRes.data);
-      toast.success("Login successful!");
+      navigate("/dashboard");
+    } else {
+      const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging', 'driver'];
+      const hasValidRole = userRoles.some(role => validRoles.includes(role));
       
-    } catch (err) {
-      const errorMessage = 
-        err.message === 'supplier_only' ? 'This portal is for suppliers only' :
-        err.message === 'unauthorized_role' ? 'You are not authorized for this portal' :
-        err.response?.data?.message || "Invalid OTP";
-      
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
+      if (!hasValidRole) {
+        localStorage.removeItem('token');
+        throw new Error("unauthorized_role");
+      }
+      navigate("/dashboard");
     }
-  };
+
+    const userRes = await axiosInstance.get("/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setUser(userRes.data);
+    toast.success("Login successful!");
+    
+  } catch (err) {
+    const errorMessage = 
+      err.message === 'supplier_only' ? 'This portal is for suppliers only' :
+      err.message === 'unauthorized_role' ? 'You are not authorized for this portal' :
+      err.response?.data?.message || "Invalid OTP";
+    
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="space-y-4">

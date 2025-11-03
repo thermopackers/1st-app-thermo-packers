@@ -9,6 +9,36 @@ import MaintenanceLogBook from '../components/MaintenanceLogBook';
 
 export default function RegisteredVehicles() {
   const { user, token, loading } = useUserContext();
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  // ✅ SIMPLIFIED: If role is already an array, return it directly
+  if (Array.isArray(user.role)) {
+    return user.role;
+  }
+  
+  // ✅ Keep the old logic for backward compatibility with string formats
+  let userRoles = [];
+  if (typeof user.role === 'string' && user.role.startsWith('[')) {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else if (typeof user.role === 'string') {
+    userRoles = [user.role];
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
+  // ✅ Declare userRoles at component level
+  const userRoles = user ? parseUserRoles(user) : [];
+  
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState(null);
@@ -209,8 +239,8 @@ export default function RegisteredVehicles() {
         </div>
 
         {/* Register New Vehicle Section - Only for non-drivers */}
-        {user.role !== "driver" && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+{!userRoles.includes("driver") && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">Register New Vehicle</h3>
               <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
@@ -456,8 +486,8 @@ export default function RegisteredVehicles() {
                         </button>
                       )}
                       
-                      {user.role !== "driver" && (
-                        <button
+{!userRoles.includes("driver") && (
+                          <button
                           onClick={() => handleDeleteVehicle(vehicle)}
                           className="inline-flex items-center gap-2 bg-red-50 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors duration-200 text-sm"
                         >
@@ -476,8 +506,8 @@ export default function RegisteredVehicles() {
         </div>
 
         {/* Document Manager Section */}
-        {selectedVehicle && user.role === "accounts" && (
-          <div ref={docsRef} className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+{selectedVehicle && userRoles.includes("accounts") && (
+            <div ref={docsRef} className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
               <h3 className="text-xl font-semibold text-gray-900">
                 Managing Documents for: <span className="text-blue-600">{selectedVehicle.vehicleNumber}</span>

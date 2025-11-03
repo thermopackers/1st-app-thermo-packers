@@ -385,8 +385,8 @@ const openFilePreview = (file) => {
                     {r.powerFactor || "-"}
                   </td>
                   <td className="border px-2 py-1">
-                    {["accounts", "admin"].includes(user.role) ? (
-                      <>
+{(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) ? (
+                        <>
                         <input
                           type="checkbox"
                           checked={r.checked || false}

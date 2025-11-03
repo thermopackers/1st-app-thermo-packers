@@ -7,6 +7,35 @@ import { useUserContext } from "../context/UserContext";
 
 export default function AddCustomer() {
     const { user } = useUserContext();
+    // ✅ ADD: Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
   const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
 const [gstError, setGstError] = useState("");
 
@@ -65,23 +94,25 @@ const handleChange = (e) => {
 };
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-      setSubmitting(true);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
+  
   if (formData.company && formData.company !== "URP" && formData.company.length !== 15) {
-  setGstError("GST number must be exactly 15 characters.");
-  toast.error("GST number must be exactly 15 characters.");
-  setSubmitting(false);
-  return;
-}
+    setGstError("GST number must be exactly 15 characters.");
+    toast.error("GST number must be exactly 15 characters.");
+    setSubmitting(false);
+    return;
+  }
+  
   // 🔥 Auto-fill URN
   if (!formData.company || formData.company.trim() === "") {
     formData.company = "URP";
   }
 
-    try {
-          let uploadedUrls = [];
-  if (gstFiles.length > 0) {
+  try {
+    let uploadedUrls = [];
+    if (gstFiles.length > 0) {
       toast.loading("Uploading documents...");
       uploadedUrls = await uploadToCloudinary(gstFiles);
       toast.dismiss();
@@ -91,20 +122,25 @@ const handleChange = (e) => {
       ...formData,
       gstDocs: uploadedUrls, // Send this to backend
     };
-await axiosInstance.post("/customers", payload);
-      toast.success("Customer added successfully!");
-      if(user.role === "sales"){
-        navigate('/dashboard')
-      }else{
-        navigate("/customers");
-      }
-    } catch (err) {
-      console.error("Customer addition failed", err);
-      alert("Failed to add customer");
-    } finally {
+    
+    await axiosInstance.post("/customers", payload);
+    toast.success("Customer added successfully!");
+    
+    // ✅ FIX: Use userRoles instead of user.role
+    const userRoles = parseUserRoles(user);
+    if (userRoles.includes("sales")) {
+      navigate('/dashboard');
+    } else {
+      navigate("/customers");
+    }
+    
+  } catch (err) {
+    console.error("Customer addition failed", err);
+    alert("Failed to add customer");
+  } finally {
     setSubmitting(false);
   }
-  };
+};
 
   return (
     <>

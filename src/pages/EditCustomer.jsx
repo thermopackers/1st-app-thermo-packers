@@ -19,14 +19,15 @@ const [gstError, setGstError] = useState("");
   const [removedDocs, setRemovedDocs] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [frequentProducts, setFrequentProducts] = useState([]);
+console.log("allUsers",allUsers);
 
-  useEffect(() => {
+useEffect(() => {
   async function fetchUsers() {
     try {
-      const res = await axiosInstance.get("/users/all"); // create this route if not already
-      setAllUsers(res.data.filter(u => ["sales", "accounts","production"].includes(u.role)));
+      const res = await axiosInstance.get("/users/all"); // Use the new route
+      setAllUsers(res.data);
     } catch (err) {
-      console.error("Failed to load users", err);
+      console.error("Failed to load sales users", err);
     }
   }
 
@@ -270,7 +271,41 @@ if (!customer.company || customer.company.trim() === "") {
               className="w-full border p-2 rounded"
             />
           </div>
-      {!["sales"].includes(user.role) && (    
+   {(() => {
+  // ✅ Use the same parseUserRoles logic as your dashboard
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    let userRoles = [];
+    if (Array.isArray(user.role)) {
+      if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        userRoles = user.role;
+      }
+    } else if (typeof user.role === 'string') {
+      try {
+        userRoles = JSON.parse(user.role);
+      } catch (parseError) {
+        userRoles = [user.role];
+      }
+    } else {
+      userRoles = [user.role];
+    }
+    return userRoles;
+  };
+
+  const userRoles = user ? parseUserRoles(user) : [];
+  
+  // Show the field for anyone who is NOT a sales role
+  return !userRoles.includes("sales");
+})() && (
 <div>
   <label className="block mb-1 font-semibold">Customer Handled/Managed by</label>
   <select

@@ -34,7 +34,30 @@ const AttendanceLogs = () => {
   const [selectedLog, setSelectedLog] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   
-  const isPrivileged = ["admin", "accounts"].includes(user?.role);
+  // ✅ FIX: Add helper function and proper role checking
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    let userRoles = [];
+    if (Array.isArray(user.role)) {
+      // If it's already a proper array, use it directly
+      userRoles = user.role;
+    } else if (typeof user.role === 'string') {
+      try {
+        userRoles = JSON.parse(user.role);
+      } catch (parseError) {
+        userRoles = [user.role];
+      }
+    } else {
+      userRoles = [user.role];
+    }
+    return userRoles;
+  };
+
+  const userRoles = user ? parseUserRoles(user) : [];
+  const isPrivileged = userRoles.some(role => ["admin", "accounts"].includes(role));
   const limit = 20;
 
   const fetchLogs = async () => {

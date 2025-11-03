@@ -319,15 +319,18 @@ export default function AllPurchaseProducts() {
 
                         {/* Stock */}
                         <td className="py-4 px-6">
-                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
-                            prod.stock < 10 
-                              ? "bg-red-100 text-red-700" 
-                              : "bg-green-100 text-green-700"
-                          }`}>
-                            {prod.stock < 10 && <AlertTriangle size={14} />}
-                            {prod.stock || 0} {prod.unit}
-                          </div>
-                        </td>
+  <div className="flex flex-col gap-1">
+    <span className="text-xs text-gray-500 font-medium">Stock in Hand</span>
+    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+      prod.stock < 10 
+        ? "bg-red-100 text-red-700" 
+        : "bg-green-100 text-green-700"
+    }`}>
+      {prod.stock < 10 && <AlertTriangle size={14} />}
+      {prod.stock || 0} {prod.unit}
+    </div>
+  </div>
+</td>
 
                         {/* Files */}
                         <td className="py-4 px-6">
@@ -488,14 +491,17 @@ export default function AllPurchaseProducts() {
                           {prod.category?.name || "—"}
                         </div>
                       </div>
-                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                        prod.stock < 10 
-                          ? "bg-red-100 text-red-700" 
-                          : "bg-green-100 text-green-700"
-                      }`}>
-                        {prod.stock < 10 && <AlertTriangle size={12} />}
-                        {prod.stock || 0} {prod.unit}
-                      </div>
+                     <div className="flex flex-col gap-1">
+  <span className="text-xs text-gray-500 font-medium">Stock in Hand</span>
+  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+    prod.stock < 10 
+      ? "bg-red-100 text-red-700" 
+      : "bg-green-100 text-green-700"
+  }`}>
+    {prod.stock < 10 && <AlertTriangle size={12} />}
+    {prod.stock || 0} {prod.unit}
+  </div>
+</div>
                     </div>
 
                     {/* Description */}

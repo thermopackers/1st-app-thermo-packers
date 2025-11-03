@@ -6,6 +6,22 @@ import { useUserContext } from "../context/UserContext";
 import AssetManagement from "./AssetManagement";
 import { FaArrowLeft, FaImage, FaBox, FaCalendarAlt, FaUser, FaEnvelope, FaBriefcase } from "react-icons/fa";
 
+// ✅ Add the parseUserRoles function here too
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  if (Array.isArray(user.role)) {
+    if (user.role.length === 1 && typeof user.role[0] === 'string') {
+      return user.role;
+    }
+    return user.role;
+  }
+  
+  return [user.role];
+};
+
 const EmployeeAssets = () => {
   const { user } = useUserContext();
   const [assets, setAssets] = useState([]);
@@ -14,6 +30,9 @@ const EmployeeAssets = () => {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+
+  // ✅ Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
 
   // Responsive detection
   useEffect(() => {
@@ -138,8 +157,8 @@ const EmployeeAssets = () => {
             </div>
           )}
 
-          {/* Content based on user role */}
-          {user.role !== "admin" ? (
+          {/* ✅ FIXED: Use userRoles instead of user.role */}
+          {!userRoles.includes("admin") ? (
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
               {/* Table Header for Desktop */}
               {!isMobile && assets.length > 0 && (

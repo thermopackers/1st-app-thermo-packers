@@ -21,6 +21,34 @@ import {
 
 export default function MonthlyReports() {
   const { user } = useUserContext();
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
   const [month, setMonth] = useState("");
   const [employee, setEmployee] = useState("");
   const [employees, setEmployees] = useState([]);
@@ -32,18 +60,22 @@ export default function MonthlyReports() {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        if (["admin", "accounts"].includes(user?.role)) {
-          const res = await axiosInstance.get("/users/all");
-          setEmployees(res.data);
-        }
-      } catch (err) {
-        console.error("Error fetching employees:", err);
+  const fetchEmployees = async () => {
+    try {
+      // ✅ FIX: Handle role array properly
+      const userRoles = parseUserRoles(user);
+      const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
+      
+      if (hasAdminAccess) {
+        const res = await axiosInstance.get("/users/all");
+        setEmployees(res.data);
       }
-    };
-    fetchEmployees();
-  }, [user]);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+    }
+  };
+  fetchEmployees();
+}, [user]);
 
   useEffect(() => {
     if (month) {
@@ -751,26 +783,32 @@ export default function MonthlyReports() {
                 />
               </div>
 
-              {["admin", "accounts"].includes(user?.role) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Select Employee
-                  </label>
-                  <select
-                    value={employee}
-                    onChange={(e) => setEmployee(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                  >
-                    <option value="">All Employees</option>
-                    {employees.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.name} ({emp.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+             {(() => {
+  // ✅ FIX: Handle role array properly
+  const userRoles = parseUserRoles(user);
+  const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
+  
+  return hasAdminAccess && (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Select Employee
+      </label>
+      <select
+        value={employee}
+        onChange={(e) => setEmployee(e.target.value)}
+        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+      >
+        <option value="">All Employees</option>
+        {employees.map((emp) => (
+          <option key={emp._id} value={emp._id}>
+            {emp.name} ({emp.role})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+})()}
 
               <div className="flex items-end">
                 <button

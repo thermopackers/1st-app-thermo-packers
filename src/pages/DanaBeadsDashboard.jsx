@@ -10,6 +10,34 @@ import { useUserContext } from "../context/UserContext";
 import EditDanaBeadsSlipForm from "../components/EditDanaBeadsSlipForm";
 
 const DanaBeadsDashboard = () => {
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
   const { user } = useUserContext();
   const [orders, setOrders] = useState([]);
   const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
@@ -34,6 +62,9 @@ console.log("filteredOrders",filteredOrders);
 const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
 
+  // ✅ ADD THIS LINE - Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
+
   const groupOrdersByPO = (orders) => {
     return orders.reduce((groups, order) => {
       const po = order.po || "N/A";
@@ -42,6 +73,26 @@ const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
       return groups;
     }, {});
   };
+
+   // ✅ ADD THIS AUTHORIZATION CHECK
+  useEffect(() => {
+    if (!user) return;
+    
+    const hasAccess = userRoles.includes("accounts") || 
+                      userRoles.includes("admin") || 
+                      userRoles.includes("production");
+    
+    if (!hasAccess) {
+      Swal.fire({
+        title: "Access Denied",
+        text: "You don't have permission to access the Dana/Beads Dashboard",
+        icon: "error",
+        confirmButtonText: "OK"
+      }).then(() => {
+        navigate("/dashboard");
+      });
+    }
+  }, [user, userRoles, navigate]);
 
   useEffect(() => {
     setSearchParams({ page: 1 });
@@ -231,6 +282,23 @@ const handleSaveEditedSlip = async (orderId, formData) => {
     );
   }
 
+  // ✅ ADD THIS CHECK - If user doesn't have access, don't render the dashboard
+  if (user && !userRoles.includes("accounts") && !userRoles.includes("admin") && !userRoles.includes("production")) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
+          <p className="text-gray-600 mb-4">You don't have permission to access this dashboard.</p>
+          <button 
+            onClick={() => navigate("/dashboard")}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <>
       <InternalNavbar />

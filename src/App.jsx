@@ -18,6 +18,7 @@ export default function App() {
     "/login",
     "/send-rfq",
     "/tour-expenses",
+    "/timestamp-generator-pkc",
     "/tour-expenses-dashboard",
     "/important-numbers",
     "/maintenance/air-compressors",

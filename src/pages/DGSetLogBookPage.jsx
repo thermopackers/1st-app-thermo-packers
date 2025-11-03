@@ -418,8 +418,7 @@ export default function DGSetLogBookPage() {
       </div>
 
       {/* Verification Checkbox for Mobile */}
-      {["accounts", "admin"].includes(user.role) && (
-        <div className="mb-3 flex items-center gap-2">
+{(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) && (        <div className="mb-3 flex items-center gap-2">
           <input
             type="checkbox"
             checked={row.checked || false}
@@ -617,8 +616,7 @@ export default function DGSetLogBookPage() {
                           {/* Verification Column */}
                           <td className="px-6 py-4">
                             <div className="space-y-3">
-                              {["accounts", "admin"].includes(user.role) ? (
-                                <div className="flex items-center gap-3">
+{(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) ? (                                <div className="flex items-center gap-3">
                                   <input
                                     type="checkbox"
                                     checked={row.checked || false}

@@ -348,13 +348,21 @@ customerPhone
               required
             >
               <option value="">Select user</option>
-              {users
-  .filter((user) => user.role && user.role.trim() !== "") // ✅ exclude "no role"
-  .map((user) => (
-    <option key={user._id} value={user._id}>
-      {user.name} ({user.role})
-    </option>
-))}
+             {users
+  .filter((user) => user.role && 
+    (Array.isArray(user.role) ? user.role.length > 0 : user.role.trim() !== "")
+  )
+  .map((user) => {
+    const roleDisplay = Array.isArray(user.role) 
+      ? user.role.join(", ") 
+      : user.role;
+    
+    return (
+      <option key={user._id} value={user._id}>
+        {user.name} ({roleDisplay})
+      </option>
+    );
+  })}
             </select>
             {assignedToList.length > 1 && (
               <button

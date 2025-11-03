@@ -135,7 +135,7 @@ const getCustomerPhone = (name) => {
   ];
 
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState("sales");
+  const [role, setRole] = useState(["sales"]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersFetched, setOrdersFetched] = useState(false);
@@ -326,49 +326,87 @@ const getCustomerPhone = (name) => {
     });
     setLocalSections(initialSections);
   }, [orders]);
-  const fetchOrders = async (page = 1) => {
-    setLoading(true);
-    try {
-      const decoded = JSON.parse(atob(token.split(".")[1]));
-      setRole(decoded.role);
+const fetchOrders = async (page = 1) => {
+  setLoading(true);
+  try {
+  const decoded = JSON.parse(atob(token.split(".")[1]));
 
-      const params = {
-        page,
-        limit: ordersPerPage,
-        ...filters,
-        search: searchTerm,
-        sort: ["newest", "oldest"].includes(sortOrder) ? sortOrder : "newest",
-        status: statusFilter,
-        dispatchStatus: dispatchStatusFilter,
-      };
-
-      // ✅ Add ageFilter only if it's one of the new options
-      if (
-        ["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(
-          sortOrder
-        )
-      ) {
-        params.ageFilter = sortOrder;
+// Use your helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
       }
-
-      let url = "/orders";
-
-      const res = await axiosInstance.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
-
-      setOrders(res.data.orders);
-      setFilteredOrders(res.data.orders);
-      setTotalPages(res.data.totalPages);
-      setOrdersFetched(true);
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-      toast.error("Failed to fetch orders");
-    } finally {
-      setLoading(false);
+    } else {
+      userRoles = user.role;
     }
-  };
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
+const roles = parseUserRoles(decoded);
+setRole(roles);
+
+    const params = {
+      page,
+      limit: ordersPerPage,
+      ...filters,
+      search: searchTerm,
+      sort: ["newest", "oldest"].includes(sortOrder) ? sortOrder : "newest",
+      status: statusFilter,
+      dispatchStatus: dispatchStatusFilter,
+    };
+
+    // ✅ Add ageFilter only if it's one of the new options
+    if (["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)) {
+      params.ageFilter = sortOrder;
+    }
+
+    console.log("🔍 DEBUG - Fetching orders with:", {
+      roles: roles,
+      params: params,
+      filters: filters
+    });
+
+    let url = "/orders";
+    const res = await axiosInstance.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      params,
+    });
+
+    console.log("📦 DEBUG - Orders response:", {
+      totalOrders: res.data.orders?.length,
+      totalPages: res.data.totalPages,
+      orders: res.data.orders
+    });
+
+    setOrders(res.data.orders);
+    setFilteredOrders(res.data.orders);
+    setTotalPages(res.data.totalPages);
+    setOrdersFetched(true);
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    toast.error("Failed to fetch orders");
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     if (!token) {
       navigate("/login");
@@ -408,8 +446,9 @@ const getCustomerPhone = (name) => {
         const decoded = JSON.parse(atob(token.split(".")[1]));
         const currentUser = { _id: decoded.userId, name: decoded.name };
 
-        if (decoded.role === "admin" || decoded.role === "accounts") {
-          const res = await axiosInstance.get("/users/employees", {
+const userRoles = parseUserRoles(decoded);
+if (userRoles.includes("admin") || userRoles.includes("accounts")) {
+            const res = await axiosInstance.get("/users/employees", {
             headers: { Authorization: `Bearer ${token}` },
           });
           setEmployees([...res.data]);
@@ -953,8 +992,8 @@ console.log("sortedOrders",sortedOrders);
         </h2>
 
         {/* Admin Filters */}
-        {(role === "admin" || role === "accounts") && (
-          <div className="bg-white p-6 shadow-lg rounded-lg mb-6 grid md:grid-cols-2 gap-4 items-end">
+{(role.includes("admin") || role.includes("accounts")) && (
+            <div className="bg-white p-6 shadow-lg rounded-lg mb-6 grid md:grid-cols-2 gap-4 items-end">
             {/* Employee Filter */}
             <div className="col-span-1">
               <label
@@ -1056,9 +1095,7 @@ console.log("sortedOrders",sortedOrders);
             />
           </div>
           {/* Clear Filters Button (Sales Role) */}
-          {(role === "sales" ||
-            role === "dispatch" ||
-            role === "packaging") && (
+         {(role.includes("sales") || role.includes("dispatch") || role.includes("packaging")) && (
             <div className="col-span-1 flex items-end">
               <button
                 onClick={() => {
@@ -1137,10 +1174,7 @@ console.log("sortedOrders",sortedOrders);
             </select>
           </div>
           {/* Cancelled Orders Button */}
-          {(role === "admin" ||
-            role === "accounts" ||
-            role === "sales" ||
-            role === "production") && (
+         {(role.includes("admin") || role.includes("accounts") || role.includes("sales") || role.includes("production")) && (
             <div className="col-span-1 flex flex-col md:flex-row gap-3 w-full">
               <button
                 onClick={() => navigate("/cancelled-orders")}
@@ -1249,18 +1283,12 @@ console.log("sortedOrders",sortedOrders);
                       <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
                         PO Copy
                       </th>
-                      {role !== "production" &&
-                        role !== "dispatch" &&
-                        role !== "packaging" && (
+                     {!role.includes("production") && !role.includes("dispatch") && !role.includes("packaging") && (
                           <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
                             Actions
                           </th>
                         )}
-                      {role !== "production" &&
-                        role !== "dispatch" &&
-                        role !== "sales" &&
-                        role !== "admin" &&
-                        role !== "packaging" && (
+                     {!role.includes("production") && !role.includes("dispatch") && !role.includes("sales") && !role.includes("admin") && !role.includes("packaging") && (
                           <>
                             <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
                               Section
@@ -1632,9 +1660,7 @@ console.log("sortedOrders",sortedOrders);
                             </div>
                           </td>
                           {/* ✅ Action Buttons */}
-                          {role !== "production" &&
-                            role !== "dispatch" &&
-                            role !== "packaging" && (
+                         {!role.includes("production") && !role.includes("dispatch") && !role.includes("packaging") && (
                               <td className="px-2 sm:px-4 py-2 text-[11px] sm:text-sm text-gray-800">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                   <button
@@ -1689,11 +1715,11 @@ console.log("sortedOrders",sortedOrders);
                                 </div>
                               </td>
                             )}
-                          {role !== "production" &&
-                            role !== "dispatch" &&
-                            role !== "sales" &&
-                            role !== "admin" &&
-                            role !== "packaging" && (
+                        {!role.includes("production") &&
+  !role.includes("dispatch") &&
+  !role.includes("sales") &&
+  !role.includes("admin") &&
+  !role.includes("packaging") && (
                               <>
                                 {/* Section Checkboxes */}
                                 <td className="px-4 py-2 whitespace-nowrap">

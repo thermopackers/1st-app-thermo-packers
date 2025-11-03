@@ -6,6 +6,35 @@ import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
+
 export default function TourExpensesDashboard() {
   const { user, loading: userLoading } = useUserContext();
   const [expenses, setExpenses] = useState([]);
@@ -13,6 +42,10 @@ export default function TourExpensesDashboard() {
   const [filterName, setFilterName] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+
+  // ✅ Get user roles properly
+  const userRoles = user ? parseUserRoles(user) : [];
+  const isAccounts = userRoles.includes("accounts");
 
   // All your existing functions remain exactly the same...
   const fetchExpenses = async (nameFilter = "", pageNumber = 1) => {
@@ -101,9 +134,10 @@ export default function TourExpensesDashboard() {
           <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
+                {/* ✅ FIX: Use isAccounts variable */}
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
                   <span className="bg-purple-100 text-purple-800 p-3 rounded-xl">✈️</span>
-                  {user?.role === "accounts" ? "All Tour Expenses" : "My Tour Expenses"}
+                  {isAccounts ? "All Tour Expenses" : "My Tour Expenses"}
                 </h1>
                 <p className="text-gray-600 mt-2">
                   Track and manage tour expenses with detailed reporting
@@ -121,8 +155,8 @@ export default function TourExpensesDashboard() {
             </div>
           </div>
 
-          {/* Filter Section for Accounts */}
-          {user?.role === "accounts" && (
+          {/* ✅ FIX: Filter Section for Accounts - use isAccounts variable */}
+          {isAccounts && (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <div className="flex flex-col sm:flex-row gap-4 items-center">
                 <div className="flex-1">
@@ -184,7 +218,8 @@ export default function TourExpensesDashboard() {
                         {/* Header */}
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            {user?.role === "accounts" && (
+                            {/* ✅ FIX: Use isAccounts variable */}
+                            {isAccounts && (
                               <div className="text-sm text-gray-600 mb-1">{exp.user?.name || "—"}</div>
                             )}
                             <h4 className="font-bold text-gray-900">{exp.location}</h4>
@@ -267,8 +302,8 @@ export default function TourExpensesDashboard() {
                           </div>
                         )}
 
-                        {/* Delete Action for Accounts */}
-                        {user.role === "accounts" && (
+                        {/* ✅ FIX: Delete Action for Accounts - use isAccounts variable */}
+                        {isAccounts && (
                           <div className="flex justify-end pt-3 border-t">
                             <button
                               onClick={() => handleDelete(exp._id)}
@@ -288,7 +323,8 @@ export default function TourExpensesDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        {user?.role === "accounts" && (
+                        {/* ✅ FIX: Use isAccounts variable */}
+                        {isAccounts && (
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Sales Employee
                           </th>
@@ -305,7 +341,8 @@ export default function TourExpensesDashboard() {
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Files
                         </th>
-                        {user?.role === "accounts" && (
+                        {/* ✅ FIX: Use isAccounts variable */}
+                        {isAccounts && (
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
@@ -324,8 +361,8 @@ export default function TourExpensesDashboard() {
                             animate={{ opacity: 1 }}
                             className="hover:bg-gray-50 transition-colors"
                           >
-                            {/* Sales Employee Column */}
-                            {user?.role === "accounts" && (
+                            {/* ✅ FIX: Sales Employee Column - use isAccounts variable */}
+                            {isAccounts && (
                               <td className="px-6 py-4">
                                 <div className="text-sm font-medium text-gray-900">{exp.user?.name || "—"}</div>
                               </td>
@@ -421,8 +458,8 @@ export default function TourExpensesDashboard() {
                               </div>
                             </td>
 
-                            {/* Actions Column */}
-                            {user?.role === "accounts" && (
+                            {/* ✅ FIX: Actions Column - use isAccounts variable */}
+                            {isAccounts && (
                               <td className="px-6 py-4">
                                 <button
                                   onClick={() => handleDelete(exp._id)}

@@ -558,7 +558,7 @@ ${user.email ? `(${user.email})` : ''}`
                 </p>
                 {!search && (
                   <button
-                    onClick={() => navigate("/create-proforma")}
+                    onClick={() => navigate("/proforma-invoice")}
                     className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 font-semibold mx-auto"
                   >
                     <Plus size={20} />

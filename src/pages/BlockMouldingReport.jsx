@@ -32,6 +32,18 @@ const BlockMouldingReport = () => {
     setCurrentPage(1);
   }, [searchTerm, filterDate]);
 
+  // Helper function to parse roles properly
+  const parseUserRoles = (user) => {
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    // Since role is now properly stored as array, just return it directly
+    return Array.isArray(user.role) ? user.role : [user.role];
+  };
+
+  const userRoles = user ? parseUserRoles(user) : [];
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -60,16 +72,16 @@ const BlockMouldingReport = () => {
       }
     };
 
-    if (
-      user.role === "accounts" ||
-  user.productionSection?.includes("blockMoulding")
-    ) {
+    // ✅ Use the parsed userRoles
+    if (userRoles.includes("accounts") || user.productionSection?.includes("blockMoulding")) {
       fetchData();
     }
-  }, [user, currentPage, searchTerm, filterDate]);
+  }, [user, currentPage, searchTerm, filterDate, userRoles]);
 
-if (!(user.role === "accounts" || user.productionSection?.includes("blockMoulding")))
-  return null;
+  // ✅ Use the parsed userRoles for the return check
+  if (!(userRoles.includes("accounts") || user.productionSection?.includes("blockMoulding"))) {
+    return null;
+  }
 
 
   const handleInputChange = (date, index, field, value) => {

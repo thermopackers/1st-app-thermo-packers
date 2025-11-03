@@ -9,10 +9,10 @@ const DOCUMENT_TYPES = {
   fitness_renewal: "Fitness Renewal",
   all_india_permit_renewal: "All India Permit Renewal",
   gps_renewal: "GPS Renewal",
-   rc_copy: "RC Copy", 
+  rc_copy: "RC Copy", 
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
-    tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",       // ✅ new
-  payment_receipts: "Tempo Challan Copy & Payment Receipts",           // ✅ new
+  tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
+  payment_receipts: "Tempo Challan Copy & Payment Receipts",
 };
 
 export default function DocumentNotifications({ setDocNotifCount }) {
@@ -21,7 +21,9 @@ export default function DocumentNotifications({ setDocNotifCount }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user?.role === "accounts") {
+    // ✅ FIX: Handle role array properly
+    const userRoles = Array.isArray(user?.role) ? user.role : [user?.role];
+    if (userRoles.includes("accounts")) {
       fetchExpiringDocuments();
     }
   }, [user]);
@@ -98,18 +100,17 @@ export default function DocumentNotifications({ setDocNotifCount }) {
                   {DOCUMENT_TYPES[doc.documentType]}
                 </td>
                 <td className="px-3 py-2 text-sm">
-{new Date(doc.expiryDate).toLocaleDateString("en-GB", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-})}
+                  {new Date(doc.expiryDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
                 </td>
                 <td className="px-3 py-2 text-sm">
                   <span className={`px-2 py-1 rounded-full text-xs ${urgencyClass}`}>
                     {isExpired ? "Expired" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
                   </span>
                 </td>
-               
               </tr>
             );
           })}

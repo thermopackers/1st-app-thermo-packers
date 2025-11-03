@@ -12,6 +12,34 @@ import EditSlipForm from "../components/EditSlipForm";
 const ITEMS_PER_PAGE = 15;
 
 const ProductionDashboard = () => {
+  // Helper function to parse roles properly
+const parseUserRoles = (user) => {
+  if (!user || !user.role) {
+    return [];
+  }
+  
+  let userRoles = [];
+  if (Array.isArray(user.role)) {
+    if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+      try {
+        userRoles = JSON.parse(user.role[0]);
+      } catch (parseError) {
+        userRoles = user.role;
+      }
+    } else {
+      userRoles = user.role;
+    }
+  } else if (typeof user.role === 'string') {
+    try {
+      userRoles = JSON.parse(user.role);
+    } catch (parseError) {
+      userRoles = [user.role];
+    }
+  } else {
+    userRoles = [user.role];
+  }
+  return userRoles;
+};
   const { setShouldRefetchOrders } = useUserContext();
   const { user, loading: userLoading } = useUserContext();
                      const baseUrl = import.meta.env.VITE_REACT_APP_API_URL;
@@ -36,6 +64,17 @@ console.log("orders",orders);
 const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
 const [editType, setEditType] = useState(null); // 'shape' or 'dana'
+
+  // ✅ ADD THIS LINE - Parse user roles
+  const userRoles = user ? parseUserRoles(user) : [];
+
+  if (userLoading) {
+  return (
+    <div className="flex justify-center items-center h-40">
+      <div className="w-12 h-12 border-4 border-blue-400 border-dashed rounded-full animate-spin"></div>
+    </div>
+  );
+}
 
 const handleEditSlip = (order) => {
   // Determine slip type
@@ -85,7 +124,7 @@ const fetchOrders = async () => {
     if (statusFilter !== "all") params.append("status", statusFilter);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
-params.append("sort", sortOrder); // ✅ new
+    params.append("sort", sortOrder);
 
     const response = await axiosInstance.get(
       `/orders/production-dashboard?${params.toString()}`,
@@ -98,55 +137,48 @@ params.append("sort", sortOrder); // ✅ new
 
     let enrichedOrders = response.data.orders;
 
-// ✅ Filter by production section + matching slip
-if (user?.role === "accounts") {
-  enrichedOrders = enrichedOrders.filter((o) => {
-    const assigned = o.sentTo?.production?.length > 0;
+    // ✅ FIXED: Use userRoles instead of user.role
+    if (userRoles.includes("accounts")) {
+      enrichedOrders = enrichedOrders.filter((o) => {
+        const assigned = o.sentTo?.production?.length > 0;
 
-    if (!assigned) return false;
+        if (!assigned) return false;
 
-    if (typeFilter === "shape") {
-      return !!o.shapeSlip?.url;
+        if (typeFilter === "shape") {
+          return !!o.shapeSlip?.url;
+        }
+
+        if (typeFilter === "dana") {
+          return !!o.danaSlip?.url;
+        }
+
+        // fallback: if type is missing, show both
+        return o.shapeSlip?.url || o.danaSlip?.url;
+      });
+    } else if (user?.productionSection?.length > 0 && typeFilter) {
+      enrichedOrders = enrichedOrders.filter((o) => {
+        const assignedSections = o.sentTo?.production || [];
+        const userSections = user.productionSection;
+
+        if (typeFilter === "shape") {
+          return (
+            userSections.includes("shapeMoulding") &&
+            assignedSections.includes("shapeMoulding") &&
+            !!o.shapeSlip?.url
+          );
+        }
+
+        if (typeFilter === "dana") {
+          return (
+            userSections.includes("blockMoulding") &&
+            assignedSections.includes("preExpander") &&
+            !!o.danaSlip?.url
+          );
+        }
+
+        return false; // fallback
+      });
     }
-
-    if (typeFilter === "dana") {
-      return !!o.danaSlip?.url;
-    }
-
-    // fallback: if type is missing, show both
-    return o.shapeSlip?.url || o.danaSlip?.url;
-  });
-}
- else if (user?.productionSection?.length > 0 && typeFilter) {
-  enrichedOrders = enrichedOrders.filter((o) => {
-    const assignedSections = o.sentTo?.production || [];
-    const userSections = user.productionSection;
-
-    if (typeFilter === "shape") {
-      return (
-        userSections.includes("shapeMoulding") &&
-        assignedSections.includes("shapeMoulding") &&
-        !!o.shapeSlip?.url
-      );
-    }
-
-    if (typeFilter === "dana") {
-      return (
-        userSections.includes("blockMoulding") &&
-        assignedSections.includes("preExpander") &&
-        !!o.danaSlip?.url
-      );
-    }
-
-    return false; // fallback
-  });
-}
-
-
-
-
-
-
 
     setOrders(enrichedOrders);
 
@@ -311,7 +343,8 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
         
 <div className="flex justify-center mt-6">
   <div className="p-4 bg-white rounded-xl shadow-md flex flex-col md:flex-row gap-4 items-center justify-center">
-    {type !== "dana" && (user.role === "accounts" || user.productionSection?.includes("shapeMoulding")) && (
+    {/* ✅ FIXED: Use userRoles instead of user.role */}
+    {type !== "dana" && (userRoles.includes("accounts") || user.productionSection?.includes("shapeMoulding")) && (
       <button
         onClick={() => navigate("/reports/shape-moulding")}
         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg w-full md:w-auto"
@@ -320,7 +353,8 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
       </button>
     )}
 
-    {type !== "shape" && (user.role === "accounts" || user.productionSection?.includes("blockMoulding")) && (
+    {/* ✅ FIXED: Use userRoles instead of user.role */}
+    {type !== "shape" && (userRoles.includes("accounts") || user.productionSection?.includes("blockMoulding")) && (
       <button
         onClick={() => navigate("/reports/block-moulding")}
         className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg w-full md:w-auto"
@@ -328,8 +362,6 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
         🧱 Daily Block Moulding Production Report
       </button>
     )}
-
-    
   </div>
 </div>
 
