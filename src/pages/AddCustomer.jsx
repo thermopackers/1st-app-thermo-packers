@@ -94,7 +94,7 @@ const handleChange = (e) => {
 };
 
 
- const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
   setSubmitting(true);
   
@@ -136,7 +136,13 @@ const handleChange = (e) => {
     
   } catch (err) {
     console.error("Customer addition failed", err);
-    alert("Failed to add customer");
+    
+    // ✅ ADD: Handle duplicate customer error
+    if (err.response?.status === 400 && err.response?.data?.error) {
+      toast.error(err.response.data.error);
+    } else {
+      toast.error("Failed to add customer");
+    }
   } finally {
     setSubmitting(false);
   }

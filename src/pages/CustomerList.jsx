@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 
 export default function CustomerList() {
     const { user } = useUserContext();
@@ -94,6 +96,42 @@ const handlePageChange = (newPage) => {
   setPage(newPage);
 };
 
+const exportToExcel = async () => {
+  try {
+    const res = await axiosInstance.get("/customers/export/excel", {
+      params: { 
+        search, 
+        addedBy: addedBySearch, 
+        createdBy: selectedSalesId 
+      },
+    });
+
+    if (res.data.success && res.data.data.length > 0) {
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(res.data.data);
+      
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      // Save file
+      saveAs(data, `customers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`Exported ${res.data.total} customers successfully!`);
+    } else {
+      toast.error("No data to export");
+    }
+  } catch (err) {
+    console.error("Export failed", err);
+    toast.error("Failed to export customers");
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -152,6 +190,17 @@ const handlePageChange = (newPage) => {
   ))}
 </select>
 )}
+
+{/* Add this button after the search inputs */}
+<div className="flex justify-between items-center mb-4">
+  <div className="flex-1"></div>
+  <button
+    onClick={exportToExcel}
+    className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex items-center gap-2"
+  >
+    📊 Export to Excel
+  </button>
+</div>
 
           <table className="min-w-full text-sm sm:text-base bg-white border border-gray-200">
             <thead className="bg-gray-100 text-gray-800 font-semibold">
