@@ -48,61 +48,85 @@ export default function MainElectricPanelPage() {
     }
   };
 
-  const addNewRow = () => {
-    const newRow = {
-      date: new Date(),
-      kwh: "",
-      kvah: "",
-      netKwh: "",
-      netKvah: "",
-      powerFactor: "",
-      checked: false,
-      checkedBy: "",
-      remarks: "",
-      attachments: [],
-    };
-    setRows((prev) => [...prev, newRow]);
-
-    // 👇 Scroll to last row after short delay (wait for DOM render)
-    setTimeout(() => {
-      if (lastRowRef.current) {
-        lastRowRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-    }, 100);
+const addNewRow = () => {
+  const newRow = {
+    date: new Date(),
+    kwh: 0,  // Change from "" to 0
+    kvah: 0, // Change from "" to 0
+    netKwh: 0,
+    netKvah: 0,
+    powerFactor: "",
+    checked: false,
+    checkedBy: "",
+    remarks: "",
+    attachments: [],
   };
+  setRows((prev) => [...prev, newRow]);
 
-  const handleInputChange = (i, field, value) => {
-    const updated = [...rows];
-    updated[i][field] =
-      field === "kwh" || field === "kvah" ? parseFloat(value) || "" : value;
+  // Scroll to last row
+  setTimeout(() => {
+    if (lastRowRef.current) {
+      lastRowRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, 100);
+};
 
-    if (field === "kwh" || field === "kvah") {
-      const prev = i > 0 ? updated[i - 1] : null;
+const handleInputChange = (i, field, value) => {
+  const updated = [...rows];
+  
+  // Update the field value
+  if (field === "kwh" || field === "kvah") {
+    updated[i][field] = value === "" ? "" : parseFloat(value) || 0;
+  } else {
+    updated[i][field] = value;
+  }
 
-      if (prev && prev.kwh !== undefined) {
-        updated[i].netKwh = (updated[i].kwh || 0) - (prev.kwh || 0);
+  // Calculate net values only when kwh or kvah changes
+  if (field === "kwh" || field === "kvah") {
+    // For the first row, net values are the same as current values
+    if (i === 0) {
+      if (field === "kwh") {
+        updated[i].netKwh = updated[i].kwh || 0;
       }
-      if (prev && prev.kvah !== undefined) {
-        updated[i].netKvah = (updated[i].kvah || 0) - (prev.kvah || 0);
+      if (field === "kvah") {
+        updated[i].netKvah = updated[i].kvah || 0;
       }
-
-      if (updated[i].netKwh && updated[i].netKvah) {
-        updated[i].powerFactor = (
-          updated[i].netKwh / updated[i].netKvah
-        ).toFixed(2);
+    } else {
+      // For subsequent rows, calculate net by subtracting previous row values
+      const prev = updated[i - 1];
+      
+      if (field === "kwh") {
+        const currentKwh = updated[i].kwh || 0;
+        const prevKwh = prev.kwh || 0;
+        updated[i].netKwh = currentKwh - prevKwh;
+      }
+      
+      if (field === "kvah") {
+        const currentKvah = updated[i].kvah || 0;
+        const prevKvah = prev.kvah || 0;
+        updated[i].netKvah = currentKvah - prevKvah;
       }
     }
 
-    if (field === "checked") {
-      updated[i].checked = value;
-      updated[i].checkedBy = value ? user.name : "";
+    // Calculate power factor if both net values are available and valid
+    if (updated[i].netKwh !== undefined && updated[i].netKvah !== undefined && updated[i].netKvah !== 0) {
+      updated[i].powerFactor = Number((updated[i].netKwh / updated[i].netKvah).toFixed(2));
+    } else {
+      updated[i].powerFactor = "";
     }
+  }
 
-    setRows(updated);
-  };
+  // Handle checked field
+  if (field === "checked") {
+    updated[i].checked = value;
+    updated[i].checkedBy = value ? user.name : "";
+  }
+
+  setRows(updated);
+};
 
   const handleSave = async (row) => {
     try {
@@ -308,6 +332,27 @@ const openFilePreview = (file) => {
     fetchData(1);
   }, []);
 
+  const openExampleImage = (type) => {
+  const imageUrls = {
+    KWH: "/images/po2.jpg", // Adjust filename as needed
+    KVAH: "/images/po1.jpg" // Adjust filename as needed
+  };
+
+  const imageTitles = {
+    KWH: "KWH Meter Reading Example",
+    KVAH: "KVAH Meter Reading Example"
+  };
+
+  MySwal.fire({
+    title: imageTitles[type],
+    html: `<img src="${imageUrls[type]}" alt="${imageTitles[type]}" style="max-width:100%; max-height:70vh; object-fit:contain;" />`,
+    showCloseButton: true,
+    showConfirmButton: false,
+    width: "90%",
+    background: '#f8f9fa'
+  });
+};
+
   return (
     <>
       <InternalNavbar />
@@ -328,20 +373,42 @@ const openFilePreview = (file) => {
 
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-300 text-xs sm:text-sm">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="border px-2 py-1">Date</th>
-                <th className="border px-2 py-1">KWH</th>
-                <th className="border px-2 py-1">KVAH</th>
-                <th className="border px-2 py-1">Net KWH (New KWH - Old KWH)</th>
-                <th className="border px-2 py-1">Net KVAH (New KVAH - Old KVAH)</th>
-                <th className="border px-2 py-1">Power Factor (Net KWH/Net KVAH)(Should be near to 0.99)</th>
-                <th className="border px-2 py-1">Sign of Plant Manager</th>
-                <th className="border px-2 py-1">Remarks</th>
-                <th className="border px-2 py-1">Attachments</th>
-                <th className="border px-2 py-1">Actions</th>
-              </tr>
-            </thead>
+           <thead className="bg-gray-200">
+  <tr>
+    <th className="border px-2 py-1">Date</th>
+   <th className="border px-2 py-1">
+  <div className="flex flex-col items-center">
+    <span>KWH</span>
+    <img 
+      src="/images/po2.jpg" // Adjust filename as needed
+      alt="KWH Example" 
+      className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
+      onClick={() => openExampleImage("KWH")}
+      title="Click to view larger example"
+    />
+  </div>
+</th>
+<th className="border px-2 py-1">
+  <div className="flex flex-col items-center">
+    <span>KVAH</span>
+    <img 
+      src="/images/po1.jpg" // Adjust filename as needed
+      alt="KVAH Example" 
+      className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
+      onClick={() => openExampleImage("KVAH")}
+      title="Click to view larger example"
+    />
+  </div>
+</th>
+    <th className="border px-2 py-1">Net KWH (New KWH - Old KWH)</th>
+    <th className="border px-2 py-1">Net KVAH (New KVAH - Old KVAH)</th>
+    <th className="border px-2 py-1">Power Factor (Net KWH/Net KVAH)(Should be near to 0.99)</th>
+    <th className="border px-2 py-1">Sign of Plant Manager</th>
+    <th className="border px-2 py-1">Remarks</th>
+    <th className="border px-2 py-1">Attachments</th>
+    <th className="border px-2 py-1">Actions</th>
+  </tr>
+</thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr
@@ -352,15 +419,15 @@ const openFilePreview = (file) => {
                     {ddmmyyyy(r.date || new Date())}
                   </td>
                   <td className="border px-2 py-1">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={r.kwh || ""}
-                      onChange={(e) =>
-                        handleInputChange(i, "kwh", e.target.value)
-                      }
-                      className="w-20 sm:w-24 border p-1"
-                    />
+               <input
+  type="number"
+  step="0.01"
+  value={r.kwh === 0 ? 0 : r.kwh || ""}
+  onChange={(e) =>
+    handleInputChange(i, "kwh", e.target.value)
+  }
+  className="w-20 sm:w-24 border p-1"
+/>
                   </td>
                   <td className="border px-2 py-1">
                     <input

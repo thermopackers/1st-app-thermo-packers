@@ -587,6 +587,7 @@ export default function PaymentRecords() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details Uploaded By</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode & Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -608,6 +609,18 @@ export default function PaymentRecords() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(payment.dateOfPayment)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div className="flex flex-col">
+            <span className="font-medium text-gray-900">
+              {payment.createdBy?.name || 'N/A'}
+            </span>
+            {payment.createdBy?.email && (
+              <span className="text-xs text-gray-500 mt-1">
+                {payment.createdBy.email}
+              </span>
+            )}
+          </div>
+        </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {payment.customerName}
                       </td>
