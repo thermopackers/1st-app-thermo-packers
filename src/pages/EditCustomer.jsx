@@ -23,21 +23,8 @@ const [gstError, setGstError] = useState("");
 useEffect(() => {
   async function fetchUsers() {
     try {
-      const res = await axiosInstance.get("/users/all");
-      // Filter out dummy users based on multiple criteria
-      const filteredUsers = res.data.filter(user => {
-        const isDummyEmail = 
-          user.email.includes('dummy_') ||
-          user.email === 'dummy' ||
-          user.email.startsWith('dummy') ||
-          user.name === 'dummy';
-        
-        const hasEmptyRoles = !user.role || user.role.length === 0;
-        
-        // Exclude users that match dummy criteria
-        return !isDummyEmail && !hasEmptyRoles;
-      });
-      setAllUsers(filteredUsers);
+      const res = await axiosInstance.get("/users/all"); // Use the new route
+      setAllUsers(res.data);
     } catch (err) {
       console.error("Failed to load sales users", err);
     }
