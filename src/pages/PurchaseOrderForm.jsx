@@ -825,7 +825,7 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
                 </label>
                 <input
                   id={`qty-${index}`}
-                  type="text"
+                  type="number"
                   placeholder="Quantity"
                   className="border p-2 rounded w-full"
                   value={item.qty}
