@@ -10,6 +10,27 @@ export default function ProductCustomerSearch() {
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [categories, setCategories] = useState([]);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axiosInstance.get("/categories");
+        setCategories(res.data);
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Helper function to safely get string values
+  const safeString = (value, defaultValue = "") => {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return value.toString();
+    return defaultValue;
+  };
 
   const handleProductSearch = async (query) => {
     if (!query.trim()) {
@@ -28,22 +49,71 @@ export default function ProductCustomerSearch() {
       const purchaseProducts = purchaseRes.data.data || [];
       const salesProducts = salesRes.data.products || [];
 
+      // Find matching categories
+      const matchingCategories = categories.filter(cat => 
+        cat.name.toLowerCase().includes(query.toLowerCase())
+      );
+
+      let suppliers = [];
+      
+      // If we have matching categories, fetch suppliers for those categories
+      if (matchingCategories.length > 0) {
+        const supplierPromises = matchingCategories.map(category =>
+          axiosInstance.get(`/suppliers?category=${encodeURIComponent(category.name)}&limit=10`)
+        );
+        
+        const supplierResults = await Promise.all(supplierPromises);
+        suppliers = supplierResults.flatMap(res => res.data.data || []);
+        
+        // Remove duplicates based on supplier ID
+        suppliers = suppliers.filter((supplier, index, self) =>
+          index === self.findIndex(s => s._id === supplier._id)
+        );
+      }
+
+      // Ensure all data is properly formatted
       const results = [
         ...purchaseProducts.map(p => ({
-          ...p,
+          _id: p._id || `purchase-${Date.now()}`,
           type: 'purchase',
           id: p._id,
-          name: p.name,
-          unit: p.unit,
-          price: p.price
+          name: safeString(p.name, 'Unnamed Product'),
+          unit: safeString(p.unit),
+          price: typeof p.price === 'number' ? p.price : safeString(p.price),
+          rawData: p
         })),
         ...salesProducts.map(p => ({
-          ...p,
+          _id: p._id || `sales-${Date.now()}`,
           type: 'sales',
           id: p._id,
-          name: p.name,
-          unit: p.unit,
-          price: p.price
+          name: safeString(p.name, 'Unnamed Product'),
+          unit: safeString(p.unit),
+          price: typeof p.price === 'number' ? p.price : safeString(p.price),
+          rawData: p
+        })),
+        ...suppliers.map(s => ({
+          _id: s._id || `supplier-${Date.now()}`,
+          type: 'supplier',
+          id: s._id,
+          name: safeString(s.name, 'Unnamed Supplier'),
+          vendorCategory: Array.isArray(s.vendorCategory) ? s.vendorCategory : [s.vendorCategory].filter(Boolean),
+          phone: safeString(s.phone),
+          phone2: safeString(s.phone2),
+          email: safeString(s.email),
+          address: safeString(s.address),
+          gstNumber: safeString(s.gstNumber),
+          locationLink: safeString(s.locationLink),
+          accountName: safeString(s.accountName),
+          bankName: safeString(s.bankName),
+          accountNumber: safeString(s.accountNumber),
+          ifscCode: safeString(s.ifscCode),
+          rawData: s,
+          // Add category info for display
+          matchedCategory: matchingCategories.find(cat => 
+            Array.isArray(s.vendorCategory) 
+              ? s.vendorCategory.includes(cat.name)
+              : s.vendorCategory === cat.name
+          )?.name
         }))
       ];
 
@@ -73,14 +143,37 @@ export default function ProductCustomerSearch() {
     
     try {
       setLoading(true);
-      // Fetch customers who have ordered this product
-      const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(product.name)}`);
-      setSearchResults(res.data);
+      
+      if (product.type === 'sales') {
+        // Fetch customers who have ordered this sales product
+        const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(product.name)}`);
+        
+        // Ensure customer data is properly formatted
+        const customers = Array.isArray(res.data) ? res.data : [];
+        const formattedCustomers = customers.map(customer => ({
+          _id: customer._id || `customer-${Date.now()}`,
+          customerName: safeString(customer.customerName, 'Unknown Customer'),
+          company: safeString(customer.company, 'URP'),
+          phone: safeString(customer.phone, '-'),
+          email: safeString(customer.email, '-'),
+          address: safeString(customer.address, '-'),
+          locationLink: safeString(customer.locationLink),
+          instructions: safeString(customer.instructions),
+          totalOrders: typeof customer.totalOrders === 'number' ? customer.totalOrders : 0,
+          lastPrice: typeof customer.lastPrice === 'number' ? customer.lastPrice : safeString(customer.lastPrice),
+          lastOrderDate: customer.lastOrderDate ? new Date(customer.lastOrderDate).toISOString() : null
+        }));
+        
+        setSearchResults(formattedCustomers);
+      } else if (product.type === 'purchase' || product.type === 'supplier') {
+        // For purchase products or suppliers, show the item itself
+        setSearchResults([product]);
+      }
     } catch (err) {
-      console.error("Error fetching customers:", err);
+      console.error("Error fetching data:", err);
       Swal.fire({
         title: "Error",
-        text: "Failed to fetch customer data",
+        text: "Failed to fetch data",
         icon: "error",
         confirmButtonColor: "#2563eb",
       });
@@ -90,44 +183,46 @@ export default function ProductCustomerSearch() {
   };
 
   const exportToExcel = () => {
-    if (!selectedProduct || searchResults.length === 0) return;
+    if (!selectedProduct || searchResults.length === 0 || selectedProduct.type !== 'sales') return;
 
-    const worksheetData = [
-      ["Customer Name", "Company", "Phone", "Email", "Address", "Location", "Instructions", "Total Orders", "Last Order Date", "Last Price"],
-      ...searchResults.map(customer => [
-        customer.customerName,
-        customer.company || "URP",
-        customer.phone || "-",
-        customer.email || "-",
-        customer.address || "-",
-        customer.locationLink || "-",
-        customer.instructions || "-",
-        customer.totalOrders,
-        customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : "-",
-        customer.lastPrice ? `₹${customer.lastPrice}` : "-"
-      ])
-    ];
+    try {
+      const worksheetData = [
+        ["Customer Name", "Company", "Phone", "Email", "Address", "Location", "Instructions", "Total Orders", "Last Order Date", "Last Price"],
+        ...searchResults.map(customer => [
+          safeString(customer.customerName),
+          safeString(customer.company, "URP"),
+          safeString(customer.phone, "-"),
+          safeString(customer.email, "-"),
+          safeString(customer.address, "-"),
+          safeString(customer.locationLink, "-"),
+          safeString(customer.instructions, "-"),
+          customer.totalOrders || 0,
+          customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : "-",
+          customer.lastPrice ? `₹${customer.lastPrice}` : "-"
+        ])
+      ];
 
-    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+      const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Customers");
 
-    // Auto-size columns
-    const colWidths = [
-      { wch: 20 }, // Customer Name
-      { wch: 15 }, // Company
-      { wch: 15 }, // Phone
-      { wch: 25 }, // Email
-      { wch: 30 }, // Address
-      { wch: 30 }, // Location
-      { wch: 30 }, // Instructions
-      { wch: 12 }, // Total Orders
-      { wch: 15 }, // Last Order Date
-      { wch: 12 }  // Last Price
-    ];
-    ws['!cols'] = colWidths;
+      const colWidths = [
+        { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, 
+        { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 12 }, 
+        { wch: 15 }, { wch: 12 }
+      ];
+      ws['!cols'] = colWidths;
 
-    XLSX.writeFile(wb, `${selectedProduct.name}_customers.xlsx`);
+      XLSX.writeFile(wb, `${selectedProduct.name}_customers.xlsx`);
+    } catch (error) {
+      console.error("Export error:", error);
+      Swal.fire({
+        title: "Export Error",
+        text: "Failed to export data",
+        icon: "error",
+        confirmButtonColor: "#2563eb",
+      });
+    }
   };
 
   const resetSearch = () => {
@@ -135,6 +230,150 @@ export default function ProductCustomerSearch() {
     setSearchResults([]);
     setSelectedProduct(null);
     setShowResults(false);
+  };
+
+  // Safe render functions
+  const renderSearchResultItem = (item) => {
+    const name = safeString(item.name);
+    const unit = safeString(item.unit);
+    const price = item.price;
+    const category = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
+    const matchedCategory = item.matchedCategory;
+
+    return (
+      <div className="flex justify-between items-start">
+        <div>
+          <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+            {name}
+          </h5>
+          <p className="text-sm text-gray-600 mt-1">
+            {unit && `${unit} • `}
+            <span className={`font-medium ml-1 ${
+              item.type === 'purchase' ? 'text-green-600' : 
+              item.type === 'sales' ? 'text-purple-600' : 'text-orange-600'
+            }`}>
+              {item.type === 'purchase' ? 'Purchase Product' : 
+               item.type === 'sales' ? 'Sales Product' : 
+               'Supplier'}
+            </span>
+            {price && (
+              <span className="ml-2 text-blue-600 font-bold">
+                {typeof price === 'number' ? `₹${price}` : `₹${safeString(price)}`}
+              </span>
+            )}
+          </p>
+          {(category || matchedCategory) && (
+            <p className="text-xs text-gray-500 mt-1">
+              Category: {matchedCategory || category}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderResultDetails = (item) => {
+    if (selectedProduct.type === 'supplier' || selectedProduct.type === 'purchase') {
+      const vendorCategory = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
+      
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <h5 className="font-semibold text-gray-900 text-lg mb-2">
+              {safeString(item.name)}
+            </h5>
+            <div className="space-y-1 text-sm text-gray-600">
+              <p><span className="font-medium">Type:</span> {item.type === 'supplier' ? 'Supplier' : 'Purchase Product'}</p>
+              {vendorCategory && (
+                <p><span className="font-medium">Category:</span> {vendorCategory}</p>
+              )}
+              {item.phone && (
+                <p><span className="font-medium">Phone:</span> {safeString(item.phone)}</p>
+              )}
+              {item.email && (
+                <p><span className="font-medium">Email:</span> {safeString(item.email)}</p>
+              )}
+              {item.gstNumber && (
+                <p><span className="font-medium">GST:</span> {safeString(item.gstNumber)}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-1 text-sm text-gray-600">
+            {item.address && (
+              <p><span className="font-medium">Address:</span> {safeString(item.address)}</p>
+            )}
+            {item.locationLink && (
+              <p>
+                <span className="font-medium">Location:</span>{" "}
+                <a 
+                  href={safeString(item.locationLink)} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View on Map
+                </a>
+              </p>
+            )}
+            {item.accountName && (
+              <p><span className="font-medium">Account Name:</span> {safeString(item.accountName)}</p>
+            )}
+            {item.bankName && (
+              <p><span className="font-medium">Bank:</span> {safeString(item.bankName)}</p>
+            )}
+          </div>
+        </div>
+      );
+    } else {
+      // Customer display
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <h5 className="font-semibold text-gray-900 text-lg mb-2">
+              {safeString(item.customerName, 'Unknown Customer')}
+            </h5>
+            <div className="space-y-1 text-sm text-gray-600">
+              <p><span className="font-medium">GST:</span> {safeString(item.company, "URP")}</p>
+              <p><span className="font-medium">Phone:</span> {safeString(item.phone, "-")}</p>
+              <p><span className="font-medium">Email:</span> {safeString(item.email, "-")}</p>
+              <p><span className="font-medium">Total Orders:</span> {item.totalOrders || 0}</p>
+              {item.lastPrice && (
+                <p><span className="font-medium">Last Price:</span> ₹{safeString(item.lastPrice)}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-1 text-sm text-gray-600">
+            <p><span className="font-medium">Address:</span> {safeString(item.address, "-")}</p>
+            {item.locationLink && (
+              <p>
+                <span className="font-medium">Location:</span>{" "}
+                <a 
+                  href={safeString(item.locationLink)} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View on Map
+                </a>
+              </p>
+            )}
+            {item.instructions && (
+              <p>
+                <span className="font-medium">Instructions:</span> {safeString(item.instructions)}
+              </p>
+            )}
+            {item.lastOrderDate && (
+              <p>
+                <span className="font-medium">Last Ordered:</span>{" "}
+                {new Date(item.lastOrderDate).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
   };
 
   return (
@@ -147,10 +386,10 @@ export default function ProductCustomerSearch() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <span className="text-2xl">🔍</span>
-          Search Customers by Product
+          Search Products & Suppliers
         </h3>
         
-        {selectedProduct && searchResults.length > 0 && (
+        {selectedProduct && searchResults.length > 0 && selectedProduct.type === 'sales' && (
           <motion.button
             onClick={exportToExcel}
             className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-all duration-300 flex items-center gap-2"
@@ -166,7 +405,7 @@ export default function ProductCustomerSearch() {
       <div className="relative mb-4">
         <input
           type="text"
-          placeholder="Search product to find customers..."
+          placeholder="Search products by name or suppliers by category..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
@@ -181,6 +420,10 @@ export default function ProductCustomerSearch() {
         )}
       </div>
 
+      <div className="text-sm text-gray-600 mb-2">
+        💡 <strong>Tip:</strong> Search for product names or supplier categories (e.g., "wood", "steel", "plastic")
+      </div>
+
       {/* Search Results */}
       <AnimatePresence>
         {showResults && searchResults.length > 0 && !selectedProduct && (
@@ -192,7 +435,7 @@ export default function ProductCustomerSearch() {
           >
             <div className="p-4">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-gray-800">Select Product</h4>
+                <h4 className="font-bold text-gray-800">Select Product or Supplier</h4>
                 <button 
                   onClick={() => setShowResults(false)}
                   className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded-full hover:bg-gray-100"
@@ -202,29 +445,14 @@ export default function ProductCustomerSearch() {
               </div>
               
               <div className="space-y-2">
-                {searchResults.map((product) => (
+                {searchResults.map((item) => (
                   <motion.div 
-                    key={`${product.type}-${product.id}`}
-                    onClick={() => handleProductSelect(product)}
+                    key={`${item.type}-${item._id}`}
+                    onClick={() => handleProductSelect(item)}
                     className="p-3 border border-gray-100 rounded-xl hover:bg-blue-50 cursor-pointer transition-all duration-300 group"
                     whileHover={{ x: 5 }}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
-                          {product.name}
-                        </h5>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {product.unit} • 
-                          <span className={`font-medium ml-1 ${product.type === 'purchase' ? 'text-green-600' : 'text-purple-600'}`}>
-                            {product.type === 'purchase' ? 'Purchase' : 'Sales'} Product
-                          </span>
-                          {product.price && (
-                            <span className="ml-2 text-blue-600 font-bold">₹{product.price}</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
+                    {renderSearchResultItem(item)}
                   </motion.div>
                 ))}
               </div>
@@ -233,7 +461,7 @@ export default function ProductCustomerSearch() {
         )}
       </AnimatePresence>
 
-      {/* Customer Results */}
+      {/* Customer/Supplier Results */}
       {selectedProduct && (
         <motion.div
           className="mt-6"
@@ -243,7 +471,10 @@ export default function ProductCustomerSearch() {
         >
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-gray-900">
-              Customers for: <span className="text-blue-600">{selectedProduct.name}</span>
+              {selectedProduct.type === 'supplier' ? 'Supplier Details:' : 
+               selectedProduct.type === 'purchase' ? 'Purchase Product Supplier:' : 
+               'Customers for:'} 
+              <span className="text-blue-600"> {safeString(selectedProduct.name)}</span>
             </h4>
             <button
               onClick={resetSearch}
@@ -256,69 +487,26 @@ export default function ProductCustomerSearch() {
           {loading ? (
             <div className="text-center py-8">
               <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-600">Loading customer data...</p>
+              <p className="text-gray-600">Loading data...</p>
             </div>
           ) : searchResults.length > 0 ? (
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {searchResults.map((customer, index) => (
+              {searchResults.map((item, index) => (
                 <motion.div
-                  key={customer._id || index}
+                  key={item._id || index}
                   className="bg-gray-50 rounded-xl p-4 border border-gray-200"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <h5 className="font-semibold text-gray-900 text-lg mb-2">
-                        {customer.customerName}
-                      </h5>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p><span className="font-medium">GST:</span> {customer.company || "URP"}</p>
-                        <p><span className="font-medium">Phone:</span> {customer.phone || "-"}</p>
-                        <p><span className="font-medium">Email:</span> {customer.email || "-"}</p>
-                        <p><span className="font-medium">Total Orders:</span> {customer.totalOrders || 0}</p>
-                        {customer.lastPrice && (
-                          <p><span className="font-medium">Last Price:</span> ₹{customer.lastPrice}</p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p><span className="font-medium">Address:</span> {customer.address || "-"}</p>
-                      {customer.locationLink && (
-                        <p>
-                          <span className="font-medium">Location:</span>{" "}
-                          <a 
-                            href={customer.locationLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            View on Map
-                          </a>
-                        </p>
-                      )}
-                      {customer.instructions && (
-                        <p>
-                          <span className="font-medium">Instructions:</span> {customer.instructions}
-                        </p>
-                      )}
-                      {customer.lastOrderDate && (
-                        <p>
-                          <span className="font-medium">Last Ordered:</span>{" "}
-                          {new Date(customer.lastOrderDate).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  {renderResultDetails(item)}
                 </motion.div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-xl">
               <div className="text-4xl mb-2">😔</div>
-              <p className="text-gray-600">No customers found for this product.</p>
+              <p className="text-gray-600">No data found.</p>
             </div>
           )}
         </motion.div>
