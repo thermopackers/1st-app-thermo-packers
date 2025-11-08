@@ -310,22 +310,40 @@ useEffect(() => {
     icon,
     variant = "primary",
   }) => {
-    const variants = {
-      primary:
-        "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
-      success:
-        "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
-      warning:
-        "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
-      danger:
-        "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
-      indigo:
-        "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
-      purple:
-        "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
-      pink: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700",
-    };
-
+   const variants = {
+  primary: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+  success: "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
+  warning: "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
+  danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
+  indigo: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+  purple: "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+  pink: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700",
+  
+  // Additional colors
+  teal: "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
+  cyan: "bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700",
+  emerald: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700",
+  lime: "bg-gradient-to-r from-lime-500 to-lime-600 hover:from-lime-600 hover:to-lime-700",
+  orange: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
+  rose: "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700",
+  fuchsia: "bg-gradient-to-r from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700",
+  violet: "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
+  
+  // Cool gradients
+  ocean: "bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600",
+  sunset: "bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600",
+  forest: "bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600",
+  royal: "bg-gradient-to-r from-purple-400 to-indigo-500 hover:from-purple-500 hover:to-indigo-600",
+  berry: "bg-gradient-to-r from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600",
+  
+  // Dark variants
+  dark: "bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900",
+  midnight: "bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800",
+  
+  // Light variants
+  light: "bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800",
+  sky: "bg-gradient-to-r from-blue-100 to-cyan-100 hover:from-blue-200 hover:to-cyan-200 text-gray-800",
+};
     const buttonContent = (
       <motion.button
         className={`w-full text-white p-6 rounded-2xl shadow-lg transition-all duration-300 group ${variants[variant]} ${className}`}
@@ -1162,13 +1180,71 @@ useEffect(() => {
             </div>
           </DashboardSection>
 
+{userRoles.some(role => ["guard", "accounts", "admin"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">🚗</span>
+        Goods Received Note (G.R.N.) Cum Quality Check / Control Goods Inwards
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <ActionButton 
+    to="/guard-entry" 
+    variant="cyan" 
+    icon="📝"
+  >
+    <div className="text-xl font-semibold mb-2">
+      Record Vehicle Entry
+    </div>
+    <div className="text-blue-100 text-sm opacity-90">
+      Add vehicle number, supplier details and photos
+    </div>
+  </ActionButton>
+  
+  {userRoles.includes("guard") ? (
+    <ActionButton 
+      to="/guard-entries-view" 
+      variant="success" 
+      icon="📋"
+    >
+      <div className="text-xl font-semibold mb-2">
+        View All Entries
+      </div>
+      <div className="text-green-100 text-sm opacity-90">
+        Check previous vehicle entry records
+      </div>
+    </ActionButton>
+  ) : (
+    <ActionButton 
+      to="/guard-entries-view" 
+      variant="fuchsia" 
+      icon="📦"
+    >
+      <div className="text-xl font-semibold mb-2">
+        Manage Goods Inwards
+      </div>
+      <div className="text-yellow-100 text-sm opacity-90">
+        Manage and control incoming goods
+      </div>
+    </ActionButton>
+  )}
+</div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
           {/* Enhanced Quotation & Sales Sections */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Enhanced Quotation Section */}
               {!userRoles.some((role) =>
-                ["driver", "dispatch", "packaging"].includes(role)
-              ) && (
+  ["driver",'guard','plantMaintenance'].includes(role)
+) && (
+  userRoles.includes("admin") || 
+  userRoles.includes("accounts") || 
+  userRoles.includes("sales") || 
+  user.allowQuotation // Add this condition
+) && (
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     QUOTATION / PROFORMA INVOICE / ESTIMATE
@@ -1224,31 +1300,32 @@ useEffect(() => {
                   )}
                 </DashboardCard>
               )}
-              {(userRoles.includes("accounts") ||
-                userRoles.includes("sales")) && (
-                <DashboardCard>
-                  <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
-                    <span className="text-2xl">📥</span>
-                    Bank Incoming Payment
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ActionButton
-                      to="/payment-records"
-                      variant="primary"
-                      icon="📥"
-                      className="h-full"
-                    >
-                      <div className="text-sm font-semibold mb-1">
-                        Manage Incoming Payments
-                      </div>
-                      <div className="text-blue-100 text-xs opacity-90">
-                        Daily Cheques/RTGS/UPI/NEFT/Payment from Customers to
-                        Thermo Packers
-                      </div>
-                    </ActionButton>
-                  </div>
-                </DashboardCard>
-              )}
+           {(userRoles.includes("accounts") ||
+  userRoles.includes("sales") ||
+  user.allowIncomingPayments) && (
+  <DashboardCard>
+    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+      <span className="text-2xl">📥</span>
+      Bank Incoming Payment
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <ActionButton
+        to="/payment-records"
+        variant="primary"
+        icon="📥"
+        className="h-full"
+      >
+        <div className="text-sm font-semibold mb-1">
+          Manage Incoming Payments
+        </div>
+        <div className="text-blue-100 text-xs opacity-90">
+          Daily Cheques/RTGS/UPI/NEFT/Payment from Customers to
+          Thermo Packers
+        </div>
+      </ActionButton>
+    </div>
+  </DashboardCard>
+)}
 
               {/* Outgoing Payments - Only for Accounts Role */}
               {userRoles.includes("accounts") && (
@@ -1544,7 +1621,7 @@ useEffect(() => {
 
           {/* Enhanced Plant & Machinery */}
           {(user.allowPlantMaintenance ||
-            userRoles.some((role) => ["accounts", "admin"].includes(role))) && (
+            userRoles.some((role) => ["accounts", "admin","plantMaintenance"].includes(role))) && (
             <DashboardSection>
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">

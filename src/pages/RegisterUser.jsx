@@ -35,6 +35,8 @@ const [allowVehiclesManagement, setAllowVehiclesManagement] = useState(false);
 const [allowHR, setAllowHR] = useState(false);
 const [allowPlantMaintenance, setAllowPlantMaintenance] = useState(false);
 const [allowTourExpenses, setAllowTourExpenses] = useState(false);  
+const [allowIncomingPayments, setAllowIncomingPayments] = useState(false);
+const [allowQuotation, setAllowQuotation] = useState(false);
 const [role, setRole] = useState([]);
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
@@ -110,7 +112,9 @@ formData.append('allowVehiclesManagement', allowVehiclesManagement);
 formData.append('allowHR', allowHR);
 formData.append('allowPlantMaintenance', allowPlantMaintenance);
 formData.append('allowTourExpenses', allowTourExpenses);
-      formData.append("dob", dob);
+formData.append('allowIncomingPayments', allowIncomingPayments); // Add this line
+formData.append('allowQuotation', allowQuotation); // Add this line      
+formData.append("dob", dob);
       formData.append("address", address);
 formData.append("emergencyNumber", emergencyNumber);
 formData.append("personalPhone", personalPhone);
@@ -180,6 +184,8 @@ setAllowVehiclesManagement(false);
 setAllowHR(false);
 setAllowPlantMaintenance(false);
 setAllowTourExpenses(false);
+setAllowIncomingPayments(false); // Add this line
+setAllowQuotation(false); // Add this line
       setDob('');
       setAddress('');
 setEmergencyNumber('');
@@ -299,7 +305,9 @@ setAllowVehiclesManagement(user.allowVehiclesManagement || false);
 setAllowHR(user.allowHR || false);
 setAllowPlantMaintenance(user.allowPlantMaintenance || false);
 setAllowTourExpenses(user.allowTourExpenses || false);
-    setDob(user.dob ? formatDateForInput(user.dob) : "");
+setAllowIncomingPayments(user.allowIncomingPayments || false); // Add this line
+setAllowQuotation(user.allowQuotation || false); // Add this line    
+setDob(user.dob ? formatDateForInput(user.dob) : "");
     setAddress(user.address || "");
     setEmergencyNumber(user.emergencyNumber || "");
     setPersonalPhone(user.personalPhone || "");
@@ -342,6 +350,8 @@ setAllowVehiclesManagement(false);
 setAllowHR(false);
 setAllowPlantMaintenance(false);
 setAllowTourExpenses(false);
+setAllowIncomingPayments(false); // Add this line
+setAllowQuotation(false); // Add this line
     // Reset existing files
     setExistingFrontFace([]);
     setExistingAadharCard([]);
@@ -663,7 +673,9 @@ setAllowTourExpenses(false);
       { value: "production", label: "Production" },
       { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
       { value: "suppliers", label: "Vendors/Suppliers" },
-      { value: "driver", label: "Driver" }
+      { value: "driver", label: "Driver" },
+      { value: "guard", label: "Guard" },
+{ value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
     ].map((roleOption) => (
       <label key={roleOption.value} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
         <input
@@ -792,6 +804,32 @@ setAllowTourExpenses(false);
             Allow Tour Expenses
           </label>
         </div>
+
+         <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="incomingPayments"
+        checked={allowIncomingPayments}
+        onChange={() => setAllowIncomingPayments(!allowIncomingPayments)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="incomingPayments" className="text-sm text-gray-700">
+        Allow for Incoming Payments
+      </label>
+    </div>
+
+    <div className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        id="allowQuotation"
+        checked={allowQuotation}
+        onChange={() => setAllowQuotation(!allowQuotation)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="allowQuotation" className="text-sm text-gray-700">
+        Allow for Quotation / Proforma Invoice
+      </label>
+    </div>
       </>
     )}
   </div>

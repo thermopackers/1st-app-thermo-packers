@@ -61,6 +61,9 @@ import IncomingPaymentForm from "../pages/IncomingPaymentForm";
 import PaymentRecords from "../pages/PaymentRecords";
 import OutgoingPayments from "../components/OutgoingPayments";
 import TimestampPhotoGenerator from "../components/TimestampPhotoGenerator";
+import GuardEntryForm from "../pages/GuardEntryForm";
+import GuardEntriesView from "../pages/GuardEntriesView";
+import GoodsInwardForm from "../components/GoodsInwardForm";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -142,7 +145,7 @@ export default function AppRoutes() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","suppliers",'viewer', 'editor', 'manager']} mustBeMainAccount={true}>
+                <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","suppliers",'viewer', 'editor', 'manager','guard','plantMaintenance']} mustBeMainAccount={true}>
                   <PageWrapper><Dashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -156,6 +159,24 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+
+<Route
+  path="/guard-entry"
+  element={
+    <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
+      <PageWrapper><GuardEntryForm /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/guard-entries-view"
+  element={
+    <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
+      <PageWrapper><GuardEntriesView /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
 
             <Route
               path="/orders"
@@ -409,6 +430,11 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+<Route path="/goods-inward/:guardEntryId" element={<ProtectedRoute allowedRoles={["admin","accounts"]}>
+      <PageWrapper>
+        <GoodsInwardForm />
+      </PageWrapper>
+    </ProtectedRoute>} />
 
 <Route
   path="/proforma-dashboard"
@@ -538,7 +564,7 @@ export default function AppRoutes() {
 <Route
   path="/maintenance/main-electric-panel"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
       <PageWrapper><MainElectricPanelPage /></PageWrapper>
     </ProtectedRoute>
   }
@@ -546,7 +572,7 @@ export default function AppRoutes() {
 <Route
   path="/plant-machinery-maintenance"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
       <PageWrapper><PlantMachineryMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
@@ -554,7 +580,7 @@ export default function AppRoutes() {
 <Route
   path="/plant-machinery-maintenance-power-factor"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
       <PageWrapper><PowerFactorMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
@@ -562,7 +588,7 @@ export default function AppRoutes() {
 <Route
   path="/dg-set-log-book"
   element={
-    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+    <ProtectedRoute allowedRoles={["accounts","admin","plantMaintenance"]}>
       <PageWrapper><DGSetLogBookPage /></PageWrapper>
     </ProtectedRoute>
   }
@@ -571,7 +597,7 @@ export default function AppRoutes() {
 <Route
   path="/maintenance/air-compressors"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts","plantMaintenance", "sales", "production", "dispatch", "packaging","driver"]}>
       <PageWrapper><AirCompressorMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
@@ -580,7 +606,7 @@ export default function AppRoutes() {
 <Route
   path="/maintenance/boiler"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts","plantMaintenance", "sales", "production", "dispatch", "packaging","driver"]}>
       <PageWrapper><BoilerMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
@@ -589,7 +615,7 @@ export default function AppRoutes() {
 <Route
   path="/maintenance/earthing"
   element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin","accounts","plantMaintenance", "sales", "production", "dispatch", "packaging","driver"]}>
       <PageWrapper><EarthingMaintenance /></PageWrapper>
     </ProtectedRoute>
   }
