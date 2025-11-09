@@ -588,7 +588,7 @@ export default function AppRoutes() {
 <Route
   path="/dg-set-log-book"
   element={
-    <ProtectedRoute allowedRoles={["accounts","admin","plantMaintenance"]}>
+    <ProtectedRoute allowedRoles={["accounts","admin","plantMaintenance","production"]}>
       <PageWrapper><DGSetLogBookPage /></PageWrapper>
     </ProtectedRoute>
   }

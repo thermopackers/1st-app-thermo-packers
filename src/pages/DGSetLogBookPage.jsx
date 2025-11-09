@@ -406,7 +406,7 @@ export default function DGSetLogBookPage() {
           <div className="text-gray-900 font-semibold mt-1">{row.netRunning || "—"}</div>
         </div>
         <div>
-          <span className="font-medium text-gray-600">Diesel:</span>
+          <span className="font-medium text-gray-600">Diesel Refuel Quantity in Litres:</span>
           <input
             type="number"
             value={row.dieselQuantity || ""}
