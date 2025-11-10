@@ -111,12 +111,17 @@ const handleInputChange = (i, field, value) => {
       }
     }
 
-    // Calculate power factor if both net values are available and valid
-    if (updated[i].netKwh !== undefined && updated[i].netKvah !== undefined && updated[i].netKvah !== 0) {
-      updated[i].powerFactor = Number((updated[i].netKwh / updated[i].netKvah).toFixed(2));
-    } else {
-      updated[i].powerFactor = "";
-    }
+// Calculate power factor if both net values are available and valid
+if (updated[i].netKwh !== undefined && updated[i].netKvah !== undefined && updated[i].netKvah !== 0) {
+  let calculatedPF = updated[i].netKwh / updated[i].netKvah;
+  // Round to 2 decimal places first
+  calculatedPF = Number(calculatedPF.toFixed(2));
+  // Then ensure it doesn't exceed 1
+  calculatedPF = Math.min(calculatedPF, 1);
+  updated[i].powerFactor = calculatedPF;
+} else {
+  updated[i].powerFactor = "";
+}
   }
 
   // Handle checked field
@@ -403,7 +408,7 @@ const openFilePreview = (file) => {
     <th className="border px-2 py-1">Net KWH (New KWH - Old KWH)</th>
     <th className="border px-2 py-1">Net KVAH (New KVAH - Old KVAH)</th>
     <th className="border px-2 py-1">Power Factor (Net KWH/Net KVAH)(Should be near to 0.99)</th>
-    <th className="border px-2 py-1">Sign of Plant Manager</th>
+    {/* <th className="border px-2 py-1">Sign of Plant Manager</th> */}
     <th className="border px-2 py-1">Remarks</th>
     <th className="border px-2 py-1">Attachments</th>
     <th className="border px-2 py-1">Actions</th>
@@ -443,15 +448,15 @@ const openFilePreview = (file) => {
                   <td className="border px-2 py-1">{r.netKwh || "-"}</td>
                   <td className="border px-2 py-1">{r.netKvah || "-"}</td>
                   <td
-                    className={`border px-2 py-1 ${
-                      r.powerFactor >= 0.95 && r.powerFactor <= 0.99
-                        ? "bg-green-200"
-                        : "bg-red-200"
-                    }`}
+                 className={`border px-2 py-1 ${
+  r.powerFactor >= 0.95 && r.powerFactor <= 1
+    ? "bg-green-200"
+    : "bg-red-200"
+}`}
                   >
                     {r.powerFactor || "-"}
                   </td>
-                  <td className="border px-2 py-1">
+                  {/* <td className="border px-2 py-1">
 {(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) ? (
                         <>
                         <input
@@ -470,7 +475,7 @@ const openFilePreview = (file) => {
                     ) : (
                       "-"
                     )}
-                  </td>
+                  </td> */}
                   <td className="border px-2 py-1">
                     <textarea
                       value={r.remarks || ""}

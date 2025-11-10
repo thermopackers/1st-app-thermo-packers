@@ -22,8 +22,14 @@ export default function DGSetLogBookPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const lastRowRef = useRef(null);
+  const [consumptionData, setConsumptionData] = useState(null);
+const [showConsumptionModal, setShowConsumptionModal] = useState(false);
+const [selectedPeriod, setSelectedPeriod] = useState("month");
+const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const limit = 10;
 
   // All your existing functions remain exactly the same...
@@ -287,6 +293,26 @@ export default function DGSetLogBookPage() {
     </div>
   );
 
+  const fetchConsumptionData = async () => {
+  try {
+    const params = new URLSearchParams({
+      period: selectedPeriod,
+      year: selectedYear.toString(),
+      month: (selectedMonth + 1).toString()
+    });
+
+    const res = await axiosInstance.get(`/dg-log-book/consumption?${params}`);
+    setConsumptionData(res.data);
+  } catch (err) {
+    console.error("Error fetching consumption data:", err);
+    Swal.fire({
+      icon: 'error',
+      title: 'Failed to load consumption data',
+      text: err.message,
+    });
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -317,6 +343,18 @@ export default function DGSetLogBookPage() {
                 <span>➕</span>
                 Add New Entry
               </motion.button>
+              <motion.button
+  onClick={() => {
+    setShowConsumptionModal(true);
+    fetchConsumptionData();
+  }}
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+>
+  <span>📊</span>
+  Diesel Consumption Report
+</motion.button>
             </div>
           </div>
 
@@ -787,6 +825,250 @@ export default function DGSetLogBookPage() {
           } />
         )}
       </AnimatePresence>
+{/* Consumption Report Modal */}
+<AnimatePresence>
+  {showConsumptionModal && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4"
+      onClick={() => setShowConsumptionModal(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden mx-2 sm:mx-4 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6 text-white flex-shrink-0">
+          <div className="flex justify-between items-start sm:items-center">
+            <div className="flex-1 mr-4">
+              <h2 className="text-xl sm:text-2xl font-bold">Diesel Consumption Report</h2>
+              <p className="text-blue-100 mt-1 text-sm sm:text-base">
+                Analyze fuel consumption patterns and trends
+              </p>
+            </div>
+            <button
+              onClick={() => setShowConsumptionModal(false)}
+              className="text-white hover:text-blue-200 text-2xl flex-shrink-0 mt-1 sm:mt-0"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+                                    {/* Filter Controls - Collapsible */}
+        <div className="border-b border-gray-200 flex-shrink-0">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`transform transition-transform ${showFilters ? 'rotate-180' : ''}`}>
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <span className="font-medium text-gray-800">Filters</span>
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                {selectedPeriod === 'month' 
+                  ? `Monthly | ${new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long' })} ${selectedYear}`
+                  : `Weekly | ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} week`
+                }
+              </span>
+            </div>
+            <span className="text-sm text-gray-500">
+              {showFilters ? 'Hide' : 'Show'} filters
+            </span>
+          </button>
+
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-200">
+                  <div className="space-y-4 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4 sm:items-end">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Period
+                      </label>
+                      <select
+                        value={selectedPeriod}
+                        onChange={(e) => setSelectedPeriod(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
+                      >
+                        <option value="month">Monthly</option>
+                        <option value="week">Weekly (Current Week)</option>
+                      </select>
+                    </div>
+
+                    {selectedPeriod === 'month' && (
+                      <>
+                        <div className="flex-1 min-w-[140px]">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Month
+                          </label>
+                          <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => (
+                              <option key={i} value={i}>
+                                {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex-1 min-w-[140px]">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Year
+                          </label>
+                          <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
+                          >
+                            {Array.from({ length: 5 }, (_, i) => {
+                              const year = new Date().getFullYear() - 2 + i;
+                              return (
+                                <option key={year} value={year}>
+                                  {year}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </>
+                    )}
+
+                    {selectedPeriod === 'week' && (
+                      <div className="flex-1">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-800 font-medium">
+                            Weekly Report
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1">
+                            Showing data for current week ({new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        fetchConsumptionData();
+                        setShowFilters(false);
+                      }}
+                      className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm sm:text-base flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Generate Report
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Consumption Data - Scrollable Area */}
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
+          {consumptionData ? (
+            <div className="space-y-4 sm:space-y-6">
+              {/* Summary Cards - Smaller on mobile */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                  <div className="text-lg sm:text-2xl font-bold text-blue-600">
+                    {consumptionData.summary.totalDiesel.toFixed(1)} L
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Total Consumption</div>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                  <div className="text-lg sm:text-2xl font-bold text-green-600">
+                    {consumptionData.summary.totalEntries}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Total Entries</div>
+                </div>
+                <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-100">
+                  <div className="text-lg sm:text-2xl font-bold text-orange-600">
+                    {consumptionData.summary.averagePerDay.toFixed(1)} L
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Average Per Day</div>
+                </div>
+              </div>
+
+              {/* Daily Breakdown - Always visible now */}
+              {consumptionData.dailyBreakdown.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                    Daily Breakdown
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                    <div className="space-y-2 max-h-[40vh] sm:max-h-none overflow-y-auto">
+                      {consumptionData.dailyBreakdown.map((day, index) => (
+                        <div key={index} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 text-sm sm:text-base">
+                              {new Date(day._id).toLocaleDateString('en-US', { 
+                                weekday: 'short', 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {day.entries} entr{day.entries !== 1 ? 'ies' : 'y'}
+                            </div>
+                          </div>
+                          <div className="text-base sm:text-lg font-bold text-blue-600 ml-2 flex-shrink-0">
+                            {day.dailyConsumption.toFixed(1)} L
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {consumptionData.dailyBreakdown.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  <div className="text-4xl mb-2">🛢️</div>
+                  <p className="text-sm sm:text-base">No consumption data found for the selected period</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <div className="text-gray-600">Loading consumption data...</div>
+            </div>
+          )}
+        </div>
+
+        {/* Close Button for Mobile */}
+        <div className="p-4 border-t border-gray-200 flex-shrink-0 sm:hidden">
+          <button
+            onClick={() => setShowConsumptionModal(false)}
+            className="w-full bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </>
   );
 }
