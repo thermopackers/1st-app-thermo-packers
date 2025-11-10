@@ -1273,7 +1273,7 @@ Customer: order.customerName || order.customer?.name || "",
                             Actions
                           </th>
                         )}
-                     {!role.includes("production") && !role.includes("dispatch") && !role.includes("sales") && !role.includes("admin") && !role.includes("packaging") && (
+                     {!role.includes("production") && !role.includes("dispatch") && !role.includes("admin") && !role.includes("packaging") && (
                           <>
                             <th className="sticky top-0 z-20 px-2 sm:px-4 py-2 text-left font-bold text-gray-700 uppercase tracking-wider bg-gray-200 text-[10px] sm:text-xs md:text-sm">
                               Section
@@ -1702,7 +1702,6 @@ Customer: order.customerName || order.customer?.name || "",
                             )}
                         {!role.includes("production") &&
   !role.includes("dispatch") &&
-  !role.includes("sales") &&
   !role.includes("admin") &&
   !role.includes("packaging") && (
                               <>
