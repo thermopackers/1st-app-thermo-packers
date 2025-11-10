@@ -114,11 +114,9 @@ const handleInputChange = (i, field, value) => {
 // Calculate power factor if both net values are available and valid
 if (updated[i].netKwh !== undefined && updated[i].netKvah !== undefined && updated[i].netKvah !== 0) {
   let calculatedPF = updated[i].netKwh / updated[i].netKvah;
-  // Round to 2 decimal places first
-  calculatedPF = Number(calculatedPF.toFixed(2));
-  // Then ensure it doesn't exceed 1
-  calculatedPF = Math.min(calculatedPF, 1);
-  updated[i].powerFactor = calculatedPF;
+  // Ensure power factor doesn't exceed 1 and is at least 0
+  calculatedPF = Math.max(0, Math.min(calculatedPF, 1));
+  updated[i].powerFactor = Number(calculatedPF.toFixed(2));
 } else {
   updated[i].powerFactor = "";
 }
