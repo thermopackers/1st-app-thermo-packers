@@ -732,6 +732,7 @@ export default function OrdersList() {
           employees={employees}
           filters={filters}
           handleFilterChange={handleFilterChange}
+            setFilters={setFilters} // ✅ ADD THIS LINE
           handleClearFilters={handleClearFilters}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
