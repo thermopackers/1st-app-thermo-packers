@@ -15,7 +15,7 @@ import { useUserContext } from "../context/UserContext.jsx";
 import OrderTable from "../components/OrderTable/OrderTable";
 import OrderFilters from "../components/OrderFilters/OrderFilters";
 import OrderPagination from "../components/OrderPagination/OrderPagination";
-import { useOrders } from "../components/hooks/useOrders";
+import { useOrders } from "../components/hooks/useOrders.js";
 import { useOrderActions } from "../components/hooks/useOrderActions";
 import { useOrderData } from "../components/hooks/useOrderData.js";
 import EditModal from "../components/EditModal";
@@ -74,7 +74,6 @@ export default function OrdersList() {
   });
 
   // State variables
-  const [expandedProductId, setExpandedProductId] = useState(null);
   const [editOrder, setEditOrder] = useState(null);
   const [selectedRadioByOrder, setSelectedRadioByOrder] = useState({});
   const [localSections, setLocalSections] = useState({});
@@ -86,10 +85,9 @@ export default function OrdersList() {
   const [selectedSections, setSelectedSections] = useState({});
   const [resolvedPOUrls, setResolvedPOUrls] = useState({});
 
-  // Custom hooks
+  // Custom hooks - Now only loads current page data
   const { 
-    orders, 
-    filteredOrders, 
+    orders, // Only current page orders (20 items)
     loading, 
     totalPages, 
     ordersFetched, 
@@ -113,10 +111,9 @@ export default function OrdersList() {
     role,
     getCustomerPhone,
     getStockForProduct,
-    parseUserRoles
   } = useOrderData(token);
 
-  // Memoized values
+  // Memoized values - Now works with only current page data
   const sortedOrders = useMemo(() => {
     return [...orders].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
@@ -159,10 +156,10 @@ export default function OrdersList() {
 
   useEffect(() => {
     if (shouldRefetchOrders) {
-      refetchOrders();
+      refetchOrders(currentPage); // Refetch current page
       setShouldRefetchOrders(false);
     }
-  }, [shouldRefetchOrders, refetchOrders, setShouldRefetchOrders]);
+  }, [shouldRefetchOrders, refetchOrders, setShouldRefetchOrders, currentPage]);
 
   useEffect(() => {
     const initialSections = {};
@@ -183,12 +180,12 @@ export default function OrdersList() {
     }
   }, []);
 
-  // Resolve PO Copy URLs
+  // Resolve PO Copy URLs - Only for current page orders
   useEffect(() => {
     const resolveAllPOCopyUrls = async () => {
       const result = {};
 
-      for (const order of filteredOrders) {
+      for (const order of orders) { // Now only processes current page orders
         const poCopyList = Array.isArray(order.poCopy)
           ? order.poCopy
           : order.poCopy
@@ -216,14 +213,14 @@ export default function OrdersList() {
       setResolvedPOUrls(result);
     };
 
-    if (filteredOrders.length) {
+    if (orders.length) {
       resolveAllPOCopyUrls();
     }
-  }, [filteredOrders, checkIfUrlExists]);
+  }, [orders, checkIfUrlExists]);
 
   // Animation effects
   useEffect(() => {
-    if (ordersFetched) {
+    if (ordersFetched && orders.length > 0) {
       gsap.from(".order-table", {
         opacity: 0,
         y: 50,
@@ -240,9 +237,9 @@ export default function OrdersList() {
         clearProps: "all",
       });
     }
-  }, [ordersFetched]);
+  }, [ordersFetched, orders]);
 
-  // Auto-complete orders when all statuses indicate completion
+  // Auto-complete orders - Only for current page
   useEffect(() => {
     const checkAndCompleteOrders = async () => {
       for (const order of orders) {
@@ -286,56 +283,83 @@ export default function OrdersList() {
     }
   }, [orders, token, setOrders]);
 
-  // Export function
-  const exportToExcel = useCallback(() => {
-    const data = filteredOrders.map((order) => ({
-      OrderID: order._id,
-      ShortID: order.shortId,
-      Customer: order.customerName || order.customer?.name || "",
-      Product: order.product,
-      Quantity: order.quantity,
-      Unit: order.unit,
-      Size: order.size,
-      Density: order.density,
-      Price: order.price,
-      PackagingCharge: order.packagingCharge,
-      Freight: order.freight,
-      FreightAmount: order.freightAmount,
-      PO: order.po,
-      Status: order.status,
-      DispatchStatus: order.dispatchStatus,
-      PackagingStatus: order.packagingStatus,
-      Produced: order.produced,
-      RemainingToProduce: order.remainingToProduce,
-      Stock: order.stock,
-      ReadyForPackaging: order.readyForPackaging ? "Yes" : "No",
-      Remarks: order.remarks || "",
-      CreatedAt: new Date(order.createdAt).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      OrderDate: new Date(order.date).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-    }));
+  // Export function - Makes separate API call to get all data for export
+  const exportToExcel = useCallback(async () => {
+    try {
+      // For export, get all data without pagination
+      const params = {
+        limit: 10000, // Large limit for export
+        page: 1,
+        ...filters,
+        search: searchTerm,
+        sort: sortOrder,
+        status: statusFilter,
+        dispatchStatus: dispatchStatusFilter,
+      };
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+      if (["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)) {
+        params.ageFilter = sortOrder;
+      }
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
+      const res = await axiosInstance.get("/orders", {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
 
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(blob, `orders_${Date.now()}.xlsx`);
-  }, [filteredOrders]);
+      const data = res.data.orders.map((order) => ({
+        OrderID: order._id,
+        ShortID: order.shortId,
+        Customer: order.customerName || order.customer?.name || "",
+        Product: order.product,
+        Quantity: order.quantity,
+        Unit: order.unit,
+        Size: order.size,
+        Density: order.density,
+        Price: order.price,
+        PackagingCharge: order.packagingCharge,
+        Freight: order.freight,
+        FreightAmount: order.freightAmount,
+        PO: order.po,
+        Status: order.status,
+        DispatchStatus: order.dispatchStatus,
+        PackagingStatus: order.packagingStatus,
+        Produced: order.produced,
+        RemainingToProduce: order.remainingToProduce,
+        Stock: order.stock,
+        ReadyForPackaging: order.readyForPackaging ? "Yes" : "No",
+        Remarks: order.remarks || "",
+        CreatedAt: new Date(order.createdAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        OrderDate: new Date(order.date).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
+
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(blob, `orders_${Date.now()}.xlsx`);
+      
+      toast.success("Orders exported successfully!");
+    } catch (err) {
+      console.error("Error exporting orders:", err);
+      toast.error("Failed to export orders");
+    }
+  }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, token]);
 
   // Section radio change handler
   const handleSectionRadioChange = useCallback(async (orderId, selectedKey) => {
@@ -377,6 +401,27 @@ export default function OrdersList() {
       console.error("Error updating section selection:", error);
     }
   }, [sectionsList, setOrders, refetchOrders, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter]);
+
+  // Filter change handler
+  const handleFilterChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  // Clear all filters
+  const handleClearFilters = useCallback(() => {
+    setFilters({ employeeId: "", startDate: "", endDate: "" });
+    setSearchTerm("");
+    setSortOrder("newest");
+    setStatusFilter("");
+    setDispatchStatusFilter("");
+    setCurrentPage(1);
+  }, []);
 
   // Complex slip submission function
   const handleSlipSubmit = useCallback(async (payload) => {
@@ -669,12 +714,6 @@ export default function OrdersList() {
     }
   }, [orders, setOrders, swalWithTailwindButtons]);
 
-  // Filter change handler
-  const handleFilterChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  }, []);
-
   return (
     <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {uploadingPOCopy && <UploadingOverlay />}
@@ -693,7 +732,7 @@ export default function OrdersList() {
           employees={employees}
           filters={filters}
           handleFilterChange={handleFilterChange}
-          setFilters={setFilters}
+          handleClearFilters={handleClearFilters}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           sortOrder={sortOrder}
@@ -709,7 +748,7 @@ export default function OrdersList() {
 
         {loading ? (
           <LoadingSpinner />
-        ) : filteredOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <NoOrdersMessage />
         ) : (
           <OrderTable
@@ -743,7 +782,7 @@ export default function OrdersList() {
           currentPage={currentPage}
           totalPages={totalPages}
           setCurrentPage={setCurrentPage}
-          filteredOrders={filteredOrders}
+          hasOrders={orders.length > 0}
         />
 
         {editOrder && (

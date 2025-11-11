@@ -25,7 +25,8 @@ const OrderFilters = ({
   setDispatchStatusFilter,
   navigate,
   orders,
-  exportToExcel
+  exportToExcel,
+  handleClearFilters
 }) => {
   return (
     <>
@@ -64,6 +65,7 @@ const OrderFilters = ({
             setSortOrder={setSortOrder}
             setStatusFilter={setStatusFilter}
             setDispatchStatusFilter={setDispatchStatusFilter}
+                  handleClearFilters={handleClearFilters}
           />
         )}
 

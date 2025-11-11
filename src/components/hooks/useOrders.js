@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import axiosInstance from "../../axiosInstance";
+import axiosInstance from '../../axiosInstance';
 
 export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter) => {
   const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [ordersFetched, setOrdersFetched] = useState(false);
@@ -20,11 +19,12 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
         limit: ordersPerPage,
         ...filters,
         search: searchTerm,
-        sort: ["newest", "oldest"].includes(sortOrder) ? sortOrder : "newest",
+        sort: sortOrder,
         status: statusFilter,
         dispatchStatus: dispatchStatusFilter,
       };
 
+      // Add ageFilter for server-side filtering
       if (["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)) {
         params.ageFilter = sortOrder;
       }
@@ -34,12 +34,13 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
         params,
       });
 
-      setOrders(res.data.orders);
-      setFilteredOrders(res.data.orders);
-      setTotalPages(res.data.totalPages);
+      // 🚀 Only set the current page orders
+      setOrders(res.data.orders || []);
+      setTotalPages(res.data.totalPages || 1);
       setOrdersFetched(true);
     } catch (err) {
       console.error("Error fetching orders:", err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -50,8 +51,7 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
   }, [fetchOrders, currentPage]);
 
   return {
-    orders,
-    filteredOrders,
+    orders, // Only current page orders
     loading,
     totalPages,
     ordersFetched,

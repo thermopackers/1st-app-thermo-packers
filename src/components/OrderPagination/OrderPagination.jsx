@@ -1,8 +1,8 @@
 import React from 'react';
 import PaginationButton from './PaginationButton';
 
-const OrderPagination = ({ currentPage, totalPages, setCurrentPage, filteredOrders }) => {
-  if (filteredOrders?.length === 0) return null;
+const OrderPagination = ({ currentPage, totalPages, setCurrentPage, hasOrders }) => {
+  if (!hasOrders || totalPages <= 1) return null;
 
   return (
     <div className="overflow-x-auto w-full">
@@ -13,7 +13,7 @@ const OrderPagination = ({ currentPage, totalPages, setCurrentPage, filteredOrde
           label="⏮ Prev"
         />
         
-        {Array.from({ length: totalPages }, (_, i) => (
+        {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => (
           <PaginationButton
             key={i}
             onClick={() => setCurrentPage(i + 1)}
