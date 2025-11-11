@@ -74,16 +74,36 @@ const customerMap = useMemo(() => {
 useEffect(() => {
   const fetchData = async () => {
     try {
-      // Fetch products and customers in parallel
+      console.log("🔄 Starting to fetch products and customers...");
+      
+      // Use the new fast route for products, keep existing for customers
       const [productsResponse, customersResponse] = await Promise.all([
-        axiosInstance.get("/products/all-backend-products"),
+        axiosInstance.get("/products/dropdown-products"), // NEW FAST ROUTE
         axiosInstance.get("/customers/all/dropdown")
       ]);
+      
+      console.log("✅ Products fetched:", productsResponse.data.length, "items");
+      console.log("✅ Customers fetched:", customersResponse.data.length, "items");
       
       setAllProducts(productsResponse.data);
       setAllCustomers(customersResponse.data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("❌ Error fetching data:", error);
+      
+      // If new route fails, fallback to old route
+      if (error.response?.status === 404) {
+        console.log("🔄 New route not found, falling back to old route...");
+        try {
+          const fallbackResponse = await axiosInstance.get("/products/all-backend-products");
+          setAllProducts(fallbackResponse.data);
+          setAllCustomers([]); // Or fetch customers separately
+        } catch (fallbackError) {
+          console.error("❌ Fallback also failed:", fallbackError);
+          toast.error("Failed to load products");
+        }
+      } else {
+        toast.error(`Failed to load data: ${error.message}`);
+      }
     } finally {
       setLoadingProducts(false);
       setLoadingCustomers(false);
@@ -92,7 +112,6 @@ useEffect(() => {
 
   fetchData();
 }, []);
-
 useEffect(() => {
 
 
