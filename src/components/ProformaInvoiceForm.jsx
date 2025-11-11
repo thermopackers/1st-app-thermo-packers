@@ -132,7 +132,7 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
 
 
   useEffect(() => {
-    axiosInstance.get("/products/all-backend-products")
+    axiosInstance.get("/products/dropdown-products")
       .then(res => {
         if (Array.isArray(res.data)) {
           setProductsList(res.data);
