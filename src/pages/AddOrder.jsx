@@ -57,35 +57,41 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
 
+  // Add this with your other useMemo declarations
+const productMap = useMemo(() => {
+  const map = new Map();
+  allProducts.forEach(p => map.set(p.name, p));
+  return map;
+}, [allProducts]);
+
+// ADD THIS MISSING CUSTOMER MAP
+const customerMap = useMemo(() => {
+  const map = new Map();
+  allCustomers.forEach(c => map.set(c._id, c));
+  return map;
+}, [allCustomers]);
 
 useEffect(() => {
-
-    const fetchProductSizes = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axiosInstance.get("/products/all-backend-products");
-      setAllProducts(response.data);
+      // Fetch products and customers in parallel
+      const [productsResponse, customersResponse] = await Promise.all([
+        axiosInstance.get("/products/all-backend-products"),
+        axiosInstance.get("/customers/all/dropdown")
+      ]);
+      
+      setAllProducts(productsResponse.data);
+      setAllCustomers(customersResponse.data);
     } catch (error) {
-      console.error("Error fetching product sizes:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoadingProducts(false);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await axiosInstance.get("/customers/all/dropdown");
-      setAllCustomers(response.data);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-    } finally {
       setLoadingCustomers(false);
     }
   };
 
-  fetchProductSizes();
-  fetchCustomers();
-
-},[])
+  fetchData();
+}, []);
 
 useEffect(() => {
 
@@ -211,30 +217,31 @@ const markInvoiceAsConverted = (invoiceId) => {
 
   }, [allCustomers, loadingCustomers]);
 
-  const productOptions = useMemo(() => {
-    if (loadingProducts) {
-      return [{ label: "Loading products...", value: "" }];
-    }
-    return [
-      ...allProducts.map((p) => ({
+const productOptions = useMemo(() => {
+  if (loadingProducts) {
+    return [{ label: "Loading products...", value: "" }];
+  }
+  
+  // Use Set for faster deduplication and Map for faster lookup
+  const uniqueProducts = [];
+  const seen = new Set();
+  
+  allProducts.forEach((p) => {
+    if (!seen.has(p.name)) {
+      seen.add(p.name);
+      uniqueProducts.push({
         label: p.name,
         value: p.name,
-      })),
-      { label: "Other (Custom Product)", value: "custom" },
-    ];
-  }, [allProducts, loadingProducts]);
-const options = useMemo(() => {
-  if (loadingProducts) {
-    return [{ label: 'Loading products...', value: '' }];
-  }
+      });
+    }
+  });
+  
   return [
-    ...allProducts.map((p) => ({
-      label: p.name,
-      value: p.name,
-    })),
-    { label: 'Other (Custom Product)', value: 'custom' },
+    ...uniqueProducts,
+    { label: "Other (Custom Product)", value: "custom" },
   ];
 }, [allProducts, loadingProducts]);
+
 
   const handleClientChange = (e) => {
   const { name, value, type, files, checked } = e.target;
@@ -320,51 +327,54 @@ else if (name === "billTo") {
 };
 
 const handleProductChange = async (index, field, value) => {
-  const updated = [...productList]; // make shallow copy
+  const updated = [...productList];
 
-  const product = allProducts.find((p) => p.name === value);
+  // Fast lookup using pre-computed Map
+  const product = productMap.get(value);
 
-if (field === "product" && product) {
-  const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
-  const imageList = Array.isArray(product.images)
-    ? product.images.map((img) =>
-        img.startsWith("http") ? img : `${BASE_URL}${img}`
+  if (field === "product" && product) {
+    const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
+    const imageList = Array.isArray(product.images)
+      ? product.images.map((img) =>
+          img.startsWith("http") ? img : `${BASE_URL}${img}`
+        )
+      : [];
+
+    updated[index] = {
+      ...updated[index],
+      product: product.name,
+      customProduct: "",
+      size: "",
+      customSize: "",
+      productImages: imageList,
+    };
+
+    const updatedSizesList = [...availableSizesList];
+    updatedSizesList[index] = product.sizes || [];
+    setAvailableSizesList(updatedSizesList);
+
+    // ✅ Auto-fill last price (non-blocking)
+    const customerName = clientDetails.customerName;
+    if (customerName && product.name) {
+      // Fire and forget - don't block UI
+      axiosInstance.get(
+        `/orders/last-price?customerName=${encodeURIComponent(customerName)}&product=${encodeURIComponent(product.name)}`
       )
-    : [];
-
-  updated[index] = {
-    ...updated[index],
-    product: product.name,
-    customProduct: "",
-    size: "",
-    customSize: "",
-    productImages: imageList,
-  };
-
-  const updatedSizesList = [...availableSizesList];
-  updatedSizesList[index] = product.sizes || [];
-  setAvailableSizesList(updatedSizesList);
-
-  // ✅ Auto-fill last price if customer is selected
-  const customerName = clientDetails.customerName;
-  if (customerName && product.name) {
-    try {
-      const res = await axiosInstance.get(
-        `/orders/last-price?customerName=${encodeURIComponent(
-          customerName
-        )}&product=${encodeURIComponent(product.name)}`
-      );
-      if (res.data?.price) {
-        updated[index].price = res.data.price;
-        toast.success(`💰 Last price auto-filled: ₹${res.data.price}`);
-      }
-    } catch (err) {
-      console.warn("No previous price found for this customer and product.");
+      .then(res => {
+        if (res.data?.price) {
+          setProductList(prev => {
+            const newList = [...prev];
+            newList[index].price = res.data.price;
+            return newList;
+          });
+          toast.success(`💰 Last price auto-filled: ₹${res.data.price}`);
+        }
+      })
+      .catch(err => {
+        console.warn("No previous price found for this customer and product.");
+      });
     }
   }
-}
-
-
   else if (field === "customProduct") {
     updated[index] = {
       ...updated[index],
@@ -373,7 +383,6 @@ if (field === "product" && product) {
       productImages: [],
     };
   }
-
   else {
     updated[index] = {
       ...updated[index],
@@ -389,7 +398,7 @@ if (field === "product" && product) {
     }
   }
 
-   setProductList(updated); // ✅ properly trigger re-render
+  setProductList(updated);
 };
 
   const addAnotherProduct = () => {
@@ -576,6 +585,22 @@ const ConversionTracker = {
   }
 };
  
+if (loadingProducts || loadingCustomers) {
+  return (
+    <>
+      <InternalNavbar />
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-blue-700 font-semibold">Loading products and customers...</p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
   return (
     <>
       <InternalNavbar />
@@ -588,9 +613,9 @@ const ConversionTracker = {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div className="flex items-center justify-center flex-col gap-4">
 
-            {/* Customer Dropdown */}
-          <Select
-  options={customerOptions}
+           {/* Customer Dropdown */}
+<Select
+  options={customerOptions} // ✅ CORRECT PROP
   placeholder={loadingCustomers ? "Loading customers..." : "Select Customer"}
   value={
     customerOptions.find((opt) => opt.value === clientDetails.customerId) || null
@@ -619,22 +644,12 @@ const ConversionTracker = {
   classNamePrefix="react-select"
 />
 
-            {/* Manual Input for custom customer */}
-            {/* {!customerOptions.some((opt) => opt.value === clientDetails.customerName) && (
-              <input
-                name="customerName"
-                placeholder="Enter Customer Name"
-                value={clientDetails.customerName}
-                onChange={handleClientChange}
-                required
-                className="border border-gray-400 p-2 rounded w-full"
-              />
-            )} */}
 {/* After customer dropdown */}
+{/* Then use it here */}
 {clientDetails.customerId && clientDetails.customerId !== "custom" && (
   <div className="text-sm text-gray-600 mt-1">
     Customer Address: {
-      allCustomers.find(c => c._id === clientDetails.customerId)?.address || "Not available"
+      customerMap.get(clientDetails.customerId)?.address || "Not available"
     }
   </div>
 )}
@@ -853,27 +868,30 @@ const ConversionTracker = {
     {/* 🧾 Product Selector */}
     <div className="flex flex-col">
       <label className="mb-1 font-medium text-gray-700">Product</label>
-      <Select
-        options={options}
-        isDisabled={loadingProducts}
-        placeholder={loadingProducts ? "Loading products..." : "Select Product"}
-        value={
-          prod.product
-            ? options.find((opt) => opt.value === prod.product)
-            : prod.customProduct
-            ? { label: "Other (Custom Product)", value: "custom" }
-            : null
-        }
-        onChange={(selectedOption) => {
-          if (selectedOption.value === "custom") {
-            handleProductChange(index, "customProduct", "");
-          } else {
-            handleProductChange(index, "product", selectedOption.value);
-          }
-        }}
-        className="w-full"
-        classNamePrefix="react-select"
-      />
+<Select
+  options={productOptions}
+  isDisabled={loadingProducts}
+  placeholder={loadingProducts ? "Loading products..." : "Select Product"}
+  value={
+    prod.product
+      ? productOptions.find((opt) => opt.value === prod.product)
+      : prod.customProduct
+      ? { label: "Other (Custom Product)", value: "custom" }
+      : null
+  }
+  onChange={(selectedOption) => {
+    if (selectedOption.value === "custom") {
+      handleProductChange(index, "customProduct", "");
+    } else {
+      handleProductChange(index, "product", selectedOption.value);
+    }
+  }}
+  className="w-full"
+  classNamePrefix="react-select"
+  filterOption={(option, inputValue) => 
+    option.label.toLowerCase().includes(inputValue.toLowerCase()) // ✅ CORRECT
+  }
+/>
     </div>
 
     {/* 🛠 Custom Product */}
