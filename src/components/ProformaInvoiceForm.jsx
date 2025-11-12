@@ -130,22 +130,20 @@ const res = await axiosInstance.post("/proforma/generate-proforma", updatedForm)
   }
 };
 
-
-  useEffect(() => {
-    axiosInstance.get("/products/all-backend-products")
-      .then(res => {
-        if (Array.isArray(res.data)) {
-          setProductsList(res.data);
-        } else {
-          toast.error("Product list not found");
-        }
-      })
-      .catch(err => {
-        console.error("Failed to load products:", err);
-        toast.error("Error loading product list");
-      });
-  }, []);
-
+useEffect(() => {
+  axiosInstance.get("/products/dropdown-products")
+    .then(res => {
+      if (Array.isArray(res.data)) {
+        setProductsList(res.data);
+      } else {
+        toast.error("Product list not found");
+      }
+    })
+    .catch(err => {
+      console.error("Failed to load products:", err);
+      toast.error("Error loading product list");
+    });
+}, []);
 
   return (
     <>
