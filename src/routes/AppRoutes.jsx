@@ -45,7 +45,6 @@ import CancelledOrders from "../pages/CancelledOrders";
 import CompletedOrdersDashboard from "../pages/CompletedOrdersDashboard";
 import StockManagement from "../pages/StockManagement";
 import RegisteredVehicles from "../pages/RegisteredVehicles";
-import MainElectricPanelPage from "../pages/MainElectricPanelPage";
 import PlantMachineryMaintenance from "../pages/PlantMachineryMaintenance";
 import DGSetLogBookPage from "../pages/DGSetLogBookPage";
 import PowerFactorMaintenance from "../pages/PowerFactorMaintenance";
@@ -561,14 +560,14 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
-<Route
+{/* <Route
   path="/maintenance/main-electric-panel"
   element={
     <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
       <PageWrapper><MainElectricPanelPage /></PageWrapper>
     </ProtectedRoute>
   }
-/>
+/> */}
 <Route
   path="/plant-machinery-maintenance"
   element={

@@ -408,7 +408,7 @@ const removeFile = async (index) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-xl">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cheque Date
+                    Date of Receipt of Cheque
                   </label>
                   <input
                     type="date"
@@ -639,20 +639,25 @@ const removeFile = async (index) => {
               )}
             </div>
 
-            {/* Remarks */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Remarks
-              </label>
-              <textarea
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleInputChange}
-                placeholder="Enter any additional remarks"
-                rows="3"
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-              />
-            </div>
+   {/* Remarks */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Remarks {formData.modeOfPayment === "cheque" && "(Mention if Cheque needs to be deposited after the Cheque presented)"}
+    {formData.modeOfPayment !== "cheque" && "(Additional notes or instructions)"}
+  </label>
+  <textarea
+    name="remarks"
+    value={formData.remarks}
+    onChange={handleInputChange}
+    placeholder={
+      formData.modeOfPayment === "cheque" 
+        ? "E.g., Cheque needs to be deposited, hold for clearance, etc."
+        : "Enter any additional remarks or instructions"
+    }
+    rows="3"
+    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+  />
+</div>
 
             {/* Submit Button */}
             <div className="flex gap-4 pt-4">

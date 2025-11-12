@@ -5,6 +5,9 @@ import InternalNavbar from "../components/InternalNavbar";
 export default function PlantMachineryMaintenance() {
   const sections = [
     { name: "Air Compressors", path: "/maintenance/air-compressors", color: "bg-blue-600 hover:bg-blue-700" },
+    // Added the two buttons from PlantMachineryPage with "Main Electric Panel" mention
+    { name: "Power Factor - Main Electric Panel", path: "/plant-machinery-maintenance-power-factor", color: "bg-green-600 hover:bg-green-700" },
+    { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-indigo-600 hover:bg-indigo-700" },
     { name: "Main Electric Panel", path: "/maintenance/main-electric-panel", color: "bg-indigo-600 hover:bg-indigo-700" },
     { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-emerald-600 hover:bg-emerald-700" },
     { name: "Boiler", path: "/maintenance/boiler", color: "bg-rose-600 hover:bg-rose-700" },
@@ -25,7 +28,12 @@ export default function PlantMachineryMaintenance() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sections.map((s, idx) => {
-const isEnabled = s.name === "Main Electric Panel" || s.name === "Air Compressors" || s.name === "Boiler" || s.name === "Earthing";
+            const isEnabled = s.name === "Main Electric Panel" || 
+                             s.name === "Air Compressors" || 
+                             s.name === "Boiler" || 
+                             s.name === "Earthing" ||
+                             s.name === "Power Factor - Main Electric Panel" ||
+                             s.name === "DG Set (Diesel Generator) - Main Electric Panel";
             return isEnabled ? (
               <NavLink key={idx} to={s.path}>
                 <button

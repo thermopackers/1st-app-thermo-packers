@@ -19,20 +19,18 @@ const GuardEntriesView = () => {
     hasPrev: false,
     limit: 10
   });
-console.log("entriess",entries);
 
   useEffect(() => {
     fetchEntries();
   }, [filterDate, pagination.currentPage]);
 
-  // In GuardEntriesView.js, add this useEffect
-useEffect(() => {
-  const interval = setInterval(() => {
-    fetchEntries();
-  }, 30000); // Refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchEntries();
+    }, 30000); // Refresh every 30 seconds
 
-  return () => clearInterval(interval);
-}, [filterDate, pagination.currentPage]);
+    return () => clearInterval(interval);
+  }, [filterDate, pagination.currentPage]);
 
   const fetchEntries = async () => {
     try {
@@ -65,6 +63,40 @@ useEffect(() => {
       background: "#fff",
     });
   };
+
+const showProducts = (products, title) => {
+  if (!products || products.length === 0) {
+    Swal.fire('Info', 'No products recorded for this entry', 'info');
+    return;
+  }
+
+  const productsHtml = products.map((item, index) => {
+    // Handle cases where product might not be populated or is null
+    const productName = item.product?.name || 'Product Not Found';
+    const productCode = item.product?.code;
+    const quantity = item.quantity || 0;
+
+    return `
+      <div class="border-b border-gray-200 py-2">
+        <div class="font-medium">${productName}</div>
+        <div class="text-sm text-gray-600">Quantity: ${quantity}</div>
+        ${productCode ? `<div class="text-sm text-gray-600">Code: ${productCode}</div>` : ''}
+        ${!item.product ? `<div class="text-xs text-red-500 mt-1">⚠️ Product data missing</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  Swal.fire({
+    title: title,
+    html: `<div class="text-left max-h-96 overflow-y-auto">
+           ${productsHtml}
+         </div>`,
+    showCloseButton: true,
+    showConfirmButton: false,
+    width: "60%",
+    background: "#fff",
+  });
+};
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -118,14 +150,14 @@ useEffect(() => {
   }
 
   const handleRowClick = (entry) => {
-  // Check if user has accounts role
-  const userRoles = Array.isArray(user?.role) ? user.role : [user?.role];
-  if (userRoles.includes('accounts') || userRoles.includes('admin')) {
-    navigate(`/goods-inward/${entry._id}`);
-  } else {
-    Swal.fire('Access Denied', 'Only accounts team can access goods inward', 'info');
-  }
-};
+    // Check if user has accounts role
+    const userRoles = Array.isArray(user?.role) ? user.role : [user?.role];
+    if (userRoles.includes('accounts') || userRoles.includes('admin')) {
+      navigate(`/goods-inward/${entry._id}`);
+    } else {
+      Swal.fire('Access Denied', 'Only accounts team can access goods inward', 'info');
+    }
+  };
 
   return (
     <>
@@ -266,19 +298,23 @@ useEffect(() => {
                       <tr>
                         <th className="px-4 py-3">Entry No.</th>
                         <th className="px-4 py-3">Date & Time</th>
-                            <th className="px-4 py-3">Recorded By</th>
+                        <th className="px-4 py-3">Type</th>
                         <th className="px-4 py-3">Vehicle Number</th>
-                        <th className="px-4 py-3">Supplier</th>
+                        <th className="px-4 py-3">Supplier/Customer</th>
+                        <th className="px-4 py-3">Products</th>
                         <th className="px-4 py-3">Recorded By</th>
                         <th className="px-4 py-3">Photos</th>
                       </tr>
                     </thead>
                     <tbody>
                       {entries.map((entry) => (
-                        <tr key={entry._id} onClick={() => handleRowClick(entry)} className="border-b hover:bg-gray-50 transition">
+                        <tr key={entry._id} onClick={() => handleRowClick(entry)} className="border-b hover:bg-gray-50 transition cursor-pointer">
                           <td className="px-4 py-4">
-                            <div className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded text-center font-mono">
+                            <div className={`font-bold px-2 py-1 rounded text-center font-mono ${
+                              entry.isRejected ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                            }`}>
                               {entry.entryNumber || 'N/A'}
+                              {entry.isRejected && <div className="text-xs mt-1">(Rejected)</div>}
                             </div>
                           </td>
                           <td className="px-4 py-4">
@@ -287,10 +323,12 @@ useEffect(() => {
                             </div>
                           </td>
                           <td className="px-4 py-4">
-  <div className="text-gray-700">
-    {entry.recordedBy?.name || 'N/A'}
-  </div>
-</td>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              entry.isRejected ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                            }`}>
+                              {entry.isRejected ? 'Rejected' : 'Supplier'}
+                            </span>
+                          </td>
                           <td className="px-4 py-4">
                             <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">
                               {entry.vehicleNumber}
@@ -298,7 +336,34 @@ useEffect(() => {
                           </td>
                           <td className="px-4 py-4">
                             <div className="font-medium text-gray-900">
-                              {entry.supplier?.name || 'N/A'}
+                              {entry.isRejected 
+                                ? (entry.customer?.name || entry.customerName || 'N/A')
+                                : (entry.supplier?.name || 'N/A')
+                              }
+                            </div>
+                            {entry.isRejected && entry.customerName && (
+                              <div className="text-xs text-gray-500">(Manual Entry)</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2 flex-wrap">
+                              {entry.purchaseProducts && entry.purchaseProducts.length > 0 ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    showProducts(
+                                      entry.purchaseProducts, 
+                                      `${entry.entryNumber} - Products`
+                                    );
+                                  }}
+                                  className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition flex items-center gap-1"
+                                >
+                                  <span>📦</span>
+                                  View Products ({entry.purchaseProducts.length})
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No products</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-4">
@@ -306,23 +371,23 @@ useEffect(() => {
                               {entry.recordedBy?.name || 'N/A'}
                             </div>
                           </td>
-                      <td className="px-4 py-4">
-  <div className="flex gap-2 flex-wrap">
-    {entry.photos.map((photo, index) => (
-      <button
-        key={index}
-        onClick={(e) => {
-          e.stopPropagation(); // This prevents the click from bubbling up to the row
-          showPhoto(photo, `${entry.entryNumber} - Vehicle: ${entry.vehicleNumber} - Photo ${index + 1}`);
-        }}
-        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition flex items-center gap-1"
-      >
-        <span>📸</span>
-        Photo {index + 1}
-      </button>
-    ))}
-  </div>
-</td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2 flex-wrap">
+                              {entry.photos.map((photo, index) => (
+                                <button
+                                  key={index}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    showPhoto(photo, `${entry.entryNumber} - Vehicle: ${entry.vehicleNumber} - Photo ${index + 1}`);
+                                  }}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition flex items-center gap-1"
+                                >
+                                  <span>📸</span>
+                                  Photo {index + 1}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -372,8 +437,6 @@ useEffect(() => {
               </>
             )}
           </div>
-
-    
         </div>
       </div>
     </>

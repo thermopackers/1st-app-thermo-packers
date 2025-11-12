@@ -48,6 +48,7 @@ const parseUserRoles = (user) => {
   const navigate = useNavigate();
   const [salesUsers, setSalesUsers] = useState([]);
 const [selectedSalesId, setSelectedSalesId] = useState("");
+
 useEffect(() => {
   const fetchSalesUsers = async () => {
     try {
@@ -62,20 +63,42 @@ useEffect(() => {
 }, []);
 
 
-  const fetchCustomers = async () => {
-      setLoading(true);
-    try {
-      const res = await axiosInstance.get("/customers", {
-        params: { search, addedBy: addedBySearch,createdBy: selectedSalesId,page, limit: 10 },
-      });
-      setCustomers(res.data.customers);
-      setTotalPages(res.data.pages);
-    } catch (err) {
-      console.error("Failed to fetch customers", err);
-    }  finally {
+const fetchCustomers = async () => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.get("/customers", {
+      params: { search, addedBy: addedBySearch, createdBy: selectedSalesId, page, limit: 10 },
+    });
+    
+    // Fetch frequent products for each customer
+    const customersWithProducts = await Promise.all(
+      res.data.customers.map(async (customer) => {
+        try {
+          const productsRes = await axiosInstance.get(
+            `/orders/customer-summary/${encodeURIComponent(customer.name)}`
+          );
+          return {
+            ...customer,
+            frequentProducts: productsRes.data || []
+          };
+        } catch (err) {
+          console.error(`Failed to fetch products for customer ${customer.name}`, err);
+          return {
+            ...customer,
+            frequentProducts: []
+          };
+        }
+      })
+    );
+    
+    setCustomers(customersWithProducts);
+    setTotalPages(res.data.pages);
+  } catch (err) {
+    console.error("Failed to fetch customers", err);
+  } finally {
     setLoading(false);
   }
-  };
+};
 
   useEffect(() => {
     fetchCustomers();
@@ -207,6 +230,7 @@ const exportToExcel = async () => {
               <tr>
                 <th className="p-3 border">Name</th>
                 <th className="p-3 border">GST No.</th>
+                    <th className="p-3 border">Frequently Bought Products</th> {/* NEW COLUMN */}
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
@@ -220,8 +244,35 @@ const exportToExcel = async () => {
             <tbody>
               {customers.map((c) => (
                 <tr key={c._id} className="hover:bg-gray-50 transition">
-                  <td className="p-3 border">{c.name}</td>
-                  <td className="p-3 border">{c.company}</td>
+<td className="p-3 border">
+  <button
+    onClick={() => navigate(`/orders?customer=${encodeURIComponent(c.name)}`)}
+    className="text-blue-600 hover:underline cursor-pointer text-left"
+  >
+    {c.name}
+  </button>
+</td>                  <td className="p-3 border">{c.company}</td>
+                      <td className="p-3 border text-sm">
+      {c.frequentProducts && c.frequentProducts.length > 0 ? (
+        <div className="max-w-[200px]">
+          {c.frequentProducts.slice(0, 3).map((product, index) => (
+            <div key={index} className="mb-1 last:mb-0">
+              <span className="font-medium text-gray-700">{product.product}</span>
+              <span className="text-xs text-gray-500 ml-1">
+                (×{product.timesOrdered})
+              </span>
+            </div>
+          ))}
+          {c.frequentProducts.length > 3 && (
+            <div className="text-xs text-gray-500 mt-1">
+              +{c.frequentProducts.length - 3} more
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="text-gray-400">—</span>
+      )}
+    </td>
                   <td className="p-3 border">{c.phone}</td>
                   <td className="p-3 border">{c.email}</td>
                   <td className="p-3 border whitespace-pre-line">{c.address}</td>

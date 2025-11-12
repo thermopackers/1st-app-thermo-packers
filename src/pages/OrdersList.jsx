@@ -71,6 +71,7 @@ export default function OrdersList() {
     employeeId: "",
     startDate: "",
     endDate: "",
+        customerName: "", // ✅ ADD THIS for customer filtering
   });
 
   // State variables
@@ -154,13 +155,39 @@ export default function OrdersList() {
     }
   }, [token, navigate]);
 
+    // Add this useEffect to handle navigation with customer name
+  useEffect(() => {
+    // Check if we're coming from customer list with customer name
+    const searchParams = new URLSearchParams(location.search);
+    const customerNameFromUrl = searchParams.get('customer');
+    
+    if (customerNameFromUrl) {
+      setFilters(prev => ({
+        ...prev,
+        customerName: customerNameFromUrl
+      }));
+      // setSearchTerm(customerNameFromUrl); // Also set in search for better UX
+    }
+  }, [location.search]);
+
   useEffect(() => {
     if (shouldRefetchOrders) {
       refetchOrders(currentPage); // Refetch current page
       setShouldRefetchOrders(false);
     }
   }, [shouldRefetchOrders, refetchOrders, setShouldRefetchOrders, currentPage]);
-
+// Add this useEffect to debug what's triggering API calls
+useEffect(() => {
+  console.log("🔄 OrdersList - Component mounted/updated with:", {
+    currentPage,
+    customerName: filters.customerName,
+    searchTerm,
+    sortOrder,
+    statusFilter,
+    dispatchStatusFilter,
+    ordersCount: orders.length
+  });
+}, [currentPage, filters.customerName, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, orders.length]);
   useEffect(() => {
     const initialSections = {};
     orders.forEach((order) => {
@@ -239,6 +266,12 @@ export default function OrdersList() {
     }
   }, [ordersFetched, orders]);
 
+  // Clear search when customer filter is applied to avoid conflicts
+useEffect(() => {
+  if (filters.customerName && searchTerm === filters.customerName) {
+    setSearchTerm(""); // Clear search if it matches the customer name
+  }
+}, [filters.customerName, searchTerm]);
   // Auto-complete orders - Only for current page
   useEffect(() => {
     const checkAndCompleteOrders = async () => {
@@ -283,6 +316,27 @@ export default function OrdersList() {
     }
   }, [orders, token, setOrders]);
 
+  // Add this useEffect after your other useEffect hooks
+useEffect(() => {
+  // When customer filter is applied, automatically reset status filter to show all orders
+  if (filters.customerName) {
+    setStatusFilter(""); // Reset status filter to show all (pending, in process, processed, completed)
+  }
+}, [filters.customerName]);
+
+// Add this useEffect after your other useEffect hooks
+useEffect(() => {
+  // When customer filter is applied, automatically reset status filter to show all orders
+  if (filters.customerName) {
+    setStatusFilter(""); // Reset status filter to show all (pending, in process, processed, completed)
+  }
+}, [filters.customerName]);
+
+// Add this useEffect to debug customer filter
+useEffect(() => {
+  console.log("Current filters:", filters);
+  console.log("Current customer filter:", filters.customerName);
+}, [filters]);
   // Export function - Makes separate API call to get all data for export
   const exportToExcel = useCallback(async () => {
     try {
@@ -407,6 +461,14 @@ export default function OrdersList() {
     setCurrentPage(1);
   }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter]);
 
+  // Add this useEffect to debug orders state changes
+useEffect(() => {
+  console.log("🔄 Orders state changed:", {
+    ordersCount: orders.length,
+    orders: orders.map(o => ({ id: o._id, customer: o.customerName, status: o.status }))
+  });
+}, [orders]);
+
   // Filter change handler
   const handleFilterChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -415,7 +477,7 @@ export default function OrdersList() {
 
   // Clear all filters
   const handleClearFilters = useCallback(() => {
-    setFilters({ employeeId: "", startDate: "", endDate: "" });
+    setFilters({ employeeId: "", startDate: "", endDate: "", customerName: "" });
     setSearchTerm("");
     setSortOrder("newest");
     setStatusFilter("");
@@ -714,6 +776,7 @@ export default function OrdersList() {
     }
   }, [orders, setOrders, swalWithTailwindButtons]);
 
+  
   return (
     <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {uploadingPOCopy && <UploadingOverlay />}
@@ -723,9 +786,12 @@ export default function OrdersList() {
       <div className="max-w-7xl min-h-[100vh] mx-auto p-6 relative">
         <BackButton navigate={navigate} />
         
-        <h2 className="md:text-4xl text-3xl font-extrabold mb-4 text-center text-gray-800">
-          View Pending Orders
-        </h2>
+      <h2 className="md:text-4xl text-3xl font-extrabold mb-4 text-center text-gray-800">
+  {filters.customerName 
+    ? `All Orders for ${filters.customerName}` 
+    : "View Pending Orders"
+  }
+</h2>
 
         <OrderFilters
           role={role}
@@ -776,6 +842,7 @@ export default function OrdersList() {
             getCustomerPhone={getCustomerPhone}
             sectionToSlipType={sectionToSlipType}
             swalWithTailwindButtons={swalWithTailwindButtons}
+              filters={filters} // ✅ ADD THIS LINE
           />
         )}
 

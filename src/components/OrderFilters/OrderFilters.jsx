@@ -8,6 +8,7 @@ import DispatchStatusFilter from './DispatchStatusFilter';
 import ClearFiltersButton from './ClearFiltersButton';
 import ExportButton from './ExportButton';
 import NavigationButtons from './NavigationButtons';
+import ClearCustomerFilter from './ClearCustomerFilter'; // ✅ ADD THIS
 
 const OrderFilters = ({
   role,
@@ -44,8 +45,7 @@ const OrderFilters = ({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-6 py-6 bg-white rounded-lg shadow-md">
-        <SearchFilter searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        <DateFilter 
+        <SearchFilter searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} />        <DateFilter 
           filters={filters} 
           handleFilterChange={handleFilterChange} 
           type="startDate" 
@@ -58,14 +58,12 @@ const OrderFilters = ({
           label="📅 End Date" 
         />
         
+        {/* ✅ ADD CLEAR CUSTOMER FILTER BUTTON */}
+        <ClearCustomerFilter filters={filters} setFilters={setFilters} />
+        
         {(role.includes("sales") || role.includes("dispatch") || role.includes("packaging")) && (
           <ClearFiltersButton 
-            setFilters={setFilters}
-            setSearchTerm={setSearchTerm}
-            setSortOrder={setSortOrder}
-            setStatusFilter={setStatusFilter}
-            setDispatchStatusFilter={setDispatchStatusFilter}
-                  handleClearFilters={handleClearFilters}
+            handleClearFilters={handleClearFilters}
           />
         )}
 
@@ -74,8 +72,11 @@ const OrderFilters = ({
         )}
 
         <SortFilter sortOrder={sortOrder} setSortOrder={setSortOrder} />
-        <StatusFilter statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
-        <DispatchStatusFilter 
+<StatusFilter 
+  statusFilter={statusFilter} 
+  setStatusFilter={setStatusFilter}
+  filters={filters}
+/>        <DispatchStatusFilter 
           dispatchStatusFilter={dispatchStatusFilter} 
           setDispatchStatusFilter={setDispatchStatusFilter} 
         />

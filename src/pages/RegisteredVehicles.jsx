@@ -465,14 +465,16 @@ const parseUserRoles = (user) => {
                       </button>
                       
                       <button
-                        onClick={() => setSelectedVehicle(vehicle)}
-                        className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors duration-200 text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Manage Docs
-                      </button>
+  onClick={() => setSelectedVehicle(vehicle)}
+  className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors duration-200 text-xs sm:text-sm break-words min-w-0 max-w-full"
+>
+  <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+  <span className="text-left whitespace-normal break-words">
+    Manage Docs (RC, Insurance, Vehicle Photos, Challan, National Permit, etc.)
+  </span>
+</button>
                       
 {userRoles.includes("accounts") && (
                           <button
@@ -482,21 +484,21 @@ const parseUserRoles = (user) => {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
-                          Maintenance
+                          Maintenance Log Book
                         </button>
                       )}
                       
 {!userRoles.includes("driver") && (
-                          <button
-                          onClick={() => handleDeleteVehicle(vehicle)}
-                          className="inline-flex items-center gap-2 bg-red-50 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors duration-200 text-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Delete
-                        </button>
-                      )}
+  <button
+    onClick={() => handleDeleteVehicle(vehicle)}
+    className="inline-flex items-center justify-center w-6 h-6 bg-red-50 text-red-700 rounded-full hover:bg-red-100 transition-colors duration-200"
+    title="Delete vehicle"
+  >
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+)}
                     </div>
                   </div>
                 </div>

@@ -1,16 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axiosInstance from "../axiosInstance";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 export default function ProductCustomerSearch() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [categories, setCategories] = useState([]);
+  const detailsPanelRef = useRef(null);
+
+  // Scroll to top when supplier is selected
+  useEffect(() => {
+    if (selectedProduct && detailsPanelRef.current) {
+      // Scroll to the top of the page
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+      
+      // Also scroll the details panel into view
+      detailsPanelRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  }, [selectedProduct]);
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -25,22 +45,18 @@ export default function ProductCustomerSearch() {
     fetchCategories();
   }, []);
 
-  // Helper function to safely get string values
-  const safeString = (value, defaultValue = "") => {
-    if (typeof value === 'string') return value;
-    if (typeof value === 'number') return value.toString();
-    return defaultValue;
-  };
-
-  const handleProductSearch = async (query) => {
+  // Unified search function
+  const handleUnifiedSearch = async (query) => {
     if (!query.trim()) {
       setShowResults(false);
       setSearchResults([]);
+      setSelectedProduct(null);
       return;
     }
 
     setLoading(true);
     try {
+      // Search for products (both purchase and sales)
       const [purchaseRes, salesRes] = await Promise.all([
         axiosInstance.get(`/purchase-products?search=${query}&limit=10`),
         axiosInstance.get(`/products-multer?search=${query}&limit=10`)
@@ -49,7 +65,7 @@ export default function ProductCustomerSearch() {
       const purchaseProducts = purchaseRes.data.data || [];
       const salesProducts = salesRes.data.products || [];
 
-      // Find matching categories
+      // Find matching categories for suppliers
       const matchingCategories = categories.filter(cat => 
         cat.name.toLowerCase().includes(query.toLowerCase())
       );
@@ -71,8 +87,9 @@ export default function ProductCustomerSearch() {
         );
       }
 
-      // Ensure all data is properly formatted
+      // Combine all results
       const results = [
+        // Purchase products - quick edit
         ...purchaseProducts.map(p => ({
           _id: p._id || `purchase-${Date.now()}`,
           type: 'purchase',
@@ -80,8 +97,10 @@ export default function ProductCustomerSearch() {
           name: safeString(p.name, 'Unnamed Product'),
           unit: safeString(p.unit),
           price: typeof p.price === 'number' ? p.price : safeString(p.price),
-          rawData: p
+          rawData: p,
+          action: 'quick-edit'
         })),
+        // Sales products - quick edit
         ...salesProducts.map(p => ({
           _id: p._id || `sales-${Date.now()}`,
           type: 'sales',
@@ -89,8 +108,10 @@ export default function ProductCustomerSearch() {
           name: safeString(p.name, 'Unnamed Product'),
           unit: safeString(p.unit),
           price: typeof p.price === 'number' ? p.price : safeString(p.price),
-          rawData: p
+          rawData: p,
+          action: 'quick-edit'
         })),
+        // Suppliers - show details
         ...suppliers.map(s => ({
           _id: s._id || `supplier-${Date.now()}`,
           type: 'supplier',
@@ -108,6 +129,7 @@ export default function ProductCustomerSearch() {
           accountNumber: safeString(s.accountNumber),
           ifscCode: safeString(s.ifscCode),
           rawData: s,
+          action: 'show-details',
           // Add category info for display
           matchedCategory: matchingCategories.find(cat => 
             Array.isArray(s.vendorCategory) 
@@ -120,65 +142,84 @@ export default function ProductCustomerSearch() {
       setSearchResults(results);
       setShowResults(true);
     } catch (err) {
-      console.error("Product search error:", err);
+      console.error("Search error:", err);
       Swal.fire({
         title: "Search Error",
         text: "Failed to search products",
         icon: "error",
         confirmButtonColor: "#2563eb",
-        background: '#f8fafc',
+        background: "#f8fafc",
         customClass: {
-          popup: 'rounded-2xl'
-        }
+          popup: "rounded-2xl",
+        },
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProductSelect = async (product) => {
-    setSelectedProduct(product);
-    setShowResults(false);
-    setSearchQuery(product.name);
-    
-    try {
-      setLoading(true);
-      
-      if (product.type === 'sales') {
-        // Fetch customers who have ordered this sales product
-        const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(product.name)}`);
-        
-        // Ensure customer data is properly formatted
-        const customers = Array.isArray(res.data) ? res.data : [];
-        const formattedCustomers = customers.map(customer => ({
-          _id: customer._id || `customer-${Date.now()}`,
-          customerName: safeString(customer.customerName, 'Unknown Customer'),
-          company: safeString(customer.company, 'URP'),
-          phone: safeString(customer.phone, '-'),
-          email: safeString(customer.email, '-'),
-          address: safeString(customer.address, '-'),
-          locationLink: safeString(customer.locationLink),
-          instructions: safeString(customer.instructions),
-          totalOrders: typeof customer.totalOrders === 'number' ? customer.totalOrders : 0,
-          lastPrice: typeof customer.lastPrice === 'number' ? customer.lastPrice : safeString(customer.lastPrice),
-          lastOrderDate: customer.lastOrderDate ? new Date(customer.lastOrderDate).toISOString() : null
-        }));
-        
-        setSearchResults(formattedCustomers);
-      } else if (product.type === 'purchase' || product.type === 'supplier') {
-        // For purchase products or suppliers, show the item itself
-        setSearchResults([product]);
+  // Helper function to safely get string values
+  const safeString = (value, defaultValue = "") => {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return value.toString();
+    return defaultValue;
+  };
+
+  const handleItemSelect = async (item) => {
+    if (item.action === 'quick-edit') {
+      // Quick edit behavior - navigate directly to edit page
+      if (item.type === "purchase") {
+        navigate(`/purchase-products/edit/${item.id}`);
+      } else {
+        navigate(`/products/edit/${item.id}`);
       }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      Swal.fire({
-        title: "Error",
-        text: "Failed to fetch data",
-        icon: "error",
-        confirmButtonColor: "#2563eb",
-      });
-    } finally {
-      setLoading(false);
+      setShowResults(false);
+      setSearchQuery("");
+    } else if (item.action === 'show-details') {
+      // Show details behavior
+      setSelectedProduct(item);
+      setShowResults(false);
+      setSearchQuery("");
+      
+      try {
+        setLoading(true);
+        
+        if (item.type === 'sales') {
+          // Fetch customers who have ordered this sales product
+          const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(item.name)}`);
+          
+          // Ensure customer data is properly formatted
+          const customers = Array.isArray(res.data) ? res.data : [];
+          const formattedCustomers = customers.map(customer => ({
+            _id: customer._id || `customer-${Date.now()}`,
+            customerName: safeString(customer.customerName, 'Unknown Customer'),
+            company: safeString(customer.company, 'URP'),
+            phone: safeString(customer.phone, '-'),
+            email: safeString(customer.email, '-'),
+            address: safeString(customer.address, '-'),
+            locationLink: safeString(customer.locationLink),
+            instructions: safeString(customer.instructions),
+            totalOrders: typeof customer.totalOrders === 'number' ? customer.totalOrders : 0,
+            lastPrice: typeof customer.lastPrice === 'number' ? customer.lastPrice : safeString(customer.lastPrice),
+            lastOrderDate: customer.lastOrderDate ? new Date(customer.lastOrderDate).toISOString() : null
+          }));
+          
+          setSearchResults(formattedCustomers);
+        } else if (item.type === 'purchase' || item.type === 'supplier') {
+          // For purchase products or suppliers, show the item itself
+          setSearchResults([item]);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        Swal.fire({
+          title: "Error",
+          text: "Failed to fetch data",
+          icon: "error",
+          confirmButtonColor: "#2563eb",
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -267,13 +308,16 @@ export default function ProductCustomerSearch() {
               Category: {matchedCategory || category}
             </p>
           )}
+          <p className="text-xs text-gray-400 mt-1">
+            {item.action === 'quick-edit' ? 'Click to edit →' : 'Click for details →'}
+          </p>
         </div>
       </div>
     );
   };
 
   const renderResultDetails = (item) => {
-    if (selectedProduct.type === 'supplier' || selectedProduct.type === 'purchase') {
+    if (selectedProduct && (selectedProduct.type === 'supplier' || selectedProduct.type === 'purchase')) {
       const vendorCategory = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
       
       return (
@@ -377,111 +421,126 @@ export default function ProductCustomerSearch() {
   };
 
   return (
-    <motion.div 
-      className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <span className="text-2xl">🔍</span>
-          Search Products & Suppliers
-        </h3>
-        
-        {selectedProduct && searchResults.length > 0 && selectedProduct.type === 'sales' && (
-          <motion.button
-            onClick={exportToExcel}
-            className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-all duration-300 flex items-center gap-2"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <span>📊</span>
-            Export to Excel
-          </motion.button>
-        )}
-      </div>
-
-      <div className="relative mb-4">
-        <input
-          type="text"
-          placeholder="Search products by name or suppliers by category..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            handleProductSearch(e.target.value);
-          }}
-          className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
-        />
-        {loading && (
-          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    <>
+      {/* Unified Search Bar */}
+      <motion.div
+        className="sticky top-14 md:top-20 z-40 bg-white/95 backdrop-blur-md shadow-lg py-4 px-4 border-b border-gray-200"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="🔍 Search products, suppliers, or categories..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  handleUnifiedSearch(e.target.value);
+                }}
+                className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
+              />
+              {loading && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+          
+          {/* Search Info */}
+          <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
+            <span>💡</span>
+            <span>Search for products, suppliers, or categories. Products open directly for editing, suppliers show details.</span>
+          </div>
+        </div>
+      </motion.div>
 
-      <div className="text-sm text-gray-600 mb-2">
-        💡 <strong>Tip:</strong> Search for product names or supplier categories (e.g., "wood", "steel", "plastic")
-      </div>
-
-      {/* Search Results */}
+      {/* Unified Search Results */}
       <AnimatePresence>
-        {showResults && searchResults.length > 0 && !selectedProduct && (
+        {showResults && (
           <motion.div
-            className="absolute z-50 w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto mt-2"
+            className="fixed inset-x-0 top-32 z-50 max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <div className="p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-gray-800">Select Product or Supplier</h4>
-                <button 
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-800 text-lg">
+                  Search Results
+                </h3>
+                <button
                   onClick={() => setShowResults(false)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded-full hover:bg-gray-100"
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100"
                 >
                   ✕
                 </button>
               </div>
-              
-              <div className="space-y-2">
-                {searchResults.map((item) => (
-                  <motion.div 
-                    key={`${item.type}-${item._id}`}
-                    onClick={() => handleProductSelect(item)}
-                    className="p-3 border border-gray-100 rounded-xl hover:bg-blue-50 cursor-pointer transition-all duration-300 group"
-                    whileHover={{ x: 5 }}
-                  >
-                    {renderSearchResultItem(item)}
-                  </motion.div>
-                ))}
-              </div>
+
+              {searchResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">🔍</div>
+                  <p className="text-gray-500">No results found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchResults.map((item) => (
+                    <motion.div
+                      key={`${item.type}-${item.id}`}
+                      onClick={() => handleItemSelect(item)}
+                      className="p-4 border border-gray-100 rounded-xl hover:bg-blue-50 cursor-pointer transition-all duration-300 group"
+                      whileHover={{ x: 5 }}
+                    >
+                      {renderSearchResultItem(item)}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Customer/Supplier Results */}
+      {/* Detailed Results Panel with ref for scrolling */}
       {selectedProduct && (
-        <motion.div
-          className="mt-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+        <motion.div 
+          ref={detailsPanelRef}
+          className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100 mx-4 mt-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-semibold text-gray-900">
-              {selectedProduct.type === 'supplier' ? 'Supplier Details:' : 
-               selectedProduct.type === 'purchase' ? 'Purchase Product Supplier:' : 
-               'Customers for:'} 
-              <span className="text-blue-600"> {safeString(selectedProduct.name)}</span>
-            </h4>
-            <button
-              onClick={resetSearch}
-              className="text-gray-500 hover:text-gray-700 text-sm font-medium flex items-center gap-1"
-            >
-              ✕ Clear Search
-            </button>
+            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-2xl">📊</span>
+              {selectedProduct.type === 'supplier' ? 'Supplier Details' : 
+               selectedProduct.type === 'purchase' ? 'Purchase Product Details' : 
+               'Customer Information'}
+            </h3>
+            
+            <div className="flex items-center gap-3">
+              {selectedProduct.type === 'sales' && searchResults.length > 0 && (
+                <motion.button
+                  onClick={exportToExcel}
+                  className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-all duration-300 flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span>📊</span>
+                  Export to Excel
+                </motion.button>
+              )}
+              
+              <button
+                onClick={resetSearch}
+                className="text-gray-500 hover:text-gray-700 text-sm font-medium flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100"
+              >
+                ✕ Clear Search
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -511,6 +570,6 @@ export default function ProductCustomerSearch() {
           )}
         </motion.div>
       )}
-    </motion.div>
+    </>
   );
 }

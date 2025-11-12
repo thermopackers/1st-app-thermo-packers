@@ -25,8 +25,35 @@ const OrderTable = ({
   getStockForProduct,
   getCustomerPhone,
   sectionToSlipType,
-  swalWithTailwindButtons
+  swalWithTailwindButtons,
+  filters // ✅ This should be passed from OrdersList
 }) => {
+  
+  // ✅ ADD DEBUG LOGGING
+  console.log("OrderTable - filters:", filters);
+  console.log("OrderTable - customerName:", filters?.customerName);
+  console.log("OrderTable - total orders:", sortedOrders.length);
+  
+const displayOrders = sortedOrders.filter(order => {
+  if (filters?.customerName) {
+    // When customer is filtered, show ALL their orders including completed
+    console.log("Order customer:", order.customerName, "Matches filter:", order.customerName === filters.customerName);
+    return order.status !== "cancelled";
+  } else {
+    // Default behavior: hide completed orders
+    return order.status !== "completed" && order.status !== "cancelled";
+  }
+});
+
+// Add this debug log
+console.log("All returned orders:", sortedOrders.map(order => ({
+  id: order._id,
+  customer: order.customerName,
+  status: order.status
+})));
+  
+  console.log("OrderTable - display orders:", displayOrders.length);
+
   return (
     <div className="w-full overflow-x-auto mt-10 max-h-[80vh]">
       <div className="min-w-full inline-block align-middle">
@@ -34,38 +61,35 @@ const OrderTable = ({
           <table className="order-table min-w-full divide-y divide-gray-200 table-auto text-xs sm:text-sm">
             <TableHeader role={role} />
             <tbody className="bg-white divide-y divide-gray-200 capitalize">
-              {sortedOrders
-                .filter(order => order.status !== "completed")
-                .map((order, index) => (
-                  <OrderRow 
-                    key={order._id}
-                    order={order}
-                    index={index}
-                    products={products}
-                    role={role}
-                    customers={customers}
-                    resolvedPOUrls={resolvedPOUrls}
-                    sectionsList={sectionsList}
-                    localSections={localSections}
-                    selectedRadioByOrder={selectedRadioByOrder}
-                    disabledOrders={disabledOrders}
-                    handleComplete={handleComplete}
-                    handleCancel={handleCancel}
-                    handleDelete={handleDelete}
-                    setEditOrder={setEditOrder}
-                    handleSectionRadioChange={handleSectionRadioChange}
-                    setActiveProductImage={setActiveProductImage}
-                    setSlipType={setSlipType}
-                    setSelectedOrder={setSelectedOrder}
-                    setSelectedSections={setSelectedSections}
-                    setModalOpen={setModalOpen}
-                    getStockForProduct={getStockForProduct}
-                    getCustomerPhone={getCustomerPhone}
-                    sectionToSlipType={sectionToSlipType}
-                    swalWithTailwindButtons={swalWithTailwindButtons}
-                  />
-                ))
-              }
+              {displayOrders.map((order, index) => (
+                <OrderRow 
+                  key={order._id}
+                  order={order}
+                  index={index}
+                  products={products}
+                  role={role}
+                  customers={customers}
+                  resolvedPOUrls={resolvedPOUrls}
+                  sectionsList={sectionsList}
+                  localSections={localSections}
+                  selectedRadioByOrder={selectedRadioByOrder}
+                  disabledOrders={disabledOrders}
+                  handleComplete={handleComplete}
+                  handleCancel={handleCancel}
+                  handleDelete={handleDelete}
+                  setEditOrder={setEditOrder}
+                  handleSectionRadioChange={handleSectionRadioChange}
+                  setActiveProductImage={setActiveProductImage}
+                  setSlipType={setSlipType}
+                  setSelectedOrder={setSelectedOrder}
+                  setSelectedSections={setSelectedSections}
+                  setModalOpen={setModalOpen}
+                  getStockForProduct={getStockForProduct}
+                  getCustomerPhone={getCustomerPhone}
+                  sectionToSlipType={sectionToSlipType}
+                  swalWithTailwindButtons={swalWithTailwindButtons}
+                />
+              ))}
             </tbody>
           </table>
         </div>

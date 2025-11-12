@@ -47,10 +47,6 @@ export default function Dashboard() {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
   const [showDocNotifications, setShowDocNotifications] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [invitationLink, setInvitationLink] = useState(null);
@@ -374,115 +370,7 @@ useEffect(() => {
     <>
       <InternalNavbar />
 
-      {/* Enhanced Search Bar */}
-      <motion.div
-        className="sticky top-14 md:top-20 z-40 bg-white/95 backdrop-blur-md shadow-lg py-4 px-4 border-b border-gray-200"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="max-w-7xl mx-auto flex items-center gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="🔍 Search purchase or sales products..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                handleSearch(e.target.value);
-              }}
-              className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
-            />
-            {searchLoading && (
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
       <ProductCustomerSearch />
-
-      {/* Enhanced Search Results */}
-      <AnimatePresence>
-        {showSearchResults && (
-          <motion.div
-            className="fixed inset-x-0 top-32 z-50 max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-gray-800 text-lg">
-                  Search Results
-                </h3>
-                <button
-                  onClick={() => setShowSearchResults(false)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {searchResults.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-2">🔍</div>
-                  <p className="text-gray-500">No products found</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {searchResults.map((product) => (
-                    <motion.div
-                      key={`${product.type}-${product.id}`}
-                      onClick={() => {
-                        if (product.type === "purchase") {
-                          navigate(`/purchase-products/edit/${product.id}`);
-                        } else {
-                          navigate(`/products/edit/${product.id}`);
-                        }
-                        setShowSearchResults(false);
-                        setSearchQuery("");
-                      }}
-                      className="p-4 border border-gray-100 rounded-xl hover:bg-blue-50 cursor-pointer transition-all duration-300 group"
-                      whileHover={{ x: 5 }}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
-                            {product.name}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {product.unit} •{" "}
-                            <span
-                              className={`font-medium ${
-                                product.type === "purchase"
-                                  ? "text-green-600"
-                                  : "text-purple-600"
-                              }`}
-                            >
-                              {product.type === "purchase"
-                                ? "Purchase"
-                                : "Sales"}{" "}
-                              Product
-                            </span>
-                          </p>
-                        </div>
-                        {product.price && (
-                          <span className="text-blue-600 font-bold">
-                            ₹{product.price}
-                          </span>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Enhanced Attendance Banner */}
       {user.allowAttendance && (
@@ -1003,7 +891,6 @@ useEffect(() => {
                     )}
                   </div>
 
-                {(userRoles.includes("accounts") || userRoles.includes("production")) && (
   <ActionButton
     to="/task-dashboard"
     variant="danger"
@@ -1016,7 +903,6 @@ useEffect(() => {
       Assign / View / Edit / Delete Task
     </div>
   </ActionButton>
-)}
                 </div>
               </DashboardCard>
 
@@ -1185,8 +1071,7 @@ useEffect(() => {
     <DashboardCard>
       <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
         <span className="text-3xl">🚗</span>
-        Goods Received Note (G.R.N.) Cum Quality Check / Control Goods Inwards
-      </h3>
+Make get Inwards/GRN/Record Vehicle Entry      </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
   <ActionButton 
     to="/guard-entry" 

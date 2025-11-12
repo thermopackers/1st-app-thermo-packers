@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useUserContext } from "../context/UserContext";
 import axiosInstance from "../axiosInstance";
+import Swal from "sweetalert2";
 
 const DOCUMENT_TYPES = {
   insurance_renewal: "Insurance Renewal",
@@ -51,6 +52,95 @@ export default function DocumentNotifications({ setDocNotifCount }) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
+// Function to open document in SweetAlert
+const openDocument = (doc) => {
+  if (!doc.documentUrls || doc.documentUrls.length === 0) {
+    Swal.fire({
+      title: "No Document Available",
+      text: "This document doesn't have any files attached.",
+      icon: "warning",
+      confirmButtonColor: "#2563eb",
+    });
+    return;
+  }
+
+  // Create content for ALL documents
+  let contentHtml = `
+    <div class="space-y-4 max-h-[70vh] overflow-y-auto">
+      <div class="text-center mb-4">
+        <p class="text-sm text-gray-600"><strong>Vehicle:</strong> ${doc.vehicleNumber}</p>
+        <p class="text-sm text-gray-600"><strong>Type:</strong> ${DOCUMENT_TYPES[doc.documentType]}</p>
+      </div>
+  `;
+
+  // Add each document to the content
+  doc.documentUrls.forEach((url, index) => {
+    const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+    const isPDF = url.match(/\.pdf$/i);
+    
+    contentHtml += `
+      <div class="border border-gray-200 rounded-lg p-4 bg-white">
+        <div class="flex justify-between items-center mb-3">
+          <h4 class="font-semibold text-gray-800">Document ${index + 1}</h4>
+          
+        </div>
+    `;
+
+    if (isImage) {
+      contentHtml += `
+        <img src="${url}" 
+             class="w-full max-h-96 object-contain rounded-lg shadow-sm border" 
+             alt="Document ${index + 1}" 
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+        <div style="display: none;" class="text-center p-4 bg-gray-100 rounded-lg">
+          <p class="text-gray-600 mb-2">Image failed to load</p>
+          <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+            Open in new tab
+          </a>
+        </div>
+      `;
+    } else if (isPDF) {
+      contentHtml += `
+        <embed src="${url}" 
+               type="application/pdf" 
+               width="100%" 
+               height="400px" 
+               class="rounded-lg border" 
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+        <div style="display: none;" class="text-center p-4 bg-gray-100 rounded-lg">
+          <p class="text-gray-600 mb-2">PDF failed to load</p>
+          <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+            Open PDF in new tab
+          </a>
+        </div>
+      `;
+    } else {
+      contentHtml += `
+        <div class="text-center p-6 bg-gray-100 rounded-lg">
+          <p class="text-gray-600 mb-3">This file type cannot be previewed in the browser</p>
+         
+        </div>
+      `;
+    }
+
+    contentHtml += `</div>`; // Close the document container
+  });
+
+  contentHtml += `</div>`; // Close the main container
+
+  Swal.fire({
+    title: `${DOCUMENT_TYPES[doc.documentType]} - All Documents`,
+    html: contentHtml,
+    width: "90%",
+    showCloseButton: true,
+    showConfirmButton: false,
+    background: "#f8fafc",
+    customClass: {
+      popup: "rounded-2xl",
+    },
+  });
+};
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-6">
@@ -94,7 +184,11 @@ export default function DocumentNotifications({ setDocNotifCount }) {
             }
 
             return (
-              <tr key={doc._id}>
+              <tr 
+                key={doc._id} 
+                className="hover:bg-slate-50 cursor-pointer transition-colors"
+                onClick={() => openDocument(doc)}
+              >
                 <td className="px-3 py-2 text-sm">{doc.vehicleNumber}</td>
                 <td className="px-3 py-2 text-sm font-medium">
                   {DOCUMENT_TYPES[doc.documentType]}

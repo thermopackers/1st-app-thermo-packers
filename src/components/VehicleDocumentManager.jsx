@@ -1,9 +1,9 @@
 // components/VehicleDocumentManager.js
 import { useState, useEffect } from 'react';
-import axiosInstance from '../axiosInstance';
 import { useUserContext } from '../context/UserContext';
 import Swal from 'sweetalert2';
 import imageCompression from "browser-image-compression";
+import axiosInstance from '../axiosInstance';
 
 const DOCUMENT_TYPES = {
   insurance_renewal: 'Insurance Renewal',

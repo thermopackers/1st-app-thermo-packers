@@ -433,430 +433,458 @@ setAllowQuotation(false); // Add this line
     <>
       <InternalNavbar />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-10">
-        <div className="w-full max-w-lg mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10 mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
+<div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">          <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
             Add New Employee/User
           </h2>
 
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
-            {isEditing && (
-              <div className="mb-4 text-blue-700 font-semibold text-sm">
-                ✏️ Editing user. Make changes and click "Update User" or cancel.
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (As per Aadhar Card)</label>
-              <input
-                type="text"
-                required
-                placeholder="John Doe"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-              />
-            </div>
-
-          
-
-            {/* All details are now always visible */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm">Date of Birth (As per Aadhar Card)</label>
-                <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
-              </div>
-
-              <div>
-                <label className="block text-sm">Address (As per Aadhar Card)</label>
-                <textarea value={address} onChange={e => setAddress(e.target.value)} className="w-full border p-2 rounded" />
-              </div>
-
-             <div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Phone Numbers
-  </label>
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div>
-      <label className="block text-xs text-gray-600 mb-1">Company Phone</label>
-      <input
-        type="tel"
-        placeholder="e.g. 9876543210"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-      />
-    </div>
-
-    <div>
-      <label className="block text-xs text-gray-600 mb-1">Personal Phone</label>
-      <input
-        type="tel"
-        placeholder="e.g. 9876543210"
-        value={personalPhone}
-        onChange={(e) => setPersonalPhone(e.target.value.replace(/\D/g, ''))}
-        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-      />
-    </div>
-
-    <div>
-      <label className="block text-xs text-gray-600 mb-1">Emergency/Guardian's Phone</label>
-      <input
-        type="tel"
-        placeholder="e.g. 9876543210"
-        value={emergencyNumber}
-        onChange={(e) => setEmergencyNumber(e.target.value.replace(/\D/g, ''))}
-        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-      />
-    </div>
-  </div>
-</div>
-
-
-
-              <div>
-                <label className="block text-sm">Designation</label>
-                <select value={designation} onChange={e => setDesignation(e.target.value)} className="w-full border p-2 rounded">
-                  <option value="">Select</option>
-                  <option value="operator">Operator</option>
-                  <option value="helper">Helper</option>
-                                    <option value="driver">Driver</option>
-                  <option value="staff">Staff</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm">ESIC No</label>
-                <input type="text" value={esicNo} onChange={e => setEsicNo(e.target.value)} className="w-full border p-2 rounded" />
-              </div>
-
-              <div>
-                <label className="block text-sm">EPFO No</label>
-                <input type="text" value={epfoNo} onChange={e => setEpfoNo(e.target.value)} className="w-full border p-2 rounded" />
-              </div>
-
-              {/* File uploads */}
-              <FileInput
-                label="Front Face Picture"
-                name="frontFacePicture"
-                onChange={setFrontFacePicture}
-                multiple={false}
-                resetTrigger={resetTrigger}
-                initialFiles={existingFrontFace}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('frontFacePicture', fileUrl)}
-              />
-
-              <FileInput
-                label="Aadhar Card (Front & Back)"
-                name="aadharCard"
-                onChange={setAadharCard}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingAadharCard}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('aadharCard', fileUrl)}
-              />
-
-              <FileInput
-                label="PAN Card"
-                name="panCard"
-                onChange={setPanCard}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingPanCard}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('panCard', fileUrl)}
-              />
-
-              <FileInput
-                label="Passbook / Cheque Book"
-                name="passbookCheque"
-                onChange={setPassbookCheque}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingPassbookCheque}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('passbookCheque', fileUrl)}
-              />
-
-              <FileInput
-                label="ESIC Copy"
-                name="esicCopy"
-                onChange={setEsicCopy}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingEsicCopy}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
-              />
-
-              <FileInput
-                label="EPFO Copy"
-                name="epfoCopy"
-                onChange={setEpfoCopy}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingEpfoCopy}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('epfoCopy', fileUrl)}
-              />
-
-              <FileInput
-                label="Misc Documents"
-                name="miscDocuments"
-                onChange={setMiscDocuments}
-                multiple
-                resetTrigger={resetTrigger}
-                initialFiles={existingMiscDocuments}
-                onRemoveExisting={(fileUrl) => handleRemoveExistingFile('miscDocuments', fileUrl)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
-             <input
-  type="email"
-  placeholder="example@domain.com"
-  value={email}
-  onChange={e => setEmail(e.target.value)}
-  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-/>
-
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture for Whatsapp, Gmail, etc. (optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setProfilePicture(e.target.files[0]);
-                    setProfilePicturePreview(URL.createObjectURL(e.target.files[0]));
-                  }
-                }}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-              />
-              {profilePicturePreview && (
-                <div className="mt-2">
-                  <img
-                    src={profilePicturePreview}
-                    alt="Preview"
-                    className="h-20 w-20 rounded-full object-cover"
-                  />
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setVisitingCard(e.target.files[0]);
-                    setVisitingCardPreview(URL.createObjectURL(e.target.files[0]));
-                  }
-                }}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-              />
-              {visitingCardPreview && (
-                <div className="mt-2">
-                  <img
-                    src={visitingCardPreview}
-                    alt="Visiting Card Preview"
-                    className="h-24 rounded-md object-cover border"
-                  />
-                </div>
-              )}
-            </div>
-
-           <div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">Select Roles</label>
-  <div className="grid grid-cols-1 gap-3 border border-gray-300 rounded-lg p-4 bg-white">
-    {[
-      { value: "sales", label: "Sales" },
-      { value: "accounts", label: "Accounts" },
-      { value: "dispatch", label: "EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section" },
-      { value: "production", label: "Production" },
-      { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
-      { value: "suppliers", label: "Vendors/Suppliers" },
-      { value: "driver", label: "Driver" },
-      { value: "guard", label: "Guard" },
-{ value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
-    ].map((roleOption) => (
-      <label key={roleOption.value} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-        <input
-          type="checkbox"
-          value={roleOption.value}
-          checked={role.includes(roleOption.value)}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setRole([...role, roleOption.value]);
-            } else {
-              setRole(role.filter(r => r !== roleOption.value));
-            }
-          }}
-          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-        />
-        <span className="text-sm text-gray-700">{roleOption.label}</span>
-      </label>
-    ))}
-  </div>
-  {role.length > 0 && (
-    <div className="mt-2 text-xs text-blue-600">
-      Selected: {role.map(r => 
-        ({
-          sales: 'Sales',
-          accounts: 'Accounts', 
-          dispatch: 'Dispatch',
-          production: 'Production',
-          packaging: 'Packaging',
-          suppliers: 'Suppliers',
-          driver: 'Driver'
-        }[r] || r)
-      ).join(', ')}
+       <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+  {isEditing && (
+    <div className="mb-4 text-blue-700 font-semibold text-sm">
+      ✏️ Editing user. Make changes and click "Update User" or cancel.
     </div>
   )}
-</div>
-{role.includes('production') && (              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
-                <div className="flex flex-col gap-2">
-                  {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
-                    <label key={section} className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        value={section}
-                        checked={productionSection.includes(section)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setProductionSection([...productionSection, section]);
-                          } else {
-                            setProductionSection(productionSection.filter(s => s !== section));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      {section}
-                    </label>
-                  ))}
+  
+  {/* Personal Information Section */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {/* Left Column */}
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (As per Aadhar Card)</label>
+        <input
+          type="text"
+          required
+          placeholder="John Doe"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
+        <input
+          type="email"
+          placeholder="example@domain.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm">Date of Birth (As per Aadhar Card)</label>
+        <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
+      </div>
+
+      <div>
+        <label className="block text-sm">Designation</label>
+        <select value={designation} onChange={e => setDesignation(e.target.value)} className="w-full border p-2 rounded">
+          <option value="">Select</option>
+          <option value="operator">Operator</option>
+          <option value="helper">Helper</option>
+          <option value="driver">Driver</option>
+          <option value="staff">Staff</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm">ESIC No</label>
+        <input type="text" value={esicNo} onChange={e => setEsicNo(e.target.value)} className="w-full border p-2 rounded" />
+      </div>
+
+      <div>
+        <label className="block text-sm">EPFO No</label>
+        <input type="text" value={epfoNo} onChange={e => setEpfoNo(e.target.value)} className="w-full border p-2 rounded" />
+      </div>
+    </div>
+
+    {/* Right Column */}
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm">Address (As per Aadhar Card)</label>
+        <textarea 
+          value={address} 
+          onChange={e => setAddress(e.target.value)} 
+          className="w-full border p-2 rounded" 
+          rows="3"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Numbers</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Company Phone</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Personal Phone</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={personalPhone}
+              onChange={(e) => setPersonalPhone(e.target.value.replace(/\D/g, ''))}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">Emergency/Guardian's Phone</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={emergencyNumber}
+              onChange={(e) => setEmergencyNumber(e.target.value.replace(/\D/g, ''))}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Profile Pictures */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (e.target.files[0]) {
+                setProfilePicture(e.target.files[0]);
+                setProfilePicturePreview(URL.createObjectURL(e.target.files[0]));
+              }
+            }}
+            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
+          />
+          {profilePicturePreview && (
+            <div className="mt-2">
+              <img
+                src={profilePicturePreview}
+                alt="Preview"
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (e.target.files[0]) {
+                setVisitingCard(e.target.files[0]);
+                setVisitingCardPreview(URL.createObjectURL(e.target.files[0]));
+              }
+            }}
+            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
+          />
+          {visitingCardPreview && (
+            <div className="mt-2">
+              <img
+                src={visitingCardPreview}
+                alt="Visiting Card Preview"
+                className="h-16 w-16 rounded-md object-cover border"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* File Uploads Section - Full Width */}
+  <div className="border-t pt-6">
+    <h3 className="text-lg font-semibold text-gray-800 mb-4">Document Uploads</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <FileInput
+        label="Front Face Picture"
+        name="frontFacePicture"
+        onChange={setFrontFacePicture}
+        multiple={false}
+        resetTrigger={resetTrigger}
+        initialFiles={existingFrontFace}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('frontFacePicture', fileUrl)}
+      />
+
+      <FileInput
+        label="Aadhar Card (Front & Back)"
+        name="aadharCard"
+        onChange={setAadharCard}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingAadharCard}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('aadharCard', fileUrl)}
+      />
+
+      <FileInput
+        label="PAN Card"
+        name="panCard"
+        onChange={setPanCard}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingPanCard}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('panCard', fileUrl)}
+      />
+
+      <FileInput
+        label="Passbook / Cheque Book"
+        name="passbookCheque"
+        onChange={setPassbookCheque}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingPassbookCheque}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('passbookCheque', fileUrl)}
+      />
+
+      <FileInput
+        label="ESIC Copy"
+        name="esicCopy"
+        onChange={setEsicCopy}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingEsicCopy}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
+      />
+
+      <FileInput
+        label="EPFO Copy"
+        name="epfoCopy"
+        onChange={setEpfoCopy}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingEpfoCopy}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('epfoCopy', fileUrl)}
+      />
+
+      <FileInput
+        label="Misc Documents"
+        name="miscDocuments"
+        onChange={setMiscDocuments}
+        multiple
+        resetTrigger={resetTrigger}
+        initialFiles={existingMiscDocuments}
+        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('miscDocuments', fileUrl)}
+      />
+    </div>
+  </div>
+
+  {/* Roles and Permissions Section - Full Width */}
+  <div className="border-t pt-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Roles Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Select Roles</label>
+        <div className="grid grid-cols-1 gap-2 border border-gray-300 rounded-lg p-3 bg-white max-h-60 overflow-y-auto">
+          {[
+            { value: "sales", label: "Sales" },
+            { value: "accounts", label: "Accounts" },
+            { value: "dispatch", label: "EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section" },
+            { value: "production", label: "Production" },
+            { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
+            { value: "suppliers", label: "Vendors/Suppliers" },
+            { value: "driver", label: "Driver" },
+            { value: "guard", label: "Guard" },
+            { value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
+          ].map((roleOption) => (
+            <label key={roleOption.value} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                value={roleOption.value}
+                checked={role.includes(roleOption.value)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setRole([...role, roleOption.value]);
+                  } else {
+                    setRole(role.filter(r => r !== roleOption.value));
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">{roleOption.label}</span>
+            </label>
+          ))}
+        </div>
+        {role.length > 0 && (
+          <div className="mt-2 text-xs text-blue-600">
+            Selected: {role.map(r => 
+              ({
+                sales: 'Sales',
+                accounts: 'Accounts', 
+                dispatch: 'Dispatch',
+                production: 'Production',
+                packaging: 'Packaging',
+                suppliers: 'Suppliers',
+                driver: 'Driver'
+              }[r] || r)
+            ).join(', ')}
+          </div>
+        )}
+      </div>
+
+      {/* Production Sections and Permissions */}
+      <div className="space-y-4">
+        {role.includes('production') && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
+            <div className="flex flex-col gap-2">
+              {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
+                <label key={section} className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    value={section}
+                    checked={productionSection.includes(section)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setProductionSection([...productionSection, section]);
+                      } else {
+                        setProductionSection(productionSection.filter(s => s !== section));
+                      }
+                    }}
+                    className="mr-2"
+                  />
+                  {section}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!role.includes('suppliers') && (
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="attendance"
+                checked={allowAttendance}
+                onChange={() => setAllowAttendance(!allowAttendance)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="attendance" className="text-sm text-gray-700">
+                Allow for Attendance
+              </label>
+            </div>
+            
+            {(currentUser?.email === "thermopackers@gmail.com" || currentUser?.email === "it.thermopackers@gmail.com") && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="vehiclesManagement"
+                    checked={allowVehiclesManagement}
+                    onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
+                    Allow Vehicles Management
+                  </label>
                 </div>
-              </div>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="hr"
+                    checked={allowHR}
+                    onChange={() => setAllowHR(!allowHR)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="hr" className="text-sm text-gray-700">
+                    Allow HR (Human Resource)
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="plantMaintenance"
+                    checked={allowPlantMaintenance}
+                    onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
+                    Allow Plant & Machinery Maintenance
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="tourExpenses"
+                    checked={allowTourExpenses}
+                    onChange={() => setAllowTourExpenses(!allowTourExpenses)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="tourExpenses" className="text-sm text-gray-700">
+                    Allow Tour Expenses
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="incomingPayments"
+                    checked={allowIncomingPayments}
+                    onChange={() => setAllowIncomingPayments(!allowIncomingPayments)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="incomingPayments" className="text-sm text-gray-700">
+                    Allow for Incoming Payments
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="allowQuotation"
+                    checked={allowQuotation}
+                    onChange={() => setAllowQuotation(!allowQuotation)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="allowQuotation" className="text-sm text-gray-700">
+                    Allow for Quotation / Proforma Invoice
+                  </label>
+                </div>
+              </>
             )}
-
-{!role.includes('suppliers') && (  <div className="space-y-3">
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="attendance"
-        checked={allowAttendance}
-        onChange={() => setAllowAttendance(!allowAttendance)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="attendance" className="text-sm text-gray-700">
-        Allow for Attendance
-      </label>
+          </div>
+        )}
+      </div>
     </div>
-    
-    {/* Only show these checkboxes for specific admin users */}
-    {(currentUser?.email === "thermopackers@gmail.com" || currentUser?.email === "it.thermopackers@gmail.com") && (
-      <>
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="vehiclesManagement"
-            checked={allowVehiclesManagement}
-            onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
-            Allow Vehicles Management
-          </label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="hr"
-            checked={allowHR}
-            onChange={() => setAllowHR(!allowHR)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="hr" className="text-sm text-gray-700">
-            Allow HR (Human Resource)
-          </label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="plantMaintenance"
-            checked={allowPlantMaintenance}
-            onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
-            Allow Plant & Machinery Maintenance
-          </label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="tourExpenses"
-            checked={allowTourExpenses}
-            onChange={() => setAllowTourExpenses(!allowTourExpenses)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="tourExpenses" className="text-sm text-gray-700">
-            Allow Tour Expenses
-          </label>
-        </div>
+  </div>
 
-         <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="incomingPayments"
-        checked={allowIncomingPayments}
-        onChange={() => setAllowIncomingPayments(!allowIncomingPayments)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="incomingPayments" className="text-sm text-gray-700">
-        Allow for Incoming Payments
-      </label>
-    </div>
-
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id="allowQuotation"
-        checked={allowQuotation}
-        onChange={() => setAllowQuotation(!allowQuotation)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="allowQuotation" className="text-sm text-gray-700">
-        Allow for Quotation / Proforma Invoice
-      </label>
-    </div>
-      </>
+  {/* Submit Buttons */}
+  <div className="border-t pt-6">
+    <button
+      type="submit"
+      disabled={isSubmitting}
+      className={`w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition ${
+        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
+    >
+      {isEditing ? 'Update User' : 'Register User'}
+    </button>
+    {isEditing && (
+      <button
+        type="button"
+        onClick={handleCancelEdit}
+        disabled={isSubmitting}
+        className={`w-full bg-gray-300 text-gray-800 py-3 rounded-lg hover:bg-gray-400 transition mt-3 ${
+          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        Cancel Editing
+      </button>
     )}
   </div>
-)}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition ${
-                isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isEditing ? 'Update User' : 'Register User'}
-            </button>
-            {isEditing && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                disabled={isSubmitting}
-                className={`w-full bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition ${
-                  isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                Cancel Editing
-              </button>
-            )}
-
-          </form>
+</form>
 
           {message && (
             <div
@@ -892,7 +920,7 @@ setAllowQuotation(false); // Add this line
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
               <tr>
                 <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Profile Photo</th>
+                <th className="px-4 py-2">WhatsApp/Gmail Profile Photo</th>
                 <th className="px-4 py-2">Front Face Picture</th>  {/* NEW COLUMN */}
                 <th className="px-4 py-2">Visiting Card</th>
                 <th className="px-4 py-2">Name</th>
