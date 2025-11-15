@@ -16,6 +16,7 @@ export default function App() {
   // Paths where Navbar/Footer should be hidden
   const hideLayout = [
     "/login",
+    "/leave-management",
     "/send-rfq",
     "/tour-expenses",
     "/timestamp-generator-pkc",

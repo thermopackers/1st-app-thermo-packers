@@ -1317,84 +1317,95 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             </div>
           </DashboardSection>
 
-          {/* Enhanced HR Section */}
-          {(user.allowHR ||
-            userRoles.some((role) => ["admin", "accounts"].includes(role))) && (
-            <DashboardSection>
-              <DashboardCard>
-                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
-                  <span className="text-3xl">👨‍💼</span>
-                  HR (Human Resource)
-                </h3>
-                <p className="text-gray-600 text-center mb-6">
-                  Employee management, ID Proof, Salary Sheets, ESIC, EPFO, and
-                  more
-                </p>
+      {/* Enhanced HR Section */}
+{(user.allowHR ||
+  userRoles.some((role) => ["admin", "accounts"].includes(role))) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">👨‍💼</span>
+        HR (Human Resource)
+      </h3>
+      <p className="text-gray-600 text-center mb-6">
+        Employee management, ID Proof, Salary Sheets, ESIC, EPFO, Leave Management, and more
+      </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ActionButton to="/register-user" variant="primary" icon="👥">
-                    <div className="text-lg font-semibold mb-2">
-                      Employee Management
-                    </div>
-                    <div className="text-blue-100 text-sm opacity-90">
-                      ➕ Add / View / Edit / Delete Employees
-                    </div>
-                  </ActionButton>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ActionButton to="/register-user" variant="primary" icon="👥">
+          <div className="text-lg font-semibold mb-2">
+            Employee Management
+          </div>
+          <div className="text-blue-100 text-sm opacity-90">
+            ➕ Add / View / Edit / Delete Employees
+          </div>
+        </ActionButton>
 
-                  <motion.div
-                    className="opacity-60 cursor-not-allowed"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="text-3xl mb-3">📑</div>
-                        <div className="text-lg font-semibold mb-2">
-                          ESIC Management
-                        </div>
-                        <div className="text-gray-200 text-sm opacity-90">
-                          ESIC Monthly Challan & Payment Receipts
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+        {/* ✅ ADD THIS NEW LEAVE MANAGEMENT BUTTON */}
+        {userRoles.includes("accounts") && (
+          <ActionButton to="/leave-management" variant="teal" icon="📋">
+            <div className="text-lg font-semibold mb-2">
+              Leave Management
+            </div>
+            <div className="text-teal-100 text-sm opacity-90">
+              Manage employee leave applications & records
+            </div>
+          </ActionButton>
+        )}
 
-                  <motion.div
-                    className="opacity-60 cursor-not-allowed"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="text-3xl mb-3">📑</div>
-                        <div className="text-lg font-semibold mb-2">
-                          EPFO Management
-                        </div>
-                        <div className="text-gray-200 text-sm opacity-90">
-                          EPFO Monthly Challan & Payment Receipts
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+        <motion.div
+          className="opacity-60 cursor-not-allowed"
+          whileHover={{ scale: 1.02 }}
+        >
+          <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+            <div className="flex flex-col items-center text-center">
+              <div className="text-3xl mb-3">📑</div>
+              <div className="text-lg font-semibold mb-2">
+                ESIC Management
+              </div>
+              <div className="text-gray-200 text-sm opacity-90">
+                ESIC Monthly Challan & Payment Receipts
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
-                  <motion.div
-                    className="opacity-60 cursor-not-allowed md:col-span-2"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="text-3xl mb-3">📊</div>
-                        <div className="text-lg font-semibold mb-2">
-                          Salary Sheets
-                        </div>
-                        <div className="text-gray-200 text-sm opacity-90">
-                          Monthly Salary Sheets
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </DashboardCard>
-            </DashboardSection>
-          )}
+        <motion.div
+          className="opacity-60 cursor-not-allowed"
+          whileHover={{ scale: 1.02 }}
+        >
+          <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+            <div className="flex flex-col items-center text-center">
+              <div className="text-3xl mb-3">📑</div>
+              <div className="text-lg font-semibold mb-2">
+                EPFO Management
+              </div>
+              <div className="text-gray-200 text-sm opacity-90">
+                EPFO Monthly Challan & Payment Receipts
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="opacity-60 cursor-not-allowed md:col-span-2"
+          whileHover={{ scale: 1.02 }}
+        >
+          <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
+            <div className="flex flex-col items-center text-center">
+              <div className="text-3xl mb-3">📊</div>
+              <div className="text-lg font-semibold mb-2">
+                Salary Sheets
+              </div>
+              <div className="text-gray-200 text-sm opacity-90">
+                Monthly Salary Sheets
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
 
           {/* Enhanced Attendance Logs */}
           {user.allowAttendance && (

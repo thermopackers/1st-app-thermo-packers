@@ -63,6 +63,7 @@ import TimestampPhotoGenerator from "../components/TimestampPhotoGenerator";
 import GuardEntryForm from "../pages/GuardEntryForm";
 import GuardEntriesView from "../pages/GuardEntriesView";
 import GoodsInwardForm from "../components/GoodsInwardForm";
+import LeaveManagement from "../components/LeaveManagement";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -362,6 +363,15 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+ <Route
+              path="/leave-management"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+                  <PageWrapper><LeaveManagement /></PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/all-products"
               element={
