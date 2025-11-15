@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, FileText, Calendar, User, Trash2, Eye, Download, Filter, BarChart3, Search } from 'lucide-react';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
@@ -14,6 +14,10 @@ const LeaveManagement = () => {
   const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState(null);
   const [showStatistics, setShowStatistics] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalApplications, setTotalApplications] = useState(0);
+  const [limit] = useState(10); // Items per page
   const [filters, setFilters] = useState({
     status: '',
     user: '',
@@ -29,13 +33,23 @@ const LeaveManagement = () => {
     reason: '',
   });
 
+  // Fetch users and statistics only once on component mount
   useEffect(() => {
-    fetchLeaveApplications();
     fetchUsers();
     fetchStatistics();
-  }, [filters]);
+  }, []);
 
-  const fetchLeaveApplications = async () => {
+  // Fetch leave applications when filters or currentPage change
+  useEffect(() => {
+    fetchLeaveApplications(currentPage);
+  }, [filters, currentPage]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.status, filters.user, filters.leaveType, filters.dateRange, filters.search]);
+
+  const fetchLeaveApplications = async (page = 1) => {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
@@ -44,9 +58,18 @@ const LeaveManagement = () => {
       if (filters.leaveType) queryParams.append('leaveType', filters.leaveType);
       if (filters.dateRange) queryParams.append('dateRange', filters.dateRange);
       if (filters.search) queryParams.append('search', filters.search);
+      
+      // Pagination parameters
+      queryParams.append('page', page);
+      queryParams.append('limit', limit);
 
       const res = await axiosInstance.get(`/leave/applications?${queryParams}`);
-      setLeaveApplications(res.data);
+      
+      // Handle paginated response
+      setLeaveApplications(res.data.applications || []);
+      setCurrentPage(res.data.pagination.currentPage);
+      setTotalPages(res.data.pagination.totalPages);
+      setTotalApplications(res.data.pagination.totalApplications);
     } catch (err) {
       toast.error('Failed to fetch leave applications');
       console.error('Error:', err);
@@ -144,8 +167,9 @@ const LeaveManagement = () => {
         reason: '',
       });
       
-      // Refresh data
-      fetchLeaveApplications();
+      // Refresh data - reset to page 1 to see the new application
+      setCurrentPage(1);
+      fetchLeaveApplications(1);
       fetchStatistics();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit leave application');
@@ -178,7 +202,7 @@ const LeaveManagement = () => {
         });
 
         toast.success(`Leave application ${status} successfully!`);
-        fetchLeaveApplications();
+        fetchLeaveApplications(currentPage); // Maintain current page
         fetchStatistics();
       }
     } catch (err) {
@@ -201,7 +225,7 @@ const LeaveManagement = () => {
       try {
         await axiosInstance.delete(`/leave/delete/${applicationId}`);
         toast.success('Leave application deleted successfully!');
-        fetchLeaveApplications();
+        fetchLeaveApplications(currentPage); // Maintain current page
         fetchStatistics();
       } catch (err) {
         toast.error('Failed to delete leave application');
@@ -274,6 +298,98 @@ const LeaveManagement = () => {
       search: '',
     });
   };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  // Pagination Controls Component
+  const PaginationControls = () => (
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-6 border-t border-gray-200">
+      <div className="text-sm text-gray-600">
+        {loading ? (
+          <span className="text-gray-400">Loading applications...</span>
+        ) : (
+          `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(currentPage * limit, totalApplications)} of ${totalApplications} applications`
+        )}
+      </div>
+      
+      <div className="flex flex-wrap gap-2 justify-center">
+        {/* First Page */}
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1 || loading}
+          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            currentPage === 1 || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300' 
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          First
+        </button>
+
+        {/* Previous Page */}
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1 || loading}
+          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            currentPage === 1 || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300' 
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          Previous
+        </button>
+
+        {/* Page Numbers */}
+        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+          if (pageNum > totalPages) return null;
+
+          return (
+            <button
+              key={pageNum}
+              onClick={() => handlePageChange(pageNum)}
+              disabled={loading}
+              className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                currentPage === pageNum
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+              } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {pageNum}
+            </button>
+          );
+        })}
+
+        {/* Next Page */}
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages || loading}
+          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            currentPage === totalPages || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300' 
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          Next
+        </button>
+
+        {/* Last Page */}
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages || loading}
+          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            currentPage === totalPages || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300' 
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          Last
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -669,6 +785,9 @@ const LeaveManagement = () => {
                     ))
                   )}
                 </div>
+
+                {/* Pagination Controls */}
+                {leaveApplications.length > 0 && <PaginationControls />}
               </div>
             </div>
           </div>
