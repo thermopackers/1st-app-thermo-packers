@@ -159,8 +159,7 @@ const openDocument = (doc) => {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl shadow bg-white">
-      <table className="min-w-full divide-y divide-slate-200">
+<div className="overflow-x-auto rounded-xl shadow bg-white max-h-[70vh] overflow-y-auto">      <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-100">
           <tr>
             <th className="px-3 py-2 text-left text-sm font-semibold text-slate-700">Vehicle</th>
