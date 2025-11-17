@@ -609,7 +609,7 @@ useEffect(() => {
 {showDocNotifications && (
   <motion.div
     ref={docNotificationsRef}
-    className="fixed top-20 left-4 z-40 max-w-md w-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-[80vh] overflow-y-auto"
+    className="fixed top-65 left-4 z-40 max-w-md w-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-[80vh] overflow-y-auto"
     initial={{ opacity: 0, y: -20, scale: 0.95 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     exit={{ opacity: 0, y: -20, scale: 0.95 }}
