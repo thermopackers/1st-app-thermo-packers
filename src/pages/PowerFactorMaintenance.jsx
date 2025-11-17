@@ -418,9 +418,15 @@ const openFilePreview = (file) => {
                   key={i}
                   ref={i === rows.length - 1 ? lastRowRef : null} // 👈 attach ref to last row
                 >
-                  <td className="border px-2 py-1">
-                    {ddmmyyyy(r.date || new Date())}
-                  </td>
+                <td className="border px-2 py-1">
+  <input
+    type="date"
+    value={new Date(r.date || new Date()).toISOString().split('T')[0]}
+    onChange={(e) => handleInputChange(i, "date", new Date(e.target.value))}
+    max={new Date().toISOString().split('T')[0]} // This restricts future dates
+    className="w-28 sm:w-32 border p-1 text-xs"
+  />
+</td>
                   <td className="border px-2 py-1">
                <input
   type="number"

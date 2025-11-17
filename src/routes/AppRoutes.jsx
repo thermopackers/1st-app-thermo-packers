@@ -383,7 +383,7 @@ export default function AppRoutes() {
 <Route
   path="/assign-dispatch"
   element={
-    <ProtectedRoute allowedRoles={["admin", "accounts","dispatch","packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin", "accounts","dispatch","packaging","driver","sales"]}>
       <PageWrapper><AssignDispatchPlanForm /></PageWrapper>
     </ProtectedRoute>
   }

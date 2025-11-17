@@ -185,27 +185,27 @@ const openDocument = (doc) => {
 
             return (
               <tr 
-                key={doc._id} 
-                className="hover:bg-slate-50 cursor-pointer transition-colors"
-                onClick={() => openDocument(doc)}
-              >
-                <td className="px-3 py-2 text-sm">{doc.vehicleNumber}</td>
-                <td className="px-3 py-2 text-sm font-medium">
-                  {DOCUMENT_TYPES[doc.documentType]}
-                </td>
-                <td className="px-3 py-2 text-sm">
-                  {new Date(doc.expiryDate).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </td>
-                <td className="px-3 py-2 text-sm">
-                  <span className={`px-2 py-1 rounded-full text-xs ${urgencyClass}`}>
-                    {isExpired ? "Expired" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
-                  </span>
-                </td>
-              </tr>
+  key={doc._id} 
+  className="hover:bg-slate-50 cursor-pointer transition-colors"
+  onClick={() => openDocument(doc)}
+>
+  <td className="px-3 py-2 text-sm text-blue-600">{doc.vehicleNumber}</td>
+  <td className="px-3 py-2 text-sm font-medium text-blue-600">
+    {DOCUMENT_TYPES[doc.documentType]}
+  </td>
+  <td className="px-3 py-2 text-sm text-blue-600">
+    {new Date(doc.expiryDate).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}
+  </td>
+  <td className="px-3 py-2 text-sm">
+    <span className={`px-2 py-1 rounded-full text-xs ${urgencyClass}`}>
+      {isExpired ? "Expired" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
+    </span>
+  </td>
+</tr>
             );
           })}
         </tbody>

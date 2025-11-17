@@ -26,12 +26,11 @@ const LeaveManagement = () => {
     search: '',
   });
 
-  const [leaveForm, setLeaveForm] = useState({
-    leaveType: 'casual',
-    startDate: '',
-    endDate: '',
-    reason: '',
-  });
+ const [leaveForm, setLeaveForm] = useState({
+  leaveType: 'personal',
+  startDate: '',
+  endDate: '',
+});
 
   // Fetch users and statistics only once on component mount
   useEffect(() => {
@@ -122,10 +121,10 @@ const LeaveManagement = () => {
       return;
     }
 
-    if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason) {
-      toast.error('Please fill all required fields');
-      return;
-    }
+   if (!leaveForm.startDate || !leaveForm.endDate) {
+  toast.error('Please fill all required fields');
+  return;
+}
 
     const startDate = new Date(leaveForm.startDate);
     const endDate = new Date(leaveForm.endDate);
@@ -160,12 +159,11 @@ const LeaveManagement = () => {
       // Reset form
       setSelectedUser('');
       setLeaveFiles([]);
-      setLeaveForm({
-        leaveType: 'casual',
-        startDate: '',
-        endDate: '',
-        reason: '',
-      });
+    setLeaveForm({
+  leaveType: 'personal',
+  startDate: '',
+  endDate: '',
+});
       
       // Refresh data - reset to page 1 to see the new application
       setCurrentPage(1);
@@ -275,19 +273,16 @@ const LeaveManagement = () => {
     return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}>{config.label}</span>;
   };
 
-  const getLeaveTypeBadge = (type) => {
-    const typeConfig = {
-      casual: { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Casual' },
-      sick: { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Sick' },
-      earned: { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Earned' },
-      maternity: { color: 'bg-pink-100 text-pink-800 border-pink-200', label: 'Maternity' },
-      paternity: { color: 'bg-teal-100 text-teal-800 border-teal-200', label: 'Paternity' },
-      emergency: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Emergency' },
-      other: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Other' },
-    };
-    const config = typeConfig[type] || typeConfig.other;
-    return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}>{config.label}</span>;
+// Replace the getLeaveTypeBadge function with:
+const getLeaveTypeBadge = (type) => {
+  const typeConfig = {
+    personal: { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Personal Leave' },
+    emergency_medical: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Emergency/Medical Leave' },
+    others: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Others' },
   };
+  const config = typeConfig[type] || typeConfig.others;
+  return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}>{config.label}</span>;
+};
 
   const clearFilters = () => {
     setFilters({
@@ -480,18 +475,14 @@ const LeaveManagement = () => {
                       Leave Type *
                     </label>
                     <select
-                      value={leaveForm.leaveType}
-                      onChange={(e) => setLeaveForm(prev => ({ ...prev, leaveType: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-                    >
-                      <option value="casual">Casual Leave</option>
-                      <option value="sick">Sick Leave</option>
-                      <option value="earned">Earned Leave</option>
-                      <option value="maternity">Maternity Leave</option>
-                      <option value="paternity">Paternity Leave</option>
-                      <option value="emergency">Emergency Leave</option>
-                      <option value="other">Other</option>
-                    </select>
+  value={leaveForm.leaveType}
+  onChange={(e) => setLeaveForm(prev => ({ ...prev, leaveType: e.target.value }))}
+  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+>
+  <option value="personal">Personal Leave</option>
+  <option value="emergency_medical">Emergency/Medical Leave</option>
+  <option value="others">Others</option>
+</select>
                   </div>
 
                   {/* Date Range */}
@@ -520,21 +511,6 @@ const LeaveManagement = () => {
                         required
                       />
                     </div>
-                  </div>
-
-                  {/* Reason */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reason for Leave *
-                    </label>
-                    <textarea
-                      value={leaveForm.reason}
-                      onChange={(e) => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))}
-                      rows="3"
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-                      placeholder="Enter reason for leave..."
-                      required
-                    />
                   </div>
 
                   {/* File Upload */}
@@ -648,20 +624,16 @@ const LeaveManagement = () => {
                     ))}
                   </select>
 
-                  <select
-                    value={filters.leaveType}
-                    onChange={(e) => setFilters(prev => ({ ...prev, leaveType: e.target.value }))}
-                    className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-sm"
-                  >
-                    <option value="">All Types</option>
-                    <option value="casual">Casual</option>
-                    <option value="sick">Sick</option>
-                    <option value="earned">Earned</option>
-                    <option value="maternity">Maternity</option>
-                    <option value="paternity">Paternity</option>
-                    <option value="emergency">Emergency</option>
-                    <option value="other">Other</option>
-                  </select>
+                <select
+  value={filters.leaveType}
+  onChange={(e) => setFilters(prev => ({ ...prev, leaveType: e.target.value }))}
+  className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-sm"
+>
+  <option value="">All Types</option>
+  <option value="personal">Personal Leave</option>
+  <option value="emergency_medical">Emergency/Medical</option>
+  <option value="others">Others</option>
+</select>
                 </div>
 
                 {/* Applications List */}
@@ -726,13 +698,7 @@ const LeaveManagement = () => {
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
-                                  <button
-                                    onClick={() => downloadFile(file, `leave_document_${index + 1}`)}
-                                    className="text-green-600 hover:text-green-800"
-                                    title="Download"
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </button>
+                                 
                                 </div>
                               ))}
                             </div>

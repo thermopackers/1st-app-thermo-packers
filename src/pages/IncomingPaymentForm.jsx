@@ -407,9 +407,15 @@ const removeFile = async (index) => {
             {formData.modeOfPayment === "cheque" && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-xl">
                 <div>
+                    <div className="flex items-center space-x-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Receipt of Cheque
+                    Cheque Date
                   </label>
+                 <span className="text-red-500 text-xs font-bold">*</span>
+  </div>
+  <p className="text-xs text-gray-600 font-medium">
+    Date mention on top right side of cheque
+  </p>
                   <input
                     type="date"
                     name="chequeDate"
@@ -468,7 +474,7 @@ const removeFile = async (index) => {
             {/* Date of Payment */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date of Payment *
+                Date of Receipt of Cheque *
               </label>
               <input
                 type="date"

@@ -48,6 +48,7 @@ const parseUserRoles = (user) => {
   const navigate = useNavigate();
   const [salesUsers, setSalesUsers] = useState([]);
 const [selectedSalesId, setSelectedSalesId] = useState("");
+const [productFilter, setProductFilter] = useState("");
 
 useEffect(() => {
   const fetchSalesUsers = async () => {
@@ -66,11 +67,25 @@ useEffect(() => {
 const fetchCustomers = async () => {
   setLoading(true);
   try {
+    // Get product from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const productFromUrl = urlParams.get('product');
+    
+    // Update local state
+    setProductFilter(productFromUrl || "");
+    
     const res = await axiosInstance.get("/customers", {
-      params: { search, addedBy: addedBySearch, createdBy: selectedSalesId, page, limit: 10 },
+      params: { 
+        search, 
+        addedBy: addedBySearch, 
+        createdBy: selectedSalesId, 
+        page, 
+        limit: 10,
+        product: productFromUrl // Use the URL parameter
+      },
     });
     
-    // Fetch frequent products for each customer
+    // Rest of the function remains the same...
     const customersWithProducts = await Promise.all(
       res.data.customers.map(async (customer) => {
         try {
@@ -100,9 +115,10 @@ const fetchCustomers = async () => {
   }
 };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [search,addedBySearch,selectedSalesId, page]);
+
+useEffect(() => {
+  fetchCustomers();
+}, [search, addedBySearch, selectedSalesId, page, window.location.search]); // Add window.location.search as dependency
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this customer?")) return;
@@ -224,6 +240,17 @@ const exportToExcel = async () => {
     📊 Export to Excel
   </button>
 </div>
+
+{/* Product Filter Display */}
+{new URLSearchParams(window.location.search).get('product') && (
+  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+    <div className="flex items-center justify-between">
+      <span className="text-blue-700 font-medium">
+        Showing customers who purchased: <strong>{new URLSearchParams(window.location.search).get('product')}</strong>
+      </span>
+    </div>
+  </div>
+)}
 
           <table className="min-w-full text-sm sm:text-base bg-white border border-gray-200">
             <thead className="bg-gray-100 text-gray-800 font-semibold">

@@ -45,118 +45,136 @@ export default function ProductCustomerSearch() {
     fetchCategories();
   }, []);
 
-  // Unified search function
-  const handleUnifiedSearch = async (query) => {
-    if (!query.trim()) {
-      setShowResults(false);
-      setSearchResults([]);
-      setSelectedProduct(null);
-      return;
-    }
+// Unified search function
+const handleUnifiedSearch = async (query) => {
+  if (!query.trim()) {
+    setShowResults(false);
+    setSearchResults([]);
+    setSelectedProduct(null);
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Search for products (both purchase and sales)
-      const [purchaseRes, salesRes] = await Promise.all([
-        axiosInstance.get(`/purchase-products?search=${query}&limit=10`),
-        axiosInstance.get(`/products-multer?search=${query}&limit=10`)
-      ]);
+  setLoading(true);
+  try {
+    // Search for products (both purchase and sales) AND customers
+    const [purchaseRes, salesRes, customersRes] = await Promise.all([
+      axiosInstance.get(`/purchase-products?search=${query}&limit=10`),
+      axiosInstance.get(`/products-multer?search=${query}&limit=10`),
+      axiosInstance.get(`/customers?search=${query}&limit=10`) // ADD THIS LINE
+    ]);
 
-      const purchaseProducts = purchaseRes.data.data || [];
-      const salesProducts = salesRes.data.products || [];
+    const purchaseProducts = purchaseRes.data.data || [];
+    const salesProducts = salesRes.data.products || [];
+    const customers = customersRes.data.customers || []; // ADD THIS LINE
 
-      // Find matching categories for suppliers
-      const matchingCategories = categories.filter(cat => 
-        cat.name.toLowerCase().includes(query.toLowerCase())
+    // Find matching categories for suppliers
+    const matchingCategories = categories.filter(cat => 
+      cat.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    let suppliers = [];
+    
+    // If we have matching categories, fetch suppliers for those categories
+    if (matchingCategories.length > 0) {
+      const supplierPromises = matchingCategories.map(category =>
+        axiosInstance.get(`/suppliers?category=${encodeURIComponent(category.name)}&limit=10`)
       );
-
-      let suppliers = [];
       
-      // If we have matching categories, fetch suppliers for those categories
-      if (matchingCategories.length > 0) {
-        const supplierPromises = matchingCategories.map(category =>
-          axiosInstance.get(`/suppliers?category=${encodeURIComponent(category.name)}&limit=10`)
-        );
-        
-        const supplierResults = await Promise.all(supplierPromises);
-        suppliers = supplierResults.flatMap(res => res.data.data || []);
-        
-        // Remove duplicates based on supplier ID
-        suppliers = suppliers.filter((supplier, index, self) =>
-          index === self.findIndex(s => s._id === supplier._id)
-        );
-      }
-
-      // Combine all results
-      const results = [
-        // Purchase products - quick edit
-        ...purchaseProducts.map(p => ({
-          _id: p._id || `purchase-${Date.now()}`,
-          type: 'purchase',
-          id: p._id,
-          name: safeString(p.name, 'Unnamed Product'),
-          unit: safeString(p.unit),
-          price: typeof p.price === 'number' ? p.price : safeString(p.price),
-          rawData: p,
-          action: 'quick-edit'
-        })),
-        // Sales products - quick edit
-        ...salesProducts.map(p => ({
-          _id: p._id || `sales-${Date.now()}`,
-          type: 'sales',
-          id: p._id,
-          name: safeString(p.name, 'Unnamed Product'),
-          unit: safeString(p.unit),
-          price: typeof p.price === 'number' ? p.price : safeString(p.price),
-          rawData: p,
-          action: 'quick-edit'
-        })),
-        // Suppliers - show details
-        ...suppliers.map(s => ({
-          _id: s._id || `supplier-${Date.now()}`,
-          type: 'supplier',
-          id: s._id,
-          name: safeString(s.name, 'Unnamed Supplier'),
-          vendorCategory: Array.isArray(s.vendorCategory) ? s.vendorCategory : [s.vendorCategory].filter(Boolean),
-          phone: safeString(s.phone),
-          phone2: safeString(s.phone2),
-          email: safeString(s.email),
-          address: safeString(s.address),
-          gstNumber: safeString(s.gstNumber),
-          locationLink: safeString(s.locationLink),
-          accountName: safeString(s.accountName),
-          bankName: safeString(s.bankName),
-          accountNumber: safeString(s.accountNumber),
-          ifscCode: safeString(s.ifscCode),
-          rawData: s,
-          action: 'show-details',
-          // Add category info for display
-          matchedCategory: matchingCategories.find(cat => 
-            Array.isArray(s.vendorCategory) 
-              ? s.vendorCategory.includes(cat.name)
-              : s.vendorCategory === cat.name
-          )?.name
-        }))
-      ];
-
-      setSearchResults(results);
-      setShowResults(true);
-    } catch (err) {
-      console.error("Search error:", err);
-      Swal.fire({
-        title: "Search Error",
-        text: "Failed to search products",
-        icon: "error",
-        confirmButtonColor: "#2563eb",
-        background: "#f8fafc",
-        customClass: {
-          popup: "rounded-2xl",
-        },
-      });
-    } finally {
-      setLoading(false);
+      const supplierResults = await Promise.all(supplierPromises);
+      suppliers = supplierResults.flatMap(res => res.data.data || []);
+      
+      // Remove duplicates based on supplier ID
+      suppliers = suppliers.filter((supplier, index, self) =>
+        index === self.findIndex(s => s._id === supplier._id)
+      );
     }
-  };
+
+    // Combine all results
+    const results = [
+      // Purchase products - quick edit
+      ...purchaseProducts.map(p => ({
+        _id: p._id || `purchase-${Date.now()}`,
+        type: 'purchase',
+        id: p._id,
+        name: safeString(p.name, 'Unnamed Product'),
+        unit: safeString(p.unit),
+        price: typeof p.price === 'number' ? p.price : safeString(p.price),
+        rawData: p,
+        action: 'quick-edit'
+      })),
+      // Sales products - quick edit
+      ...salesProducts.map(p => ({
+        _id: p._id || `sales-${Date.now()}`,
+        type: 'sales',
+        id: p._id,
+        name: safeString(p.name, 'Unnamed Product'),
+        unit: safeString(p.unit),
+        price: typeof p.price === 'number' ? p.price : safeString(p.price),
+        rawData: p,
+        action: 'quick-edit'
+      })),
+      // ADD CUSTOMERS - show details
+      ...customers.map(c => ({
+        _id: c._id || `customer-${Date.now()}`,
+        type: 'customer',
+        id: c._id,
+        name: safeString(c.name, 'Unnamed Customer'),
+        customerName: safeString(c.name, 'Unnamed Customer'), // For consistency
+        company: safeString(c.company, 'URP'),
+        phone: safeString(c.phone),
+        email: safeString(c.email),
+        address: safeString(c.address),
+        locationLink: safeString(c.locationLink),
+        instructions: safeString(c.instructions),
+        rawData: c,
+        action: 'show-details'
+      })),
+      // Suppliers - show details
+      ...suppliers.map(s => ({
+        _id: s._id || `supplier-${Date.now()}`,
+        type: 'supplier',
+        id: s._id,
+        name: safeString(s.name, 'Unnamed Supplier'),
+        vendorCategory: Array.isArray(s.vendorCategory) ? s.vendorCategory : [s.vendorCategory].filter(Boolean),
+        phone: safeString(s.phone),
+        phone2: safeString(s.phone2),
+        email: safeString(s.email),
+        address: safeString(s.address),
+        gstNumber: safeString(s.gstNumber),
+        locationLink: safeString(s.locationLink),
+        accountName: safeString(s.accountName),
+        bankName: safeString(s.bankName),
+        accountNumber: safeString(s.accountNumber),
+        ifscCode: safeString(s.ifscCode),
+        rawData: s,
+        action: 'show-details',
+        // Add category info for display
+        matchedCategory: matchingCategories.find(cat => 
+          Array.isArray(s.vendorCategory) 
+            ? s.vendorCategory.includes(cat.name)
+            : s.vendorCategory === cat.name
+        )?.name
+      }))
+    ];
+
+    setSearchResults(results);
+    setShowResults(true);
+  } catch (err) {
+    console.error("Search error:", err);
+    Swal.fire({
+      title: "Search Error",
+      text: "Failed to search products",
+      icon: "error",
+      confirmButtonColor: "#2563eb",
+      background: "#f8fafc",
+      customClass: {
+        popup: "rounded-2xl",
+      },
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Helper function to safely get string values
   const safeString = (value, defaultValue = "") => {
@@ -165,63 +183,66 @@ export default function ProductCustomerSearch() {
     return defaultValue;
   };
 
-  const handleItemSelect = async (item) => {
-    if (item.action === 'quick-edit') {
-      // Quick edit behavior - navigate directly to edit page
-      if (item.type === "purchase") {
-        navigate(`/purchase-products/edit/${item.id}`);
-      } else {
-        navigate(`/products/edit/${item.id}`);
-      }
-      setShowResults(false);
-      setSearchQuery("");
-    } else if (item.action === 'show-details') {
-      // Show details behavior
-      setSelectedProduct(item);
-      setShowResults(false);
-      setSearchQuery("");
-      
-      try {
-        setLoading(true);
-        
-        if (item.type === 'sales') {
-          // Fetch customers who have ordered this sales product
-          const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(item.name)}`);
-          
-          // Ensure customer data is properly formatted
-          const customers = Array.isArray(res.data) ? res.data : [];
-          const formattedCustomers = customers.map(customer => ({
-            _id: customer._id || `customer-${Date.now()}`,
-            customerName: safeString(customer.customerName, 'Unknown Customer'),
-            company: safeString(customer.company, 'URP'),
-            phone: safeString(customer.phone, '-'),
-            email: safeString(customer.email, '-'),
-            address: safeString(customer.address, '-'),
-            locationLink: safeString(customer.locationLink),
-            instructions: safeString(customer.instructions),
-            totalOrders: typeof customer.totalOrders === 'number' ? customer.totalOrders : 0,
-            lastPrice: typeof customer.lastPrice === 'number' ? customer.lastPrice : safeString(customer.lastPrice),
-            lastOrderDate: customer.lastOrderDate ? new Date(customer.lastOrderDate).toISOString() : null
-          }));
-          
-          setSearchResults(formattedCustomers);
-        } else if (item.type === 'purchase' || item.type === 'supplier') {
-          // For purchase products or suppliers, show the item itself
-          setSearchResults([item]);
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        Swal.fire({
-          title: "Error",
-          text: "Failed to fetch data",
-          icon: "error",
-          confirmButtonColor: "#2563eb",
-        });
-      } finally {
-        setLoading(false);
-      }
+const handleItemSelect = async (item) => {
+  if (item.action === 'quick-edit') {
+    // Quick edit behavior - navigate directly to edit page
+    if (item.type === "purchase") {
+      navigate(`/purchase-products/edit/${item.id}`);
+    } else {
+      navigate(`/products/edit/${item.id}`);
     }
-  };
+    setShowResults(false);
+    setSearchQuery("");
+  } else if (item.action === 'show-details') {
+    // Show details behavior
+    setSelectedProduct(item);
+    setShowResults(false);
+    setSearchQuery("");
+    
+    try {
+      setLoading(true);
+      
+      if (item.type === 'sales') {
+        // Fetch customers who have ordered this sales product
+        const res = await axiosInstance.get(`/orders/product-customers/${encodeURIComponent(item.name)}`);
+        
+        // Ensure customer data is properly formatted
+        const customers = Array.isArray(res.data) ? res.data : [];
+        const formattedCustomers = customers.map(customer => ({
+          _id: customer._id || `customer-${Date.now()}`,
+          customerName: safeString(customer.customerName, 'Unknown Customer'),
+          company: safeString(customer.company, 'URP'),
+          phone: safeString(customer.phone, '-'),
+          email: safeString(customer.email, '-'),
+          address: safeString(customer.address, '-'),
+          locationLink: safeString(customer.locationLink),
+          instructions: safeString(customer.instructions),
+          totalOrders: typeof customer.totalOrders === 'number' ? customer.totalOrders : 0,
+          lastPrice: typeof customer.lastPrice === 'number' ? customer.lastPrice : safeString(customer.lastPrice),
+          lastOrderDate: customer.lastOrderDate ? new Date(customer.lastOrderDate).toISOString() : null
+        }));
+        
+        setSearchResults(formattedCustomers);
+      } else if (item.type === 'customer') {
+        // For customers, show the customer details directly
+        setSearchResults([item]);
+      } else if (item.type === 'purchase' || item.type === 'supplier') {
+        // For purchase products or suppliers, show the item itself
+        setSearchResults([item]);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      Swal.fire({
+        title: "Error",
+        text: "Failed to fetch data",
+        icon: "error",
+        confirmButtonColor: "#2563eb",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+};
 
   const exportToExcel = () => {
     if (!selectedProduct || searchResults.length === 0 || selectedProduct.type !== 'sales') return;
@@ -274,151 +295,175 @@ export default function ProductCustomerSearch() {
   };
 
   // Safe render functions
-  const renderSearchResultItem = (item) => {
-    const name = safeString(item.name);
-    const unit = safeString(item.unit);
-    const price = item.price;
-    const category = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
-    const matchedCategory = item.matchedCategory;
+const renderSearchResultItem = (item) => {
+  const name = safeString(item.name);
+  const unit = safeString(item.unit);
+  const price = item.price;
+  const category = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
+  const matchedCategory = item.matchedCategory;
 
-    return (
-      <div className="flex justify-between items-start">
-        <div>
-          <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
-            {name}
-          </h5>
-          <p className="text-sm text-gray-600 mt-1">
-            {unit && `${unit} • `}
-            <span className={`font-medium ml-1 ${
-              item.type === 'purchase' ? 'text-green-600' : 
-              item.type === 'sales' ? 'text-purple-600' : 'text-orange-600'
-            }`}>
-              {item.type === 'purchase' ? 'Purchase Product' : 
-               item.type === 'sales' ? 'Sales Product' : 
-               'Supplier'}
+  // Determine display text based on type
+  const typeDisplay = 
+    item.type === 'purchase' ? 'Purchase Product' : 
+    item.type === 'sales' ? 'Sales Product' : 
+    item.type === 'customer' ? 'Customer' : 
+    'Supplier';
+
+  const typeColor = 
+    item.type === 'purchase' ? 'text-green-600' : 
+    item.type === 'sales' ? 'text-purple-600' : 
+    item.type === 'customer' ? 'text-blue-600' : 
+    'text-orange-600';
+
+  return (
+    <div className="flex justify-between items-start">
+      <div>
+        <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+          {name}
+        </h5>
+        <p className="text-sm text-gray-600 mt-1">
+          {unit && `${unit} • `}
+          <span className={`font-medium ml-1 ${typeColor}`}>
+            {typeDisplay}
+          </span>
+          {price && (
+            <span className="ml-2 text-blue-600 font-bold">
+              {typeof price === 'number' ? `₹${price}` : `₹${safeString(price)}`}
             </span>
-            {price && (
-              <span className="ml-2 text-blue-600 font-bold">
-                {typeof price === 'number' ? `₹${price}` : `₹${safeString(price)}`}
-              </span>
-            )}
+          )}
+        </p>
+        {(category || matchedCategory) && (
+          <p className="text-xs text-gray-500 mt-1">
+            Category: {matchedCategory || category}
           </p>
-          {(category || matchedCategory) && (
-            <p className="text-xs text-gray-500 mt-1">
-              Category: {matchedCategory || category}
+        )}
+        {item.type === 'customer' && item.phone && (
+          <p className="text-xs text-gray-500 mt-1">
+            Phone: {safeString(item.phone)}
+          </p>
+        )}
+        <p className="text-xs text-gray-400 mt-1">
+          {item.action === 'quick-edit' ? 'Click to edit →' : 'Click for details →'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+ const renderResultDetails = (item) => {
+  if (selectedProduct && (selectedProduct.type === 'supplier' || selectedProduct.type === 'purchase')) {
+    const vendorCategory = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
+    
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <h5 className="font-semibold text-gray-900 text-lg mb-2">
+            {safeString(item.name)}
+          </h5>
+          <div className="space-y-1 text-sm text-gray-600">
+            <p><span className="font-medium">Type:</span> {item.type === 'supplier' ? 'Supplier' : 'Purchase Product'}</p>
+            {vendorCategory && (
+              <p><span className="font-medium">Category:</span> {vendorCategory}</p>
+            )}
+            {item.phone && (
+              <p><span className="font-medium">Phone:</span> {safeString(item.phone)}</p>
+            )}
+            {item.email && (
+              <p><span className="font-medium">Email:</span> {safeString(item.email)}</p>
+            )}
+            {item.gstNumber && (
+              <p><span className="font-medium">GST:</span> {safeString(item.gstNumber)}</p>
+            )}
+          </div>
+        </div>
+        
+        <div className="space-y-1 text-sm text-gray-600">
+          {item.address && (
+            <p><span className="font-medium">Address:</span> {safeString(item.address)}</p>
+          )}
+          {item.locationLink && (
+            <p>
+              <span className="font-medium">Location:</span>{" "}
+              <a 
+                href={safeString(item.locationLink)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                View on Map
+              </a>
             </p>
           )}
-          <p className="text-xs text-gray-400 mt-1">
-            {item.action === 'quick-edit' ? 'Click to edit →' : 'Click for details →'}
-          </p>
+          {item.accountName && (
+            <p><span className="font-medium">Account Name:</span> {safeString(item.accountName)}</p>
+          )}
+          {item.bankName && (
+            <p><span className="font-medium">Bank:</span> {safeString(item.bankName)}</p>
+          )}
         </div>
       </div>
     );
-  };
-
-  const renderResultDetails = (item) => {
-    if (selectedProduct && (selectedProduct.type === 'supplier' || selectedProduct.type === 'purchase')) {
-      const vendorCategory = Array.isArray(item.vendorCategory) ? item.vendorCategory.join(', ') : safeString(item.vendorCategory);
-      
-      return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div>
-            <h5 className="font-semibold text-gray-900 text-lg mb-2">
-              {safeString(item.name)}
-            </h5>
-            <div className="space-y-1 text-sm text-gray-600">
-              <p><span className="font-medium">Type:</span> {item.type === 'supplier' ? 'Supplier' : 'Purchase Product'}</p>
-              {vendorCategory && (
-                <p><span className="font-medium">Category:</span> {vendorCategory}</p>
-              )}
-              {item.phone && (
-                <p><span className="font-medium">Phone:</span> {safeString(item.phone)}</p>
-              )}
-              {item.email && (
-                <p><span className="font-medium">Email:</span> {safeString(item.email)}</p>
-              )}
-              {item.gstNumber && (
-                <p><span className="font-medium">GST:</span> {safeString(item.gstNumber)}</p>
-              )}
-            </div>
+  } else {
+    // Customer display - ADD VIEW ORDERS BUTTON
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <h5 className="font-semibold text-gray-900 text-lg mb-2">
+            {safeString(item.customerName, 'Unknown Customer')}
+          </h5>
+          <div className="space-y-1 text-sm text-gray-600">
+            <p><span className="font-medium">GST:</span> {safeString(item.company, "URP")}</p>
+            <p><span className="font-medium">Phone:</span> {safeString(item.phone, "-")}</p>
+            <p><span className="font-medium">Email:</span> {safeString(item.email, "-")}</p>
+            <p><span className="font-medium">Total Orders:</span> {item.totalOrders || 0}</p>
+            {item.lastPrice && (
+              <p><span className="font-medium">Last Price:</span> ₹{safeString(item.lastPrice)}</p>
+            )}
           </div>
           
-          <div className="space-y-1 text-sm text-gray-600">
-            {item.address && (
-              <p><span className="font-medium">Address:</span> {safeString(item.address)}</p>
-            )}
-            {item.locationLink && (
-              <p>
-                <span className="font-medium">Location:</span>{" "}
-                <a 
-                  href={safeString(item.locationLink)} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View on Map
-                </a>
-              </p>
-            )}
-            {item.accountName && (
-              <p><span className="font-medium">Account Name:</span> {safeString(item.accountName)}</p>
-            )}
-            {item.bankName && (
-              <p><span className="font-medium">Bank:</span> {safeString(item.bankName)}</p>
-            )}
-          </div>
+          {/* ADD THIS BUTTON */}
+          <motion.button
+            onClick={() => navigate(`/orders?customer=${encodeURIComponent(item.customerName)}`)}
+            className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <span>📋</span>
+            View All Orders
+          </motion.button>
         </div>
-      );
-    } else {
-      // Customer display
-      return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div>
-            <h5 className="font-semibold text-gray-900 text-lg mb-2">
-              {safeString(item.customerName, 'Unknown Customer')}
-            </h5>
-            <div className="space-y-1 text-sm text-gray-600">
-              <p><span className="font-medium">GST:</span> {safeString(item.company, "URP")}</p>
-              <p><span className="font-medium">Phone:</span> {safeString(item.phone, "-")}</p>
-              <p><span className="font-medium">Email:</span> {safeString(item.email, "-")}</p>
-              <p><span className="font-medium">Total Orders:</span> {item.totalOrders || 0}</p>
-              {item.lastPrice && (
-                <p><span className="font-medium">Last Price:</span> ₹{safeString(item.lastPrice)}</p>
-              )}
-            </div>
-          </div>
-          
-          <div className="space-y-1 text-sm text-gray-600">
-            <p><span className="font-medium">Address:</span> {safeString(item.address, "-")}</p>
-            {item.locationLink && (
-              <p>
-                <span className="font-medium">Location:</span>{" "}
-                <a 
-                  href={safeString(item.locationLink)} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View on Map
-                </a>
-              </p>
-            )}
-            {item.instructions && (
-              <p>
-                <span className="font-medium">Instructions:</span> {safeString(item.instructions)}
-              </p>
-            )}
-            {item.lastOrderDate && (
-              <p>
-                <span className="font-medium">Last Ordered:</span>{" "}
-                {new Date(item.lastOrderDate).toLocaleDateString()}
-              </p>
-            )}
-          </div>
+        
+        <div className="space-y-1 text-sm text-gray-600">
+          <p><span className="font-medium">Address:</span> {safeString(item.address, "-")}</p>
+          {item.locationLink && (
+            <p>
+              <span className="font-medium">Location:</span>{" "}
+              <a 
+                href={safeString(item.locationLink)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                View on Map
+              </a>
+            </p>
+          )}
+          {item.instructions && (
+            <p>
+              <span className="font-medium">Instructions:</span> {safeString(item.instructions)}
+            </p>
+          )}
+          {item.lastOrderDate && (
+            <p>
+              <span className="font-medium">Last Ordered:</span>{" "}
+              {new Date(item.lastOrderDate).toLocaleDateString()}
+            </p>
+          )}
         </div>
-      );
-    }
-  };
+      </div>
+    );
+  }
+};
 
   return (
     <>
@@ -453,7 +498,7 @@ export default function ProductCustomerSearch() {
           {/* Search Info */}
           <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
             <span>💡</span>
-            <span>Search for products, suppliers, or categories. Products open directly for editing, suppliers show details.</span>
+            <span>Search for customers, products, suppliers, or categories. Products open directly for editing, suppliers show details.</span>
           </div>
         </div>
       </motion.div>

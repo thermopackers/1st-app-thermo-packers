@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
@@ -46,6 +46,11 @@ export default function Dashboard() {
   const location = useLocation();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  // Add these missing state variables near your other useState declarations
+const [showSearchResults, setShowSearchResults] = useState(false);
+const [searchResults, setSearchResults] = useState([]);
+const [searchLoading, setSearchLoading] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
   const [showDocNotifications, setShowDocNotifications] = useState(false);
   const [user, setUser] = useState(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -56,6 +61,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [driverVehicle, setDriverVehicle] = useState(null);
   const [docNotifCount, setDocNotifCount] = useState(0);
+  // Add these refs near your other state declarations
+const profileButtonRef = useRef(null);
+const profilePanelRef = useRef(null);
+const docNotificationsRef = useRef(null);
 
     // ✅ ADD THIS LINE - Declare userRoles at component level
   const userRoles = user ? parseUserRoles(user) : [];
@@ -191,6 +200,34 @@ useEffect(() => {
     fetchUser();
   }, [navigate]);
 
+// Add click outside functionality
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    // Close profile panel if clicked outside (only if doc notifications is not open)
+    if (showProfilePanel && !showDocNotifications) {
+      if (profilePanelRef.current && 
+          !profilePanelRef.current.contains(event.target) && 
+          profileButtonRef.current && 
+          !profileButtonRef.current.contains(event.target)) {
+        setShowProfilePanel(false);
+      }
+    }
+
+    // Close document notifications if clicked outside
+    if (showDocNotifications) {
+      if (docNotificationsRef.current && 
+          !docNotificationsRef.current.contains(event.target)) {
+        setShowDocNotifications(false);
+      }
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [showProfilePanel, showDocNotifications]);
+
   const handleSearch = async (query) => {
     if (!query.trim()) {
       setShowSearchResults(false);
@@ -298,6 +335,7 @@ useEffect(() => {
     </motion.div>
   );
 
+
   const ActionButton = ({
     to,
     onClick,
@@ -367,86 +405,223 @@ useEffect(() => {
   };
 
   return (
-    <>
-      <InternalNavbar />
+ <>
+  <InternalNavbar />
+  
+  {/* Compact Profile Button */}
+  <div className="fixed top-47 left-4 z-50">
+<motion.button
+  ref={profileButtonRef}
+  onClick={() => setShowProfilePanel(!showProfilePanel)}
+  className="relative bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+>
+      <div className="flex items-center gap-3">
+        {/* Profile Picture */}
+        {user?.profilePicture ? (
+          <img
+            src={user.profilePicture}
+            alt="Profile"
+            className="w-10 h-10 rounded-full object-cover border-2 border-blue-200"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-blue-200">
+            <span className="text-white font-bold text-sm">
+              {user?.name?.charAt(0)?.toUpperCase()}
+            </span>
+          </div>
+        )}
+        
+        {/* Notification Badges */}
+        <div className="flex items-center gap-1">
+          {unreadCount > 0 && (
+            <motion.span
+              className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+            >
+              {unreadCount}
+            </motion.span>
+          )}
+          {docNotifCount > 0 && userRoles.includes("accounts") && (
+            <motion.span
+              className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+            >
+              {docNotifCount}
+            </motion.span>
+          )}
+        </div>
+      </div>
+    </motion.button>
 
+    {/* Profile Panel */}
+    <AnimatePresence>
+      {showProfilePanel && (
+     <motion.div
+  ref={profilePanelRef}
+  className="absolute top-16 left-0 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 min-w-80 max-w-md z-50"
+  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+  transition={{ duration: 0.2 }}
+>
+          {/* Profile Header */}
+          <div className="flex items-center gap-4 mb-6">
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt="Profile"
+                className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-blue-200">
+                <span className="text-white font-bold text-xl">
+                  {user?.name?.charAt(0)?.toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
+              <p className="text-gray-600 text-sm">{user?.email}</p>
+              {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
+                <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
+                  {parseUserRoles(user)
+                    .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
+                    .join(", ")}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Visiting Card */}
+          {user?.visitingCard && (
+            <motion.button
+              onClick={() =>
+                Swal.fire({
+                  title: "Your Visiting Card",
+                  imageUrl: user.visitingCard,
+                  imageAlt: "Visiting Card",
+                  confirmButtonText: "Close",
+                  confirmButtonColor: "#2563eb",
+                  width: "auto",
+                  background: "#f8fafc",
+                  customClass: {
+                    popup: "rounded-2xl",
+                  },
+                })
+              }
+              className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 mb-4"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span>📇</span>
+              View Visiting Card
+            </motion.button>
+          )}
+
+          {/* Attendance Banner (if allowed) */}
+          {user?.allowAttendance && (
+            <motion.div
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-xl mb-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-sm">📋 Mark Attendance</p>
+                  <p className="text-blue-100 text-xs">Daily check-in</p>
+                </div>
+                <motion.button
+                  onClick={() => navigate("/attendance")}
+                  className="bg-white text-blue-600 px-3 py-1 rounded-lg font-semibold text-sm hover:bg-gray-100 transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Go
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Document Notifications (if accounts role) */}
+        {userRoles.includes("accounts") && (
+  <motion.button
+    onClick={() => {
+      setShowDocNotifications((prev) => !prev);
+      setShowProfilePanel(false); // Close profile panel when opening document alerts
+    }}
+    className="w-full bg-white border border-gray-300 px-4 py-3 rounded-xl font-medium shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between mb-4"
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    data-doc-notifications-button
+  >
+    <div className="flex items-center gap-3">
+      <div className="text-xl">📋</div>
+      <span>Document Alerts</span>
+    </div>
+    {docNotifCount > 0 && (
+      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+        {docNotifCount}
+      </span>
+    )}
+  </motion.button>
+)}
+
+          {/* Follow-up Notifications */}
+          {followUps.length > 0 && (
+            <motion.div
+              className="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4 mb-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <h3 className="font-semibold text-amber-900 text-sm mb-2 flex items-center gap-2">
+                🔔 Follow-up Reminders ({followUps.length})
+              </h3>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {followUps.slice(0, 3).map((note, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-2 text-amber-800 text-xs"
+                  >
+                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="flex-1 leading-tight">{note.message}</span>
+                  </div>
+                ))}
+                {followUps.length > 3 && (
+                  <p className="text-amber-600 text-xs text-center mt-2">
+                    +{followUps.length - 3} more reminders
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+         
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+
+  {/* Document Notifications Panel */}
+{showDocNotifications && (
+  <motion.div
+    ref={docNotificationsRef}
+    className="fixed top-65 z-40 max-w-md w-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+    initial={{ opacity: 0, y: -20, scale: 0.95 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+  >
+    <DocumentNotifications setDocNotifCount={setDocNotifCount} />
+  </motion.div>
+)}
       <ProductCustomerSearch />
 
-      {/* Enhanced Attendance Banner */}
-      {user.allowAttendance && (
-        <motion.div
-          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-6 shadow-lg"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="mx-auto max-w-7xl px-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold">
-                  📋 Mark Your Attendance
-                </h2>
-                <p className="text-blue-100 mt-1">
-                  Quickly record your daily check-in
-                </p>
-              </div>
-              <motion.button
-                onClick={() => navigate("/attendance")}
-                className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span>Go to Attendance</span>
-                <span>→</span>
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Enhanced Documents Notification */}
-      <div className="flex justify-end mx-auto max-w-7xl mt-6 px-4">
-        {userRoles.includes("accounts") && (
-          <motion.button
-            onClick={() => setShowDocNotifications((prev) => !prev)}
-            className="relative flex items-center gap-3 bg-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-300 group"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div className="text-2xl group-hover:scale-110 transition-transform">
-              📋
-            </div>
-            <span className="font-medium text-gray-700">Document Alerts</span>
-            {docNotifCount > 0 && (
-              <motion.span
-                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 500 }}
-              >
-                {docNotifCount}
-              </motion.span>
-            )}
-          </motion.button>
-        )}
-      </div>
-
-      {showDocNotifications && (
-        <motion.div
-          className="mx-auto max-w-7xl px-4 mt-4"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-        >
-          <div className="rounded-2xl border border-blue-200 bg-white shadow-xl overflow-hidden">
-            <DocumentNotifications setDocNotifCount={setDocNotifCount} />
-          </div>
-        </motion.div>
-      )}
-
       {/* Main Dashboard Content */}
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8 pt-20">       
+   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
           <motion.div
             className="mb-6 hidden md:block"
@@ -465,152 +640,7 @@ useEffect(() => {
             </button>
           </motion.div>
 
-          {/* Enhanced Profile Header */}
-          <DashboardSection>
-            <DashboardCard className="p-8">
-              <div className="flex flex-col items-center gap-8">
-                {/* Profile Picture - Always Centered */}
-                <motion.div
-                  className="flex flex-col items-center"
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  {user.profilePicture ? (
-                    <img
-                      src={user.profilePicture}
-                      alt="Profile"
-                      className="w-45 h-45 md:w-45 md:h-45 rounded-full object-cover border-4 border-blue-200 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-4 border-blue-200 shadow-lg">
-                      <span className="text-3xl md:text-4xl font-bold text-white">
-                        {user.name?.charAt(0)?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <p className="mt-3 text-xs text-slate-500 text-center max-w-[200px]">
-                    Download and set a Profile Picture for WhatsApp, Gmail, etc.
-                  </p>
-                </motion.div>
-
-                {/* User Info - Always Centered */}
-                <div className="text-center flex-1">
-                  <motion.h1
-                    className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"
-                    variants={fadeInUp}
-                  >
-                    Welcome back,{" "}
-                    <span className="text-blue-600">{user.name}</span>! 👋
-                  </motion.h1>
-                  <motion.p
-                    className="text-lg text-gray-600 mb-1"
-                    variants={fadeInUp}
-                  >
-                    {user.email}
-                  </motion.p>
-{!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (                    <motion.span
-                      className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mt-2"
-                      variants={fadeInUp}
-                    >
-                      {parseUserRoles(user)
-                        .map(
-                          (role) => role.charAt(0).toUpperCase() + role.slice(1)
-                        )
-                        .join(", ")}{" "}
-                    </motion.span>
-                  )}
-                </div>
-
-                {/* Visiting Card - Centered */}
-                {user.visitingCard && (
-                  <motion.div
-                    className="flex justify-center"
-                    variants={fadeInUp}
-                  >
-                    <button
-                      onClick={() =>
-                        Swal.fire({
-                          title: "Your Visiting Card",
-                          imageUrl: user.visitingCard,
-                          imageAlt: "Visiting Card",
-                          confirmButtonText: "Close",
-                          confirmButtonColor: "#2563eb",
-                          width: "auto",
-                          background: "#f8fafc",
-                          customClass: {
-                            popup: "rounded-2xl",
-                          },
-                        })
-                      }
-                      className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <span>📇</span>
-                      View or Download Visiting Card
-                    </button>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Follow-up Notifications */}
-              {followUps.length > 0 && (
-                <motion.div
-                  className="mt-6 bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <h3 className="font-semibold text-amber-900 text-lg mb-3 flex items-center gap-2">
-                    🔔 Follow-up Reminders
-                  </h3>
-                  <div className="space-y-2">
-                    {followUps.map((note, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 text-amber-800"
-                      >
-                        <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
-                        <span className="flex-1">{note.message}</span>
-                        {note.link && (
-                          <NavLink
-                            to={note.link}
-                            className="text-blue-600 hover:text-blue-700 font-medium text-sm underline"
-                          >
-                            View Details
-                          </NavLink>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="mt-4 flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                        disabled={page === 1}
-                        className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 disabled:opacity-50 hover:bg-amber-100 transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <span className="px-3 text-amber-700 font-medium">
-                        Page {page} of {totalPages}
-                      </span>
-                      <button
-                        onClick={() =>
-                          setPage((p) => Math.min(p + 1, totalPages))
-                        }
-                        disabled={page === totalPages}
-                        className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 disabled:opacity-50 hover:bg-amber-100 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </DashboardCard>
-          </DashboardSection>
+   
 
           {/* Enhanced Driver Section */}
          {userRoles.includes("driver") && (

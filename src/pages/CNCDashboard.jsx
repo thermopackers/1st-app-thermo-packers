@@ -505,6 +505,7 @@ const getFileIcon = (fileName) => {
     <th className="px-4 py-3">Quantity</th>
     <th className="px-4 py-3">Remarks</th>
     <th className="px-4 py-3">Slip</th>
+        <th className="px-4 py-3">Drawing Files</th> {/* NEW COLUMN */}
     <th className="px-4 py-3">Status</th>
     <th className="px-4 py-3">CNC Status</th>
     <th className="px-4 py-3">Finished Product Pictures</th>
@@ -562,6 +563,34 @@ const getFileIcon = (fileName) => {
       </a>
     )}
   </td>
+  <td className="px-4 py-2">
+  {/* NEW COLUMN: Drawing Files */}
+  {order.cncSlip?.drawingFiles && order.cncSlip.drawingFiles.length > 0 ? (
+    <div className="space-y-1 max-h-24 overflow-y-auto">
+      {order.cncSlip.drawingFiles.map((fileUrl, index) => {
+        const fileName = fileUrl.split('/').pop() || `Drawing ${index + 1}`;
+        const fileExtension = fileName.split('.').pop()?.toLowerCase();
+        const isStepFile = fileExtension === 'step' || fileExtension === 'stp';
+        
+        return (
+          <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-1 rounded border">
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1"
+              title={fileName}
+            >
+              {isStepFile ? '📐' : '📎'} {fileName}
+            </a>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <span className="text-gray-400 text-xs">No drawings</span>
+  )}
+</td>
 <td className="px-4 py-2">
   {order.status === "cancelled" ? (
     <span className="text-red-600 font-semibold">
@@ -611,7 +640,7 @@ const getFileIcon = (fileName) => {
     <input
       type="file"
       multiple
-      accept="image/*,.pdf,.doc,.docx"
+  accept="image/*,.pdf,.doc,.docx,.step,.stp,.dwg,.dxf,.iges,.igs"
       onChange={(e) => handleFileUpload(order._id, e.target.files)}
       disabled={uploadingFiles[order._id]}
       className="text-sm text-gray-700 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"

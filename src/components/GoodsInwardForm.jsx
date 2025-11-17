@@ -579,12 +579,26 @@ const handleSubmit = async (e) => {
           {/* Header */}
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  📦 Goods Inward Entry
-                </h2>
-                <p className="text-gray-600">Record goods received from supplier - Multiple Categories</p>
-              </div>
+             <div>
+  <h2 className="text-2xl font-bold text-gray-800 mb-2">
+    📦 Goods Inward Entry
+    {guardEntry.isRejected && (
+      <span className="text-sm text-red-600 ml-2">(Rejected Material)</span>
+    )}
+  </h2>
+  <p className="text-gray-600">
+    Record goods received from {guardEntry.isRejected ? 'customer' : 'supplier'}
+  </p>
+  <p className="text-sm text-blue-600 mt-1">
+    {guardEntry.isRejected 
+      ? `Customer: ${guardEntry.customer?.name || guardEntry.customerName || 'N/A'}`
+      : `Supplier: ${guardEntry.supplier?.name || guardEntry.supplierName || 'N/A'}`
+    }
+    {(guardEntry.isRejected && guardEntry.customerName) || (!guardEntry.isRejected && guardEntry.supplierName) ? 
+      ' (Manual Entry)' : ''
+    }
+  </p>
+</div>
               <button
                 onClick={() => navigate('/guard-entries-view')}
                 className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
@@ -593,21 +607,34 @@ const handleSubmit = async (e) => {
               </button>
             </div>
 
-            {/* Guard Entry Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg">
-              <div>
-                <div className="text-sm text-blue-600 font-medium">Entry Number</div>
-                <div className="font-bold text-blue-800">{guardEntry.entryNumber}</div>
-              </div>
-              <div>
-                <div className="text-sm text-blue-600 font-medium">Supplier</div>
-                <div className="font-bold text-blue-800">{guardEntry.supplier?.name}</div>
-              </div>
-              <div>
-                <div className="text-sm text-blue-600 font-medium">Vehicle Number</div>
-                <div className="font-bold text-blue-800">{guardEntry.vehicleNumber}</div>
-              </div>
-            </div>
+            {/* Guard Entry Details - FIXED */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg">
+  <div>
+    <div className="text-sm text-blue-600 font-medium">Entry Number</div>
+    <div className="font-bold text-blue-800">{guardEntry.entryNumber}</div>
+    {guardEntry.isRejected && (
+      <div className="text-xs text-red-600 font-medium mt-1">(Rejected Entry)</div>
+    )}
+  </div>
+  <div>
+    <div className="text-sm text-blue-600 font-medium">
+      {guardEntry.isRejected ? 'Customer' : 'Supplier'}
+    </div>
+    <div className="font-bold text-blue-800 flex items-center gap-2">
+      {guardEntry.isRejected 
+        ? (guardEntry.customer?.name || guardEntry.customerName || 'N/A')
+        : (guardEntry.supplier?.name || guardEntry.supplierName || 'N/A')
+      }
+      {(guardEntry.isRejected && guardEntry.customerName) || (!guardEntry.isRejected && guardEntry.supplierName) ? (
+        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
+      ) : null}
+    </div>
+  </div>
+  <div>
+    <div className="text-sm text-blue-600 font-medium">Vehicle Number</div>
+    <div className="font-bold text-blue-800">{guardEntry.vehicleNumber}</div>
+  </div>
+</div>
           </div>
 
           {/* Goods Inward Form */}

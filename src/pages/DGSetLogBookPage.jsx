@@ -24,7 +24,6 @@ export default function DGSetLogBookPage() {
   const [uploading, setUploading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const lastRowRef = useRef(null);
   const [consumptionData, setConsumptionData] = useState(null);
 const [showConsumptionModal, setShowConsumptionModal] = useState(false);
 const [selectedPeriod, setSelectedPeriod] = useState("month");
@@ -33,35 +32,54 @@ const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const limit = 10;
 
   // All your existing functions remain exactly the same...
-  const fetchData = async (p = page) => {
-    try {
-      const res = await axiosInstance.get(`/dg-log-book?page=${p}&limit=${limit}`);
-      setRows(res.data.data || []);
-      setPage(res.data.page);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching:", err);
+const fetchData = async (p = page) => {
+  try {
+    const res = await axiosInstance.get(`/dg-log-book?page=${p}&limit=${limit}`);
+    const rowsWithIds = (res.data.data || []).map(row => ({
+      ...row,
+      id: row.id || `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    }));
+    setRows(rowsWithIds);
+    setPage(res.data.page);
+    setTotalPages(res.data.totalPages);
+  } catch (err) {
+    console.error("Error fetching:", err);
+  }
+};
+
+const addNewRow = () => {
+  const rowId = `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const newRow = {
+    id: rowId, // Add unique ID
+    date: new Date(),
+    startTime: "",
+    shutdownTime: "",
+    netRunning: "",
+    dieselQuantity: "",
+    checked: false,
+    checkedBy: "",
+    remarks: "",
+    attachments: [],
+  };
+  
+  setRows((prev) => [...prev, newRow]);
+
+  setTimeout(() => {
+    const newRowElement = document.getElementById(rowId);
+    if (newRowElement) {
+      newRowElement.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "center" 
+      });
+      
+      // Highlight the new row
+      newRowElement.classList.add('bg-blue-50', 'border-2', 'border-blue-200');
+      setTimeout(() => {
+        newRowElement.classList.remove('bg-blue-50', 'border-2', 'border-blue-200');
+      }, 2000);
     }
-  };
-
-  const addNewRow = () => {
-    const newRow = {
-      date: new Date(),
-      startTime: "",
-      shutdownTime: "",
-      netRunning: "",
-      dieselQuantity: "",
-      checked: false,
-      checkedBy: "",
-      remarks: "",
-      attachments: [],
-    };
-    setRows((prev) => [...prev, newRow]);
-
-    setTimeout(() => {
-      lastRowRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
+  }, 100);
+};
 
   const calculateNetRunning = (start, end) => {
     if (!start || !end) return "";
@@ -364,22 +382,8 @@ const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
               <div className="text-2xl font-bold text-blue-600">{rows.length}</div>
               <div className="text-sm text-gray-600">Total Entries</div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {rows.filter(r => r.checked).length}
-              </div>
-              <div className="text-sm text-gray-600">Verified</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {rows.filter(r => r.attachments?.length > 0).length}
-              </div>
-              <div className="text-sm text-gray-600">With Attachments</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">{page}</div>
-              <div className="text-sm text-gray-600">Current Page</div>
-            </div>
+           
+           
           </div>
 
           {/* Table Section */}
@@ -398,173 +402,197 @@ const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
               </div>
             ) : (
               <>
-              {/* Mobile Cards View */}
-<div className="lg:hidden space-y-4 p-4">
-  {rows.map((row, index) => (
-    <motion.div
-      key={row._id || index}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-      ref={index === rows.length - 1 ? lastRowRef : null}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="font-bold text-gray-900">{ddmmyyyy(row.date || new Date())}</h4>
-          <p className="text-gray-600 text-sm">Entry #{index + 1}</p>
-        </div>
-        {row.checked && (
-          <div className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-            ✅ Verified
-          </div>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-        <div>
-          <span className="font-medium text-gray-600">Start:</span>
-          <input
-            type="time"
-            value={row.startTime || ""}
-            onChange={(e) => handleInputChange(index, "startTime", e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-1"
-          />
-        </div>
-        <div>
-          <span className="font-medium text-gray-600">Shutdown:</span>
-          <input
-            type="time"
-            value={row.shutdownTime || ""}
-            onChange={(e) => handleInputChange(index, "shutdownTime", e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-1"
-          />
-        </div>
-        <div>
-          <span className="font-medium text-gray-600">Running:</span>
-          <div className="text-gray-900 font-semibold mt-1">{row.netRunning || "—"}</div>
-        </div>
-        <div>
-          <span className="font-medium text-gray-600">Diesel Refuel Quantity in Litres:</span>
-          <input
-            type="number"
-            value={row.dieselQuantity || ""}
-            onChange={(e) => handleInputChange(index, "dieselQuantity", e.target.value)}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-1"
-            placeholder="Liters"
-          />
-        </div>
-      </div>
+            {/* Mobile Table View */}
+<div className="lg:hidden overflow-x-auto">
+  <table className="w-full min-w-full border-collapse border border-gray-200 text-sm">
+    <thead className="bg-gray-50">
+      <tr>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Shutdown</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Running</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Diesel (L)</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Verify</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Files</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row, index) => (
+          <motion.tr
+    key={row._id || row.id || index}
+    id={row.id || `row-${index}`}
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="hover:bg-gray-50 transition-colors"
+  >
+          {/* Date */}
+          <td className="border border-gray-300 px-2 py-2">
+            <input
+              type="date"
+              value={row.date ? new Date(row.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+              onChange={(e) => {
+                const selectedDate = new Date(e.target.value);
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                
+                if (selectedDate <= today) {
+                  handleInputChange(index, "date", selectedDate);
+                } else {
+                  Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Date',
+                    text: 'Please select a date that is not in the future.',
+                    timer: 3000
+                  });
+                }
+              }}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+            />
+            {row.checked && (
+              <div className="text-xs text-green-600 font-medium mt-1">✅</div>
+            )}
+          </td>
 
-      {/* Verification Checkbox for Mobile */}
-{(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) && (        <div className="mb-3 flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={row.checked || false}
-            onChange={() => handleInputChange(index, "checked", !row.checked)}
-            className="w-4 h-4 text-blue-600 rounded"
-          />
-          <span className="text-sm text-gray-700">Verified by me</span>
-        </div>
-      )}
+          {/* Start Time */}
+          <td className="border border-gray-300 px-2 py-2">
+            <input
+              type="time"
+              value={row.startTime || ""}
+              onChange={(e) => handleInputChange(index, "startTime", e.target.value)}
+              className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+            />
+          </td>
 
-      {/* Remarks for Mobile */}
-      <div className="mb-3">
-        <label className="font-medium text-gray-600 text-sm">Remarks:</label>
-        <textarea
-          value={row.remarks || ""}
-          onChange={(e) => handleInputChange(index, "remarks", e.target.value)}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-1 resize-none"
-          rows={2}
-          placeholder="Add any remarks..."
-        />
-      </div>
+          {/* Shutdown Time */}
+          <td className="border border-gray-300 px-2 py-2">
+            <input
+              type="time"
+              value={row.shutdownTime || ""}
+              onChange={(e) => handleInputChange(index, "shutdownTime", e.target.value)}
+              className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+            />
+          </td>
 
-      {/* File Upload Section for Mobile */}
-      <div className="mb-3">
-        <label className="font-medium text-gray-600 text-sm block mb-2">Attachments:</label>
-        <input
-          type="file"
-          multiple
-          accept="image/*,.pdf"
-          onChange={(e) => handleFileUpload(e, index)}
-          className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          disabled={uploading}
-        />
-        
-        {/* File Attachments Display */}
-        {row.attachments?.length > 0 && (
-          <div className="mt-2">
-            <div className="flex flex-wrap gap-2">
-              {row.attachments.map((file, idx) => (
-                <div key={idx} className="relative group">
-                  <button
-                    onClick={() => showFileInSwal(file)}
-                    className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors text-xs"
-                  >
-                    {file.resource_type === 'image' ? (
-                      <>
-                        <img 
-                          src={file.url} 
-                          alt={file.original_filename}
-                          className="w-6 h-6 object-cover rounded"
-                        />
-                        <span className="hidden sm:inline truncate max-w-[80px]">
-                          {file.original_filename}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-6 h-6 bg-blue-100 flex items-center justify-center rounded">
-                          <span className="text-xs">📄</span>
-                        </div>
-                        <span className="hidden sm:inline truncate max-w-[80px]">
-                          {file.original_filename}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                  {row._id && (
-                    <button
-                      onClick={() => handleDeleteFile(row._id, file.public_id)}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center hover:bg-red-600 transition-colors"
-                    >
-                      ×
-                    </button>
-                  )}
+          {/* Net Running */}
+          <td className="border border-gray-300 px-2 py-2">
+            <div className="text-xs font-semibold text-green-600 text-center">{row.netRunning || "—"}</div>
+          </td>
+
+          {/* Diesel Quantity */}
+          <td className="border border-gray-300 px-2 py-2">
+            <input
+              type="number"
+              value={row.dieselQuantity || ""}
+              onChange={(e) => handleInputChange(index, "dieselQuantity", e.target.value)}
+              className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+              placeholder="L"
+            />
+          </td>
+
+          {/* Verification */}
+          <td className="border border-gray-300 px-2 py-2">
+            {(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) && (
+              <div className="flex flex-col items-center">
+                <input
+                  type="checkbox"
+                  checked={row.checked || false}
+                  onChange={() => handleInputChange(index, "checked", !row.checked)}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                {row.checked && (
+                  <span className="text-xs text-green-600 mt-1">✓</span>
+                )}
+              </div>
+            )}
+          </td>
+
+          {/* Files */}
+          <td className="border border-gray-300 px-2 py-2">
+            <div className="space-y-1">
+              {/* File Upload */}
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileUpload(e, index)}
+                className="block w-full text-xs text-gray-500"
+                disabled={uploading}
+              />
+              
+              {/* File Attachments */}
+              {row.attachments?.length > 0 && (
+                <div className="flex flex-wrap gap-1 justify-center">
+                  {row.attachments.map((file, idx) => (
+                    <div key={idx} className="relative group">
+                      <button
+                        onClick={() => showFileInSwal(file)}
+                        className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded p-1 transition-colors text-xs w-6 h-6"
+                        title={file.original_filename}
+                      >
+                        {file.resource_type === 'image' ? '🖼️' : '📄'}
+                      </button>
+                      {row._id && (
+                        <button
+                          onClick={() => handleDeleteFile(row._id, file.public_id)}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 text-[8px] flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+              {row.attachments?.length > 0 && (
+                <div className="text-xs text-gray-500 text-center">
+                  {row.attachments.length} file{row.attachments.length !== 1 ? 's' : ''}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {row.attachments.length} file{row.attachments.length !== 1 ? 's' : ''} attached
-            </p>
-          </div>
-        )}
-      </div>
+          </td>
 
-      <div className="flex gap-2 pt-3 border-t">
-        <button
-          onClick={() => handleSave(row)}
-          className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex-1 text-center flex items-center justify-center gap-1"
-          disabled={saving}
-        >
-          {saving ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            "💾"
-          )}
-          Save
-        </button>
-        {row._id && (
-          <button
-            onClick={() => handleDeleteRow(row._id)}
-            className="bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700 transition-colors flex-1 text-center flex items-center justify-center gap-1"
-          >
-            🗑️ Delete
-          </button>
-        )}
-      </div>
-    </motion.div>
-  ))}
+          {/* Remarks */}
+          <td className="border border-gray-300 px-2 py-2">
+            <textarea
+              value={row.remarks || ""}
+              onChange={(e) => handleInputChange(index, "remarks", e.target.value)}
+              className="w-full px-1 py-1 border border-gray-300 rounded text-xs resize-none"
+              rows={2}
+              placeholder="Add remarks..."
+            />
+          </td>
+
+          {/* Actions */}
+          <td className="border border-gray-300 px-2 py-2">
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => handleSave(row)}
+                className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                disabled={saving}
+              >
+                {saving ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  "💾"
+                )}
+              </button>
+              {row._id && (
+                <button
+                  onClick={() => handleDeleteRow(row._id)}
+                  className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
+          </td>
+        </motion.tr>
+      ))}
+    </tbody>
+  </table>
 </div>
 
                 {/* Desktop Table View */}
@@ -591,24 +619,44 @@ const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {rows.map((row, index) => (
-                        <motion.tr
-                          key={row._id || index}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="hover:bg-gray-50 transition-colors"
-                          ref={index === rows.length - 1 ? lastRowRef : null}
-                        >
+                          <motion.tr
+    key={row._id || row.id || index}
+    id={row.id || `row-${index}`}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="hover:bg-gray-50 transition-colors"
+  >
                           {/* Date & Time Column */}
-                          <td className="px-6 py-4">
-                            <div className="space-y-2">
-                              <div className="font-medium text-gray-900">
-                                {ddmmyyyy(row.date || new Date())}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                Entry #{index + 1}
-                              </div>
-                            </div>
-                          </td>
+                         {/* Date Column */}
+<td className="px-6 py-4">
+  <div className="space-y-2">
+    <input
+      type="date"
+      value={row.date ? new Date(row.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+      onChange={(e) => {
+        const selectedDate = new Date(e.target.value);
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        
+        if (selectedDate <= today) {
+          handleInputChange(index, "date", selectedDate);
+        } else {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Invalid Date',
+            text: 'Please select a date that is not in the future.',
+            timer: 3000
+          });
+        }
+      }}
+      max={new Date().toISOString().split('T')[0]}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+    />
+    {row.checked && (
+      <div className="text-sm text-green-600 font-medium">✅ Verified</div>
+    )}
+  </div>
+</td>
 
                           {/* Operations Column */}
                           <td className="px-6 py-4">
@@ -995,51 +1043,65 @@ const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
                   </div>
                   <div className="text-xs text-gray-600 mt-1">Total Consumption</div>
                 </div>
-                <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-                  <div className="text-lg sm:text-2xl font-bold text-green-600">
-                    {consumptionData.summary.totalEntries}
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">Total Entries</div>
-                </div>
+              
+                  <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+    <div className="text-lg sm:text-2xl font-bold text-purple-600">
+      {consumptionData.summary.totalRunningTime}
+    </div>
+    <div className="text-xs text-gray-600 mt-1">Total Running Time</div>
+  </div>
                 <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-100">
                   <div className="text-lg sm:text-2xl font-bold text-orange-600">
                     {consumptionData.summary.averagePerDay.toFixed(1)} L
                   </div>
                   <div className="text-xs text-gray-600 mt-1">Average Per Day</div>
                 </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+    <div className="text-lg sm:text-2xl font-bold text-green-600">
+      {consumptionData.summary.daysWithData}
+    </div>
+    <div className="text-xs text-gray-600 mt-1">
+      Day{consumptionData.summary.daysWithData !== 1 ? 's' : ''}
+    </div>
+  </div>
               </div>
 
-              {/* Daily Breakdown - Always visible now */}
-              {consumptionData.dailyBreakdown.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Daily Breakdown
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                    <div className="space-y-2 max-h-[40vh] sm:max-h-none overflow-y-auto">
-                      {consumptionData.dailyBreakdown.map((day, index) => (
-                        <div key={index} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 text-sm sm:text-base">
-                              {new Date(day._id).toLocaleDateString('en-US', { 
-                                weekday: 'short', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {day.entries} entr{day.entries !== 1 ? 'ies' : 'y'}
-                            </div>
-                          </div>
-                          <div className="text-base sm:text-lg font-bold text-blue-600 ml-2 flex-shrink-0">
-                            {day.dailyConsumption.toFixed(1)} L
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+  {/* Daily Breakdown - Updated with Running Time */}
+{consumptionData.dailyBreakdown.length > 0 && (
+  <div className="mt-4">
+    <h3 className="text-lg font-semibold text-gray-800 mb-3">
+      Daily Breakdown
+    </h3>
+    <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+      <div className="space-y-2 max-h-[40vh] sm:max-h-none overflow-y-auto">
+        {consumptionData.dailyBreakdown.map((day, index) => (
+          <div key={index} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-gray-900 text-sm sm:text-base">
+                {new Date(day._id).toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
+              </div>
+              <div className="text-xs text-gray-500">
+                {day.entries} entr{day.entries !== 1 ? 'ies' : 'y'}
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 ml-2 flex-shrink-0">
+              <div className="text-base sm:text-lg font-bold text-blue-600">
+                {day.dailyConsumption.toFixed(1)} L
+              </div>
+              <div className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                {day.runningTime}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
               {consumptionData.dailyBreakdown.length === 0 && (
                 <div className="text-center py-6 text-gray-500">

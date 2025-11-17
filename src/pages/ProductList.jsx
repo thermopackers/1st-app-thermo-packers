@@ -258,23 +258,28 @@ export default function ProductList() {
                           </div>
                         </td>
 
-                        {/* Product Details */}
-                        <td className="py-4 px-6">
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-gray-800 text-lg">{p.name}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span className="text-gray-700">Unit:</span>
-                              <span>{p.unit || "No unit"}</span>
-                            </div>
-                            {p.description && (<>
-                                                    <span className="text-gray-700 font-bold">Internal Product Desc:</span>
-                              <p className="text-sm text-gray-600 line-clamp-2" title={p.description}>
-                                {p.description}
-                              </p>
-                            </>
-                            )}
-                          </div>
-                        </td>
+                     {/* Product Details */}
+<td className="py-4 px-6">
+  <div className="space-y-2">
+    <button
+      onClick={() => navigate(`/customers?product=${encodeURIComponent(p.name)}`)}
+      className="font-semibold text-lg text-blue-600 hover:underline cursor-pointer text-left"
+    >
+      {p.name}
+    </button>
+    <div className="flex items-center gap-2 text-sm text-gray-600">
+      <span className="text-gray-700">Unit:</span>
+      <span>{p.unit || "No unit"}</span>
+    </div>
+    {p.description && (<>
+      <span className="text-gray-700 font-bold">Internal Product Desc:</span>
+      <p className="text-sm text-gray-600 line-clamp-2" title={p.description}>
+        {p.description}
+      </p>
+    </>
+    )}
+  </div>
+</td>
 
                         {/* Tax Information */}
                         <td className="py-4 px-6">
@@ -348,25 +353,30 @@ export default function ProductList() {
               <div className="p-4 space-y-4">
                 {products.map((p) => (
                   <div key={p._id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 text-lg mb-1">{p.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                        <span className="text-gray-700">Unit:</span>
-                          <span>{p.unit || "No unit"}</span>
-                        </div>
-                      </div>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                          p.quantity > 0 
-                            ? "bg-green-100 text-green-700" 
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {p.quantity > 0 ? "In Stock" : "Out of Stock"}
-                      </span>
-                    </div>
+                {/* Header */}
+<div className="flex items-start justify-between mb-3">
+  <div className="flex-1">
+    <button
+      onClick={() => navigate(`/customers?product=${encodeURIComponent(p.name)}`)}
+      className="font-bold text-gray-800 text-lg mb-1 hover:text-blue-600 hover:underline cursor-pointer text-left"
+    >
+      {p.name}
+    </button>
+    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+      <span className="text-gray-700">Unit:</span>
+      <span>{p.unit || "No unit"}</span>
+    </div>
+  </div>
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+      p.quantity > 0 
+        ? "bg-green-100 text-green-700" 
+        : "bg-red-100 text-red-700"
+    }`}
+  >
+    {p.quantity > 0 ? "In Stock" : "Out of Stock"}
+  </span>
+</div>
 
                     {/* Description */}
                     {p.description && (<>

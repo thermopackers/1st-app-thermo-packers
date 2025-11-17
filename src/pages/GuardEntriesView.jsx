@@ -24,32 +24,33 @@ const GuardEntriesView = () => {
     fetchEntries();
   }, [filterDate, pagination.currentPage]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchEntries();
-    }, 30000); // Refresh every 30 seconds
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     fetchEntries();
+  //   }, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(interval);
-  }, [filterDate, pagination.currentPage]);
+  //   return () => clearInterval(interval);
+  // }, [filterDate, pagination.currentPage]);
 
   const fetchEntries = async () => {
-    try {
-      setLoading(true);
-      let url = `/guard-entries?page=${pagination.currentPage}&limit=${pagination.limit}`;
-      if (filterDate) {
-        url += `&date=${filterDate}`;
-      }
-      
-      const res = await axiosInstance.get(url);
-      setEntries(res.data.entries);
-      setPagination(res.data.pagination);
-    } catch (err) {
-      console.error('Failed to fetch entries', err);
-      Swal.fire('Error', 'Failed to load entries', 'error');
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    let url = `/guard-entries?page=${pagination.currentPage}&limit=${pagination.limit}`;
+    if (filterDate) {
+      url += `&date=${filterDate}`;
     }
-  };
+    
+    const res = await axiosInstance.get(url);
+    console.log('Fetched entries data:', res.data.entries); // Debug log
+    setEntries(res.data.entries);
+    setPagination(res.data.pagination);
+  } catch (err) {
+    console.error('Failed to fetch entries', err);
+    Swal.fire('Error', 'Failed to load entries', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const showPhoto = (url, title) => {
     Swal.fire({
@@ -64,39 +65,67 @@ const GuardEntriesView = () => {
     });
   };
 
-const showProducts = (products, title) => {
-  if (!products || products.length === 0) {
-    Swal.fire('Info', 'No products recorded for this entry', 'info');
-    return;
-  }
+  const showProducts = (products, title) => {
+    if (!products || products.length === 0) {
+      Swal.fire('Info', 'No products recorded for this entry', 'info');
+      return;
+    }
 
-  const productsHtml = products.map((item, index) => {
-    // Handle cases where product might not be populated or is null
-    const productName = item.product?.name || 'Product Not Found';
-    const productCode = item.product?.code;
-    const quantity = item.quantity || 0;
+    const productsHtml = products.map((item, index) => {
+      // Handle both existing products and manual products
+      const productName = item.product?.name || item.productName || 'Unknown Product';
+      const productCode = item.product?.code;
+      const quantity = item.quantity || 0;
+      const isManual = !item.product && item.productName;
 
-    return `
-      <div class="border-b border-gray-200 py-2">
-        <div class="font-medium">${productName}</div>
-        <div class="text-sm text-gray-600">Quantity: ${quantity}</div>
-        ${productCode ? `<div class="text-sm text-gray-600">Code: ${productCode}</div>` : ''}
-        ${!item.product ? `<div class="text-xs text-red-500 mt-1">⚠️ Product data missing</div>` : ''}
-      </div>
-    `;
-  }).join('');
+      return `
+        <div class="border-b border-gray-200 py-3">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="font-medium text-gray-900">${productName}</div>
+              ${productCode ? `<div class="text-sm text-gray-600 mt-1">Code: ${productCode}</div>` : ''}
+              ${isManual ? `<div class="text-xs text-green-600 mt-1 font-medium">📝 Manual Entry</div>` : ''}
+            </div>
+            <div class="text-right">
+              <div class="text-lg font-bold text-blue-600">${quantity}</div>
+              <div class="text-xs text-gray-500">Qty</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
 
-  Swal.fire({
-    title: title,
-    html: `<div class="text-left max-h-96 overflow-y-auto">
-           ${productsHtml}
-         </div>`,
-    showCloseButton: true,
-    showConfirmButton: false,
-    width: "60%",
-    background: "#fff",
-  });
-};
+    Swal.fire({
+      title: title,
+      html: `<div class="text-left max-h-96 overflow-y-auto">
+             <div class="space-y-2">${productsHtml}</div>
+           </div>`,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: "500px",
+      background: "#fff",
+    });
+  };
+
+  const showRemarks = (remarks, title) => {
+    if (!remarks || remarks.trim() === '') {
+      Swal.fire('Info', 'No remarks provided for this entry', 'info');
+      return;
+    }
+
+    Swal.fire({
+      title: title,
+      html: `<div class="text-left max-w-md">
+             <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+               <p class="text-gray-700 whitespace-pre-wrap">${remarks}</p>
+             </div>
+           </div>`,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: "600px",
+      background: "#fff",
+    });
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -158,6 +187,14 @@ const showProducts = (products, title) => {
       Swal.fire('Access Denied', 'Only accounts team can access goods inward', 'info');
     }
   };
+
+  // Calculate stats
+  const totalEntries = pagination.totalEntries;
+  const uniqueVehicles = new Set(entries.map(entry => entry.vehicleNumber)).size;
+  const totalSuppliers = new Set(entries.filter(e => !e.isRejected).map(e => e.supplier?._id || e.supplierName)).size;
+  const totalCustomers = new Set(entries.filter(e => e.isRejected).map(e => e.customer?._id || e.customerName)).size;
+  const rejectedEntries = entries.filter(e => e.isRejected).length;
+  const supplierEntries = entries.filter(e => !e.isRejected).length;
 
   return (
     <>
@@ -222,8 +259,9 @@ const showProducts = (products, title) => {
                   </button>
                   <button
                     onClick={fetchEntries}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition mt-2 sm:mt-0"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition mt-2 sm:mt-0 flex items-center gap-2"
                   >
+                    <span>🔄</span>
                     Refresh
                   </button>
                 </div>
@@ -231,31 +269,33 @@ const showProducts = (products, title) => {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-              <div className="text-2xl font-bold text-blue-600">{pagination.totalEntries}</div>
-              <div className="text-gray-600">Total Entries</div>
+          {/* Enhanced Stats */}
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{totalEntries}</div>
+              <div className="text-gray-600 text-sm">Total Entries</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {new Set(entries.map(entry => entry.vehicleNumber)).size}
-              </div>
-              <div className="text-gray-600">Unique Vehicles</div>
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">{uniqueVehicles}</div>
+              <div className="text-gray-600 text-sm">Unique Vehicles</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {new Set(entries.map(entry => entry.supplier?._id)).size}
-              </div>
-              <div className="text-gray-600">Suppliers</div>
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">{totalSuppliers}</div>
+              <div className="text-gray-600 text-sm">Suppliers</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {entries.length > 0 ? entries[0].entryNumber : 'TPGI1'}
-              </div>
-              <div className="text-gray-600">Latest Entry</div>
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-orange-600">{totalCustomers}</div>
+              <div className="text-gray-600 text-sm">Customers</div>
             </div>
-          </div>
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-500">{supplierEntries}</div>
+              <div className="text-gray-600 text-sm">Supplier Entries</div>
+            </div>
+            <div className="bg-white rounded-2xl shadow-lg p-4 text-center">
+              <div className="text-2xl font-bold text-red-500">{rejectedEntries}</div>
+              <div className="text-gray-600 text-sm">Rejected Entries</div>
+            </div>
+          </div> */}
 
           {/* Quick Add Button for Mobile */}
           <div className="md:hidden mb-6">
@@ -270,6 +310,12 @@ const showProducts = (products, title) => {
 
           {/* Entries Table */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold">Vehicle Entries</h3>
+              <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">
+                👆 Click rows for Goods Inward (Accounts only)
+              </span>
+            </div>
             {entries.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🚗</div>
@@ -302,6 +348,7 @@ const showProducts = (products, title) => {
                         <th className="px-4 py-3">Vehicle Number</th>
                         <th className="px-4 py-3">Supplier/Customer</th>
                         <th className="px-4 py-3">Products</th>
+                        <th className="px-4 py-3">Remarks</th>
                         <th className="px-4 py-3">Recorded By</th>
                         <th className="px-4 py-3">Photos</th>
                       </tr>
@@ -334,17 +381,23 @@ const showProducts = (products, title) => {
                               {entry.vehicleNumber}
                             </span>
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="font-medium text-gray-900">
-                              {entry.isRejected 
-                                ? (entry.customer?.name || entry.customerName || 'N/A')
-                                : (entry.supplier?.name || 'N/A')
-                              }
-                            </div>
-                            {entry.isRejected && entry.customerName && (
-                              <div className="text-xs text-gray-500">(Manual Entry)</div>
-                            )}
-                          </td>
+                       <td className="px-4 py-4">
+  <div className="font-medium text-gray-900">
+    {entry.isRejected 
+      ? (entry.customer?.name || entry.customerName || 'N/A')
+      : (entry.supplier?.name || entry.supplierName || 'N/A')
+    }
+  </div>
+  {entry.isRejected ? (
+    entry.customerName && (
+      <div className="text-xs text-green-600 font-medium">📝 Manual</div>
+    )
+  ) : (
+    entry.supplierName && (
+      <div className="text-xs text-green-600 font-medium">📝 Manual</div>
+    )
+  )}
+</td>
                           <td className="px-4 py-4">
                             <div className="flex gap-2 flex-wrap">
                               {entry.purchaseProducts && entry.purchaseProducts.length > 0 ? (
@@ -353,16 +406,34 @@ const showProducts = (products, title) => {
                                     e.stopPropagation();
                                     showProducts(
                                       entry.purchaseProducts, 
-                                      `${entry.entryNumber} - Products`
+                                      `${entry.entryNumber} - Products (${entry.purchaseProducts.length})`
                                     );
                                   }}
                                   className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition flex items-center gap-1"
                                 >
                                   <span>📦</span>
-                                  View Products ({entry.purchaseProducts.length})
+                                  Products ({entry.purchaseProducts.length})
                                 </button>
                               ) : (
                                 <span className="text-gray-400 text-xs">No products</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2 flex-wrap">
+                              {entry.remarks && entry.remarks.trim() ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    showRemarks(entry.remarks, `${entry.entryNumber} - Remarks`);
+                                  }}
+                                  className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700 transition flex items-center gap-1"
+                                >
+                                  <span>📝</span>
+                                  View Remarks
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No remarks</span>
                               )}
                             </div>
                           </td>
@@ -394,7 +465,7 @@ const showProducts = (products, title) => {
                   </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Enhanced Pagination */}
                 {pagination.totalPages > 1 && (
                   <div className="flex flex-col sm:flex-row justify-between items-center mt-6 pt-6 border-t border-gray-200 gap-4">
                     <div className="text-sm text-gray-600">
@@ -403,33 +474,53 @@ const showProducts = (products, title) => {
                       {pagination.totalEntries} entries
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handlePageChange(pagination.currentPage - 1)}
                         disabled={!pagination.hasPrev}
-                        className={`px-4 py-2 rounded-lg border ${
+                        className={`px-4 py-2 rounded-lg border flex items-center gap-2 ${
                           pagination.hasPrev
-                            ? 'bg-white text-gray-700 hover:bg-gray-50'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            ? 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
                         }`}
                       >
+                        <span>←</span>
                         Previous
                       </button>
                       
-                      <span className="px-4 py-2 text-gray-700">
-                        Page {pagination.currentPage} of {pagination.totalPages}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              className={`w-8 h-8 rounded-lg border text-sm ${
+                                pagination.currentPage === pageNum
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        {pagination.totalPages > 5 && (
+                          <span className="text-gray-500 mx-1">...</span>
+                        )}
+                      </div>
                       
                       <button
                         onClick={() => handlePageChange(pagination.currentPage + 1)}
                         disabled={!pagination.hasNext}
-                        className={`px-4 py-2 rounded-lg border ${
+                        className={`px-4 py-2 rounded-lg border flex items-center gap-2 ${
                           pagination.hasNext
-                            ? 'bg-white text-gray-700 hover:bg-gray-50'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            ? 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
                         }`}
                       >
                         Next
+                        <span>→</span>
                       </button>
                     </div>
                   </div>

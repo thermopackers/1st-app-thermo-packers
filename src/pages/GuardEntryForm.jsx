@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import axiosInstance from '../axiosInstance';
@@ -13,14 +13,14 @@ const GuardEntryForm = () => {
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [purchaseProducts, setPurchaseProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); // New state for filtered products
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [productSearchQuery, setProductSearchQuery] = useState(''); // New state for product search
+  const [productSearchQuery, setProductSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [showProductDropdown, setShowProductDropdown] = useState(false); // New state for product dropdown
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [entryNumber, setEntryNumber] = useState('');
@@ -30,6 +30,20 @@ const GuardEntryForm = () => {
   const [supplierName, setSupplierName] = useState('');
   const [showManualCustomer, setShowManualCustomer] = useState(false);
   const [showManualSupplier, setShowManualSupplier] = useState(false);
+  const [showManualProduct, setShowManualProduct] = useState(false); // New state for manual product
+  const [manualProductName, setManualProductName] = useState(''); // New state for manual product name
+  const [remarks, setRemarks] = useState(''); // New state for remarks
+  const [currentDateTime, setCurrentDateTime] = useState(new Date()); // New state for live clock
+const selectedProductsRef = useRef([]);
+
+  // Live clock effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchSuppliers();
@@ -83,6 +97,11 @@ const GuardEntryForm = () => {
       setFilteredProducts(filtered);
     }
   }, [productSearchQuery, purchaseProducts]);
+
+  // Add this useEffect to monitor selectedProducts state
+useEffect(() => {
+  console.log('selectedProducts state updated:', selectedProducts);
+}, [selectedProducts]);
 
   const fetchSuppliers = async () => {
     try {
@@ -177,6 +196,45 @@ const GuardEntryForm = () => {
     setShowProductDropdown(false);
   };
 
+// Replace your handleAddManualProduct function
+const handleAddManualProduct = () => {
+  console.log('handleAddManualProduct called with:', manualProductName);
+  
+  if (!manualProductName.trim()) {
+    Swal.fire('Warning', 'Please enter product name', 'warning');
+    return;
+  }
+
+  const manualProduct = {
+    _id: `manual_${Date.now()}`,
+    name: manualProductName.trim(),
+    isManual: true
+  };
+
+  console.log('Creating manual product object:', manualProduct);
+  
+  // Directly update both state and ref to ensure it works
+  setSelectedProducts(prev => {
+    const newProducts = [...prev, { product: manualProduct, quantity: 1 }];
+    selectedProductsRef.current = newProducts;
+    console.log('Direct update - new selectedProducts:', newProducts);
+    console.log('Direct update - new selectedProductsRef:', selectedProductsRef.current);
+    return newProducts;
+  });
+
+  setManualProductName('');
+  setShowManualProduct(false);
+  
+  // Show immediate success feedback
+  Swal.fire({
+    title: 'Product Added!',
+    text: `"${manualProduct.name}" has been added to the entry`,
+    icon: 'success',
+    timer: 2000,
+    showConfirmButton: false
+  });
+};
+
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
     setShowDropdown(true);
@@ -200,141 +258,225 @@ const GuardEntryForm = () => {
     setShowProductDropdown(true);
   };
 
-  const handleAddProduct = (product) => {
-    const existingProduct = selectedProducts.find(p => p.product._id === product._id);
-    if (existingProduct) {
-      setSelectedProducts(prev =>
-        prev.map(p =>
-          p.product._id === product._id
-            ? { ...p, quantity: p.quantity + 1 }
-            : p
-        )
-      );
-    } else {
-      setSelectedProducts(prev => [...prev, { product, quantity: 1 }]);
-    }
-  };
-
-  const handleRemoveProduct = (productId) => {
-    setSelectedProducts(prev => prev.filter(p => p.product._id !== productId));
-  };
-
-  const handleQuantityChange = (productId, newQuantity) => {
-    if (newQuantity < 1) return;
-    setSelectedProducts(prev =>
-      prev.map(p =>
-        p.product._id === productId
-          ? { ...p, quantity: newQuantity }
-          : p
-      )
-    );
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleAddProduct = (product) => {
+  console.log('Adding product:', product);
+  
+  setSelectedProducts(prev => {
+    const existingProductIndex = prev.findIndex(p => {
+      if (p.product.isManual && product.isManual) {
+        return p.product.name === product.name;
+      } else if (!p.product.isManual && !product.isManual) {
+        return p.product._id === product._id;
+      }
+      return false;
+    });
     
-    // Validation based on rejection status
-    if (!vehicleNumber || photos.length === 0) {
-      Swal.fire('Warning', 'Please fill vehicle number and upload at least one photo', 'warning');
+    let newProducts;
+    if (existingProductIndex !== -1) {
+      // Product exists, increase quantity
+      newProducts = prev.map((p, index) => 
+        index === existingProductIndex 
+          ? { ...p, quantity: p.quantity + 1 }
+          : p
+      );
+      console.log('Increased quantity of existing product');
+    } else {
+      // Add new product
+      newProducts = [...prev, { product, quantity: 1 }];
+      console.log('Added new product');
+    }
+    
+    // Update the ref with the new state
+    selectedProductsRef.current = newProducts;
+    console.log('Updated selectedProducts:', newProducts);
+    console.log('Updated selectedProductsRef:', selectedProductsRef.current);
+    
+    return newProducts;
+  });
+};
+
+const handleRemoveProduct = (productId) => {
+  console.log('Removing product:', productId);
+  
+  setSelectedProducts(prev => {
+    const newProducts = prev.filter(p => p.product._id !== productId);
+    selectedProductsRef.current = newProducts;
+    console.log('After removal - selectedProducts:', newProducts);
+    return newProducts;
+  });
+};
+
+const handleQuantityChange = (productId, newQuantity) => {
+  if (newQuantity < 1) return;
+  
+  setSelectedProducts(prev => {
+    const newProducts = prev.map(p =>
+      p.product._id === productId
+        ? { ...p, quantity: newQuantity }
+        : p
+    );
+    selectedProductsRef.current = newProducts;
+    return newProducts;
+  });
+};
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  console.log('selectedProducts from state:', selectedProducts);
+  console.log('selectedProducts from ref:', selectedProductsRef.current);
+  
+  // Use the ref value which is always current
+  const currentSelectedProducts = selectedProductsRef.current;
+  
+  // Validation based on rejection status
+  if (!vehicleNumber || photos.length === 0) {
+    Swal.fire('Warning', 'Please fill vehicle number and upload at least one photo', 'warning');
+    return;
+  }
+
+  if (isRejected) {
+    if (!customerId && !customerName) {
+      Swal.fire('Warning', 'Please either select a customer or enter customer name for rejected entries', 'warning');
       return;
     }
+  } else {
+    if (!supplierId && !supplierName) {
+      Swal.fire('Warning', 'Please either select a supplier or enter supplier name', 'warning');
+      return;
+    }
+  }
 
+  setLoading(true);
+  try {
+    const formData = new FormData();
+    formData.append('vehicleNumber', vehicleNumber);
+    formData.append('isRejected', isRejected.toString());
+    formData.append('remarks', remarks);
+    
     if (isRejected) {
-      if (!customerId && !customerName) {
-        Swal.fire('Warning', 'Please either select a customer or enter customer name for rejected entries', 'warning');
-        return;
-      }
+      if (customerId) formData.append('customerId', customerId);
+      if (customerName) formData.append('customerName', customerName);
     } else {
-      if (!supplierId && !supplierName) {
-        Swal.fire('Warning', 'Please either select a supplier or enter supplier name', 'warning');
-        return;
-      }
+      if (supplierId) formData.append('supplierId', supplierId);
+      if (supplierName) formData.append('supplierName', supplierName);
+    }
+    
+    // Use the ref value for products
+    if (currentSelectedProducts.length > 0) {
+      const productsToSend = currentSelectedProducts.map(sp => {
+        if (sp.product.isManual) {
+          return {
+            productName: sp.product.name,
+            quantity: sp.quantity
+          };
+        } else {
+          return {
+            product: sp.product._id,
+            quantity: sp.quantity
+          };
+        }
+      });
+      
+      console.log('Products being sent to backend:', productsToSend);
+      formData.append('purchaseProducts', JSON.stringify(productsToSend));
+    } else {
+      console.log('No products in selectedProductsRef');
+      formData.append('purchaseProducts', JSON.stringify([]));
+    }
+    
+    photos.forEach(photo => {
+      formData.append('photos', photo);
+    });
+
+    console.log('Form data entries:');
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value);
     }
 
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('vehicleNumber', vehicleNumber);
-      formData.append('isRejected', isRejected.toString());
-      
-      if (isRejected) {
-        if (customerId) {
-          formData.append('customerId', customerId);
-        }
-        if (customerName) {
-          formData.append('customerName', customerName);
-        }
-      } else {
-        if (supplierId) {
-          formData.append('supplierId', supplierId);
-        }
-        if (supplierName) {
-          formData.append('supplierName', supplierName);
-        }
+    const response = await axiosInstance.post('/guard-entries', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
       }
-      
-      // Add purchase products
-      if (selectedProducts.length > 0) {
-        formData.append('purchaseProducts', JSON.stringify(selectedProducts.map(sp => ({
-          product: sp.product._id,
-          quantity: sp.quantity
-        }))));
+    });
+
+    const guardEntry = response.data.entry;
+    console.log('Response from backend:', guardEntry);
+
+    Swal.fire({
+      title: 'Success!',
+      html: `
+        <div class="text-center">
+          <div class="text-4xl mb-4">✅</div>
+          <div class="font-bold text-lg">Entry Recorded Successfully!</div>
+          <div class="mt-2 text-blue-600 font-mono text-xl">${guardEntry.entryNumber}</div>
+          <div class="mt-2 text-gray-600">Vehicle: ${vehicleNumber}</div>
+          ${guardEntry.isRejected ? '<div class="mt-1 text-sm text-red-600">(Rejected/Returned Entry)</div>' : ''}
+          ${(supplierName || customerName) ? '<div class="mt-1 text-sm text-green-600">(Manual Entry)</div>' : ''}
+          ${guardEntry.purchaseProducts && guardEntry.purchaseProducts.length > 0 ? 
+            `<div class="mt-1 text-sm text-purple-600">Products: ${guardEntry.purchaseProducts.length} items</div>` : 
+            ''}
+          ${guardEntry.remarks && guardEntry.remarks.trim() ? 
+            `<div class="mt-1 text-sm text-gray-600">Remarks: ${guardEntry.remarks}</div>` : 
+            ''}
+          ${guardEntry.entryNumber !== entryNumber ? 
+            `<div class="mt-1 text-sm text-green-600">Entry number updated from ${entryNumber}</div>` : 
+            ''
+          }
+        </div>
+      `,
+      icon: 'success',
+      confirmButtonText: 'OK',
+      customClass: {
+        confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition'
       }
-      
-      photos.forEach(photo => {
-        formData.append('photos', photo);
-      });
+    });
 
-      const response = await axiosInstance.post('/guard-entries', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      const guardEntry = response.data.entry;
-
-      Swal.fire({
-        title: 'Success!',
-        html: `
-          <div class="text-center">
-            <div class="text-4xl mb-4">✅</div>
-            <div class="font-bold text-lg">Entry Recorded Successfully!</div>
-            <div class="mt-2 text-blue-600 font-mono text-xl">${guardEntry.entryNumber}</div>
-            <div class="mt-2 text-gray-600">Vehicle: ${vehicleNumber}</div>
-            ${guardEntry.isRejected ? '<div class="mt-1 text-sm text-red-600">(Rejected/Returned Entry)</div>' : ''}
-            ${(supplierName || customerName) ? '<div class="mt-1 text-sm text-green-600">(Manual Entry)</div>' : ''}
-            ${guardEntry.entryNumber !== entryNumber ? 
-              `<div class="mt-1 text-sm text-green-600">Entry number updated from ${entryNumber}</div>` : 
-              ''
-            }
-          </div>
-        `,
-        icon: 'success'
-      });
-
-      // Reset form and regenerate entry number
-      setVehicleNumber('');
-      setSupplierId('');
-      setCustomerId('');
-      setCustomerName('');
-      setSupplierName('');
-      setCustomerSearchQuery('');
-      setSearchQuery('');
-      setProductSearchQuery('');
-      setPhotos([]);
-      setSelectedProducts([]);
-      setIsRejected(false);
-      setShowManualCustomer(false);
-      setShowManualSupplier(false);
-      await generateEntryNumber();
-      
-    } catch (err) {
-      console.error('Failed to submit entry', err);
-      Swal.fire('Error', err.response?.data?.message || 'Failed to record entry', 'error');
-    } finally {
-      setLoading(false);
+    // Reset form and regenerate entry number
+    setVehicleNumber('');
+    setSupplierId('');
+    setCustomerId('');
+    setCustomerName('');
+    setSupplierName('');
+    setCustomerSearchQuery('');
+    setSearchQuery('');
+    setProductSearchQuery('');
+    setManualProductName('');
+    setRemarks('');
+    setPhotos([]);
+    setSelectedProducts([]);
+    selectedProductsRef.current = []; // Also reset the ref
+    setIsRejected(false);
+    setShowManualCustomer(false);
+    setShowManualSupplier(false);
+    setShowManualProduct(false);
+    
+    // Regenerate entry number for next entry
+    await generateEntryNumber();
+    
+  } catch (err) {
+    console.error('Failed to submit entry', err);
+    
+    let errorMessage = 'Failed to record entry';
+    if (err.response?.data?.message) {
+      errorMessage = err.response.data.message;
+    } else if (err.message) {
+      errorMessage = err.message;
     }
-  };
+    
+    Swal.fire({
+      title: 'Error!',
+      text: errorMessage,
+      icon: 'error',
+      confirmButtonText: 'OK',
+      customClass: {
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition'
+      }
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleViewEntries = () => {
     navigate('/guard-entries-view');
@@ -373,6 +515,26 @@ const GuardEntryForm = () => {
     setSearchQuery('');
   };
 
+  const toggleManualProduct = () => {
+    setShowManualProduct(!showManualProduct);
+    setProductSearchQuery('');
+  };
+
+  // Format date and time for display
+  const formatDateTime = (date) => {
+    const options = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    };
+    return date.toLocaleDateString('en-IN', options);
+  };
+
   return (
     <>
       <InternalNavbar />
@@ -381,7 +543,7 @@ const GuardEntryForm = () => {
           {/* Header with View Button */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">
-              🚗 Vehicle Entry Record
+              🚗 Gate Inward/GRN/Record Vehicle Entry/Material Inward
             </h2>
             <button
               onClick={handleViewEntries}
@@ -393,11 +555,66 @@ const GuardEntryForm = () => {
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            {/* Entry Number Display */}
+            {/* Entry Number Display with Live Clock */}
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
               <div className="text-sm text-blue-600 font-medium mb-1">ENTRY NUMBER</div>
               <div className="text-2xl font-bold text-blue-800 font-mono">{entryNumber}</div>
-              <div className="text-xs text-blue-500 mt-1">Thermo Packers Guard Entry</div>
+              
+              {/* LED Style Digital Clock */}
+<div className="mt-3 p-4 bg-black border-4 border-gray-700 rounded-2xl shadow-2xl">
+  <div className="text-center">
+    {/* Date Display */}
+    <div className="mb-3">
+      <div className="text-xs text-gray-400 font-mono uppercase tracking-widest mb-1">
+        SYSTEM TIME
+      </div>
+      <div className="text-sm font-mono text-green-400 bg-gray-900 py-2 px-4 rounded-lg border border-gray-600 glow">
+        {currentDateTime.toLocaleDateString('en-IN', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })}
+      </div>
+    </div>
+    
+    {/* Digital Clock */}
+    <div className="bg-gray-900 p-4 rounded-xl border-2 border-green-500">
+      <div className="flex justify-center items-baseline space-x-3">
+        {/* Digital Time */}
+        <div className="font-mono text-3xl font-bold text-green-400 digital-text">
+          {currentDateTime.getHours().toString().padStart(2, '0')}
+          <span className="text-green-500 animate-pulse mx-1">:</span>
+          {currentDateTime.getMinutes().toString().padStart(2, '0')}
+          <span className="text-green-500 animate-pulse mx-1">:</span>
+          {currentDateTime.getSeconds().toString().padStart(2, '0')}
+        </div>
+        
+        {/* Period */}
+        <div className="text-lg font-mono text-yellow-400">
+          {currentDateTime.getHours() >= 12 ? 'PM' : 'AM'}
+        </div>
+      </div>
+    </div>
+    
+    {/* Status Bar */}
+    <div className="mt-3 flex justify-between items-center text-xs text-gray-500 font-mono">
+      <div>🟢 LIVE</div>
+    </div>
+  </div>
+</div>
+
+{/* Add this CSS for glow effect */}
+<style jsx>{`
+  .glow {
+    box-shadow: 0 0 10px rgba(72, 187, 120, 0.3);
+  }
+  .digital-text {
+    text-shadow: 0 0 10px rgba(72, 187, 120, 0.7);
+  }
+`}</style>
+              
+              <div className="text-xs text-blue-500 mt-2">Thermo Packers Guard Entry</div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -671,10 +888,10 @@ const GuardEntryForm = () => {
                 </div>
               )}
 
-              {/* Purchase Products with Search */}
+              {/* Purchase Products with Search and Manual Entry */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Purchase Products
+                  Purchase Products/Material Supplied
                 </label>
                 
                 {/* Product Search Input */}
@@ -686,9 +903,10 @@ const GuardEntryForm = () => {
                     onFocus={() => setShowProductDropdown(true)}
                     placeholder="Search products by name or code..."
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                    disabled={showManualProduct}
                   />
                   
-                  {productSearchQuery && (
+                  {productSearchQuery && !showManualProduct && (
                     <button
                       type="button"
                       onClick={clearProductSearch}
@@ -698,84 +916,149 @@ const GuardEntryForm = () => {
                     </button>
                   )}
                   
-                  {!productSearchQuery && (
+                  {!productSearchQuery && !showManualProduct && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                       🔍
                     </div>
                   )}
 
-                  {/* Product Dropdown Results */}
-                  {showProductDropdown && filteredProducts.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredProducts.map(product => (
-                        <div
-                          key={product._id}
-                          onClick={() => handleProductSelect(product)}
-                          className="px-4 py-3 cursor-pointer hover:bg-blue-50 transition border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          {product.code && (
-                            <div className="text-sm text-gray-600">Code: {product.code}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Manual Product Toggle */}
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={toggleManualProduct}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      {showManualProduct ? 'Select from list' : 'Not in list? Add manually'}
+                    </button>
+                  </div>
 
-                  {/* No Products Found Message */}
-                  {showProductDropdown && productSearchQuery && filteredProducts.length === 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
-                      No products found matching "{productSearchQuery}"
+                  {showManualProduct ? (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        value={manualProductName}
+                        onChange={(e) => setManualProductName(e.target.value)}
+                        placeholder="Enter product name manually..."
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddManualProduct}
+                        className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+                      >
+                        ➕ Add Manual Product
+                      </button>
                     </div>
+                  ) : (
+                    <>
+                      {/* Product Dropdown Results */}
+                      {showProductDropdown && filteredProducts.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {filteredProducts.map(product => (
+                            <div
+                              key={product._id}
+                              onClick={() => handleProductSelect(product)}
+                              className="px-4 py-3 cursor-pointer hover:bg-blue-50 transition border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="font-medium text-gray-900">{product.name}</div>
+                              {product.code && (
+                                <div className="text-sm text-gray-600">Code: {product.code}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No Products Found Message */}
+                      {showProductDropdown && productSearchQuery && filteredProducts.length === 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+                          No products found matching "{productSearchQuery}"
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
-                {/* Selected Products List */}
-                {selectedProducts.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-700">Selected Products:</h4>
-                    {selectedProducts.map((item) => (
-                      <div key={item.product._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium">{item.product.name}</div>
-                          {item.product.code && (
-                            <div className="text-sm text-gray-600">Code: {item.product.code}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
-                            className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center"
-                          >
-                            -
-                          </button>
-                          <span className="w-12 text-center font-medium">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
-                            className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveProduct(item.product._id)}
-                            className="ml-2 text-red-600 hover:text-red-800"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+  {/* Selected Products Display */}
+{selectedProducts.length > 0 && (
+  <div className="mt-4 space-y-3">
+    <h4 className="font-medium text-gray-700">Selected Products ({selectedProducts.length}):</h4>
+    {selectedProducts.map((item, index) => (
+      <div key={item.product._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+        <div className="flex-1">
+          <div className="font-medium flex items-center gap-2">
+            {item.product.name}
+            {item.product.isManual && (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
+            )}
+          </div>
+          {item.product.code && !item.product.isManual && (
+            <div className="text-sm text-gray-600">Code: {item.product.code}</div>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white px-3 py-1 rounded border">
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
+              className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
+            >
+              -
+            </button>
+            <span className="w-8 text-center font-medium">{item.quantity}</span>
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
+              className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
+            >
+              +
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRemoveProduct(item.product._id)}
+            className="text-red-600 hover:text-red-800 p-1"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    ))}
+    <div className="flex justify-between items-center p-2">
+      <span className="text-sm text-gray-600">
+        Total items: {selectedProducts.reduce((sum, item) => sum + item.quantity, 0)}
+      </span>
+      <button
+        type="button"
+        onClick={() => setSelectedProducts([])}
+        className="text-red-600 hover:text-red-800 text-sm font-medium"
+      >
+        Clear All Products
+      </button>
+    </div>
+  </div>
+)}
+              </div>
+
+              {/* Remarks Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remarks (Can Mention Quantity or Any Other Details)
+                </label>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Enter any additional remarks or notes..."
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
               </div>
 
               {/* Photo Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Click Live Pictures/Upload Photos (Max 5) *
+                  Click Live Pictures of Material & Bill copy/Upload Photos (Max 5) *
                 </label>
                 <input
                   type="file"
@@ -837,6 +1120,7 @@ const GuardEntryForm = () => {
               <p>📍 All entries are automatically timestamped</p>
               <p>🔍 Type to search suppliers/customers/products by name</p>
               <p>✏️ Can manually enter supplier/customer names if not in list</p>
+              <p>✏️ Can manually enter product/material names if not in list</p>
               <p className="font-medium text-blue-600 mt-2">Current Entry: {entryNumber}</p>
             </div>
           </div>

@@ -5,11 +5,12 @@ import Swal from "sweetalert2";
 
 export default function EarthingMaintenance() {
   // Unit selection states
-  const [activeUnit, setActiveUnit] = useState(null);
+  const [activeUnit, setActiveUnit] = useState('unit1');
   const [selectedEarthings, setSelectedEarthings] = useState([]);
   const [unit1Earthings] = useState(Array.from({ length: 18 }, (_, i) => `E${i + 1}`));
   const [unit3Earthings] = useState(Array.from({ length: 3 }, (_, i) => `E${i + 1}`));
-  
+  // Add this state for showing/hiding bulk generation
+const [showBulkGeneration, setShowBulkGeneration] = useState(false);
   // Table data state
   const [tableData, setTableData] = useState([]);
   const [files, setFiles] = useState([]);
@@ -30,26 +31,49 @@ export default function EarthingMaintenance() {
   const [existingFiles, setExistingFiles] = useState([]);
   const [deletingFiles, setDeletingFiles] = useState({});
 
-  // Fetch existing logs
-  useEffect(() => {
-    if (!activeUnit) {
-      fetchLogs(page);
-    }
-  }, [page, activeUnit]);
+ // Fetch existing logs - FIXED VERSION
+useEffect(() => {
+  fetchLogs(page);
+}, [page, activeUnit]);
 
-  // Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
-  const convertToYYYYMMDD = (dateString) => {
-    if (!dateString) return "";
+// Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
+const convertToYYYYMMDD = (dateString) => {
+  if (!dateString) return "";
+  const [day, month, year] = dateString.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+// Helper function to convert yyyy-mm-dd to dd/mm/yyyy
+const convertToDDMMYYYY = (dateString) => {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split('-');
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+};
+
+// Helper function to validate date (not future)
+const isValidDate = (dateString) => {
+  if (!dateString) return false;
+  
+  try {
     const [day, month, year] = dateString.split('/');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  };
+    const selectedDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
+    return selectedDate <= today;
+  } catch (error) {
+    return false;
+  }
+};
 
-  // Helper function to convert yyyy-mm-dd to dd/mm/yyyy
-  const convertToDDMMYYYY = (dateString) => {
-    if (!dateString) return "";
-    const [year, month, day] = dateString.split('-');
-    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-  };
+// Helper function to get today's date in dd/mm/yyyy format
+const getTodayDate = () => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
   // Fetch logs with pagination and date filter
   const fetchLogs = async (pageNum, dateFilter = "") => {
@@ -75,12 +99,12 @@ export default function EarthingMaintenance() {
   };
 
   // Handle unit selection
-  const handleUnitSelect = (unit) => {
-    setActiveUnit(unit);
-    setSelectedEarthings([]);
-    setTableData([]);
-  };
-
+// Handle unit selection
+const handleUnitSelect = (unit) => {
+  setActiveUnit(unit);
+  setSelectedEarthings([]);
+  setTableData([]);
+};
   // Handle earthing checkbox selection
   const handleEarthingSelect = (earthing) => {
     setSelectedEarthings(prev => {
@@ -92,26 +116,27 @@ export default function EarthingMaintenance() {
     });
   };
 
-  // Generate table for selected earthings
-  const generateTable = () => {
-    if (selectedEarthings.length === 0) {
-      Swal.fire("Info", "Please select at least one earthing", "info");
-      return;
-    }
+// Generate table for selected earthings
+const generateTable = () => {
+  if (selectedEarthings.length === 0) {
+    Swal.fire("Info", "Please select at least one earthing", "info");
+    return;
+  }
 
-    const newTableData = selectedEarthings.map(earthing => ({
-      id: Math.random().toString(36).substr(2, 9),
-      earthingNo: earthing,
-      connectedTo: "",
-      location: `${activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} - ${earthing}`,
-      waterTop: "No",
-      earthingCurrent: "",
-      remarks: "",
-      files: []
-    }));
+  const newTableData = selectedEarthings.map(earthing => ({
+    id: Math.random().toString(36).substr(2, 9),
+    earthingNo: earthing,
+    date: getTodayDate(),
+    connectedTo: connectedToData[activeUnit][earthing] || "", // Pre-fill with connected to data
+    location: '',
+    waterTop: "No",
+    earthingCurrent: "",
+    remarks: "",
+    files: []
+  }));
 
-    setTableData(newTableData);
-  };
+  setTableData(newTableData);
+};
 
   // Handle form input changes for table rows
   const handleTableInputChange = (id, field, value) => {
@@ -149,18 +174,18 @@ export default function EarthingMaintenance() {
           uploadedUrls = uploadRes.data.urls;
         }
 
-        // Submit row data
-        await axiosInstance.post("/earthing", {
-          earthingNo: row.earthingNo,
-          date: new Date().toLocaleDateString('en-GB'),
-          waterTopUp: row.waterTop,
-          earthingCurrent: row.earthingCurrent,
-          sign: "",
-          remarks: row.remarks,
-          connectedTo: row.connectedTo,
-          location: row.location,
-          uploadedFiles: uploadedUrls,
-        });
+     // Submit row data - USE THE SELECTED DATE FROM THE DATE PICKER
+await axiosInstance.post("/earthing", {
+  earthingNo: row.earthingNo,
+  date: row.date, // Use the actual date from the date picker input
+  waterTopUp: row.waterTop,
+  earthingCurrent: row.earthingCurrent,
+  sign: "",
+  remarks: row.remarks,
+  connectedTo: row.connectedTo,
+  location: row.location,
+  uploadedFiles: uploadedUrls,
+});
       }
 
       Swal.fire("Success!", "All earthing entries saved successfully", "success");
@@ -198,20 +223,21 @@ export default function EarthingMaintenance() {
   };
 
   // Editing functions
-  const startEditing = (entry) => {
-    setEditingId(entry._id);
-    setEditForm({
-      earthingNo: entry.earthingNo,
-      waterTopUp: entry.waterTopUp,
-      earthingCurrent: entry.earthingCurrent,
-      sign: entry.sign,
-      remarks: entry.remarks,
-      connectedTo: entry.connectedTo,
-      location: entry.location,
-    });
-    setExistingFiles(entry.uploadedFiles || []);
-    setEditFiles([]);
-  };
+const startEditing = (entry) => {
+  setEditingId(entry._id);
+  setEditForm({
+    earthingNo: entry.earthingNo,
+    date: entry.date, // Include date
+    waterTopUp: entry.waterTopUp,
+    earthingCurrent: entry.earthingCurrent,
+    sign: entry.sign,
+    remarks: entry.remarks,
+    connectedTo: entry.connectedTo,
+    location: entry.location,
+  });
+  setExistingFiles(entry.uploadedFiles || []);
+  setEditFiles([]);
+};
 
   const saveEdit = async (id) => {
     try {
@@ -441,18 +467,18 @@ const submitSingleRow = async (row) => {
       uploadedUrls = uploadRes.data.urls;
     }
 
-    // Submit row data
-    await axiosInstance.post("/earthing", {
-      earthingNo: row.earthingNo,
-      date: new Date().toLocaleDateString('en-GB'),
-      waterTopUp: row.waterTop,
-      earthingCurrent: row.earthingCurrent,
-      sign: "",
-      remarks: row.remarks,
-      connectedTo: row.connectedTo,
-      location: row.location,
-      uploadedFiles: uploadedUrls,
-    });
+ // Submit row data - USE THE SELECTED DATE FROM THE DATE PICKER
+await axiosInstance.post("/earthing", {
+  earthingNo: row.earthingNo,
+  date: row.date, // Use the actual date from the date picker input
+  waterTopUp: row.waterTop,
+  earthingCurrent: row.earthingCurrent,
+  sign: "",
+  remarks: row.remarks,
+  connectedTo: row.connectedTo,
+  location: row.location,
+  uploadedFiles: uploadedUrls,
+});
 
     // Remove the submitted row from table
     setTableData(prev => prev.filter(tableRow => tableRow.id !== row.id));
@@ -473,154 +499,263 @@ const submitSingleRow = async (row) => {
   }
 };
 
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <InternalNavbar />
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-center text-yellow-700 mb-8">
-          Earthing Maintenance System
-        </h1>
-
-        {/* Unit Selection */}
-        {!activeUnit && (
-          <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold text-center mb-6">Select Unit</h2>
-            <div className="flex justify-center gap-6">
-              <button
-                onClick={() => handleUnitSelect('unit1')}
-                className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition text-xl font-semibold"
-              >
-                Unit 1
-              </button>
-              <button
-                onClick={() => handleUnitSelect('unit3')}
-                className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition text-xl font-semibold"
-              >
-                Unit 3
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Unit Interface */}
-        {activeUnit && (
-          <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">
-                {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} - Earthings
-              </h2>
-              <button
-                onClick={() => {
-                  setActiveUnit(null);
-                  setSelectedEarthings([]);
-                  setTableData([]);
-                }}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
-              >
-                Back to Unit Selection
-              </button>
-            </div>
-
-{/* Layout Image */}
-<div className="mb-6">
-  <h3 className="text-lg font-semibold mb-2">
-    {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} - Layout Diagrams
-    {activeUnit === 'unit3' && ' (2 Views)'}
-  </h3>
+// Enhanced add new row function with images in modal
+const addNewRow = async () => {
+  const earthings = activeUnit === 'unit1' ? unit1Earthings : unit3Earthings;
+  const usedEarthings = tableData.map(row => row.earthingNo);
+  const availableEarthings = earthings.filter(earthing => !usedEarthings.includes(earthing));
   
-  {activeUnit === 'unit1' ? (
-    // Unit 1 - Single Layout Image
-    <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-      <div className="bg-blue-600 text-white text-center py-2 font-medium">
-        Unit 1 - Layout Diagram
-      </div>
-      <div className="p-4">
-        <img 
-          src={layoutImages.unit1}
-          alt="Unit 1 Earthing Layout"
-          className="w-full h-auto max-h-96 object-contain mx-auto border rounded"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'block';
-          }}
-        />
-        <div className="hidden p-8 text-center bg-gray-50 border rounded">
-          <div className="text-gray-500 mb-2">Unit 1 Layout Diagram</div>
-          <div className="text-sm text-gray-400">
-            Image: {layoutImages.unit1.replace('/images/', '')}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            Place your image in: public{layoutImages.unit1}
-          </div>
+  if (availableEarthings.length === 0) {
+    Swal.fire({
+      title: 'No Earthings Available',
+      text: `All ${activeUnit === 'unit1' ? '18' : '3'} earthings for ${activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} are already in the table.`,
+      icon: 'info',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  // Create custom modal with images
+  const { value: selectedEarthing } = await Swal.fire({
+    title: `<strong>Select Earthing for ${activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'}</strong>`,
+    html: `
+      <div class="text-left mb-4">
+        <p class="text-gray-600 mb-3">Choose which earthing to add:</p>
+        <div class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+          ${availableEarthings.map(earthing => `
+            <label class="cursor-pointer border rounded-lg p-2 hover:bg-blue-50 transition-colors earthing-option">
+              <input type="radio" name="earthing" value="${earthing}" class="hidden peer">
+              <div class="text-center peer-checked:bg-blue-100 peer-checked:border-blue-300 rounded p-1">
+                <img src="${earthingImages[activeUnit][earthing]}" 
+                     alt="${earthing}" 
+                     class="w-12 h-12 object-cover mx-auto rounded mb-1"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="hidden w-12 h-12 bg-gray-200 rounded items-center justify-center text-gray-500 text-xs mx-auto mb-1">
+                  ${earthing}
+                </div>
+                <div class="text-sm font-medium">${earthing}</div>
+              </div>
+            </label>
+          `).join('')}
         </div>
       </div>
-    </div>
-  ) : (
-    // Unit 3 - Two Layout Images
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Unit 3 - First Layout */}
-      <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-        <div className="bg-green-600 text-white text-center py-2 font-medium">
-          Unit 3 - Layout View 1
-        </div>
-        <div className="p-4">
-          <img 
-            src={layoutImages.unit3.image1}
-            alt="Unit 3 Earthing Layout - View 1"
-            className="w-full h-auto max-h-80 object-contain mx-auto border rounded"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block';
-            }}
-          />
-          <div className="hidden p-6 text-center bg-gray-50 border rounded">
-            <div className="text-gray-500 mb-2">Unit 3 Layout - View 1</div>
-            <div className="text-sm text-gray-400">
-              Image: {layoutImages.unit3.image1.replace('/images/', '')}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              Place your image in: public{layoutImages.unit3.image1}
-            </div>
-          </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Add Earthing',
+    cancelButtonText: 'Cancel',
+    width: '600px',
+    didOpen: () => {
+      // Add click handlers for the custom radio buttons
+      const options = document.querySelectorAll('.earthing-option');
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          // Remove previous selection
+          options.forEach(opt => {
+            opt.querySelector('input').checked = false;
+            opt.querySelector('div').classList.remove('bg-blue-100', 'border-blue-300');
+          });
+          // Select current
+          option.querySelector('input').checked = true;
+          option.querySelector('div').classList.add('bg-blue-100', 'border-blue-300');
+        });
+      });
+    },
+    preConfirm: () => {
+      const selected = document.querySelector('input[name="earthing"]:checked');
+      if (!selected) {
+        Swal.showValidationMessage('Please select an earthing');
+        return false;
+      }
+      return selected.value;
+    }
+  });
+
+  if (selectedEarthing) {
+const newRow = {
+  id: Math.random().toString(36).substr(2, 9),
+  earthingNo: selectedEarthing,
+  date: getTodayDate(),
+  connectedTo: connectedToData[activeUnit][selectedEarthing] || "", // Pre-fill with connected to data
+  location: '',
+  waterTop: "No",
+  earthingCurrent: "",
+  remarks: "",
+  files: []
+};
+
+    setTableData(prev => [...prev, newRow]);
+    
+    if (!selectedEarthings.includes(selectedEarthing)) {
+      setSelectedEarthings(prev => [...prev, selectedEarthing]);
+    }
+
+    // Auto-scroll to the new row
+    setTimeout(() => {
+      const newRowElement = document.getElementById(`row-${newRow.id}`);
+      if (newRowElement) {
+        newRowElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+        newRowElement.classList.add('bg-blue-50', 'border-2', 'border-blue-200');
+        setTimeout(() => {
+          newRowElement.classList.remove('bg-blue-50', 'border-2', 'border-blue-200');
+        }, 3000);
+      }
+    }, 100);
+
+    Swal.fire({
+      title: 'Earthing Added!',
+      text: `${selectedEarthing} has been added to the table.`,
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }
+};
+
+// Add connected to data for both units
+const connectedToData = {
+  unit1: {
+    E1: 'secondary silo',
+    E2: 'primary silos',
+    E3: 'scrap silo & pre-expander-1',
+    E4: 'boiler to pump section',
+    E5: 'block machine',
+    E6: 'pre-expander 2',
+    E7: '120 HP compressor',
+    E8: '30 HP compressor',
+    E9: '60 HP compressor',
+    E10: '',
+    E11: '30 HP compressor',
+    E12: '',
+    E13: 'solar panel 1',
+    E14: 'solar panel 2',
+    E15: 'servo TP unit 1',
+    E16: 'generators',
+    E17: 'solar panel box',
+    E18: 'solar panel box'
+  },
+  unit3: {
+    E1: '',
+    E2: '',
+    E3: ''
+  }
+};
+
+return (
+  <div className="min-h-screen bg-slate-100">
+    <InternalNavbar />
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-3xl font-bold text-center text-yellow-700 mb-8">
+        Earthing Maintenance System
+      </h1>
+
+      {/* Unit Tabs */}
+      <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
+        <h2 className="text-2xl font-bold text-center mb-6">Earthing Maintenance System</h2>
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => setActiveUnit('unit1')}
+            className={`px-8 py-3 rounded-lg transition text-lg font-semibold ${
+              activeUnit === 'unit1' 
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Unit 1
+          </button>
+          <button
+            onClick={() => setActiveUnit('unit3')}
+            className={`px-8 py-3 rounded-lg transition text-lg font-semibold ${
+              activeUnit === 'unit3' 
+                ? 'bg-green-600 text-white shadow-lg' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Unit 3
+          </button>
         </div>
       </div>
 
-      {/* Unit 3 - Second Layout */}
-      <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-        <div className="bg-green-600 text-white text-center py-2 font-medium">
-          Unit 3 - Layout View 2
-        </div>
-        <div className="p-4">
-          <img 
-            src={layoutImages.unit3.image2}
-            alt="Unit 3 Earthing Layout - View 2"
-            className="w-full h-auto max-h-80 object-contain mx-auto border rounded"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block';
-            }}
-          />
-          <div className="hidden p-6 text-center bg-gray-50 border rounded">
-            <div className="text-gray-500 mb-2">Unit 3 Layout - View 2</div>
-            <div className="text-sm text-gray-400">
-              Image: {layoutImages.unit3.image2.replace('/images/', '')}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              Place your image in: public{layoutImages.unit3.image2}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )}
-</div>
+      {/* Main Earthing Maintenance Form */}
+      <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
+       
 
-            {/* Earthings Selection */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Select Earthings</h3>
+        {/* Layout Diagrams */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-2">
+            {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} - Layout Diagrams
+            {activeUnit === 'unit3' && ' (2 Views)'}
+          </h3>
+          
+          {activeUnit === 'unit1' ? (
+            // Unit 1 - Single Layout Image
+            <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
+              <div className="bg-blue-600 text-white text-center py-2 font-medium">
+                Unit 1 - Layout Diagram
+              </div>
+              <div className="p-4">
+                <img 
+                  src={layoutImages.unit1}
+                  alt="Unit 1 Earthing Layout"
+                  className="w-full h-auto max-h-96 object-contain mx-auto border rounded"
+                />
+              </div>
+            </div>
+          ) : (
+            // Unit 3 - Two Layout Images
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Unit 3 - First Layout */}
+              <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="bg-green-600 text-white text-center py-2 font-medium">
+                  Unit 3 - Layout View 1
+                </div>
+                <div className="p-4">
+                  <img 
+                    src={layoutImages.unit3.image1}
+                    alt="Unit 3 Earthing Layout - View 1"
+                    className="w-full h-auto max-h-80 object-contain mx-auto border rounded"
+                  />
+                </div>
+              </div>
+
+              {/* Unit 3 - Second Layout */}
+              <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="bg-green-600 text-white text-center py-2 font-medium">
+                  Unit 3 - Layout View 2
+                </div>
+                <div className="p-4">
+                  <img 
+                    src={layoutImages.unit3.image2}
+                    alt="Unit 3 Earthing Layout - View 2"
+                    className="w-full h-auto max-h-80 object-contain mx-auto border rounded"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Earthings Selection - Bulk Generation */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Bulk Generation</h3>
+            <button
+              onClick={() => setShowBulkGeneration(!showBulkGeneration)}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm"
+            >
+              {showBulkGeneration ? 'Hide' : 'Show'} Bulk Selection
+            </button>
+          </div>
+          
+          {showBulkGeneration && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h4 className="text-md font-semibold mb-3">Select Earthings for Bulk Generation</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                 {(activeUnit === 'unit1' ? unit1Earthings : unit3Earthings).map((earthing) => (
-                  <label key={earthing} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50">
+                  <label key={earthing} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50 bg-white">
                     <input
                       type="checkbox"
                       checked={selectedEarthings.includes(earthing)}
@@ -631,570 +766,535 @@ const submitSingleRow = async (row) => {
                   </label>
                 ))}
               </div>
-              <div className="mt-2 text-sm text-gray-600">
-                Selected: {selectedEarthings.length} earthings
-                {selectedEarthings.length > 0 && ` (${selectedEarthings.join(', ')})`}
-              </div>
-            </div>
-
-            {/* Generate Table Button */}
-            {selectedEarthings.length > 0 && !tableData.length && (
-              <div className="mb-6">
+              <div className="mt-3 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  Selected: {selectedEarthings.length} earthings
+                  {selectedEarthings.length > 0 && ` (${selectedEarthings.join(', ')})`}
+                </div>
                 <button
                   onClick={generateTable}
-                  className="bg-yellow-600 text-white px-6 py-2 rounded hover:bg-yellow-700 transition"
+                  disabled={selectedEarthings.length === 0}
+                  className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
-                  Generate Table for Selected Earthings ({selectedEarthings.length})
+                  Generate Selected ({selectedEarthings.length})
                 </button>
               </div>
-            )}
+            </div>
+          )}
+        </div>
 
-{/* Dynamic Table */}
-{tableData.length > 0 && (
-  <div className="mt-6">
-    <div className="flex justify-between items-center mb-3">
-      <h3 className="text-lg font-semibold">Earthing Maintenance Form</h3>
-      <div className="flex gap-2">
-        <button
-          onClick={() => {
-            if (tableData.length > 0) {
-              Swal.fire({
-                title: 'Clear all rows?',
-                text: "This will remove all earthings from the form!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, clear all!',
-                cancelButtonText: 'Cancel'
-              }).then((result) => {
-                if (result.isConfirmed) {
-                  setTableData([]);
-                  setSelectedEarthings([]);
-                  Swal.fire('Cleared!', 'All earthings removed from form.', 'success');
-                }
-              });
-            }
-          }}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm"
-        >
-          Clear All
-        </button>
-        <button
-          onClick={submitAllData}
-          disabled={loading}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-50 text-sm"
-        >
-          {loading ? "Saving All..." : "Submit All Data"}
-        </button>
-      </div>
-    </div>
+        {/* Main Table - Shows both saved data and new entries */}
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              Earthing Maintenance Data - {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'}
+           
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={submitAllData}
+                disabled={loading || tableData.length === 0}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-50 text-sm"
+              >
+                {loading ? "Saving All..." : `Save All New (${tableData.length})`}
+              </button>
+            </div>
+          </div>
 
-    {/* Earthing Picture Plates */}
-    <div className="mb-6">
-      <h4 className="text-md font-semibold mb-3 text-center">
-        Selected Earthing Plates - {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} ({tableData.length})
-      </h4>
-      <div className="flex flex-wrap justify-center gap-4 p-4 bg-gray-50 rounded-lg border">
-        {tableData.map((row) => (
-          <div key={row.id} className="text-center relative">
-            <div 
-              className="border-2 border-yellow-500 rounded-lg p-2 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-yellow-600 transition-all duration-200 transform hover:scale-105"
-              onClick={() => openEarthingImageModal(earthingImages[activeUnit][row.earthingNo], row.earthingNo)}
-              title={`Click to view ${row.earthingNo} plate`}
-            >
-              <div className="relative group">
-                <img 
-                  src={earthingImages[activeUnit][row.earthingNo]}
-                  alt={`${row.earthingNo} Plate`}
-                  className="w-24 h-24 object-cover mx-auto rounded group-hover:brightness-110 transition-all duration-200"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded items-center justify-center text-gray-500 text-sm">
-                  No Image
-                </div>
-             
-              </div>
-              <div className="font-semibold text-sm mt-1 text-gray-700 bg-yellow-50 py-1 rounded">
-                {row.earthingNo}
+          {/* Earthing Picture Plates - Show when new rows exist */}
+          {tableData.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-md font-semibold mb-3 text-center">
+                New Earthing Plates - {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} ({tableData.length})
+              </h4>
+              <div className="flex flex-wrap justify-center gap-4 p-4 bg-gray-50 rounded-lg border">
+                {tableData.map((row) => (
+                  <div key={row.id} className="text-center relative">
+                    <div 
+                      className="border-2 border-yellow-500 rounded-lg p-2 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-yellow-600 transition-all duration-200 transform hover:scale-105"
+                      onClick={() => openEarthingImageModal(earthingImages[activeUnit][row.earthingNo], row.earthingNo)}
+                      title={`Click to view ${row.earthingNo} plate`}
+                    >
+                      <div className="relative group">
+                        <img 
+                          src={earthingImages[activeUnit][row.earthingNo]}
+                          alt={`${row.earthingNo} Plate`}
+                          className="w-24 h-24 object-cover mx-auto rounded group-hover:brightness-110 transition-all duration-200"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="hidden w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded items-center justify-center text-gray-500 text-sm">
+                          No Image
+                        </div>
+                      </div>
+                      <div className="font-semibold text-sm mt-1 text-gray-700 bg-yellow-50 py-1 rounded">
+                        {row.earthingNo}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTableRow(row.id);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
+                      title="Remove this earthing"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
-            {/* Delete button on plate */}
+          )}
+ <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">
+            {activeUnit === 'unit1' ? 'Unit 1' : 'Unit 3'} - Earthing Maintenance
+          </h2>
+          <div className="flex gap-3">
             <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent triggering the image modal
-                deleteTableRow(row.id);
-              }}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
-              title="Remove this earthing"
+              onClick={addNewRow}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition flex items-center gap-2"
             >
-              ×
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add New Row
             </button>
           </div>
-        ))}
-      </div>
-    </div>
-
-    <div className="overflow-x-auto">
-      <table className="min-w-full border border-slate-300 text-sm">
-        <thead className="bg-yellow-600 text-white">
-          <tr>
-            <th className="border px-3 py-2">Earthing No</th>
-            <th className="border px-3 py-2">Connected To</th>
-            <th className="border px-3 py-2">Location</th>
-            <th className="border px-3 py-2">Water Top</th>
-            <th className="border px-3 py-2">Earthing Current</th>
-            <th className="border px-3 py-2">Photo of Water Top Up</th>
-            <th className="border px-3 py-2">Remarks</th>
-            <th className="border px-3 py-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableData.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-              <td className="border px-3 py-2 font-semibold bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
-                    onClick={() => openEarthingImageModal(earthingImages[activeUnit][row.earthingNo], row.earthingNo)}
-                    title={`View ${row.earthingNo} plate`}
-                  >
-                    <img 
-                      src={earthingImages[activeUnit][row.earthingNo]}
-                      alt={`${row.earthingNo} Icon`}
-                      className="w-8 h-8 object-cover rounded border"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
-                    />
-                    <div className="hidden w-8 h-8 bg-gray-300 rounded text-xs flex items-center justify-center border">
-                      {row.earthingNo}
-                    </div>
+        </div>
+          {/* Main Combined Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-slate-300 text-sm">
+              <thead className="bg-yellow-600 text-white">
+                <tr>
+                  <th className="border px-3 py-2">Status</th>
+                  <th className="border px-3 py-2">Earthing No</th>
+                  <th className="border px-3 py-2">Date</th>
+                  <th className="border px-3 py-2">Connected To</th>
+                  <th className="border px-3 py-2">Location</th>
+                  <th className="border px-3 py-2">Water Top</th>
+                  <th className="border px-3 py-2">Earthing Current</th>
+                  <th className="border px-3 py-2">Photo of Water Top Up and Location</th>
+                  <th className="border px-3 py-2">Remarks</th>
+                  <th className="border px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Show empty state when no data */}
+                {tableData.length === 0 && filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="border px-3 py-8 text-center text-gray-500">
+                      No earthing data found. Add new earthings using the "Add New Row" button above.
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                  {/* Saved Data (from database) */}
+{/* Saved Data (from database) - SMART FILTERING */}
+{filteredLogs
+  .filter(entry => {
+    const earthingNo = entry.earthingNo;
+    
+    if (activeUnit === 'unit1') {
+      // Unit 1: E1-E18, but exclude E1-E3 if they're specifically Unit 3 entries
+      // You can identify Unit 3 entries by location or other fields
+      const isLikelyUnit3 = entry.location && entry.location.includes('Unit 3');
+      return (earthingNo.match(/^E(1[0-8]|[4-9])$/) || earthingNo === 'E1' || earthingNo === 'E2' || earthingNo === 'E3') && !isLikelyUnit3;
+    } else {
+      // Unit 3: Only E1-E3 and specifically marked as Unit 3
+      const isLikelyUnit3 = entry.location && entry.location.includes('Unit 3');
+      return (earthingNo === 'E1' || earthingNo === 'E2' || earthingNo === 'E3') && isLikelyUnit3;
+    }
+  })
+  .map((entry) => {
+    const isEditing = editingId === entry._id;
+    
+    return (
+      <tr key={entry._id} className="hover:bg-gray-50 transition-colors bg-green-50">
+        <td className="border px-3 py-2 text-center">
+          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+            {isEditing ? 'Editing' : 'Saved'}
+          </span>
+        </td>
+        <td className="border px-3 py-2 font-semibold">
+          <div className="flex items-center gap-2">
+            <div 
+              className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
+              onClick={() => openEarthingImageModal(earthingImages[activeUnit][entry.earthingNo], entry.earthingNo)}
+              title={`View ${entry.earthingNo} plate`}
+            >
+              <img 
+                src={earthingImages[activeUnit][entry.earthingNo]}
+                alt={`${entry.earthingNo} Icon`}
+                className="w-8 h-8 object-cover rounded border"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <div className="hidden w-8 h-8 bg-gray-300 rounded text-xs flex items-center justify-center border">
+                {entry.earthingNo}
+              </div>
+            </div>
+            <span className="text-gray-800">{entry.earthingNo}</span>
+          </div>
+        </td>
+<td className="border px-3 py-2">
+  {isEditing ? (
+    <input
+      type="date"
+      value={convertToYYYYMMDD(editForm.date || entry.date)}
+      onChange={(e) => {
+        const selectedDate = convertToDDMMYYYY(e.target.value);
+        if (isValidDate(selectedDate)) {
+          setEditForm({ ...editForm, date: selectedDate });
+        } else {
+          Swal.fire('Invalid Date', 'Please select a date that is not in the future.', 'warning');
+        }
+      }}
+      max={new Date().toISOString().split('T')[0]}
+      className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    />
+  ) : (
+    entry.date
+  )}
+</td>        
+      {/* Connected To - Editable when editing */}
+<td className="border px-3 py-2">
+  {isEditing ? (
+    <input
+      type="text"
+      value={editForm.connectedTo || ''}
+      onChange={(e) => setEditForm({ ...editForm, connectedTo: e.target.value })}
+      className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      placeholder="Connected to..."
+    />
+  ) : (
+    entry.connectedTo || connectedToData[activeUnit][entry.earthingNo] || '-'
+  )}
+</td>
+        
+        {/* Location - Editable when editing */}
+        <td className="border px-3 py-2">
+          {isEditing ? (
+        <input
+  type="text"
+  value={editForm.location || ''}
+  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  placeholder="Enter location..."
+/>
+          ) : (
+            entry.location || '-'
+          )}
+        </td>
+        
+        {/* Water Top - Editable when editing */}
+        <td className="border px-3 py-2">
+          {isEditing ? (
+            <select
+              value={editForm.waterTopUp}
+              onChange={(e) => setEditForm({ ...editForm, waterTopUp: e.target.value })}
+              className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          ) : (
+            entry.waterTopUp
+          )}
+        </td>
+        
+        {/* Earthing Current - Editable when editing */}
+        <td className="border px-3 py-2">
+          {isEditing ? (
+            <input
+              type="text"
+              value={editForm.earthingCurrent}
+              onChange={(e) => setEditForm({ ...editForm, earthingCurrent: e.target.value })}
+              className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Current status..."
+            />
+          ) : (
+            entry.earthingCurrent || '-'
+          )}
+        </td>
+        
+        {/* Files - Editable when editing */}
+        <td className="border px-3 py-2">
+          {isEditing ? (
+            <div className="space-y-2">
+              {/* Existing files with delete option */}
+              <div className="flex flex-wrap gap-1 justify-center">
+                {existingFiles.map((url, i) => (
+                  <div key={`existing-${i}`} className="relative group">
+                    <button
+                      onClick={() => openFileModal(url)}
+                      className="border rounded p-1 hover:bg-gray-100 transition"
+                    >
+                      {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                        <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
+                      ) : (
+                        <span>📄</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => deleteExistingFile(url, entry._id)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete file"
+                    >
+                      ×
+                    </button>
                   </div>
-                  <span className="text-gray-800">{row.earthingNo}</span>
-                </div>
-              </td>
-              <td className="border px-3 py-2">
-                <input
-                  type="text"
-                  value={row.connectedTo}
-                  onChange={(e) => handleTableInputChange(row.id, 'connectedTo', e.target.value)}
-                  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Connected to..."
-                />
-              </td>
-              <td className="border px-3 py-2">
-                <input
-                  type="text"
-                  value={row.location}
-                  onChange={(e) => handleTableInputChange(row.id, 'location', e.target.value)}
-                  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </td>
-              <td className="border px-3 py-2">
-                <select
-                  value={row.waterTop}
-                  onChange={(e) => handleTableInputChange(row.id, 'waterTop', e.target.value)}
-                  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
-              </td>
-              <td className="border px-3 py-2">
-                <input
-                  type="text"
-                  value={row.earthingCurrent}
-                  onChange={(e) => handleTableInputChange(row.id, 'earthingCurrent', e.target.value)}
-                  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Current status..."
-                />
-              </td>
-              <td className="border px-3 py-2">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => handleFileUpload(row.id, Array.from(e.target.files))}
-                  className="w-full text-sm border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  multiple
-                />
-                {row.files && row.files.length > 0 && (
+                ))}
+              </div>
+              
+              {/* Add new files */}
+              <div className="text-center">
+                <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition inline-block">
+                  📁 Add Files
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf"
+                    onChange={handleEditFilesChange}
+                    className="hidden"
+                  />
+                </label>
+                {editFiles.length > 0 && (
                   <div className="text-xs text-gray-500 mt-1">
-                    {row.files.length} file(s) selected
+                    {editFiles.length} new file(s) selected
                   </div>
                 )}
-              </td>
-              <td className="border px-3 py-2">
-                <textarea
-                  value={row.remarks}
-                  onChange={(e) => handleTableInputChange(row.id, 'remarks', e.target.value)}
-                  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={2}
-                  placeholder="Remarks..."
-                />
-              </td>
-              <td className="border px-3 py-2">
-                <div className="flex flex-col gap-2">
-                  {/* Submit Individual Row Button */}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1 justify-center">
+              {entry.uploadedFiles?.map((url, i) => (
+                <div key={`view-${i}`} className="relative">
                   <button
-                    onClick={() => submitSingleRow(row)}
-                    disabled={loading}
-                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1 justify-center disabled:opacity-50"
-                    title="Submit this earthing data"
+                    onClick={() => openFileModal(url)}
+                    className="border rounded p-1 hover:bg-gray-100 transition"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {loading ? "Saving..." : "Submit"}
-                  </button>
-                  
-                  {/* Delete Row Button */}
-                  <button
-                    onClick={() => deleteTableRow(row.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors text-sm flex items-center gap-1 justify-center"
-                    title="Delete this row"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete
+                    {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                      <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
+                    ) : (
+                      <span>📄</span>
+                    )}
                   </button>
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              ))}
+              {(!entry.uploadedFiles || entry.uploadedFiles.length === 0) && (
+                <span className="text-gray-400 text-sm">No files</span>
+              )}
+            </div>
+          )}
+        </td>
+        
+        {/* Remarks - Editable when editing */}
+        <td className="border px-3 py-2">
+          {isEditing ? (
+            <textarea
+              value={editForm.remarks}
+              onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
+              className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={2}
+              placeholder="Remarks..."
+            />
+          ) : (
+            entry.remarks || '-'
+          )}
+        </td>
+        
+        {/* Actions */}
+        <td className="border px-3 py-2">
+          <div className="flex flex-col gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={() => saveEdit(entry._id)}
+                  disabled={loading}
+                  className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1 justify-center disabled:opacity-50"
+                  title="Save changes"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {loading ? "Saving..." : "Save"}
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-sm flex items-center gap-1 justify-center"
+                  title="Cancel editing"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => startEditing(entry)}
+                className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition-colors text-sm flex items-center gap-1 justify-center"
+                title="Edit this entry"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  })}
 
-    {/* Summary Footer */}
-    <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
-      <div>
-        Total rows: <span className="font-semibold">{tableData.length}</span>
-      </div>
-      <div className="flex gap-4">
-        <button
-          onClick={() => {
-            if (tableData.length > 0) {
-              Swal.fire({
-                title: 'Clear all rows?',
-                text: "This will remove all earthings from the form!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, clear all!',
-                cancelButtonText: 'Cancel'
-              }).then((result) => {
-                if (result.isConfirmed) {
-                  setTableData([]);
-                  setSelectedEarthings([]);
-                  Swal.fire('Cleared!', 'All earthings removed from form.', 'success');
-                }
-              });
-            }
-          }}
-          className="text-red-600 hover:text-red-700 underline text-sm"
-        >
-          Clear All Rows
-        </button>
-        <button
-          onClick={submitAllData}
-          disabled={loading}
-          className="text-green-600 hover:text-green-700 underline text-sm disabled:opacity-50"
-        >
-          {loading ? "Submitting All..." : "Submit All Data"}
-        </button>
+                    {/* New Unsaved Data */}
+                    {tableData.map((row, index) => (
+                      <tr key={row.id} id={`row-${row.id}`} className="hover:bg-gray-50 transition-colors bg-blue-50">
+                        <td className="border px-3 py-2 text-center">
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                            New
+                          </span>
+                        </td>
+                        <td className="border px-3 py-2 font-semibold">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
+                              onClick={() => openEarthingImageModal(earthingImages[activeUnit][row.earthingNo], row.earthingNo)}
+                              title={`View ${row.earthingNo} plate`}
+                            >
+                              <img 
+                                src={earthingImages[activeUnit][row.earthingNo]}
+                                alt={`${row.earthingNo} Icon`}
+                                className="w-8 h-8 object-cover rounded border"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div className="hidden w-8 h-8 bg-gray-300 rounded text-xs flex items-center justify-center border">
+                                {row.earthingNo}
+                              </div>
+                            </div>
+                            <span className="text-gray-800">{row.earthingNo}</span>
+                          </div>
+                        </td>
+                       <td className="border px-3 py-2">
+  <input
+    type="date"
+    value={convertToYYYYMMDD(row.date || getTodayDate())}
+    onChange={(e) => {
+      const selectedDate = convertToDDMMYYYY(e.target.value);
+      if (isValidDate(selectedDate)) {
+        handleTableInputChange(row.id, 'date', selectedDate);
+      } else {
+        Swal.fire('Invalid Date', 'Please select a date that is not in the future.', 'warning');
+      }
+    }}
+    max={new Date().toISOString().split('T')[0]}
+    className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  />
+</td>
+                      <td className="border px-3 py-2">
+  <input
+    type="text"
+    value={row.connectedTo || connectedToData[activeUnit][row.earthingNo] || ""}
+    onChange={(e) => handleTableInputChange(row.id, 'connectedTo', e.target.value)}
+    className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    placeholder="Connected to..."
+  />
+</td>
+                        <td className="border px-3 py-2">
+                      <input
+  type="text"
+  value={row.location}
+  onChange={(e) => handleTableInputChange(row.id, 'location', e.target.value)}
+  className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  placeholder="Enter location..."
+/>
+                        </td>
+                        <td className="border px-3 py-2">
+                          <select
+                            value={row.waterTop}
+                            onChange={(e) => handleTableInputChange(row.id, 'waterTop', e.target.value)}
+                            className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </td>
+                        <td className="border px-3 py-2">
+                          <input
+                            type="text"
+                            value={row.earthingCurrent}
+                            onChange={(e) => handleTableInputChange(row.id, 'earthingCurrent', e.target.value)}
+                            className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Current status..."
+                          />
+                        </td>
+                        <td className="border px-3 py-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload(row.id, Array.from(e.target.files))}
+                            className="w-full text-sm border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            multiple
+                          />
+                          {row.files && row.files.length > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {row.files.length} file(s) selected
+                            </div>
+                          )}
+                        </td>
+                        <td className="border px-3 py-2">
+                          <textarea
+                            value={row.remarks}
+                            onChange={(e) => handleTableInputChange(row.id, 'remarks', e.target.value)}
+                            className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            rows={2}
+                            placeholder="Remarks..."
+                          />
+                        </td>
+                        <td className="border px-3 py-2">
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => submitSingleRow(row)}
+                              disabled={loading}
+                              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1 justify-center disabled:opacity-50"
+                              title="Save this earthing data"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              {loading ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              onClick={() => deleteTableRow(row.id)}
+                              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors text-sm flex items-center gap-1 justify-center"
+                              title="Delete this row"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-)}
-          </div>
-        )}
-
-        {/* Existing Logs Table */}
-        {!activeUnit && (
-          <>
-            {/* Filter Section */}
-            <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-              <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Filter by Date</label>
-                  <input
-                    type="date"
-                    value={convertToYYYYMMDD(filterDate)}
-                    onChange={(e) => handleDateFilterChange(e.target.value)}
-                    className="border rounded p-2 w-full"
-                  />
-                </div>
-                {filterDate && (
-                  <button
-                    onClick={clearFilter}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition mt-6"
-                  >
-                    Clear Filter
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Logs Table */}
-            <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
-              <table className="min-w-full border border-slate-300 text-sm text-center">
-                <thead className="bg-yellow-600 text-white">
-                  <tr>
-                    <th className="border px-3 py-2">Earthing No</th>
-                    <th className="border px-3 py-2">Date</th>
-                    <th className="border px-3 py-2">Connected To</th>
-                    <th className="border px-3 py-2">Location</th>
-                    <th className="border px-3 py-2">Water Top Up</th>
-                    <th className="border px-3 py-2">Earthing Current</th>
-                    <th className="border px-3 py-2">Files</th>
-                    <th className="border px-3 py-2">Remarks</th>
-                    <th className="border px-3 py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="border px-3 py-4 text-gray-500">
-                        {filterDate ? `No entries found for ${filterDate}` : "No entries found"}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredLogs.map((entry) => {
-                      const isEditing = editingId === entry._id;
-                      return (
-                        <tr key={entry._id}>
-                          <td className="border px-3 py-2">{entry.earthingNo}</td>
-                          <td className="border px-3 py-2">{entry.date}</td>
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editForm.connectedTo || ''}
-                                onChange={(e) => setEditForm({ ...editForm, connectedTo: e.target.value })}
-                                className="w-full border rounded p-1"
-                              />
-                            ) : (
-                              entry.connectedTo || '-'
-                            )}
-                          </td>
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editForm.location || ''}
-                                onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                                className="w-full border rounded p-1"
-                              />
-                            ) : (
-                              entry.location || '-'
-                            )}
-                          </td>
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <select
-                                value={editForm.waterTopUp}
-                                onChange={(e) => setEditForm({ ...editForm, waterTopUp: e.target.value })}
-                                className="border rounded p-1 w-full"
-                              >
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                              </select>
-                            ) : (
-                              entry.waterTopUp
-                            )}
-                          </td>
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editForm.earthingCurrent}
-                                onChange={(e) => setEditForm({ ...editForm, earthingCurrent: e.target.value })}
-                                className="w-full border rounded p-1"
-                              />
-                            ) : (
-                              entry.earthingCurrent
-                            )}
-                          </td>
-                          {/* <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editForm.sign}
-                                onChange={(e) => setEditForm({ ...editForm, sign: e.target.value })}
-                                className="w-full border rounded p-1"
-                              />
-                            ) : (
-                              entry.sign
-                            )}
-                          </td> */}
-
-                          <td className="border px-3 py-2">
-                            <div className="flex flex-wrap gap-1 justify-center">
-                              {!isEditing && entry.uploadedFiles?.map((url, i) => (
-                                <div key={`view-${i}`} className="relative">
-                                  <button
-                                    onClick={() => openFileModal(url)}
-                                    className="border rounded p-1 hover:bg-gray-100 transition"
-                                  >
-                                    {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                                      <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
-                                    ) : (
-                                      <span>📄</span>
-                                    )}
-                                  </button>
-                                </div>
-                              ))}
-                              
-                              {isEditing && (
-                                <>
-                                  {existingFiles.map((url, i) => (
-                                    <div key={`existing-${i}`} className="relative group">
-                                      <button
-                                        onClick={() => openFileModal(url)}
-                                        className="border rounded p-1 hover:bg-gray-100 transition"
-                                      >
-                                        {url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                                          <img src={url} alt={`File ${i + 1}`} className="w-12 h-12 object-cover" />
-                                        ) : (
-                                          <span>📄</span>
-                                        )}
-                                      </button>
-                                      <button
-                                        onClick={() => deleteExistingFile(url, entry._id)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Delete file"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  ))}
-                                  
-                                  {editFiles.map((file, i) => (
-                                    <div key={`new-${i}`} className="relative group">
-                                      <div className="border rounded p-1 bg-blue-50">
-                                        {file.type.startsWith('image/') ? (
-                                          <img 
-                                            src={URL.createObjectURL(file)} 
-                                            alt={`New file ${i + 1}`} 
-                                            className="w-12 h-12 object-cover" 
-                                          />
-                                        ) : (
-                                          <span>📄 {file.name}</span>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() => removeNewFile(i)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Remove file"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  ))}
-                                  
-                                  <div className="flex items-center justify-center">
-                                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition">
-                                      📁 Add Files
-                                      <input
-                                        type="file"
-                                        multiple
-                                        accept="image/*,.pdf"
-                                        onChange={handleEditFilesChange}
-                                        className="hidden"
-                                      />
-                                    </label>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <textarea
-                                value={editForm.remarks}
-                                onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
-                                className="w-full border rounded p-1"
-                                rows={2}
-                              />
-                            ) : (
-                              entry.remarks
-                            )}
-                          </td>
-
-                          <td className="border px-3 py-2">
-                            {isEditing ? (
-                              <>
-                                <button
-                                  onClick={() => saveEdit(entry._id)}
-                                  className="bg-green-600 text-white px-2 py-1 rounded mr-2"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="bg-gray-400 text-white px-2 py-1 rounded"
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                onClick={() => startEditing(entry)}
-                                className="bg-yellow-500 text-white px-2 py-1 rounded"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {(!filterDate || totalPages > 1) && (
-              <div className="flex justify-center items-center gap-2 mt-4">
-                <button
-                  disabled={page === 1}
-                  onClick={() => {
-                    const newPage = page - 1;
-                    setPage(newPage);
-                    fetchLogs(newPage, filterDate);
-                  }}
-                  className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                <span>
-                  Page {page} of {totalPages} (Total: {totalRecords})
-                </span>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => {
-                    const newPage = page + 1;
-                    setPage(newPage);
-                    fetchLogs(newPage, filterDate);
-                  }}
-                  className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
+);
 }
