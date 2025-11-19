@@ -4,8 +4,10 @@ import axios from 'axios';
 import InternalNavbar from './InternalNavbar';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
+import { useUserContext } from '../context/UserContext';
 
 const OutgoingPayments = () => {
+    const { user } = useUserContext();
   const [payments, setPayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [editUploading, setEditUploading] = useState(false);
@@ -273,30 +275,40 @@ const handleFileUpload = async (e) => {
     }));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    await axiosInstance.post('/outgoing-payments', formData);
-    toast.success('Payment created successfully!');
-    
-    // Reset form with current date in proper format
-    setFormData(prev => ({
-      dateOfPayment: formatDateForInput(new Date()), // Use the new function
-      supplierName: '',
-      amount: '',
-      paymentAuthorizedBy: '',
-      modeOfPayment: '',
-      billNo: prev.billNo,
-      remarks: '',
-      files: []
-    }));
-    
-    fetchPayments(currentPage);
-  } catch (error) {
-    console.error('Error creating payment:', error);
-    toast.error('Error creating payment: ' + (error.response?.data?.message || error.message));
-  }
-};
+ const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Include user information in form data
+      const submissionData = {
+        ...formData,
+        paymentDoneBy: {
+          name: user?.name || 'Unknown',
+          email: user?.email || 'unknown@example.com'
+        }
+      };
+      
+      await axiosInstance.post('/outgoing-payments', submissionData);
+      toast.success('Payment created successfully!');
+      
+      // Reset form
+      setFormData(prev => ({
+        dateOfPayment: formatDateForInput(new Date()),
+        supplierName: '',
+        amount: '',
+        paymentAuthorizedBy: '',
+        modeOfPayment: '',
+        billNo: prev.billNo,
+        remarks: '',
+        files: []
+      }));
+      
+      fetchPayments(currentPage);
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      toast.error('Error creating payment: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
 
 const handleFileClick = (files, startIndex = 0) => {
   const file = files[startIndex];
@@ -1071,6 +1083,9 @@ const calculateNextBillNo = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mode
                   </th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      Payment Done By
+    </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Files
                   </th>
@@ -1161,6 +1176,12 @@ const calculateNextBillNo = () => {
                             <option value="cheque">Cheque</option>
                           </select>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  <div className="flex flex-col">
+    <span className="font-medium">{payment.paymentDoneBy?.name || 'N/A'}</span>
+    <span className="text-gray-500 text-xs">{payment.paymentDoneBy?.email || ''}</span>
+  </div>
+</td>
                         <td className="px-6 py-4">
                           {/* File Upload for Edit */}
                           <div className="space-y-2">
@@ -1236,6 +1257,12 @@ const calculateNextBillNo = () => {
                             {payment.modeOfPayment}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  <div className="flex flex-col">
+    <span className="font-medium">{payment.paymentDoneBy?.name || 'N/A'}</span>
+    <span className="text-gray-500 text-xs">{payment.paymentDoneBy?.email || ''}</span>
+  </div>
+</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {payment.files?.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
