@@ -1006,7 +1006,7 @@ useEffect(() => {
                       icon="📋"
                     >
                       <div className="text-lg font-semibold mb-2">
-                        Assign Dispatch Plan
+                        Daily Dispatch Plan
                       </div>
                       <div className="text-blue-100 text-sm opacity-90">
                         Plan and assign tasks to drivers/vehicles

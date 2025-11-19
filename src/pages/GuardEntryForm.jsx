@@ -99,9 +99,9 @@ const selectedProductsRef = useRef([]);
   }, [productSearchQuery, purchaseProducts]);
 
   // Add this useEffect to monitor selectedProducts state
-useEffect(() => {
-  console.log('selectedProducts state updated:', selectedProducts);
-}, [selectedProducts]);
+// useEffect(() => {
+//   console.log('selectedProducts state updated:', selectedProducts);
+// }, [selectedProducts]);
 
   const fetchSuppliers = async () => {
     try {
@@ -198,7 +198,6 @@ useEffect(() => {
 
 // Replace your handleAddManualProduct function
 const handleAddManualProduct = () => {
-  console.log('handleAddManualProduct called with:', manualProductName);
   
   if (!manualProductName.trim()) {
     Swal.fire('Warning', 'Please enter product name', 'warning');
@@ -211,15 +210,12 @@ const handleAddManualProduct = () => {
     isManual: true
   };
 
-  console.log('Creating manual product object:', manualProduct);
   
   // Directly update both state and ref to ensure it works
   setSelectedProducts(prev => {
     const newProducts = [...prev, { product: manualProduct, quantity: 1 }];
     selectedProductsRef.current = newProducts;
-    console.log('Direct update - new selectedProducts:', newProducts);
-    console.log('Direct update - new selectedProductsRef:', selectedProductsRef.current);
-    return newProducts;
+  return newProducts;
   });
 
   setManualProductName('');
@@ -259,7 +255,6 @@ const handleAddManualProduct = () => {
   };
 
 const handleAddProduct = (product) => {
-  console.log('Adding product:', product);
   
   setSelectedProducts(prev => {
     const existingProductIndex = prev.findIndex(p => {
@@ -279,29 +274,23 @@ const handleAddProduct = (product) => {
           ? { ...p, quantity: p.quantity + 1 }
           : p
       );
-      console.log('Increased quantity of existing product');
     } else {
       // Add new product
       newProducts = [...prev, { product, quantity: 1 }];
-      console.log('Added new product');
     }
     
     // Update the ref with the new state
     selectedProductsRef.current = newProducts;
-    console.log('Updated selectedProducts:', newProducts);
-    console.log('Updated selectedProductsRef:', selectedProductsRef.current);
-    
+ 
     return newProducts;
   });
 };
 
 const handleRemoveProduct = (productId) => {
-  console.log('Removing product:', productId);
   
   setSelectedProducts(prev => {
     const newProducts = prev.filter(p => p.product._id !== productId);
     selectedProductsRef.current = newProducts;
-    console.log('After removal - selectedProducts:', newProducts);
     return newProducts;
   });
 };
@@ -323,8 +312,7 @@ const handleQuantityChange = (productId, newQuantity) => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   
-  console.log('selectedProducts from state:', selectedProducts);
-  console.log('selectedProducts from ref:', selectedProductsRef.current);
+
   
   // Use the ref value which is always current
   const currentSelectedProducts = selectedProductsRef.current;
@@ -378,10 +366,8 @@ const handleSubmit = async (e) => {
         }
       });
       
-      console.log('Products being sent to backend:', productsToSend);
       formData.append('purchaseProducts', JSON.stringify(productsToSend));
     } else {
-      console.log('No products in selectedProductsRef');
       formData.append('purchaseProducts', JSON.stringify([]));
     }
     
@@ -389,10 +375,9 @@ const handleSubmit = async (e) => {
       formData.append('photos', photo);
     });
 
-    console.log('Form data entries:');
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value);
-    }
+    // for (let [key, value] of formData.entries()) {
+    //   console.log(key, value);
+    // }
 
     const response = await axiosInstance.post('/guard-entries', formData, {
       headers: {
@@ -401,7 +386,6 @@ const handleSubmit = async (e) => {
     });
 
     const guardEntry = response.data.entry;
-    console.log('Response from backend:', guardEntry);
 
     Swal.fire({
       title: 'Success!',

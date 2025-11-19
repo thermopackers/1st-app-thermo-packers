@@ -7,6 +7,7 @@ import { useUserContext } from "../context/UserContext";
 import toast from "react-hot-toast";
 import VehicleDocumentManager from "../components/VehicleDocumentManager";
 import MaintenanceLogBook from "../components/MaintenanceLogBook";
+import jsPDF from "jspdf"; // ✅ NEW: Import jsPDF
 
 export default function AssignDispatchPlanForm() {
     const { user, loading, token } = useUserContext();
@@ -54,17 +55,20 @@ export default function AssignDispatchPlanForm() {
   const [customerNames, setCustomerNames] = useState([""]);
   const [customerList, setCustomerList] = useState([]);
   const [dieselImagesMap, setDieselImagesMap] = useState({});
+const [salesProducts, setSalesProducts] = useState([""]); // ✅ NEW: Sales products state
+const [productsList, setProductsList] = useState([]); // ✅ NEW: Products list state
 
-  const [formData, setFormData] = useState({
-    vehicleNumber: "",
-    remarks: "",
-    driverName: "",
-    dateOfTrip: (() => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return tomorrow.toISOString().split("T")[0];
-    })(),
-  });
+const [formData, setFormData] = useState({
+  vehicleNumber: "",
+  remarks: "",
+  driverName: "",
+    location: "", // ✅ NEW: Add location field
+  dateOfTrip: (() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  })(),
+});
 
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -191,66 +195,80 @@ useEffect(() => {
     }
   }, [token]);
 
-  // Fetch dispatch plans with diesel entries
-  const fetchPlans = async () => {
-    setTableLoading(true);
-    try {
-      const query = new URLSearchParams({
-        page,
-        search: searchTerm,
-        date: filterDate,
-      });
+// Fetch dispatch plans with diesel entries, audio, and attachments
+const fetchPlans = async () => {
+  setTableLoading(true);
+  try {
+    const query = new URLSearchParams({
+      page,
+      search: searchTerm,
+      date: filterDate,
+    });
 
-      // Fetch diesel entries
-      const dieselRes = await axiosInstance.get("/diesel/entries", {
+    // Fetch diesel entries
+    const dieselRes = await axiosInstance.get("/diesel/entries", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const dieselMap = {};
+    dieselRes.data.forEach((entry) => {
+      if (entry.planId) {
+        if (!dieselMap[entry.planId]) dieselMap[entry.planId] = [];
+        dieselMap[entry.planId].push(entry);
+      }
+    });
+
+    setDieselImagesMap(dieselMap);
+
+    // Fetch dispatch plans
+    const res = await axiosInstance.get(
+      `/dispatch-plans/paginated?${query}`,
+      {
         headers: { Authorization: `Bearer ${token}` },
-      });
+      }
+    );
 
-      const dieselMap = {};
-      dieselRes.data.forEach((entry) => {
-        if (entry.planId) {
-          if (!dieselMap[entry.planId]) dieselMap[entry.planId] = [];
-          dieselMap[entry.planId].push(entry);
-        }
-      });
-
-      setDieselImagesMap(dieselMap);
-
-      // Fetch dispatch plans
-      const res = await axiosInstance.get(
-        `/dispatch-plans/paginated?${query}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+    // Merge all documents into plans
+    const mergedPlans = res.data.plans.map((plan) => {
+      const matchedVehicle = registeredVehicles.find(
+        (v) => v.vehicleNumber === plan.vehicleNumber
       );
 
-      // Merge diesel images into plans
-      const mergedPlans = res.data.plans.map((plan) => {
-        const matchedVehicle = registeredVehicles.find(
-          (v) => v.vehicleNumber === plan.vehicleNumber
-        );
+      const dispatchImages = plan.imageUrls || [];
+      const dieselEntries = dieselMap[plan._id] || [];
+      const dieselImages = dieselEntries.flatMap((d) => d.imageUrls || []);
+      const attachmentUrls = plan.attachmentUrls || [];
+      
+      // Combine ALL documents: images + attachments + audio
+      const allDocuments = [
+        ...dispatchImages, 
+        ...dieselImages, 
+        ...attachmentUrls
+      ];
+      
+      // Add audio as a separate document if it exists
+      if (plan.audioUrl) {
+        allDocuments.push(plan.audioUrl);
+      }
 
-        const dispatchImages = plan.imageUrls || [];
-        const dieselEntries = dieselMap[plan._id] || [];
-        const dieselImages = dieselEntries.flatMap((d) => d.imageUrls || []);
+      return {
+        ...plan,
+        gpsLink: matchedVehicle?.gpsLink || null,
+        imageUrls: allDocuments, // This now includes ALL documents
+        dieselEntries,
+        hasAudio: !!plan.audioUrl,
+      };
+    });
 
-        return {
-          ...plan,
-          gpsLink: matchedVehicle?.gpsLink || null,
-          imageUrls: [...dispatchImages, ...dieselImages],
-          dieselEntries,
-        };
-      });
-
-      setPlans(mergedPlans);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching plans:", err);
-      toast.error("Failed to load dispatch plans");
-    } finally {
-      setTableLoading(false);
-    }
-  };
+    setPlans(mergedPlans);
+    setTotalPages(res.data.totalPages);
+  } catch (err) {
+    console.error("Error fetching plans:", err);
+    toast.error("Failed to load dispatch plans");
+  } finally {
+    setTableLoading(false);
+  }
+};
 
   // Vehicle registration
   const handleVehicleRegister = async () => {
@@ -297,114 +315,301 @@ useEffect(() => {
     }
   }, [token, page, searchTerm, filterDate, registeredVehicles]);
 
-  // Form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Fetch products list
+useEffect(() => {
+  if (token) {
+    axiosInstance
+      .get("/products-multer/all-products", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setProductsList(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
+  }
+}, [token]);
 
-    const { vehicleNumber, driverName, remarks, dateOfTrip } = formData;
+// Form submission for table format
+const handleTableSubmit = async () => {
+  const { vehicleNumber, driverName, remarks, dateOfTrip } = formData;
 
-    if (!vehicleNumber || !driverName) {
-      toast.error("Please select vehicle and driver name.");
-      return;
+  if (!vehicleNumber || !driverName) {
+    toast.error("Please select vehicle and driver name.");
+    return;
+  }
+
+  if (customerNames.length === 0 || customerNames.some((name) => !name.trim())) {
+    toast.error("Please enter valid customer name(s).");
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    const payload = {
+      vehicleNumber,
+      driverName,
+        location: formData.location, // ✅ NEW: Add location
+      remarks,
+      customerNames: customerNames.filter(name => name.trim()), // Remove empty customer names
+        salesProducts: salesProducts.filter(product => product.trim()), // ✅ NEW: Add sales products
+      dateOfTrip,
+    };
+
+    console.log("Submitting payload:", payload); // Debug log
+
+    // Upload audio if exists
+    if (audioBlob) {
+      console.log("Uploading audio..."); // Debug log
+      const audioForm = new FormData();
+      audioForm.append("file", audioBlob, "recording.wav");
+      audioForm.append("upload_preset", "todo_uploads");
+      audioForm.append("cloud_name", "dcr8k5amk");
+
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload",
+        {
+          method: "POST",
+          body: audioForm,
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error?.message || "Audio upload failed");
+      payload.audioUrl = data.secure_url;
+      console.log("Audio uploaded:", data.secure_url); // Debug log
     }
 
-    if (
-      customerNames.length === 0 ||
-      customerNames.some((name) => !name.trim())
-    ) {
-      toast.error("Please enter valid customer name(s).");
-      return;
-    }
+    // Upload attachments if exist
+    if (attachments.length > 0) {
+      console.log("Uploading attachments:", attachments.length); // Debug log
+      const uploadedFiles = [];
+      for (let file of attachments) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "todo_uploads");
+        formData.append("cloud_name", "dcr8k5amk");
 
-    setSubmitting(true);
+        const uploadUrl =
+          file.type === "application/pdf"
+            ? "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload"
+            : "https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload";
 
-    try {
-      const payload = {
-        vehicleNumber,
-        driverName,
-        remarks,
-        customerNames,
-        dateOfTrip,
-      };
-
-      // Upload audio if exists
-      if (audioBlob) {
-        const audioForm = new FormData();
-        audioForm.append("file", audioBlob);
-        audioForm.append("upload_preset", "todo_uploads");
-        audioForm.append("cloud_name", "dcr8k5amk");
-
-        const res = await fetch(
-          "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload",
-          {
-            method: "POST",
-            body: audioForm,
-          }
-        );
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          body: formData,
+        });
 
         const data = await res.json();
         if (!res.ok)
-          throw new Error(data.error?.message || "Audio upload failed");
-        payload.audioUrl = data.secure_url;
+          throw new Error(data.error?.message || "Attachment upload failed");
+        uploadedFiles.push(data.secure_url);
       }
-
-      // Upload attachments if exist
-      if (attachments.length > 0) {
-        const uploadedFiles = [];
-        for (let file of attachments) {
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("upload_preset", "todo_uploads");
-          formData.append("cloud_name", "dcr8k5amk");
-
-          const uploadUrl =
-            file.type === "application/pdf"
-              ? "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload"
-              : "https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload";
-
-          const res = await fetch(uploadUrl, {
-            method: "POST",
-            body: formData,
-          });
-
-          const data = await res.json();
-          if (!res.ok)
-            throw new Error(data.error?.message || "Attachment upload failed");
-          uploadedFiles.push(data.secure_url);
-        }
-        payload.attachmentUrls = uploadedFiles;
-      }
-
-      // Send final payload
-      await axiosInstance.post("/dispatch-plans/assign", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      toast.success("Dispatch plan assigned successfully");
-
-      // Reset form
-      setFormData({
-        vehicleNumber: "",
-        driverName: "",
-        remarks: "",
-        dateOfTrip: (() => {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          return tomorrow.toISOString().split("T")[0];
-        })(),
-      });
-      setCustomerNames([""]);
-      setAudioBlob(null);
-      setAudioUrl(null);
-      setAttachments([]);
-      fetchPlans();
-    } catch (err) {
-      toast.error("Error assigning plan");
-      console.error("🔥 ASSIGN ERROR:", err?.response?.data || err);
-    } finally {
-      setSubmitting(false);
+      payload.attachmentUrls = uploadedFiles;
+      console.log("Attachments uploaded:", uploadedFiles); // Debug log
     }
-  };
+
+    // Send final payload
+    console.log("Sending final payload to API..."); // Debug log
+    await axiosInstance.post("/dispatch-plans/assign", payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    toast.success("Dispatch plan assigned successfully");
+
+    // Reset form
+    setFormData({
+      vehicleNumber: "",
+        location: "", // ✅ NEW: Reset location
+      driverName: "",
+      remarks: "",
+      dateOfTrip: (() => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toISOString().split("T")[0];
+      })(),
+    });
+    setCustomerNames([""]);
+    setSalesProducts([""]); // ✅ NEW: Reset sales products
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setAttachments([]);
+    
+    // Refresh the plans list
+    fetchPlans();
+  } catch (err) {
+    console.error("🔥 ASSIGN ERROR:", err?.response?.data || err);
+    toast.error(err.response?.data?.message || "Error assigning plan");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+// Export formatted data as PDF
+const exportFormattedPDF = () => {
+  if (plans.length === 0) {
+    toast.error("No data to export");
+    return;
+  }
+
+  try {
+    toast.loading("Generating PDF...", { id: "pdf-export" });
+    
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Add company header
+    pdf.setFillColor(59, 130, 246); // Blue background
+    pdf.rect(0, 0, 297, 20, 'F');
+    
+    pdf.setFontSize(16);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('Dispatch Plans Report', 148, 12, { align: 'center' });
+    
+    // Add generation date
+    pdf.setFontSize(10);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 148, 18, { align: 'center' });
+
+    // Table headers (Status column removed)
+    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'Sales Products/Material', 'Remarks'];
+    const columnWidths = [15, 20, 30, 35, 35, 45, 45, 40]; // Adjusted widths for remaining columns
+    
+    let yPosition = 30;
+    
+    // Add table headers with background
+    pdf.setFillColor(243, 244, 246); // Gray background
+    pdf.rect(10, yPosition - 5, 277, 8, 'F');
+    
+    pdf.setFontSize(9);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'bold');
+    
+    let xPosition = 10;
+    headers.forEach((header, index) => {
+      pdf.text(header, xPosition + 2, yPosition);
+      xPosition += columnWidths[index];
+    });
+
+    yPosition += 12; // Increased gap after headers
+
+    // Add table rows
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(8);
+    
+    plans.forEach((plan, index) => {
+      // Add new page if needed (with more buffer space)
+      if (yPosition > 170) {
+        pdf.addPage();
+        yPosition = 20;
+        
+        // Add header on new page
+        pdf.setFillColor(59, 130, 246);
+        pdf.rect(0, 0, 297, 20, 'F');
+        pdf.setFontSize(10);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('Dispatch Plans Report - Continued', 148, 12, { align: 'center' });
+        
+        yPosition = 30;
+        
+        // Add table headers again
+        pdf.setFillColor(243, 244, 246);
+        pdf.rect(10, yPosition - 5, 277, 8, 'F');
+        pdf.setFontSize(9);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont(undefined, 'bold');
+        
+        xPosition = 10;
+        headers.forEach((header, idx) => {
+          pdf.text(header, xPosition + 2, yPosition);
+          xPosition += columnWidths[idx];
+        });
+        
+        yPosition += 12; // Increased gap after headers on new page
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(8);
+      }
+
+      // Alternate row background for better readability (extended height)
+      const rowBackgroundHeight = 8; // Base height for background
+      if (index % 2 === 0) {
+        pdf.setFillColor(249, 250, 251);
+        pdf.rect(10, yPosition - 3, 277, rowBackgroundHeight, 'F');
+      }
+
+      // Process customers with bullet points
+      const customersContent = Array.isArray(plan.customerNames) && plan.customerNames.length > 0 
+        ? plan.customerNames.map((name, i) => `${i + 1}. ${name}`).join('\n')
+        : "-";
+
+      // Process products with bullet points
+      const productsContent = Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0 
+        ? plan.salesProducts.map((product, i) => `${i + 1}. ${product}`).join('\n')
+        : "-";
+
+      // Row data without status column
+      const rowData = [
+        ((page - 1) * 10 + index + 1).toString(),
+        plan.dateOfTrip ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB") : "-",
+        plan.vehicleNumber || "-",
+        plan.driverName || plan.assignedTo?.name || "-",
+        plan.location || "-",
+        customersContent,
+        productsContent,
+        plan.remarks ? (plan.remarks.length > 30 ? plan.remarks.substring(0, 30) + '...' : plan.remarks) : "-" // Increased remarks length
+      ];
+
+      let xPosition = 10;
+      let maxLinesInRow = 1;
+
+      rowData.forEach((cell, cellIndex) => {
+        const lines = pdf.splitTextToSize(cell, columnWidths[cellIndex] - 4);
+        pdf.setTextColor(0, 0, 0);
+        
+        // Draw each line separately with better line spacing
+        lines.forEach((line, lineIndex) => {
+          pdf.text(line, xPosition + 2, yPosition + (lineIndex * 4));
+        });
+        
+        // Track the maximum number of lines in this row
+        if (lines.length > maxLinesInRow) {
+          maxLinesInRow = lines.length;
+        }
+        
+        xPosition += columnWidths[cellIndex];
+      });
+
+      // Calculate row height with minimum gap
+      const rowHeight = Math.max(12, maxLinesInRow * 4);
+      
+      // Add row border for better separation
+      pdf.setDrawColor(226, 232, 240); // Light gray border
+      pdf.setLineWidth(0.2);
+      pdf.rect(10, yPosition - 3, 277, rowHeight + 2); // Border around the row
+      
+      // Move to next row with proper gap
+      yPosition += rowHeight + 4; // Added 4mm gap between rows
+    });
+
+    // Add footer with page numbers (moved up to accommodate more content)
+    const pageCount = pdf.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
+      pdf.text(`Total Plans: ${plans.length}`, 15, 200);
+    }
+
+    pdf.save(`dispatch-plans-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("PDF exported successfully!", { id: "pdf-export" });
+  } catch (error) {
+    console.error("Error generating formatted PDF:", error);
+    toast.error("Failed to export PDF", { id: "pdf-export" });
+  }
+};
 
   if (loading) {
     return (
@@ -430,6 +635,32 @@ useEffect(() => {
       </div>
     );
   }
+
+  // Delete dispatch plan
+const handleDelete = async (planId) => {
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!'
+  });
+
+  if (result.isConfirmed) {
+    try {
+      await axiosInstance.delete(`/dispatch-plans/${planId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Dispatch plan deleted successfully');
+      fetchPlans();
+    } catch (err) {
+      toast.error('Failed to delete dispatch plan');
+      console.error('Delete error:', err);
+    }
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -458,758 +689,666 @@ useEffect(() => {
           </p>
         </div>
 
-        {/* Assign Dispatch Plan Form - Only for authorized roles */}
-  {!userRoles.includes("dispatch") && !userRoles.includes("packaging") && (          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <svg
-                className="w-6 h-6 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              Assign New Dispatch Plan
-            </h2>
+ {/* Combined Dispatch Plans Table - For all roles except driver */}
+{!userRoles.includes("driver") && (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+ <div className="p-6 border-b border-gray-200">
+  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+    <div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-1">
+        Dispatch Plans Management
+      </h2>
+      <p className="text-gray-600">Manage and assign dispatch plans in table format</p>
+    </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Date of Trip */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Trip *
-                  </label>
-                  <input
-                    type="date"
-                    name="dateOfTrip"
-                    value={formData.dateOfTrip}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        dateOfTrip: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                    required
-                  />
+    <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+      {/* Export PDF Button - NEW */}
+      <button
+        onClick={exportFormattedPDF}
+        disabled={plans.length === 0}
+        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Export PDF
+      </button>
+
+      <div className="relative w-full sm:w-64">
+        <input
+          type="text"
+          placeholder="Search by customer or driver..."
+          value={searchTerm}
+          onChange={(e) => {
+            setPage(1);
+            setSearchTerm(e.target.value);
+          }}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+        />
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg
+            className="h-5 w-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <input
+        type="date"
+        value={filterDate}
+        onChange={(e) => {
+          setPage(1);
+          setFilterDate(e.target.value);
+        }}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+      />
+
+      <button
+        onClick={() => {
+          setSearchTerm("");
+          setFilterDate("");
+          setPage(1);
+        }}
+        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
+      >
+        Clear Filters
+      </button>
+    </div>
+  </div>
+</div>
+
+    {tableLoading ? (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading dispatch plans...</p>
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+  <table className="min-w-full border border-gray-200">
+    <thead className="bg-gray-50">
+      <tr>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Sr No
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Date
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Vehicle
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Driver
+        </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+      Location {/* ✅ NEW: Location column */}
+    </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Customers
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Sales Products / Material Name
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Remarks
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Status
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Documents
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Actions
+        </th>
+      </tr>
+    </thead>
+    <tbody className="bg-white">
+      {/* Add New Plan Row */}
+      {!userRoles.includes("dispatch") && !userRoles.includes("packaging") && (
+        <tr className="bg-blue-50 hover:bg-blue-100 transition-colors duration-150">
+          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
+            New
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <input
+              type="date"
+              value={formData.dateOfTrip}
+              onChange={(e) => setFormData(prev => ({ ...prev, dateOfTrip: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+              required
+            />
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <select
+              value={formData.vehicleNumber}
+              onChange={(e) => setFormData(prev => ({ ...prev, vehicleNumber: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+              disabled={user.role === "driver"}
+              required
+            >
+              <option value="">Select Vehicle</option>
+              {registeredVehicles
+                .filter((v) => user.role === "driver" ? v.driverEmail === user.email : true)
+                .map((v) => (
+                  <option key={v._id} value={v.vehicleNumber}>
+                    {v.vehicleNumber}
+                  </option>
+                ))}
+            </select>
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <input
+              type="text"
+              value={formData.driverName}
+              onChange={(e) => setFormData(prev => ({ ...prev, driverName: e.target.value }))}
+              placeholder="Driver name"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+              required
+            />
+          </td>
+           <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+      <input
+        type="text"
+        value={formData.location}
+        onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+        placeholder="Location"
+        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      />
+    </td>
+          <td className="px-4 py-4 border border-gray-200">
+            <div className="space-y-1 min-w-[200px]">
+              {/* Add customer count badge */}
+              {customerNames.filter(name => name.trim()).length > 0 && (
+                <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded inline-flex items-center gap-1">
+                  <span>👥 {customerNames.filter(name => name.trim()).length} customer(s)</span>
                 </div>
-
-                {/* Vehicle Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vehicle Number *
-                  </label>
-                  <select
-                    name="vehicleNumber"
-                    value={formData.vehicleNumber}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        vehicleNumber: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                    disabled={user.role === "driver"}
-                    required
-                  >
-                    <option value="">Select Vehicle</option>
-                    {registeredVehicles
-                      .filter((v) =>
-                        user.role === "driver"
-                          ? v.driverEmail === user.email
-                          : true
-                      )
-                      .map((v) => (
-                        <option key={v._id} value={v.vehicleNumber}>
-                          {v.vehicleNumber}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {/* Driver Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Driver Name *
-                  </label>
+              )}
+              
+              {customerNames.map((name, index) => (
+                <div key={index} className="flex gap-1">
                   <input
                     type="text"
-                    name="driverName"
-                    value={formData.driverName}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        driverName: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter driver name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                    required
+                    placeholder="Customer name"
+                    value={name}
+                    onChange={(e) => {
+                      const updated = [...customerNames];
+                      updated[index] = e.target.value;
+                      setCustomerNames(updated);
+                    }}
+                    list={`customer-options-${index}`}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                   />
-                </div>
-              </div>
-
-              {/* Customer Names */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Customer Names *
-                </label>
-                <div className="space-y-3">
-                  {customerNames.map((name, index) => {
-                    const customer = customerList.find((c) => c.name === name);
-                    return (
-                      <div
-                        key={index}
-                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                      >
-                        <div className="flex gap-3 mb-2">
-                          <input
-                            type="text"
-                            placeholder="Search customer..."
-                            value={name}
-                            onChange={(e) => {
-                              const updated = [...customerNames];
-                              updated[index] = e.target.value;
-                              setCustomerNames(updated);
-                            }}
-                            list={`customer-options-${index}`}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                          />
-                          <datalist id={`customer-options-${index}`}>
-                            {customerList
-                              .filter((c) =>
-                                c.name
-                                  .toLowerCase()
-                                  .includes(name.toLowerCase())
-                              )
-                              .map((c) => (
-                                <option key={c._id} value={c.name} />
-                              ))}
-                          </datalist>
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = [...customerNames];
-                                updated.splice(index, 1);
-                                setCustomerNames(updated);
-                              }}
-                              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Customer Details */}
-                        {customer && (
-                          <div className="space-y-1 text-sm">
-                            {customer.address && (
-                              <p className="text-gray-600 flex items-center gap-2">
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                  />
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                  />
-                                </svg>
-                                {customer.address}
-                              </p>
-                            )}
-                            {customer.phone && (
-                              <p className="text-gray-600 flex items-center gap-2">
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                                  />
-                                </svg>
-                                {customer.phone}
-                              </p>
-                            )}
-                            {customer.locationLink && (
-                              <a
-                                href={customer.locationLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 flex items-center gap-2 transition-colors duration-200"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                                  />
-                                </svg>
-                                View on Google Maps
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomerNames([...customerNames, ""])}
-                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Add Customer
-                </button>
-              </div>
-
-              {/* Voice Message */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Voice Message
-                </label>
-                <div className="flex items-center gap-4">
-                  {audioUrl ? (
-                    <div className="flex items-center gap-4 w-full">
-                      <audio controls className="flex-1">
-                        <source src={audioUrl} type="audio/wav" />
-                        Your browser does not support the audio element.
-                      </audio>
-                      <button
-                        type="button"
-                        onClick={clearAudio}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : recording ? (
+                  <datalist id={`customer-options-${index}`}>
+                    {customerList
+                      .filter((c) => c.name.toLowerCase().includes(name.toLowerCase()))
+                      .map((c) => (
+                        <option key={c._id} value={c.name} />
+                      ))}
+                  </datalist>
+                  {index > 0 && (
                     <button
                       type="button"
-                      onClick={stopRecording}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 flex items-center gap-2"
+                      onClick={() => {
+                        const updated = [...customerNames];
+                        updated.splice(index, 1);
+                        setCustomerNames(updated);
+                      }}
+                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                        />
-                      </svg>
-                      Stop Recording
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startRecording}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                        />
-                      </svg>
-                      Start Recording
+                      ×
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* Attachments */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Attachments (Images/PDFs)
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    setAttachments((prev) => [...prev, ...files]);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-
-                {attachments.length > 0 && (
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {attachments.map((file, index) => {
-                      const isImage = file.type.startsWith("image/");
-                      const previewUrl = URL.createObjectURL(file);
-                      return (
-                        <div
-                          key={index}
-                          className="relative border border-gray-200 rounded-lg p-2 bg-white shadow-sm"
-                        >
-                          {isImage ? (
-                            <img
-                              src={previewUrl}
-                              alt={`preview ${index}`}
-                              className="w-full h-20 object-cover rounded-md"
-                            />
-                          ) : (
-                            <div className="w-full h-20 bg-gray-100 rounded-md flex items-center justify-center">
-                              <div className="text-center">
-                                <div className="text-2xl mb-1">📄</div>
-                                <span className="text-xs text-gray-600">
-                                  PDF
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = [...attachments];
-                              updated.splice(index, 1);
-                              setAttachments(updated);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Remarks */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Remarks
-                </label>
-                <textarea
-                  name="remarks"
-                  value={formData.remarks}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      remarks: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter any additional remarks..."
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                />
-              </div>
-
-              {/* Submit Button */}
+              ))}
               <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition-colors duration-200 flex items-center justify-center gap-2"
-                disabled={submitting}
+                type="button"
+                onClick={() => setCustomerNames([...customerNames, ""])}
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Assigning Plan...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Assign Dispatch Plan
-                  </>
-                )}
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Customer
               </button>
-            </form>
-          </div>
-        )}
-
-        {/* Dispatch Plans Table - Only for non-drivers */}
-  {!userRoles.includes("driver") && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                    Daily Dispatch Plans
-                  </h2>
-                  <p className="text-gray-600">{plans.length} plans found</p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                  <div className="relative w-full sm:w-64">
-                    <input
-                      type="text"
-                      placeholder="Search by customer or driver..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setPage(1);
-                        setSearchTerm(e.target.value);
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => {
-                      setPage(1);
-                      setFilterDate(e.target.value);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                  />
-
-                  <button
-                    onClick={() => {
-                      setSearchTerm("");
-                      setFilterDate("");
-                      setPage(1);
-                    }}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
-                  >
-                    Clear Filters
-                  </button>
-                </div>
-              </div>
             </div>
+          </td>
+          <td className="px-4 py-4 border border-gray-200">
+            <div className="space-y-1 min-w-[200px]">
+              {/* Add product count badge */}
+              {salesProducts.filter(product => product.trim()).length > 0 && (
+                <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded inline-flex items-center gap-1">
+                  <span>📦 {salesProducts.filter(product => product.trim()).length} product(s)</span>
+                </div>
+              )}
+              
+              {salesProducts.map((product, index) => (
+                <div key={index} className="flex gap-1">
+                  <input
+                    type="text"
+                    placeholder="Sales product"
+                    value={product}
+                    onChange={(e) => {
+                      const updated = [...salesProducts];
+                      updated[index] = e.target.value;
+                      setSalesProducts(updated);
+                    }}
+                    list={`product-options-${index}`}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+                  />
+                  <datalist id={`product-options-${index}`}>
+                    {productsList
+                      .filter((p) => p.name?.toLowerCase().includes(product.toLowerCase()))
+                      .map((p) => (
+                        <option key={p._id} value={p.name} />
+                      ))}
+                  </datalist>
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...salesProducts];
+                        updated.splice(index, 1);
+                        setSalesProducts(updated);
+                      }}
+                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSalesProducts([...salesProducts, ""])}
+                className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Product
+              </button>
+            </div>
+          </td>
+          <td className="px-4 py-4 border border-gray-200">
+            <input
+              type="text"
+              value={formData.remarks}
+              onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+              placeholder="Remarks"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+            />
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+              New
+            </span>
+          </td>
+         <td className="px-4 py-4 border border-gray-200">
+  <div className="flex flex-col gap-2">
+    {/* Audio Recording */}
+    <div className="flex items-center gap-2">
+      {audioUrl ? (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-green-600 flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            Audio Ready
+          </span>
+          <button
+            type="button"
+            onClick={clearAudio}
+            className="text-red-500 hover:text-red-700 text-xs"
+            title="Remove audio"
+          >
+            ×
+          </button>
+        </div>
+      ) : recording ? (
+        <button
+          type="button"
+          onClick={stopRecording}
+          className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 p-1 border border-red-200 rounded"
+        >
+          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+          Stop
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={startRecording}
+          className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 p-1 border border-blue-200 rounded"
+          title="Record audio message"
+        >
+          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+          Record
+        </button>
+      )}
+    </div>
 
-            {tableLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading dispatch plans...</p>
-              </div>
-            ) : plans.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">📋</div>
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                  {searchTerm || filterDate
-                    ? "No plans found"
-                    : "No dispatch plans yet"}
-                </h3>
-                <p className="text-gray-500">
-                  {searchTerm || filterDate
-                    ? "Try adjusting your search criteria"
-                    : "Start by assigning your first dispatch plan"}
-                </p>
+    {/* File Attachments */}
+    <div className="flex flex-col gap-1">
+      <input
+        type="file"
+        multiple
+        accept="image/*,.pdf"
+        onChange={(e) => {
+          const files = Array.from(e.target.files);
+          if (files.length > 0) {
+            setAttachments(prev => [...prev, ...files]);
+          }
+          e.target.value = '';
+        }}
+        className="hidden"
+        id="file-input"
+      />
+      <label
+        htmlFor="file-input"
+        className="text-blue-500 hover:text-blue-700 text-xs cursor-pointer flex items-center gap-1 p-1 border border-blue-200 rounded w-fit"
+      >
+        📎 Attach Files
+      </label>
+      
+      {/* Show attached files preview */}
+      {attachments.length > 0 && (
+        <div className="text-xs text-gray-600">
+          <div className="font-medium mb-1">Files ({attachments.length}):</div>
+          {attachments.map((file, index) => (
+            <div key={index} className="flex items-center gap-1 mb-1">
+              <span className="truncate max-w-[80px]" title={file.name}>
+                {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = [...attachments];
+                  updated.splice(index, 1);
+                  setAttachments(updated);
+                }}
+                className="text-red-500 hover:text-red-700 text-xs"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <button
+              onClick={handleTableSubmit}
+              disabled={submitting}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition-colors duration-200 flex items-center gap-2 text-sm"
+            >
+              {submitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Plan
+                </>
+              )}
+            </button>
+          </td>
+        </tr>
+      )}
+
+      {/* Existing Plans */}
+      {plans.map((plan, index) => (
+        <tr key={plan._id} className="hover:bg-gray-50 transition-colors duration-150">
+          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
+            {(page - 1) * 10 + index + 1}
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
+            {plan.dateOfTrip ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB") : "—"}
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border border-gray-200">
+            <div className="flex items-center gap-2">
+              {plan.vehicleNumber}
+              {plan.gpsLink && (
+                <a
+                  href={plan.gpsLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700"
+                  title="Track Vehicle"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
+            {plan.driverName || plan.assignedTo?.name || "-"}
+          </td>
+            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
+      {plan.location || "-"}
+    </td>
+          <td className="px-4 py-4 text-sm text-gray-900 max-w-xs border border-gray-200">
+            {Array.isArray(plan.customerNames) && plan.customerNames.length > 0 ? (
+              <div className="space-y-1">
+                {plan.customerNames.map((name, i) => (
+                  <div key={i} className={`text-xs px-2 py-1 rounded ${
+                    plan.customerNames.length > 1 
+                      ? 'bg-blue-50 border border-blue-200 text-blue-700' 
+                      : 'bg-gray-50 text-gray-700'
+                  }`}>
+                    <span className="font-medium">{name}</span>
+                   
+                  </div>
+                ))}
+                {plan.customerNames.length > 1 && (
+                  <div className="text-xs text-blue-600 font-medium mt-1">
+                    📋 {plan.customerNames.length} customers selected
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Sr No
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vehicle
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        GPS Tracking
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Driver
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Customers
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Documents
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {plans.map((plan, index) => (
-                      <tr
-                        key={plan._id}
-                        className="hover:bg-gray-50 transition-colors duration-150"
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {(page - 1) * 10 + index + 1}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {plan.dateOfTrip
-                            ? new Date(plan.dateOfTrip).toLocaleDateString(
-                                "en-GB"
-                              )
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {plan.vehicleNumber}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {plan.gpsLink ? (
-                            <a
-                              href={plan.gpsLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors duration-200"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                              </svg>
-                              Track
-                            </a>
-                          ) : (
-                            <span className="text-gray-400">No Link</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {plan.driverName || plan.assignedTo?.name || "-"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
-                          {Array.isArray(plan.customerNames) &&
-                          plan.customerNames.length > 0 ? (
-                            <div className="space-y-1">
-                              {plan.customerNames.map((name, i) => (
-                                <div key={i} className="text-xs">
-                                  <span className="font-medium">{name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            plan.customerName || "-"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              plan.status === "Completed"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {plan.status || "Pending"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 flex-wrap">
-                            {(plan.imageUrls || []).map((url, i) => (
-                              <button
-                                key={i}
-                                onClick={() => {
-                                  Swal.fire({
-                                    imageUrl: url,
-                                    imageAlt: `Document ${i + 1}`,
-                                    showCloseButton: true,
-                                    showConfirmButton: false,
-                                    width: "90%",
-                                    background: "#f9fafb",
-                                    customClass: { popup: "rounded-xl" },
-                                  });
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-lg hover:bg-blue-100 transition-colors duration-200 border border-blue-200"
-                              >
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                  />
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                  />
-                                </svg>
-                                Doc {i + 1}
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleDelete(plan._id)}
-                            className="text-red-600 hover:text-red-800 font-medium transition-colors duration-200 flex items-center gap-1"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <span className="text-gray-400">-</span>
             )}
+          </td>
+          <td className="px-4 py-4 text-sm text-gray-900 max-w-xs border border-gray-200">
+            {Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0 ? (
+              <div className="space-y-1">
+                {plan.salesProducts.map((product, i) => (
+                  <div key={i} className={`text-xs px-2 py-1 rounded ${
+                    plan.salesProducts.length > 1 
+                      ? 'bg-green-50 border border-green-200 text-green-700' 
+                      : 'bg-gray-50 text-gray-700'
+                  }`}>
+                    <span className="font-medium">{product}</span>
+                   
+                  </div>
+                ))}
+                {plan.salesProducts.length > 1 && (
+                  <div className="text-xs text-green-600 font-medium mt-1">
+                    🏷️ {plan.salesProducts.length} products selected
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
+          </td>
+          <td className="px-4 py-4 text-sm text-gray-900 border border-gray-200">
+            {plan.remarks || "-"}
+          </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+              plan.status === "Completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+            }`}>
+              {plan.status || "Pending"}
+            </span>
+          </td>
+         <td className="px-4 py-4 border border-gray-200">
+  <div className="flex gap-1 flex-wrap">
+    {(plan.imageUrls || []).map((url, i) => {
+      // Check file type
+      const isAudio = url.includes('audio') || url === plan.audioUrl || url.endsWith('.wav') || url.endsWith('.mp3');
+      const isPDF = url.includes('.pdf') || url.includes('/raw/upload') || url.endsWith('.pdf');
+      
+      return (
+        <button
+          key={i}
+          onClick={() => {
+            if (isAudio) {
+              // Show audio player for audio files
+              Swal.fire({
+                title: 'Audio Recording',
+                html: `
+                  <audio controls autoplay style="width: 100%; margin: 10px 0;">
+                    <source src="${url}" type="audio/wav">
+                    Your browser does not support the audio element.
+                  </audio>
+                `,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: "80%",
+                background: "#f9fafb",
+                customClass: { popup: "rounded-xl" },
+              });
+            } else if (isPDF) {
+              // Open PDF in new tab
+              window.open(url, '_blank');
+            } else {
+              // Show image for image files
+              Swal.fire({
+                imageUrl: url,
+                imageAlt: `Document ${i + 1}`,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: "90%",
+                background: "#f9fafb",
+                customClass: { popup: "rounded-xl" },
+              });
+            }
+          }}
+          className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg hover:opacity-80 transition-colors duration-200 border ${
+            isAudio 
+              ? 'bg-green-50 text-green-700 border-green-200' 
+              : isPDF
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
+              : 'bg-blue-50 text-blue-700 border-blue-200'
+          }`}
+          title={isAudio ? 'Play Audio' : isPDF ? 'Open PDF' : 'View Image'}
+        >
+          {isAudio ? (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 1.414m-2.828-9.9a9 9 0 012.728-2.728" />
+              </svg>
+              Audio
+            </>
+          ) : isPDF ? (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              PDF
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Image
+            </>
+          )}
+        </button>
+      );
+    })}
+    
+    {/* Show message if no documents */}
+    {(plan.imageUrls || []).length === 0 && (
+      <span className="text-xs text-gray-400">No documents</span>
+    )}
+  </div>
+</td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <button
+              onClick={() => handleDelete(plan._id)}
+              className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+    )}
 
-            {/* Pagination */}
-            {plans.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    Page {page} of {totalPages}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPage((p) => p - 1)}
-                      disabled={page === 1}
-                      className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setPage((p) => p + 1)}
-                      disabled={page === totalPages}
-                      className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
-                    >
-                      Next
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+    {/* Show empty state when no plans exist */}
+    {plans.length === 0 && !tableLoading && (
+      <div className="text-center py-12">
+        <div className="text-gray-400 text-6xl mb-4">📋</div>
+        <h3 className="text-lg font-semibold text-gray-600 mb-2">
+          {searchTerm || filterDate ? "No plans found" : "No dispatch plans yet"}
+        </h3>
+        <p className="text-gray-500">
+          {searchTerm || filterDate ? "Try adjusting your search criteria" : "Start by adding your first dispatch plan above"}
+        </p>
+      </div>
+    )}
+
+    {/* Pagination */}
+    {plans.length > 0 && (
+      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-gray-600">
+            Page {page} of {totalPages}
           </div>
-        )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => p - 1)}
+              disabled={page === 1}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page === totalPages}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+            >
+              Next
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
         {/* Vehicle Management Section */}
         <div className="mt-8 space-y-6">

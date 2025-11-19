@@ -24,6 +24,7 @@ export default function App() {
     "/important-numbers",
     "/guard-entry",
     "/guard-entries-view",
+    "/gate-inward-printout",
     "/goods-inward",
     "/maintenance/air-compressors",
     "/view-rfqs",

@@ -64,6 +64,7 @@ import GuardEntryForm from "../pages/GuardEntryForm";
 import GuardEntriesView from "../pages/GuardEntriesView";
 import GoodsInwardForm from "../components/GoodsInwardForm";
 import LeaveManagement from "../components/LeaveManagement";
+import GateInwardPrintout from "../components/GateInwardPrintout";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -442,6 +443,12 @@ export default function AppRoutes() {
 <Route path="/goods-inward/:guardEntryId" element={<ProtectedRoute allowedRoles={["admin","accounts"]}>
       <PageWrapper>
         <GoodsInwardForm />
+      </PageWrapper>
+    </ProtectedRoute>} />
+
+<Route path="/gate-inward-printout/:guardEntryId" element={<ProtectedRoute allowedRoles={["admin","accounts"]}>
+      <PageWrapper>
+        <GateInwardPrintout />
       </PageWrapper>
     </ProtectedRoute>} />
 
