@@ -860,7 +860,7 @@ const handleDelete = async (planId) => {
                 </div>
               )}
               
-              {customerNames.map((name, index) => (
+         {customerNames.map((name, index) => (
   <div key={index} className="flex gap-1 relative">
     <input
       type="text"
@@ -872,11 +872,16 @@ const handleDelete = async (planId) => {
         setCustomerNames(updated);
       }}
       onFocus={(e) => {
-        // Show suggestions when focused
-        const event = new Event('input', { bubbles: true });
-        e.target.dispatchEvent(event);
+        // Force re-render to show dropdown
+        e.target.style.zIndex = "100";
       }}
-      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      onBlur={(e) => {
+        // Small delay to allow click on dropdown items
+        setTimeout(() => {
+          e.target.style.zIndex = "auto";
+        }, 200);
+      }}
+      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 relative z-10"
       autoComplete="off"
     />
     
@@ -884,18 +889,22 @@ const handleDelete = async (planId) => {
     {name && customerList.filter(c => 
       c.name.toLowerCase().includes(name.toLowerCase())
     ).length > 0 && (
-      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1">
+      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto mt-1">
         {customerList
           .filter(c => c.name.toLowerCase().includes(name.toLowerCase()))
+          .slice(0, 10) // Limit to 10 results
           .map((customer) => (
             <div
               key={customer._id}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const updated = [...customerNames];
                 updated[index] = customer.name;
                 setCustomerNames(updated);
               }}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm"
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm transition-colors duration-150"
+              onMouseDown={(e) => e.preventDefault()} // Prevent input blur
             >
               {customer.name}
             </div>
@@ -911,7 +920,7 @@ const handleDelete = async (planId) => {
           updated.splice(index, 1);
           setCustomerNames(updated);
         }}
-        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 z-10"
       >
         ×
       </button>
@@ -939,7 +948,7 @@ const handleDelete = async (planId) => {
                 </div>
               )}
               
-             {salesProducts.map((product, index) => (
+           {salesProducts.map((product, index) => (
   <div key={index} className="flex gap-1 relative">
     <input
       type="text"
@@ -951,11 +960,16 @@ const handleDelete = async (planId) => {
         setSalesProducts(updated);
       }}
       onFocus={(e) => {
-        // Show suggestions when focused
-        const event = new Event('input', { bubbles: true });
-        e.target.dispatchEvent(event);
+        // Force re-render to show dropdown
+        e.target.style.zIndex = "100";
       }}
-      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      onBlur={(e) => {
+        // Small delay to allow click on dropdown items
+        setTimeout(() => {
+          e.target.style.zIndex = "auto";
+        }, 200);
+      }}
+      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 relative z-10"
       autoComplete="off"
     />
     
@@ -963,18 +977,22 @@ const handleDelete = async (planId) => {
     {product && productsList.filter(p => 
       p.name?.toLowerCase().includes(product.toLowerCase())
     ).length > 0 && (
-      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1">
+      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto mt-1">
         {productsList
           .filter(p => p.name?.toLowerCase().includes(product.toLowerCase()))
+          .slice(0, 10) // Limit to 10 results
           .map((prod) => (
             <div
               key={prod._id}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const updated = [...salesProducts];
                 updated[index] = prod.name;
                 setSalesProducts(updated);
               }}
-              className="px-3 py-2 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm"
+              className="px-3 py-2 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm transition-colors duration-150"
+              onMouseDown={(e) => e.preventDefault()} // Prevent input blur
             >
               {prod.name}
             </div>
@@ -990,7 +1008,7 @@ const handleDelete = async (planId) => {
           updated.splice(index, 1);
           setSalesProducts(updated);
         }}
-        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 z-10"
       >
         ×
       </button>

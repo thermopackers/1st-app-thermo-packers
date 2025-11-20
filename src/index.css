@@ -97,28 +97,35 @@ select[multiple] option:checked {
   color: #333 !important;
 }
 
-/* Prevent zoom on iOS inputs */
-@media screen and (max-width: 768px) {
-  input[type="text"] {
-    font-size: 16px !important;
-  }
+/* Ensure dropdowns appear above table content */
+.relative {
+  position: relative;
+}
+
+.z-50 {
+  z-index: 50;
 }
 
 /* Custom scrollbar for dropdown */
-.custom-dropdown {
+.max-h-48 {
+  max-height: 12rem;
+}
+
+.overflow-y-auto {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e0 #f7fafc;
 }
 
-.custom-dropdown::-webkit-scrollbar {
+.overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }
 
-.custom-dropdown::-webkit-scrollbar-track {
+.overflow-y-auto::-webkit-scrollbar-track {
   background: #f7fafc;
+  border-radius: 0 0 8px 8px;
 }
 
-.custom-dropdown::-webkit-scrollbar-thumb {
+.overflow-y-auto::-webkit-scrollbar-thumb {
   background-color: #cbd5e0;
   border-radius: 3px;
 }
