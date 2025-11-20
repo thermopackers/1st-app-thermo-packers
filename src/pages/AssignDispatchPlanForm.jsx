@@ -861,41 +861,34 @@ const handleDelete = async (planId) => {
               )}
               
               {customerNames.map((name, index) => (
-                <div key={index} className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder="Customer name"
-                    value={name}
-                    onChange={(e) => {
-                      const updated = [...customerNames];
-                      updated[index] = e.target.value;
-                      setCustomerNames(updated);
-                    }}
-                    list={`customer-options-${index}`}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-                  />
-                  <datalist id={`customer-options-${index}`}>
-                    {customerList
-                      .filter((c) => c.name.toLowerCase().includes(name.toLowerCase()))
-                      .map((c) => (
-                        <option key={c._id} value={c.name} />
-                      ))}
-                  </datalist>
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...customerNames];
-                        updated.splice(index, 1);
-                        setCustomerNames(updated);
-                      }}
-                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+  <div key={index} className="flex gap-1">
+    <input
+      type="text"
+      placeholder="Customer name"
+      value={name}
+      onChange={(e) => {
+        const updated = [...customerNames];
+        updated[index] = e.target.value;
+        setCustomerNames(updated);
+      }}
+      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      autoComplete="off" // ✅ ADD THIS
+    />
+    {index > 0 && (
+      <button
+        type="button"
+        onClick={() => {
+          const updated = [...customerNames];
+          updated.splice(index, 1);
+          setCustomerNames(updated);
+        }}
+        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+      >
+        ×
+      </button>
+    )}
+  </div>
+))}
               <button
                 type="button"
                 onClick={() => setCustomerNames([...customerNames, ""])}
@@ -917,42 +910,35 @@ const handleDelete = async (planId) => {
                 </div>
               )}
               
-              {salesProducts.map((product, index) => (
-                <div key={index} className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder="Sales product"
-                    value={product}
-                    onChange={(e) => {
-                      const updated = [...salesProducts];
-                      updated[index] = e.target.value;
-                      setSalesProducts(updated);
-                    }}
-                    list={`product-options-${index}`}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-                  />
-                  <datalist id={`product-options-${index}`}>
-                    {productsList
-                      .filter((p) => p.name?.toLowerCase().includes(product.toLowerCase()))
-                      .map((p) => (
-                        <option key={p._id} value={p.name} />
-                      ))}
-                  </datalist>
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...salesProducts];
-                        updated.splice(index, 1);
-                        setSalesProducts(updated);
-                      }}
-                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+             {salesProducts.map((product, index) => (
+  <div key={index} className="flex gap-1">
+    <input
+      type="text"
+      placeholder="Sales product"
+      value={product}
+      onChange={(e) => {
+        const updated = [...salesProducts];
+        updated[index] = e.target.value;
+        setSalesProducts(updated);
+      }}
+      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      autoComplete="off" // ✅ ADD THIS
+    />
+    {index > 0 && (
+      <button
+        type="button"
+        onClick={() => {
+          const updated = [...salesProducts];
+          updated.splice(index, 1);
+          setSalesProducts(updated);
+        }}
+        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+      >
+        ×
+      </button>
+    )}
+  </div>
+))}
               <button
                 type="button"
                 onClick={() => setSalesProducts([...salesProducts, ""])}
