@@ -861,7 +861,7 @@ const handleDelete = async (planId) => {
               )}
               
               {customerNames.map((name, index) => (
-  <div key={index} className="flex gap-1">
+  <div key={index} className="flex gap-1 relative">
     <input
       type="text"
       placeholder="Customer name"
@@ -871,9 +871,38 @@ const handleDelete = async (planId) => {
         updated[index] = e.target.value;
         setCustomerNames(updated);
       }}
+      onFocus={(e) => {
+        // Show suggestions when focused
+        const event = new Event('input', { bubbles: true });
+        e.target.dispatchEvent(event);
+      }}
       className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-      autoComplete="off" // ✅ ADD THIS
+      autoComplete="off"
     />
+    
+    {/* Custom Dropdown for Customers */}
+    {name && customerList.filter(c => 
+      c.name.toLowerCase().includes(name.toLowerCase())
+    ).length > 0 && (
+      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1">
+        {customerList
+          .filter(c => c.name.toLowerCase().includes(name.toLowerCase()))
+          .map((customer) => (
+            <div
+              key={customer._id}
+              onClick={() => {
+                const updated = [...customerNames];
+                updated[index] = customer.name;
+                setCustomerNames(updated);
+              }}
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm"
+            >
+              {customer.name}
+            </div>
+          ))}
+      </div>
+    )}
+    
     {index > 0 && (
       <button
         type="button"
@@ -911,7 +940,7 @@ const handleDelete = async (planId) => {
               )}
               
              {salesProducts.map((product, index) => (
-  <div key={index} className="flex gap-1">
+  <div key={index} className="flex gap-1 relative">
     <input
       type="text"
       placeholder="Sales product"
@@ -921,9 +950,38 @@ const handleDelete = async (planId) => {
         updated[index] = e.target.value;
         setSalesProducts(updated);
       }}
+      onFocus={(e) => {
+        // Show suggestions when focused
+        const event = new Event('input', { bubbles: true });
+        e.target.dispatchEvent(event);
+      }}
       className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-      autoComplete="off" // ✅ ADD THIS
+      autoComplete="off"
     />
+    
+    {/* Custom Dropdown for Products */}
+    {product && productsList.filter(p => 
+      p.name?.toLowerCase().includes(product.toLowerCase())
+    ).length > 0 && (
+      <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1">
+        {productsList
+          .filter(p => p.name?.toLowerCase().includes(product.toLowerCase()))
+          .map((prod) => (
+            <div
+              key={prod._id}
+              onClick={() => {
+                const updated = [...salesProducts];
+                updated[index] = prod.name;
+                setSalesProducts(updated);
+              }}
+              className="px-3 py-2 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm"
+            >
+              {prod.name}
+            </div>
+          ))}
+      </div>
+    )}
+    
     {index > 0 && (
       <button
         type="button"

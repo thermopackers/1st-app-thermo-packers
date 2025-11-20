@@ -96,3 +96,29 @@ select[multiple] option:checked {
 .swal2-close:hover {
   color: #333 !important;
 }
+
+/* Prevent zoom on iOS inputs */
+@media screen and (max-width: 768px) {
+  input[type="text"] {
+    font-size: 16px !important;
+  }
+}
+
+/* Custom scrollbar for dropdown */
+.custom-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.custom-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-dropdown::-webkit-scrollbar-track {
+  background: #f7fafc;
+}
+
+.custom-dropdown::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
