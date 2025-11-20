@@ -205,21 +205,6 @@ const fetchPlans = async () => {
       date: filterDate,
     });
 
-    // Fetch diesel entries
-    const dieselRes = await axiosInstance.get("/diesel/entries", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const dieselMap = {};
-    dieselRes.data.forEach((entry) => {
-      if (entry.planId) {
-        if (!dieselMap[entry.planId]) dieselMap[entry.planId] = [];
-        dieselMap[entry.planId].push(entry);
-      }
-    });
-
-    setDieselImagesMap(dieselMap);
-
     // Fetch dispatch plans
     const res = await axiosInstance.get(
       `/dispatch-plans/paginated?${query}`,
@@ -228,22 +213,25 @@ const fetchPlans = async () => {
       }
     );
 
-    // Merge all documents into plans
-    const mergedPlans = res.data.plans.map((plan) => {
+    // Process plans with vehicle data
+    const processedPlans = res.data.plans.map((plan) => {
       const matchedVehicle = registeredVehicles.find(
         (v) => v.vehicleNumber === plan.vehicleNumber
       );
 
-      const dispatchImages = plan.imageUrls || [];
-      const dieselEntries = dieselMap[plan._id] || [];
-      const dieselImages = dieselEntries.flatMap((d) => d.imageUrls || []);
-      const attachmentUrls = plan.attachmentUrls || [];
+      // Ensure imageUrls is always an array and handle different formats
+      let imageUrls = [];
+      if (Array.isArray(plan.imageUrls)) {
+        // If imageUrls contains objects with url property, extract the URLs
+        imageUrls = plan.imageUrls.map(item => 
+          typeof item === 'object' && item.url ? item.url : item
+        );
+      }
       
-      // Combine ALL documents: images + attachments + audio
+      // Combine all documents: images + attachments + audio
       const allDocuments = [
-        ...dispatchImages, 
-        ...dieselImages, 
-        ...attachmentUrls
+        ...imageUrls,
+        ...(plan.attachmentUrls || [])
       ];
       
       // Add audio as a separate document if it exists
@@ -255,12 +243,11 @@ const fetchPlans = async () => {
         ...plan,
         gpsLink: matchedVehicle?.gpsLink || null,
         imageUrls: allDocuments, // This now includes ALL documents
-        dieselEntries,
         hasAudio: !!plan.audioUrl,
       };
     });
 
-    setPlans(mergedPlans);
+    setPlans(processedPlans);
     setTotalPages(res.data.totalPages);
   } catch (err) {
     console.error("Error fetching plans:", err);
