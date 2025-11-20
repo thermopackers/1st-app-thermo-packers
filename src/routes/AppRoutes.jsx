@@ -301,7 +301,7 @@ export default function AppRoutes() {
             <Route
               path="/my-tasks"
               element={
-                <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging","driver"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging","driver","guard"]}>
                   <PageWrapper><EmployeeDashboard /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -309,7 +309,7 @@ export default function AppRoutes() {
 <Route
   path="/my-tasks/:taskId?"
   element={
-    <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging", "driver"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging", "driver","guard"]}>
       <PageWrapper><EmployeeDashboard /></PageWrapper>
     </ProtectedRoute>
   }
@@ -319,7 +319,7 @@ export default function AppRoutes() {
             <Route
               path="/task-dashboard"
               element={
-                <ProtectedRoute allowedRoles={["admin", "accounts","sales","production"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging", "driver","guard"]}>
                   <PageWrapper><AdminDashboard /></PageWrapper>
                 </ProtectedRoute>
               }
