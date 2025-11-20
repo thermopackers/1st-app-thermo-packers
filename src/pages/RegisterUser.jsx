@@ -691,7 +691,7 @@ setAllowQuotation(false); // Add this line
             { value: "production", label: "Production" },
             { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
             { value: "suppliers", label: "Vendors/Suppliers" },
-            { value: "driver", label: "Driver" },
+            // { value: "driver", label: "Driver" },
             { value: "guard", label: "Guard" },
             { value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
           ].map((roleOption) => (
