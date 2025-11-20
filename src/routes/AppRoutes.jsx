@@ -283,7 +283,7 @@ export default function AppRoutes() {
             <Route
               path="/my-assets"
               element={
-                <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver","guard"]}>
                   <PageWrapper><EmployeeAssets /></PageWrapper>
                 </ProtectedRoute>
               }
