@@ -682,11 +682,14 @@ const handleDelete = async (planId) => {
  <div className="p-6 border-b border-gray-200">
   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-1">
-        Dispatch Plans Management
-      </h2>
-      <p className="text-gray-600">Manage and assign dispatch plans in table format</p>
-    </div>
+  <h2 className="text-xl font-semibold text-gray-900 mb-1">
+    Dispatch Plans Management
+  </h2>
+  <p className="text-gray-600 mb-2">Manage and assign dispatch plans in table format</p>
+  <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+    💡 <strong>Tip:</strong> To get a specific date plan, just filter that date and click export
+  </p>
+</div>
 
     <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
       {/* Export PDF Button - NEW */}
