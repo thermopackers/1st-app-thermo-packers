@@ -490,7 +490,7 @@ const removeFile = async (index) => {
 </p>
             </div>
 
-           {/* Customer Name with Search */}
+       {/* Customer Name with Search and Manual Entry */}
 <div className="relative">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Customer Name *
@@ -503,7 +503,7 @@ const removeFile = async (index) => {
       onChange={handleInputChange}
       onFocus={() => setIsCustomerDropdownOpen(true)}
       onBlur={() => setTimeout(() => setIsCustomerDropdownOpen(false), 200)}
-      placeholder="Type to search customers..."
+      placeholder="Type to search customers or enter manually..."
       required
       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
     />
@@ -551,21 +551,44 @@ const removeFile = async (index) => {
         ))
       }
       
-      {/* No results message */}
-      {customers.filter(customer => 
+      {/* Manual Entry Option */}
+      {formData.customerName && customers.filter(customer => 
+        customer.name?.toLowerCase().includes(formData.customerName.toLowerCase())
+      ).length === 0 && (
+        <div
+          onClick={() => {
+            setIsCustomerDropdownOpen(false);
+          }}
+          className="px-4 py-3 bg-green-50 hover:bg-green-100 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+        >
+          <div className="font-medium text-gray-900 flex items-center">
+            <span className="mr-2">➕</span>
+            Use "{formData.customerName}" as new customer
+          </div>
+          <div className="text-sm text-gray-500 mt-1">
+            This customer will be added manually
+          </div>
+        </div>
+      )}
+      
+      {/* No results message when no input */}
+      {!formData.customerName && customers.filter(customer => 
         customer.name?.toLowerCase().includes(formData.customerName.toLowerCase())
       ).length === 0 && (
         <div className="px-4 py-3 text-gray-500 text-center">
-          No customers found matching "{formData.customerName}"
+          Type to search customers or enter a new customer name
         </div>
       )}
     </div>
   )}
   
-  {/* Loading state */}
-  {customers.length === 0 && (
-    <p className="text-gray-500 text-sm mt-1">Loading customers...</p>
-  )}
+  {/* Info text */}
+  <p className="text-gray-500 text-sm mt-1">
+    {customers.length === 0 
+      ? "Loading customers..." 
+      : "Select from dropdown or type to add new customer manually"
+    }
+  </p>
 </div>
 
             {/* Amount */}
