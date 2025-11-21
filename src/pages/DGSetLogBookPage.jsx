@@ -412,7 +412,6 @@ const addNewRow = () => {
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Shutdown</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Running</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Diesel (L)</th>
-        <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Verify</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Files</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -492,22 +491,6 @@ const addNewRow = () => {
             />
           </td>
 
-          {/* Verification */}
-          <td className="border border-gray-300 px-2 py-2">
-            {(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) && (
-              <div className="flex flex-col items-center">
-                <input
-                  type="checkbox"
-                  checked={row.checked || false}
-                  onChange={() => handleInputChange(index, "checked", !row.checked)}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                {row.checked && (
-                  <span className="text-xs text-green-600 mt-1">✓</span>
-                )}
-              </div>
-            )}
-          </td>
 
           {/* Files */}
           <td className="border border-gray-300 px-2 py-2">

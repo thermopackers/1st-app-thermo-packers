@@ -350,8 +350,9 @@ const GuardEntriesView = () => {
                         <th className="px-4 py-3">Remarks</th>
                         <th className="px-4 py-3">Recorded By</th>
                         <th className="px-4 py-3">Photos</th>
-                        <th className="px-4 py-3">Generate Gate Inward Printout</th>
-                      </tr>
+{!user?.role?.includes('guard') && (
+  <th className="px-4 py-3">Generate Gate Inward Printout</th>
+)}                      </tr>
                     </thead>
                     <tbody>
                       {entries.map((entry) => (
@@ -459,18 +460,20 @@ const GuardEntriesView = () => {
                               ))}
                             </div>
                           </td>
-                          <td className="px-4 py-4">
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      navigate(`/gate-inward-printout/${entry._id}`);
-    }}
-    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm"
-  >
-    <span>🖨️</span>
-    Print
-  </button>
-</td>
+                         {!user?.role?.includes('guard') && (
+  <td className="px-4 py-4">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/gate-inward-printout/${entry._id}`);
+      }}
+      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm"
+    >
+      <span>🖨️</span>
+      Print
+    </button>
+  </td>
+)}
                         </tr>
                       ))}
                     </tbody>

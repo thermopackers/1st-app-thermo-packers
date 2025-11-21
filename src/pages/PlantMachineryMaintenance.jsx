@@ -6,16 +6,15 @@ export default function PlantMachineryMaintenance() {
   const sections = [
     { name: "Air Compressors", path: "/maintenance/air-compressors", color: "bg-blue-600 hover:bg-blue-700" },
     // Added the two buttons from PlantMachineryPage with "Main Electric Panel" mention
-    { name: "Power Factor - Main Electric Panel", path: "/plant-machinery-maintenance-power-factor", color: "bg-green-600 hover:bg-green-700" },
-    { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-indigo-600 hover:bg-indigo-700" },
-    { name: "Main Electric Panel", path: "/maintenance/main-electric-panel", color: "bg-indigo-600 hover:bg-indigo-700" },
-    { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-emerald-600 hover:bg-emerald-700" },
-    { name: "Boiler", path: "/maintenance/boiler", color: "bg-rose-600 hover:bg-rose-700" },
-    { name: "Earthing", path: "/maintenance/earthing", color: "bg-yellow-600 hover:bg-yellow-700" },
-    { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-purple-600 hover:bg-purple-700" },
-    { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-teal-600 hover:bg-teal-700" },
-    { name: "Pre-expander", path: "/maintenance/pre-expander", color: "bg-orange-600 hover:bg-orange-700" },
-    { name: "Block Moulding Machine", path: "/maintenance/block-moulding", color: "bg-pink-600 hover:bg-pink-700" },
+    { name: "Power Factor - Main Electric Panel", path: "/plant-machinery-maintenance-power-factor", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Boiler", path: "/maintenance/boiler",color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Water Filter", path: "/maintenance/water-filter",color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Pre-expander", path: "/maintenance/pre-expander", color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Block Moulding Machine", path: "/maintenance/block-moulding",color: "bg-blue-600 hover:bg-blue-700" },
   ];
 
   return (

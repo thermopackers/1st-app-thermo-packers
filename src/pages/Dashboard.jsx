@@ -891,6 +891,59 @@ useEffect(() => {
                   </DashboardCard>
                 </DashboardSection>
               )}
+
+              {userRoles.some(role => ["guard"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">🚗</span>
+Make get Inwards/GRN/Record Vehicle Entry      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <ActionButton 
+    to="/guard-entry" 
+    variant="cyan" 
+    icon="📝"
+  >
+    <div className="text-xl font-semibold mb-2">
+      Record Vehicle Entry
+    </div>
+    <div className="text-blue-100 text-sm opacity-90">
+      Add vehicle number, supplier details and photos
+    </div>
+  </ActionButton>
+  
+  {userRoles.includes("guard") ? (
+    <ActionButton 
+      to="/guard-entries-view" 
+      variant="success" 
+      icon="📋"
+    >
+      <div className="text-xl font-semibold mb-2">
+        View All Entries
+      </div>
+      <div className="text-green-100 text-sm opacity-90">
+        Check previous vehicle entry records
+      </div>
+    </ActionButton>
+  ) : (
+    <ActionButton 
+      to="/guard-entries-view" 
+      variant="fuchsia" 
+      icon="📦"
+    >
+      <div className="text-xl font-semibold mb-2">
+        Manage Goods Inwards
+      </div>
+      <div className="text-yellow-100 text-sm opacity-90">
+        Manage and control incoming goods
+      </div>
+    </ActionButton>
+  )}
+</div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
           {/* Enhanced Main Grid Section */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1097,7 +1150,7 @@ useEffect(() => {
             </div>
           </DashboardSection>
 
-{userRoles.some(role => ["guard", "accounts", "admin"].includes(role)) && (
+{userRoles.some(role => ["accounts", "admin"].includes(role)) && (
   <DashboardSection>
     <DashboardCard>
       <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">

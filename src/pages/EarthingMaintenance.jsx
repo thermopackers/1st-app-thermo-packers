@@ -18,9 +18,31 @@ const [showBulkGeneration, setShowBulkGeneration] = useState(false);
 
   // Existing states for logs and pagination
   const [logs, setLogs] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
+const [unit1Pagination, setUnit1Pagination] = useState({
+  page: 1,
+  totalPages: 1,
+  totalRecords: 0
+});
+
+const [unit3Pagination, setUnit3Pagination] = useState({
+  page: 1,
+  totalPages: 1,
+  totalRecords: 0
+});
+
+// Helper to get current unit's pagination
+const getCurrentPagination = () => {
+  return activeUnit === 'unit1' ? unit1Pagination : unit3Pagination;
+};
+
+// Helper to set current unit's pagination
+const setCurrentPagination = (updates) => {
+  if (activeUnit === 'unit1') {
+    setUnit1Pagination(prev => ({ ...prev, ...updates }));
+  } else {
+    setUnit3Pagination(prev => ({ ...prev, ...updates }));
+  }
+};
   const [filterDate, setFilterDate] = useState("");
   const [filteredLogs, setFilteredLogs] = useState([]);
 
@@ -31,10 +53,16 @@ const [showBulkGeneration, setShowBulkGeneration] = useState(false);
   const [existingFiles, setExistingFiles] = useState([]);
   const [deletingFiles, setDeletingFiles] = useState({});
 
- // Fetch existing logs - FIXED VERSION
+// Fetch existing logs - UNIT SPECIFIC
 useEffect(() => {
-  fetchLogs(page);
-}, [page, activeUnit]);
+  const currentPage = getCurrentPagination().page;
+  fetchLogs(currentPage);
+}, [activeUnit]); // Remove page from dependencies
+
+// Reset to page 1 when unit changes
+useEffect(() => {
+  setCurrentPagination({ page: 1 });
+}, [activeUnit]);
 
 // Helper function to convert dd/mm/yyyy to yyyy-mm-dd for date input
 const convertToYYYYMMDD = (dateString) => {
@@ -75,28 +103,34 @@ const getTodayDate = () => {
   return `${day}/${month}/${year}`;
 };
 
-  // Fetch logs with pagination and date filter
-  const fetchLogs = async (pageNum, dateFilter = "") => {
-    try {
-      setLoading(true);
-      let url = `/earthing?page=${pageNum}&limit=10`;
-      if (dateFilter) {
-        url += `&date=${encodeURIComponent(dateFilter)}`;
-      }
-      
-      const res = await axiosInstance.get(url);
-      setLogs(res.data.logs);
-      setTotalPages(res.data.totalPages);
-      setTotalRecords(res.data.totalRecords);
-      setFilteredLogs(res.data.logs);
-      
-    } catch (err) {
-      console.error("Error fetching logs:", err);
-      Swal.fire("Error", "Failed to fetch logs", "error");
-    } finally {
-      setLoading(false);
+// Fetch logs with pagination, date filter and unit filter
+const fetchLogs = async (pageNum, dateFilter = "") => {
+  try {
+    setLoading(true);
+    let url = `/earthing?page=${pageNum}&limit=10&unit=${activeUnit}`;
+    if (dateFilter) {
+      url += `&date=${encodeURIComponent(dateFilter)}`;
     }
-  };
+    
+    const res = await axiosInstance.get(url);
+    setLogs(res.data.logs);
+    
+    // Update unit-specific pagination
+    setCurrentPagination({
+      page: res.data.currentPage,
+      totalPages: res.data.totalPages,
+      totalRecords: res.data.totalRecords
+    });
+    
+    setFilteredLogs(res.data.logs);
+    
+  } catch (err) {
+    console.error("Error fetching logs:", err);
+    Swal.fire("Error", "Failed to fetch logs", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Handle unit selection
 // Handle unit selection
@@ -127,8 +161,8 @@ const generateTable = () => {
     id: Math.random().toString(36).substr(2, 9),
     earthingNo: earthing,
     date: getTodayDate(),
-    connectedTo: connectedToData[activeUnit][earthing] || "", // Pre-fill with connected to data
-    location: '',
+    connectedTo: connectedToData[activeUnit][earthing] || "",
+    location: activeUnit === 'unit3' ? 'Unit 3' : '', // AUTO-SET LOCATION FOR UNIT 3
     waterTop: "No",
     earthingCurrent: "",
     remarks: "",
@@ -157,70 +191,76 @@ const generateTable = () => {
   };
 
   // Submit all table data
-  const submitAllData = async () => {
-    try {
-      setLoading(true);
-      
-      for (const row of tableData) {
-        let uploadedUrls = [];
+const submitAllData = async () => {
+  try {
+    setLoading(true);
+    
+    for (const row of tableData) {
+      let uploadedUrls = [];
 
-        // Upload files if any
-        if (row.files && row.files.length > 0) {
-          const fd = new FormData();
-          row.files.forEach((file) => fd.append("files", file));
-          const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          uploadedUrls = uploadRes.data.urls;
-        }
-
-     // Submit row data - USE THE SELECTED DATE FROM THE DATE PICKER
-await axiosInstance.post("/earthing", {
-  earthingNo: row.earthingNo,
-  date: row.date, // Use the actual date from the date picker input
-  waterTopUp: row.waterTop,
-  earthingCurrent: row.earthingCurrent,
-  sign: "",
-  remarks: row.remarks,
-  connectedTo: row.connectedTo,
-  location: row.location,
-  uploadedFiles: uploadedUrls,
-});
+      // Upload files if any
+      if (row.files && row.files.length > 0) {
+        const fd = new FormData();
+        row.files.forEach((file) => fd.append("files", file));
+        const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        uploadedUrls = uploadRes.data.urls;
       }
 
-      Swal.fire("Success!", "All earthing entries saved successfully", "success");
-      setTableData([]);
-      setSelectedEarthings([]);
-      fetchLogs(page);
-
-    } catch (err) {
-      console.error("Error saving data:", err);
-      Swal.fire("Error", "Error saving entries", "error");
-    } finally {
-      setLoading(false);
+      // Submit row data - ADD UNIT INFORMATION IN LOCATION
+      await axiosInstance.post("/earthing", {
+        earthingNo: row.earthingNo,
+        date: row.date,
+        waterTopUp: row.waterTop,
+        earthingCurrent: row.earthingCurrent,
+        sign: "",
+        remarks: row.remarks,
+        connectedTo: row.connectedTo,
+        location: activeUnit === 'unit3' ? 'Unit 3' : (row.location || ''), // AUTO-ADD "Unit 3" for Unit 3 entries
+        uploadedFiles: uploadedUrls,
+      });
     }
-  };
 
-  // Date filter handlers
-  const handleDateFilterChange = (selectedDate) => {
-    if (selectedDate) {
-      const [year, month, day] = selectedDate.split('-');
-      const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-      setFilterDate(formattedDate);
-      setPage(1);
-      fetchLogs(1, formattedDate);
-    } else {
-      setFilterDate("");
-      setPage(1);
-      fetchLogs(1);
-    }
-  };
+    Swal.fire("Success!", "All earthing entries saved successfully", "success");
+    setTableData([]);
+    setSelectedEarthings([]);
+    fetchLogs(getCurrentPagination().page, filterDate);
 
-  const handleDateFilter = (date) => {
-    setFilterDate(date);
-    setPage(1);
-    fetchLogs(1, date);
-  };
+  } catch (err) {
+    console.error("Error saving data:", err);
+    Swal.fire("Error", "Error saving entries", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Date filter handlers
+const handleDateFilterChange = (selectedDate) => {
+  if (selectedDate) {
+    const [year, month, day] = selectedDate.split('-');
+    const formattedDate = `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    setFilterDate(formattedDate);
+    setCurrentPagination({ page: 1 });
+    fetchLogs(1, formattedDate);
+  } else {
+    setFilterDate("");
+    setCurrentPagination({ page: 1 });
+    fetchLogs(1);
+  }
+};
+
+const handleDateFilter = (date) => {
+  setFilterDate(date);
+  setCurrentPagination({ page: 1 });
+  fetchLogs(1, date);
+};
+
+const clearFilter = () => {
+  setFilterDate("");
+  setCurrentPagination({ page: 1 });
+  fetchLogs(1);
+};
 
   // Editing functions
 const startEditing = (entry) => {
@@ -239,57 +279,59 @@ const startEditing = (entry) => {
   setEditFiles([]);
 };
 
-  const saveEdit = async (id) => {
-    try {
-      setLoading(true);
-      
-      const filesToDelete = deletingFiles[id] || [];
-      
-      if (filesToDelete.length > 0) {
-        await Promise.all(
-          filesToDelete.map(fileUrl => 
-            axiosInstance.delete('/earthing/file', { data: { fileUrl } })
-          )
-        );
-      }
-
-      const updatedFiles = existingFiles.filter(file => !filesToDelete.includes(file));
-
-      const updatedData = { 
-        ...editForm, 
-        uploadedFiles: updatedFiles
-      };
-
-      if (editFiles.length > 0) {
-        const fd = new FormData();
-        editFiles.forEach((f) => fd.append("files", f));
-        const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        updatedData.uploadedFiles = [...updatedFiles, ...uploadRes.data.urls];
-      }
-
-      await axiosInstance.put(`/earthing/${id}`, updatedData);
-      
-      setEditingId(null);
-      setEditForm({});
-      setEditFiles([]);
-      setExistingFiles([]);
-      setDeletingFiles(prev => {
-        const newState = { ...prev };
-        delete newState[id];
-        return newState;
-      });
-      
-      fetchLogs(page);
-      Swal.fire("Updated!", "Entry updated successfully", "success");
-    } catch (err) {
-      console.error("Error updating log:", err);
-      Swal.fire("Error", "Failed to update entry", "error");
-    } finally {
-      setLoading(false);
+const saveEdit = async (id) => {
+  try {
+    setLoading(true);
+    
+    const filesToDelete = deletingFiles[id] || [];
+    
+    if (filesToDelete.length > 0) {
+      await Promise.all(
+        filesToDelete.map(fileUrl => 
+          axiosInstance.delete('/earthing/file', { data: { fileUrl } })
+        )
+      );
     }
-  };
+
+    const updatedFiles = existingFiles.filter(file => !filesToDelete.includes(file));
+
+    const updatedData = { 
+      ...editForm, 
+      uploadedFiles: updatedFiles,
+      // Preserve Unit 3 location when editing
+      location: activeUnit === 'unit3' ? 'Unit 3' : editForm.location
+    };
+
+    if (editFiles.length > 0) {
+      const fd = new FormData();
+      editFiles.forEach((f) => fd.append("files", f));
+      const uploadRes = await axiosInstance.post("/earthing/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      updatedData.uploadedFiles = [...updatedFiles, ...uploadRes.data.urls];
+    }
+
+    await axiosInstance.put(`/earthing/${id}`, updatedData);
+    
+    setEditingId(null);
+    setEditForm({});
+    setEditFiles([]);
+    setExistingFiles([]);
+    setDeletingFiles(prev => {
+      const newState = { ...prev };
+      delete newState[id];
+      return newState;
+    });
+    
+    fetchLogs(getCurrentPagination().page, filterDate);
+    Swal.fire("Updated!", "Entry updated successfully", "success");
+  } catch (err) {
+    console.error("Error updating log:", err);
+    Swal.fire("Error", "Failed to update entry", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -349,11 +391,6 @@ const startEditing = (entry) => {
     setEditFiles(Array.from(e.target.files));
   };
 
-  const clearFilter = () => {
-    setFilterDate("");
-    setPage(1);
-    fetchLogs(1);
-  };
 
   const uniqueDates = [...new Set(logs.map(entry => entry.date))].sort((a, b) => {
     const [dayA, monthA, yearA] = a.split('/').map(Number);
@@ -450,6 +487,36 @@ const deleteTableRow = (id) => {
   });
 };
 
+// Pagination handlers
+const handlePageChange = (newPage) => {
+  setCurrentPagination(prev => ({ ...prev, page: newPage }));
+  fetchLogs(newPage, filterDate);
+};
+
+const handleFirstPage = () => {
+  handlePageChange(1);
+};
+
+const handlePrevPage = () => {
+  const currentPage = getCurrentPagination().page;
+  if (currentPage > 1) {
+    handlePageChange(currentPage - 1);
+  }
+};
+
+const handleNextPage = () => {
+  const currentPage = getCurrentPagination().page;
+  const totalPages = getCurrentPagination().totalPages;
+  if (currentPage < totalPages) {
+    handlePageChange(currentPage + 1);
+  }
+};
+
+const handleLastPage = () => {
+  const totalPages = getCurrentPagination().totalPages;
+  handlePageChange(totalPages);
+};
+
 // Add this function to submit individual rows
 const submitSingleRow = async (row) => {
   try {
@@ -467,18 +534,18 @@ const submitSingleRow = async (row) => {
       uploadedUrls = uploadRes.data.urls;
     }
 
- // Submit row data - USE THE SELECTED DATE FROM THE DATE PICKER
-await axiosInstance.post("/earthing", {
-  earthingNo: row.earthingNo,
-  date: row.date, // Use the actual date from the date picker input
-  waterTopUp: row.waterTop,
-  earthingCurrent: row.earthingCurrent,
-  sign: "",
-  remarks: row.remarks,
-  connectedTo: row.connectedTo,
-  location: row.location,
-  uploadedFiles: uploadedUrls,
-});
+    // Submit row data - ADD UNIT INFORMATION IN LOCATION
+    await axiosInstance.post("/earthing", {
+      earthingNo: row.earthingNo,
+      date: row.date,
+      waterTopUp: row.waterTop,
+      earthingCurrent: row.earthingCurrent,
+      sign: "",
+      remarks: row.remarks,
+      connectedTo: row.connectedTo,
+      location: activeUnit === 'unit3' ? 'Unit 3' : (row.location || ''), // AUTO-ADD "Unit 3" for Unit 3 entries
+      uploadedFiles: uploadedUrls,
+    });
 
     // Remove the submitted row from table
     setTableData(prev => prev.filter(tableRow => tableRow.id !== row.id));
@@ -489,7 +556,7 @@ await axiosInstance.post("/earthing", {
     Swal.fire("Success!", `Earthing ${row.earthingNo} entry saved successfully`, "success");
     
     // Refresh logs if needed
-    fetchLogs(page);
+    fetchLogs(getCurrentPagination().page, filterDate);
 
   } catch (err) {
     console.error("Error saving data:", err);
@@ -575,8 +642,8 @@ const newRow = {
   id: Math.random().toString(36).substr(2, 9),
   earthingNo: selectedEarthing,
   date: getTodayDate(),
-  connectedTo: connectedToData[activeUnit][selectedEarthing] || "", // Pre-fill with connected to data
-  location: '',
+  connectedTo: connectedToData[activeUnit][selectedEarthing] || "",
+  location: activeUnit === 'unit3' ? 'Unit 3' : '', // AUTO-SET LOCATION FOR UNIT 3
   waterTop: "No",
   earthingCurrent: "",
   remarks: "",
@@ -872,8 +939,7 @@ return (
                   <th className="border px-3 py-2">Status</th>
                   <th className="border px-3 py-2">Earthing No</th>
                   <th className="border px-3 py-2">Date</th>
-                  <th className="border px-3 py-2">Connected To</th>
-                  <th className="border px-3 py-2">Location</th>
+                  <th className="border px-3 py-2">Connected To/Location</th>
                   <th className="border px-3 py-2">Water Top</th>
                   <th className="border px-3 py-2">Earthing Current</th>
                   <th className="border px-3 py-2">Photo of Water Top Up and Location</th>
@@ -895,18 +961,8 @@ return (
 {/* Saved Data (from database) - SMART FILTERING */}
 {filteredLogs
   .filter(entry => {
-    const earthingNo = entry.earthingNo;
-    
-    if (activeUnit === 'unit1') {
-      // Unit 1: E1-E18, but exclude E1-E3 if they're specifically Unit 3 entries
-      // You can identify Unit 3 entries by location or other fields
-      const isLikelyUnit3 = entry.location && entry.location.includes('Unit 3');
-      return (earthingNo.match(/^E(1[0-8]|[4-9])$/) || earthingNo === 'E1' || earthingNo === 'E2' || earthingNo === 'E3') && !isLikelyUnit3;
-    } else {
-      // Unit 3: Only E1-E3 and specifically marked as Unit 3
-      const isLikelyUnit3 = entry.location && entry.location.includes('Unit 3');
-      return (earthingNo === 'E1' || earthingNo === 'E2' || earthingNo === 'E3') && isLikelyUnit3;
-    }
+    // This is now handled by the backend, but keep as fallback
+    return true;
   })
   .map((entry) => {
     const isEditing = editingId === entry._id;
@@ -977,7 +1033,7 @@ return (
 </td>
         
         {/* Location - Editable when editing */}
-        <td className="border px-3 py-2">
+        {/* <td className="border px-3 py-2">
           {isEditing ? (
         <input
   type="text"
@@ -989,7 +1045,7 @@ return (
           ) : (
             entry.location || '-'
           )}
-        </td>
+        </td> */}
         
         {/* Water Top - Editable when editing */}
         <td className="border px-3 py-2">
@@ -1209,7 +1265,7 @@ return (
     placeholder="Connected to..."
   />
 </td>
-                        <td className="border px-3 py-2">
+                        {/* <td className="border px-3 py-2">
                       <input
   type="text"
   value={row.location}
@@ -1217,7 +1273,7 @@ return (
   className="w-full border rounded p-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
   placeholder="Enter location..."
 />
-                        </td>
+                        </td> */}
                         <td className="border px-3 py-2">
                           <select
                             value={row.waterTop}
@@ -1291,6 +1347,53 @@ return (
                 )}
               </tbody>
             </table>
+            {/* Pagination Controls */}
+{getCurrentPagination().totalPages > 1 && (
+  <div className="flex justify-between items-center mt-4 px-4 py-3 bg-white border-t border-gray-200 rounded-b-lg">
+    <div className="text-sm text-gray-700">
+      Showing page {getCurrentPagination().page} of {getCurrentPagination().totalPages} 
+      ({getCurrentPagination().totalRecords} total records)
+    </div>
+    
+    <div className="flex items-center space-x-1">
+      <button
+        onClick={handleFirstPage}
+        disabled={getCurrentPagination().page === 1}
+        className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        First
+      </button>
+      
+      <button
+        onClick={handlePrevPage}
+        disabled={getCurrentPagination().page === 1}
+        className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Previous
+      </button>
+      
+      <span className="px-3 py-1 text-sm bg-blue-500 text-white rounded">
+        {getCurrentPagination().page}
+      </span>
+      
+      <button
+        onClick={handleNextPage}
+        disabled={getCurrentPagination().page === getCurrentPagination().totalPages}
+        className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Next
+      </button>
+      
+      <button
+        onClick={handleLastPage}
+        disabled={getCurrentPagination().page === getCurrentPagination().totalPages}
+        className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Last
+      </button>
+    </div>
+  </div>
+)}
           </div>
         </div>
       </div>
