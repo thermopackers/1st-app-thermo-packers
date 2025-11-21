@@ -73,15 +73,15 @@ const removeFile = (index) => {
 
 const removeExistingFile = (index) => {
   const fileToRemove = existingFiles[index];
-
-  // Remove from existing file list
+  
+  // Remove from existing files
   const updatedExisting = existingFiles.filter((_, i) => i !== index);
   setExistingFiles(updatedExisting);
-
-  // Remove the corresponding preview (same index)
+  
+  // Remove from previews (existing files are at the beginning of previews array)
   setPreviews(prev => prev.filter((_, i) => i !== index));
-
-  // Tell parent (RegisterUser) that this file should be removed
+  
+  // Notify parent
   if (onRemoveExisting) {
     onRemoveExisting(fileToRemove);
   }

@@ -91,6 +91,24 @@ const [role, setRole] = useState([]);
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+      // ✅ SAFETY CHECK: Ensure we have required data
+  if (!name.trim()) {
+    toast.error('Name is required');
+    return;
+  }
+  
+  // Additional safety checks
+  if (isEditing && !editUserId) {
+    toast.error('Invalid edit state');
+    return;
+  }
+
+  // ✅ FIX: Check if role includes production, not if role equals production
+  if (Array.isArray(role) && role.includes('production') && productionSection.length === 0) {
+    toast.error('Please select at least one production section.');
+    return;
+  }
+
 // ✅ FIX: Check if role includes production, not if role equals production
   if (Array.isArray(role) && role.includes('production') && productionSection.length === 0) {
     toast.error('Please select at least one production section.');
@@ -165,44 +183,55 @@ formData.append("personalPhone", personalPhone);
         });
         toast.success('User registered successfully!');
       }
-      setResetTrigger(prev => prev + 1);
+  setResetTrigger(prev => prev + 1);
 
-      // Reset form
-      setName('');
-      setEmail('');
-      setPhone('');
-      setRole('');
-      setProductionSection([]);
-      setProfilePicture(null);
-      setProfilePicturePreview('');
-      setVisitingCard(null);
-      setVisitingCardPreview('');
-      setIsEditing(false);
-      setEditUserId(null);
+// Only reset if we're not in editing mode
+if (!isEditing) {
+  setName('');
+  setEmail('');
+  setPhone('');
+  setRole([]);
+  setProductionSection([]);
+  setProfilePicture(null);
+  setProfilePicturePreview('');
+  setVisitingCard(null);
+  setVisitingCardPreview('');
+  setDob('');
+  setAddress('');
+  setEmergencyNumber('');
+  setPersonalPhone('');
+  setDesignation('');
+  setEsicNo('');
+  setEpfoNo('');
+  setFrontFacePicture(null);
+  setAadharCard([]);
+  setPanCard([]);
+  setPassbookCheque([]);
+  setEsicCopy([]);
+  setEpfoCopy([]);
+  setMiscDocuments([]);
+  
+  // Reset existing files arrays
+  setExistingFrontFace([]);
+  setExistingAadharCard([]);
+  setExistingPanCard([]);
+  setExistingPassbookCheque([]);
+  setExistingEsicCopy([]);
+  setExistingEpfoCopy([]);
+  setExistingMiscDocuments([]);
+}
+
+setIsEditing(false);
+setEditUserId(null);
 setAllowAttendance(false);
 setAllowVehiclesManagement(false);
 setAllowHR(false);
 setAllowPlantMaintenance(false);
 setAllowTourExpenses(false);
-setAllowIncomingPayments(false); // Add this line
-setAllowQuotation(false); // Add this line
-      setDob('');
-      setAddress('');
-setEmergencyNumber('');
-setPersonalPhone('');
-      setDesignation('');
-      setEsicNo('');
-      setEpfoNo('');
+setAllowIncomingPayments(false);
+setAllowQuotation(false);
 
-      setFrontFacePicture(null);
-      setAadharCard([]);
-      setPanCard([]);
-      setPassbookCheque([]);
-      setEsicCopy([]);
-      setEpfoCopy([]);
-      setMiscDocuments([]);
-
-      fetchUsers();
+fetchUsers();
 
    } catch (err) {
   const errorMessage = err.response?.data?.message || 
@@ -249,39 +278,41 @@ const fetchUsers = async (page = 1, query = "") => {
   };
 
   // Add handler for removing existing files
-  const handleRemoveExistingFile = (field, fileUrl) => {
-    setFilesToRemove(prev => ({
-      ...prev,
-      [field]: [...(prev[field] || []), fileUrl]
-    }));
+ const handleRemoveExistingFile = (field, fileUrl) => {
+  setFilesToRemove(prev => ({
+    ...prev,
+    [field]: field === 'frontFacePicture' 
+      ? true // Special handling for single file field
+      : [...(prev[field] || []), fileUrl]
+  }));
 
-    // Also remove from existing files state immediately
-    switch (field) {
-      case 'frontFacePicture':
-        setExistingFrontFace([]);
-        break;
-      case 'aadharCard':
-        setExistingAadharCard(prev => prev.filter(file => file !== fileUrl));
-        break;
-      case 'panCard':
-        setExistingPanCard(prev => prev.filter(file => file !== fileUrl));
-        break;
-      case 'passbookCheque':
-        setExistingPassbookCheque(prev => prev.filter(file => file !== fileUrl));
-        break;
-      case 'esicCopy':
-        setExistingEsicCopy(prev => prev.filter(file => file !== fileUrl));
-        break;
-      case 'epfoCopy':
-        setExistingEpfoCopy(prev => prev.filter(file => file !== fileUrl));
-        break;
-      case 'miscDocuments':
-        setExistingMiscDocuments(prev => prev.filter(file => file !== fileUrl));
-        break;
-      default:
-        break;
-    }
-  };
+  // Update UI immediately
+  switch (field) {
+    case 'frontFacePicture':
+      setExistingFrontFace([]);
+      break;
+    case 'aadharCard':
+      setExistingAadharCard(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'panCard':
+      setExistingPanCard(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'passbookCheque':
+      setExistingPassbookCheque(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'esicCopy':
+      setExistingEsicCopy(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'epfoCopy':
+      setExistingEpfoCopy(prev => prev.filter(file => file !== fileUrl));
+      break;
+    case 'miscDocuments':
+      setExistingMiscDocuments(prev => prev.filter(file => file !== fileUrl));
+      break;
+    default:
+      break;
+  }
+};
 
   const handleEdit = (user) => {
     setIsEditing(true);
