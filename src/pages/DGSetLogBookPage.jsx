@@ -192,15 +192,22 @@ const addNewRow = () => {
     }
   };
 
-  const handleSave = async (row) => {
-    try {
-      setSaving(true);
-      await axiosInstance.post("/dg-log-book", row);
-      fetchData(page);
-    } finally {
-      setSaving(false);
-    }
-  };
+const handleSave = async (row) => {
+  try {
+    setSaving(true);
+    
+    // Prepare data with user information
+    const saveData = {
+      ...row,
+      createdBy: user?._id || null // Include user ID when saving
+    };
+    
+    await axiosInstance.post("/dg-log-book", saveData);
+    fetchData(page);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleDeleteRow = async (id) => {
     if (!window.confirm("Delete this row?")) return;
@@ -412,6 +419,7 @@ const addNewRow = () => {
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Shutdown</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Running</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Diesel (L)</th>
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data Entered By</th> {/* ADD THIS */}
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Files</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
         <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -491,6 +499,15 @@ const addNewRow = () => {
             />
           </td>
 
+          {/* Data Entered By - ADD THIS COLUMN */}
+       <td className="border border-gray-300 px-2 py-2">
+            <div className="text-xs text-gray-700 text-center">
+              <div className="font-semibold">{row.createdBy?.name || user?.name || 'Current User'}</div>
+              <div className="text-gray-500 truncate" title={row.createdBy?.email || user?.email}>
+                {row.createdBy?.email || user?.email || ''}
+              </div>
+            </div>
+          </td>
 
           {/* Files */}
           <td className="border border-gray-300 px-2 py-2">
@@ -592,6 +609,9 @@ const addNewRow = () => {
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Verification
                         </th>
+                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Entered By {/* ADD THIS COLUMN */}
+        </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Documents
                         </th>
@@ -714,6 +734,21 @@ const addNewRow = () => {
                               </div>
                             </div>
                           </td>
+
+    {/* Data Entered By Column - ADD THIS */}
+          <td className="px-6 py-4">
+            <div className="text-sm text-gray-700">
+              <div className="font-semibold">{row.createdBy?.name || user?.name || 'Current User'}</div>
+              <div className="text-gray-500 text-xs truncate" title={row.createdBy?.email || user?.email}>
+                {row.createdBy?.email || user?.email || ''}
+              </div>
+              {row.createdBy && (
+                <div className="text-xs text-green-600 mt-1">
+                  ✅ Saved
+                </div>
+              )}
+            </div>
+          </td>
 
                           {/* Documents Column */}
                           <td className="px-6 py-4">

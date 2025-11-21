@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
+import { useUserContext } from "../context/UserContext";
 
 export default function EarthingMaintenance() {
+    const { user } = useUserContext(); // Add this line
   // Unit selection states
   const [activeUnit, setActiveUnit] = useState('unit1');
   const [selectedEarthings, setSelectedEarthings] = useState([]);
@@ -944,18 +946,19 @@ return (
                   <th className="border px-3 py-2">Earthing Current</th>
                   <th className="border px-3 py-2">Photo of Water Top Up and Location</th>
                   <th className="border px-3 py-2">Remarks</th>
+                      <th className="border px-3 py-2">Data Entered By</th> {/* ADD THIS COLUMN */}
                   <th className="border px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {/* Show empty state when no data */}
-                {tableData.length === 0 && filteredLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="10" className="border px-3 py-8 text-center text-gray-500">
-                      No earthing data found. Add new earthings using the "Add New Row" button above.
-                    </td>
-                  </tr>
-                ) : (
+           {tableData.length === 0 && filteredLogs.length === 0 ? (
+  <tr>
+    <td colSpan="11" className="border px-3 py-8 text-center text-gray-500">
+      No earthing data found. Add new earthings using the "Add New Row" button above.
+    </td>
+  </tr>
+) : (
                   <>
                   {/* Saved Data (from database) */}
 {/* Saved Data (from database) - SMART FILTERING */}
@@ -1163,6 +1166,18 @@ return (
             entry.remarks || '-'
           )}
         </td>
+         <td className="border px-3 py-2 text-center">
+          {isEditing ? (
+            <span className="text-sm text-gray-500 italic">Current User</span>
+          ) : (
+            <div className="text-xs text-gray-700">
+              <div className="font-semibold">{entry.createdBy?.name || 'N/A'}</div>
+              <div className="text-gray-500 truncate" title={entry.createdBy?.email}>
+                {entry.createdBy?.email || 'No email'}
+              </div>
+            </div>
+          )}
+        </td>
         
         {/* Actions */}
         <td className="border px-3 py-2">
@@ -1316,6 +1331,14 @@ return (
                             placeholder="Remarks..."
                           />
                         </td>
+                            <td className="border px-3 py-2 text-center">
+      <div className="text-xs text-gray-700">
+        <div className="font-semibold">{user?.name || 'Current User'}</div>
+        <div className="text-gray-500 truncate" title={user?.email}>
+          {user?.email || 'Loading...'}
+        </div>
+      </div>
+    </td>
                         <td className="border px-3 py-2">
                           <div className="flex flex-col gap-2">
                             <button
