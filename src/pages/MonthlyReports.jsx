@@ -148,10 +148,11 @@ const parseUserRoles = (user) => {
     }
   };
 
-  const getAttendancePercentage = (presentDays, totalWorkingDays) => {
-    if (totalWorkingDays === 0) return 0;
-    return Math.round((presentDays / totalWorkingDays) * 100);
-  };
+const getAttendancePercentage = (presentDays, totalWorkingDays) => {
+  if (totalWorkingDays === 0) return 0;
+  const percentage = Math.round((presentDays / totalWorkingDays) * 100);
+  return Math.min(percentage, 100); // Cap at 100%
+};
 
   const getStatusColor = (percentage) => {
     if (percentage >= 90) return "text-green-600 bg-green-50";
@@ -408,21 +409,21 @@ const parseUserRoles = (user) => {
           Daily Attendance Calendar
         </h4>
         
-        {/* Status Legend */}
-        <div className="flex flex-wrap gap-4 mb-4 text-sm">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-            <span>Present (Weekday)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
-            <span>Sunday</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
-            <span>Absent (Weekday)</span>
-          </div>
-        </div>
+      {/* Status Legend */}
+<div className="flex flex-wrap gap-4 mb-4 text-sm">
+  <div className="flex items-center">
+    <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+    <span>Present (All Days)</span>
+  </div>
+  <div className="flex items-center">
+    <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
+    <span>Sunday (No Work Expected)</span>
+  </div>
+  <div className="flex items-center">
+    <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
+    <span>Absent (Weekday)</span>
+  </div>
+</div>
         
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1 mb-6">
@@ -446,19 +447,16 @@ const parseUserRoles = (user) => {
             let bgColor = "bg-gray-100";
             let textColor = "text-gray-800";
             
-            if (isPresent && isSunday) {
-              bgColor = "bg-orange-100";
-              textColor = "text-orange-800";
-            } else if (isPresent) {
-              bgColor = "bg-green-100";
-              textColor = "text-green-800";
-            } else if (isSunday) {
-              bgColor = "bg-orange-100";
-              textColor = "text-orange-800";
-            } else if (isAbsent) {
-              bgColor = "bg-red-100";
-              textColor = "text-red-800";
-            }
+          if (isPresent) {
+  bgColor = "bg-green-100";
+  textColor = "text-green-800";
+} else if (isSunday) {
+  bgColor = "bg-orange-100";
+  textColor = "text-orange-800";
+} else if (isAbsent) {
+  bgColor = "bg-red-100";
+  textColor = "text-red-800";
+}
             
             const presentDetail = presentDateMap[dateStr];
             
