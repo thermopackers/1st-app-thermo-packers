@@ -577,14 +577,7 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
-{/* <Route
-  path="/maintenance/main-electric-panel"
-  element={
-    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
-      <PageWrapper><MainElectricPanelPage /></PageWrapper>
-    </ProtectedRoute>
-  }
-/> */}
+
 <Route
   path="/plant-machinery-maintenance"
   element={

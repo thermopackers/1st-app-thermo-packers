@@ -639,7 +639,76 @@ const handleSubmit = async (e) => {
 
           {/* Goods Inward Form */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
+            {/* Guard Uploaded Data Display */}
+<div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-6">
+  <h3 className="text-lg font-semibold text-yellow-800 mb-4">
+    📋 Data Uploaded by Guard
+  </h3>
+  
+  {/* Products from Guard Entry */}
+  {guardEntry.purchaseProducts && guardEntry.purchaseProducts.length > 0 && (
+    <div className="mb-4">
+      <h4 className="font-medium text-yellow-700 mb-2">Products Recorded by Guard:</h4>
+      <div className="space-y-2">
+        {guardEntry.purchaseProducts.map((product, index) => (
+          <div key={index} className="bg-white p-3 rounded-lg border border-yellow-100">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="font-medium text-gray-900">
+                  {product.product?.name || product.productName || 'Unknown Product'}
+                </span>
+                {product.product?.code && (
+                  <div className="text-sm text-gray-600">Code: {product.product.code}</div>
+                )}
+                {product.productName && (
+                  <div className="text-xs text-green-600 font-medium">📝 Manual Entry</div>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-bold text-blue-600">{product.quantity}</div>
+                <div className="text-xs text-gray-500">Quantity</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Remarks from Guard Entry */}
+  {guardEntry.remarks && guardEntry.remarks.trim() && (
+    <div className="mb-4">
+      <h4 className="font-medium text-yellow-700 mb-2">Remarks by Guard:</h4>
+      <div className="bg-white p-3 rounded-lg border border-yellow-100">
+        <p className="text-gray-700 whitespace-pre-wrap">{guardEntry.remarks}</p>
+      </div>
+    </div>
+  )}
+
+  {/* Photos from Guard Entry */}
+  {guardEntry.photos && guardEntry.photos.length > 0 && (
+    <div>
+      <h4 className="font-medium text-yellow-700 mb-2">Photos by Guard ({guardEntry.photos.length}):</h4>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {guardEntry.photos.map((photo, index) => (
+          <div key={index} className="relative">
+            <img
+              src={photo}
+              alt={`Guard photo ${index + 1}`}
+              className="w-full h-32 object-cover rounded-lg cursor-pointer"
+              onClick={() => showPhoto(photo, `Guard Photo ${index + 1} - ${guardEntry.vehicleNumber}`)}
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+              Guard Photo {index + 1}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
             <form onSubmit={handleSubmit} className="space-y-6">
+          
               {/* Items List */}
               {items.map((item, index) => (
                 <div key={item.id} className="border-2 border-dashed border-gray-300 rounded-2xl p-6">
@@ -791,27 +860,39 @@ const handleSubmit = async (e) => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {goodsInwards.map((goodsInward) => (
-                    <div key={goodsInward._id} className="border-2 border-gray-200 rounded-2xl p-6 hover:border-blue-300 transition">
-                      {/* Header */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 bg-blue-50 rounded-lg">
-                        <div>
-                          <div className="text-sm text-blue-600 font-medium">Recorded On</div>
-                          <div className="font-bold text-blue-800">{formatDate(goodsInward.createdAt)}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-blue-600 font-medium">Total Categories</div>
-                          <div className="font-bold text-blue-800">{goodsInward.items?.length || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-blue-600 font-medium">Recorded By</div>
-                          <div className="font-bold text-blue-800">{goodsInward.recordedBy?.name}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-blue-600 font-medium">Status</div>
-                          <div className="font-bold text-green-800">Completed</div>
-                        </div>
-                      </div>
+        {goodsInwards.map((goodsInward) => (
+          <div key={goodsInward._id} className="border-2 border-gray-200 rounded-2xl p-6 hover:border-blue-300 transition">
+            {/* Header - Update grid to 5 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 bg-blue-50 rounded-lg">
+              <div>
+                <div className="text-sm text-blue-600 font-medium">Recorded On</div>
+                <div className="font-bold text-blue-800">{formatDate(goodsInward.createdAt)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-blue-600 font-medium">Total Categories</div>
+                <div className="font-bold text-blue-800">{goodsInward.items?.length || 0}</div>
+              </div>
+              <div>
+                <div className="text-sm text-blue-600 font-medium">Recorded By</div>
+                <div className="font-bold text-blue-800">{goodsInward.recordedBy?.name}</div>
+              </div>
+              <div>
+                <div className="text-sm text-blue-600 font-medium">Status</div>
+                <div className="font-bold text-green-800">Completed</div>
+              </div>
+              <div>
+                <div className="text-sm text-blue-600 font-medium">Entry Number</div>
+                <div className="font-bold text-blue-800">{goodsInward.entryNumber}</div>
+              </div>
+            </div>
+
+            {/* ✅ Show Remarks if exists */}
+            {goodsInward.remarks && (
+              <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="text-sm text-yellow-700 font-medium">Remarks:</div>
+                <div className="text-yellow-800">{goodsInward.remarks}</div>
+              </div>
+            )}
 
                       {/* Items */}
                       <div className="space-y-3">

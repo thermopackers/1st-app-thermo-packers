@@ -7,9 +7,14 @@ import axiosInstance from "../axiosInstance";
 
 const FaceRegistrationModal = ({ visible, onClose, user }) => {
   const webcamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("user"); // "user" for front, "environment" for rear
 
   const captureImage = () => {
     return webcamRef.current?.getScreenshot();
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prevMode => prevMode === "user" ? "environment" : "user");
   };
 
   const saveFace = async () => {
@@ -51,12 +56,28 @@ const FaceRegistrationModal = ({ visible, onClose, user }) => {
       <div className="bg-white p-6 rounded-xl shadow-xl text-center max-w-md w-full relative">
         <button onClick={onClose} className="absolute top-2 right-3 text-xl">×</button>
         <h3 className="text-xl font-semibold mb-4">Register Face for {user.name}</h3>
+        
+        {/* Camera switch button */}
+        <div className="mb-4">
+          <button
+            onClick={switchCamera}
+            className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+          >
+            {facingMode === "user" ? "Switch to Rear Camera" : "Switch to Front Camera"}
+          </button>
+        </div>
+
         <ReactWebcam
           ref={webcamRef}
           screenshotFormat="image/jpeg"
           width={320}
           height={240}
           className="rounded-md border"
+          videoConstraints={{
+            facingMode: facingMode,
+            width: 320,
+            height: 240
+          }}
         />
         <button
           onClick={saveFace}

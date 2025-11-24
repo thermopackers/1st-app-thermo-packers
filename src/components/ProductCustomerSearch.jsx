@@ -89,8 +89,68 @@ const handleUnifiedSearch = async (query) => {
       );
     }
 
+    // Define dashboard pages with their routes and icons
+    const dashboardPages = [
+      { name: "Sales Orders", route: "/orders", icon: "📦", category: "Orders" },
+      { name: "Add Sales Order", route: "/add-order", icon: "➕", category: "Orders" },
+      { name: "Tasks", route: "/my-tasks", icon: "✅", category: "Tasks" },
+      { name: "Task Dashboard", route: "/task-dashboard", icon: "👥", category: "Tasks" },
+      { name: "Assets", route: "/my-assets", icon: "💼", category: "Assets" },
+      { name: "Issue Assets", route: "/issue-asset", icon: "🎁", category: "Assets" },
+      { name: "Manage Assets", route: "/asset-management", icon: "🛠️", category: "Assets" },
+      { name: "Dispatch Plan", route: "/assign-dispatch", icon: "📋", category: "Vehicles" },
+      { name: "Vehicle Mileage", route: "/mileage-chart", icon: "📊", category: "Vehicles" },
+      { name: "Vehicles Documents", route: "/registered-vehicles", icon: "📄", category: "Vehicles" },
+      { name: "Material Requisition", route: "/material-requisition", icon: "📝", category: "Materials" },
+      { name: "Requisition Slips", route: "/requisition-slips", icon: "📑", category: "Materials" },
+      { name: "Quotation", route: "/proforma-invoice", icon: "✨", category: "Sales" },
+      { name: "View Quotations", route: "/proforma-dashboard", icon: "📊", category: "Sales" },
+      { name: "Products", route: "/all-products", icon: "📋", category: "Products" },
+      { name: "Add Product", route: "/add-product", icon: "➕", category: "Products" },
+      { name: "Customers", route: "/customers", icon: "📊", category: "Customers" },
+      { name: "Add Customer", route: "/add-customer", icon: "➕", category: "Customers" },
+      { name: "HR Management", route: "/register-user", icon: "👥", category: "HR" },
+      { name: "Leave Management", route: "/leave-management", icon: "📋", category: "HR" },
+      { name: "Attendance", route: "/attendance-logs", icon: "📊", category: "HR" },
+      { name: "Tour Expenses", route: "/tour-expenses", icon: "➕", category: "Finance" },
+      { name: "View Tour Expenses", route: "/tour-expenses-dashboard", icon: "📊", category: "Finance" },
+      { name: "Incoming Payments", route: "/payment-records", icon: "📥", category: "Finance" },
+      { name: "Outgoing Payments", route: "/outgoing-payment", icon: "📤", category: "Finance" },
+      { name: "Important Numbers", route: "/important-numbers", icon: "📱", category: "Contacts" },
+      { name: "Plant Maintenance", route: "/plant-machinery-maintenance", icon: "🔧", category: "Maintenance" },
+      { name: "Drawing Upload", route: "/drawing-upload-form", icon: "📝", category: "Suppliers" },
+      { name: "View Orders", route: "/drawing-orders-table", icon: "📊", category: "Suppliers" },
+      { name: "Admin Panel", route: "/admin-dashboard", icon: "⚙️", category: "Admin" },
+      { name: "Production Dashboard", route: "/production-dashboard", icon: "🏭", category: "Production" },
+      { name: "Dana Beads", route: "/dana-beads-dashboard", icon: "●", category: "Production" },
+      { name: "CNC Dashboard", route: "/cnc-dashboard", icon: "⚡", category: "Production" },
+      { name: "Dispatch Dashboard", route: "/dispatch-dashboard", icon: "🚛", category: "Production" },
+      { name: "Packaging Dashboard", route: "/packaging-dashboard", icon: "📦", category: "Production" },
+      { name: "Vehicle Entry", route: "/guard-entry", icon: "📝", category: "Security" },
+      { name: "View Entries", route: "/guard-entries-view", icon: "📋", category: "Security" },
+      { name: "My Dispatch Plans", route: "/my-plans", icon: "📋", category: "Driver" }
+    ];
+
+    // Filter pages based on search query
+    const matchingPages = dashboardPages.filter(page =>
+      page.name.toLowerCase().includes(query.toLowerCase()) ||
+      page.category.toLowerCase().includes(query.toLowerCase())
+    );
+
     // Combine all results
     const results = [
+      // Dashboard pages - navigate directly
+      ...matchingPages.map(page => ({
+        _id: `page-${page.route}`,
+        type: 'page',
+        id: page.route,
+        name: page.name,
+        route: page.route,
+        icon: page.icon,
+        category: page.category,
+        action: 'navigate',
+        rawData: page
+      })),
       // Purchase products - quick edit
       ...purchaseProducts.map(p => ({
         _id: p._id || `purchase-${Date.now()}`,
@@ -184,7 +244,12 @@ const handleUnifiedSearch = async (query) => {
   };
 
 const handleItemSelect = async (item) => {
-  if (item.action === 'quick-edit') {
+  if (item.action === 'navigate') {
+    // Navigate to dashboard page
+    navigate(item.route);
+    setShowResults(false);
+    setSearchQuery("");
+  } else if (item.action === 'quick-edit') {
     // Quick edit behavior - navigate directly to edit page
     if (item.type === "purchase") {
       navigate(`/purchase-products/edit/${item.id}`);
@@ -294,7 +359,7 @@ const handleItemSelect = async (item) => {
     setShowResults(false);
   };
 
-  // Safe render functions
+// Safe render functions
 const renderSearchResultItem = (item) => {
   const name = safeString(item.name);
   const unit = safeString(item.unit);
@@ -307,18 +372,21 @@ const renderSearchResultItem = (item) => {
     item.type === 'purchase' ? 'Purchase Product' : 
     item.type === 'sales' ? 'Sales Product' : 
     item.type === 'customer' ? 'Customer' : 
-    'Supplier';
+    item.type === 'supplier' ? 'Supplier' :
+    'Dashboard Page';
 
   const typeColor = 
     item.type === 'purchase' ? 'text-green-600' : 
     item.type === 'sales' ? 'text-purple-600' : 
     item.type === 'customer' ? 'text-blue-600' : 
-    'text-orange-600';
+    item.type === 'supplier' ? 'text-orange-600' :
+    'text-indigo-600';
 
   return (
     <div className="flex justify-between items-start">
       <div>
-        <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+        <h5 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors flex items-center gap-2">
+          {item.icon && <span>{item.icon}</span>}
           {name}
         </h5>
         <p className="text-sm text-gray-600 mt-1">
@@ -330,6 +398,9 @@ const renderSearchResultItem = (item) => {
             <span className="ml-2 text-blue-600 font-bold">
               {typeof price === 'number' ? `₹${price}` : `₹${safeString(price)}`}
             </span>
+          )}
+          {item.category && item.type === 'page' && (
+            <span className="ml-2 text-gray-500">• {item.category}</span>
           )}
         </p>
         {(category || matchedCategory) && (
@@ -343,7 +414,9 @@ const renderSearchResultItem = (item) => {
           </p>
         )}
         <p className="text-xs text-gray-400 mt-1">
-          {item.action === 'quick-edit' ? 'Click to edit →' : 'Click for details →'}
+          {item.action === 'quick-edit' ? 'Click to edit →' : 
+           item.action === 'navigate' ? 'Click to navigate →' : 
+           'Click for details →'}
         </p>
       </div>
     </div>
@@ -479,7 +552,7 @@ const renderSearchResultItem = (item) => {
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="🔍 Search products, suppliers, or categories..."
+placeholder="🔍 Search pages, products, suppliers, or categories..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -496,10 +569,10 @@ const renderSearchResultItem = (item) => {
           </div>
           
           {/* Search Info */}
-          <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
-            <span>💡</span>
-            <span>Search for customers, products, suppliers, or categories. Products open directly for editing, suppliers show details.</span>
-          </div>
+      <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
+  <span>💡</span>
+  <span>Search for dashboard pages, customers, products, suppliers, or categories. Click pages to navigate, products to edit, suppliers for details.</span>
+</div>
         </div>
       </motion.div>
 
