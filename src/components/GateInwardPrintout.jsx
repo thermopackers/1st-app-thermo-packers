@@ -240,7 +240,7 @@ return (
                       <img
                         src={photo}
                         alt={`Vehicle/Material Photo ${index + 1}`}
-                        className="w-full h-32 object-cover print:h-24"
+                        className="w-full h-80 object-contain print:h-24"
                       />
                       <div className="p-1 text-center bg-gray-100">
                         <span className="text-xs text-gray-600">Photo {index + 1}</span>
