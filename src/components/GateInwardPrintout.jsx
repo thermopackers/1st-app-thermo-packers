@@ -229,27 +229,27 @@ return (
             )}
 
             {/* Photos Section - Minimal margin */}
-            {guardEntry.photos && guardEntry.photos.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-lg font-bold text-gray-800 mb-2 border-b pb-1">
-                  ATTACHED PHOTOS ({guardEntry.photos.length})
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {guardEntry.photos.map((photo, index) => (
-                    <div key={index} className="border border-gray-300 rounded overflow-hidden">
-                      <img
-                        src={photo}
-                        alt={`Vehicle/Material Photo ${index + 1}`}
-                        className="w-full h-80 object-contain print:h-24"
-                      />
-                      <div className="p-1 text-center bg-gray-100">
-                        <span className="text-xs text-gray-600">Photo {index + 1}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          {guardEntry.photos && guardEntry.photos.length > 0 && (
+  <div className="mb-4">
+    <h3 className="text-lg font-bold text-gray-800 mb-2 border-b pb-1">
+      ATTACHED PHOTOS ({guardEntry.photos.length})
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {guardEntry.photos.map((photo, index) => (
+        <div key={index} className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+          <img
+            src={photo}
+            alt={`Vehicle/Material Photo ${index + 1}`}
+            className="w-full h-64 object-contain print:h-56 print:object-contain"
+          />
+          <div className="p-2 text-center bg-gray-100 border-t border-gray-300">
+            <span className="text-sm font-medium text-gray-700">Photo {index + 1}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
           </div>
         </div>
 
