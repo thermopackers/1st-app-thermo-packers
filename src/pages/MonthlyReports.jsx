@@ -170,59 +170,60 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
   const renderSummaryCards = () => {
     if (!report || report.length === 0) return null;
 
-    const totalStats = report.reduce((acc, curr) => ({
-      totalDays: acc.totalDays + curr.totalDays,
-      totalWorkingDays: acc.totalWorkingDays + curr.totalWorkingDays,
-      presentDays: acc.presentDays + curr.presentDays,
-      lateArrivals: acc.lateArrivals + curr.lateArrivals,
-      earlyDepartures: acc.earlyDepartures + curr.earlyDepartures,
-      sundayCount: curr.sundayCount
-    }), { 
-      totalDays: 0, 
-      totalWorkingDays: 0,
-      presentDays: 0, 
-      lateArrivals: 0, 
-      earlyDepartures: 0,
-      sundayCount: 0
-    });
+const totalStats = report.reduce((acc, curr) => ({
+  totalDays: acc.totalDays + curr.totalDays,
+  totalWorkingDays: acc.totalWorkingDays + curr.totalWorkingDays,
+  presentDays: acc.presentDays + curr.presentDays,
+  leaveDays: acc.leaveDays + (curr.leaveDates ? curr.leaveDates.length : 0), // Add this line
+  lateArrivals: acc.lateArrivals + curr.lateArrivals,
+  earlyDepartures: acc.earlyDepartures + curr.earlyDepartures,
+  sundayCount: curr.sundayCount
+}), { 
+  totalDays: 0, 
+  totalWorkingDays: 0,
+  presentDays: 0, 
+  leaveDays: 0, // Add this line
+  lateArrivals: 0, 
+  earlyDepartures: 0,
+  sundayCount: 0
+});
 
     const overallPercentage = getAttendancePercentage(totalStats.presentDays, totalStats.totalWorkingDays);
     const statusBadge = getStatusBadge(overallPercentage);
 
-    const cards = [
-      {
-        title: "Total Present Days",
-        value: totalStats.presentDays,
-        color: "text-blue-600 bg-blue-50",
-        icon: <UserCheck className="w-6 h-6" />
-      },
-      {
-        title: "Total Late Arrivals",
-        value: totalStats.lateArrivals,
-        color: "text-orange-600 bg-orange-50",
-        icon: <Clock className="w-6 h-6" />
-      },
-      {
-        title: "Total Early Departures",
-        value: totalStats.earlyDepartures,
-        color: "text-yellow-600 bg-yellow-50",
-        icon: <AlertTriangle className="w-6 h-6" />
-      },
-      {
-        title: "Overall Attendance",
-        value: `${overallPercentage}%`,
-        color: statusBadge.color,
-        icon: <TrendingUp className="w-6 h-6" />,
-        subtitle: statusBadge.text
-      },
-      {
-        title: "Sundays",
-        value: totalStats.sundayCount,
-        color: "text-purple-600 bg-purple-50",
-        icon: <Calendar className="w-6 h-6" />,
-        subtitle: "Included"
-      }
-    ];
+   const cards = [
+  {
+    title: "Total Present Days",
+    value: totalStats.presentDays,
+    color: "text-blue-600 bg-blue-50",
+    icon: <UserCheck className="w-6 h-6" />
+  },
+  {
+    title: "Total Leave Days",
+    value: totalStats.leaveDays || 0,
+    color: "text-purple-600 bg-purple-50",
+    icon: <Calendar className="w-6 h-6" />
+  },
+  {
+    title: "Total Late Arrivals",
+    value: totalStats.lateArrivals,
+    color: "text-orange-600 bg-orange-50",
+    icon: <Clock className="w-6 h-6" />
+  },
+  {
+    title: "Total Early Departures",
+    value: totalStats.earlyDepartures,
+    color: "text-yellow-600 bg-yellow-50",
+    icon: <AlertTriangle className="w-6 h-6" />
+  },
+  {
+    title: "Overall Attendance",
+    value: `${overallPercentage}%`,
+    color: statusBadge.color,
+    icon: <TrendingUp className="w-6 h-6" />,
+    subtitle: statusBadge.text
+  }
+];
 
     return (
       <motion.div 
@@ -361,8 +362,7 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
     );
   };
 
-  const renderPresentDetails = (presentDetails, absentDates, month) => {
-    if (!presentDetails && !absentDates) return null;
+const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = []) => {    if (!presentDetails && !absentDates) return null;
 
     let allDates = [];
     let firstDayOffset = 0;
@@ -409,15 +409,19 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
           Daily Attendance Calendar
         </h4>
         
-      {/* Status Legend */}
+  {/* Status Legend */}
 <div className="flex flex-wrap gap-4 mb-4 text-sm">
   <div className="flex items-center">
     <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-    <span>Present (All Days)</span>
+    <span>Present</span>
+  </div>
+  <div className="flex items-center">
+    <div className="w-3 h-3 bg-purple-500 rounded mr-2"></div>
+    <span>On Leave</span>
   </div>
   <div className="flex items-center">
     <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
-    <span>Sunday (No Work Expected)</span>
+    <span>Sunday</span>
   </div>
   <div className="flex items-center">
     <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
@@ -437,44 +441,56 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
             <div key={`empty-${i}`} className="p-2 rounded text-center text-sm bg-gray-50 opacity-50"></div>
           ))}
           
-          {allDates.map(dateStr => {
-            const dateObj = new Date(dateStr);
-            const dayOfMonth = dateObj.getDate();
-            const isSunday = dateObj.getDay() === 0;
-            const isPresent = presentDateMap[dateStr];
-            const isAbsent = absentDateMap[dateStr] && !isPresent;
-            
-            let bgColor = "bg-gray-100";
-            let textColor = "text-gray-800";
-            
-          if (isPresent) {
-  bgColor = "bg-green-100";
-  textColor = "text-green-800";
-} else if (isSunday) {
-  bgColor = "bg-orange-100";
-  textColor = "text-orange-800";
-} else if (isAbsent) {
-  bgColor = "bg-red-100";
-  textColor = "text-red-800";
-}
-            
-            const presentDetail = presentDateMap[dateStr];
-            
-            return (
-              <div 
-                key={dateStr} 
-                className={`p-2 rounded text-center text-sm ${bgColor} ${textColor} relative cursor-help`}
-                title={presentDetail ? 
-                  `Check-in: ${formatTime(presentDetail.checkInTime)}\nCheck-out: ${presentDetail.checkOutTime ? formatTime(presentDetail.checkOutTime) : 'N/A'}` : 
-                  (isSunday ? "Sunday" : "Absent")}
-              >
-                {dayOfMonth}
-                {presentDetail && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
-                )}
-              </div>
-            );
-          })}
+{allDates.map(dateStr => {
+  const dateObj = new Date(dateStr);
+  const dayOfMonth = dateObj.getDate();
+  const isSunday = dateObj.getDay() === 0;
+  const isPresent = presentDateMap[dateStr];
+  const isAbsent = absentDateMap[dateStr] && !isPresent;
+  const isOnLeave = leaveDates && leaveDates.includes(dateStr);
+
+  let bgColor = "bg-gray-100";
+  let textColor = "text-gray-800";
+  let titleText = "";
+  
+  if (isOnLeave) {
+    bgColor = "bg-purple-100";
+    textColor = "text-purple-800";
+    titleText = "On Leave";
+  } else if (isPresent) {
+    bgColor = "bg-green-100";
+    textColor = "text-green-800";
+    titleText = presentDateMap[dateStr] ? 
+      `Check-in: ${formatTime(presentDateMap[dateStr].checkInTime)}\nCheck-out: ${presentDateMap[dateStr].checkOutTime ? formatTime(presentDateMap[dateStr].checkOutTime) : 'N/A'}` : 
+      "Present";
+  } else if (isSunday) {
+    bgColor = "bg-orange-100";
+    textColor = "text-orange-800";
+    titleText = "Sunday";
+  } else if (isAbsent) {
+    bgColor = "bg-red-100";
+    textColor = "text-red-800";
+    titleText = "Absent";
+  }
+  
+  const presentDetail = presentDateMap[dateStr];
+  
+  return (
+    <div 
+      key={dateStr} 
+      className={`p-2 rounded text-center text-sm ${bgColor} ${textColor} relative cursor-help`}
+      title={titleText}
+    >
+      {dayOfMonth}
+      {isOnLeave && (
+        <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></span>
+      )}
+      {isPresent && !isOnLeave && (
+        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+      )}
+    </div>
+  );
+})}
         </div>
         
         {/* Detailed Table */}
@@ -570,21 +586,24 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
     let filteredReport = [...report];
     
     switch (view) {
-      case "present":
-        filteredReport = report.filter(item => item.presentDays > 0);
-        break;
-      case "absent":
-        filteredReport = report.filter(item => item.absentDays > 0);
-        break;
-      case "late":
-        filteredReport = report.filter(item => item.lateArrivals > 0);
-        break;
-      case "early":
-        filteredReport = report.filter(item => item.earlyDepartures > 0);
-        break;
-      default:
-        break;
-    }
+  case "present":
+    filteredReport = report.filter(item => item.presentDays > 0);
+    break;
+  case "absent":
+    filteredReport = report.filter(item => item.absentDays > 0);
+    break;
+  case "late":
+    filteredReport = report.filter(item => item.lateArrivals > 0);
+    break;
+  case "early":
+    filteredReport = report.filter(item => item.earlyDepartures > 0);
+    break;
+  case "leave": // Add this case
+    filteredReport = report.filter(item => item.leaveDates && item.leaveDates.length > 0);
+    break;
+  default:
+    break;
+}
 
     if (filteredReport.length === 0) {
       return (
@@ -622,6 +641,9 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Absent
                 </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+      Leave
+    </th> 
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Late
                 </th>
@@ -668,6 +690,9 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
                       <td className="px-4 py-3 text-sm text-red-600">
                         {r.absentDays || 0}
                       </td>
+                      <td className="px-4 py-3 text-sm text-purple-600 font-medium"> {/* Add this cell */}
+  {r.leaveDates ? r.leaveDates.length : 0}
+</td>
                       <td className="px-4 py-3 text-sm text-orange-600">
                         {r.lateArrivals}
                       </td>
@@ -685,32 +710,53 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
                         </button>
                       </td>
                     </motion.tr>
-                    <AnimatePresence>
-                      {expandedUser === r.user._id && (
-                        <motion.tr
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          <td colSpan="10" className="px-4 py-4 bg-gray-50">
-                            <div className="space-y-4">
-                              {view === "present" && renderPresentDetails(r.presentDetails, r.absentDates, month)}
-                              {view === "absent" && renderAbsentDetails(r.absentDates)}
-                              {view === "late" && renderLateDetails(r.lateDetails)}
-                              {view === "early" && renderEarlyDetails(r.earlyDetails)}
-                              {view === "attendance" && (
-                                <>
-                                  {renderPresentDetails(r.presentDetails, r.absentDates, month)}
-                                  {renderAbsentDetails(r.absentDates)}
-                                  {renderLateDetails(r.lateDetails)}
-                                  {renderEarlyDetails(r.earlyDetails)}
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </motion.tr>
-                      )}
-                    </AnimatePresence>
+                <AnimatePresence>
+  {expandedUser === r.user._id && (
+    <motion.tr
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+    >
+      <td colSpan="10" className="px-4 py-4 bg-gray-50">
+        <div className="space-y-4">
+          {view === "present" && (
+            <>
+              {renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates)}
+              {renderLeaveDetails(r.leaveDates)}
+            </>
+          )}
+          {view === "absent" && (
+            <>
+              {renderAbsentDetails(r.absentDates)}
+              {renderLeaveDetails(r.leaveDates)}
+            </>
+          )}
+          {view === "late" && (
+            <>
+              {renderLateDetails(r.lateDetails)}
+              {renderLeaveDetails(r.leaveDates)}
+            </>
+          )}
+          {view === "early" && (
+            <>
+              {renderEarlyDetails(r.earlyDetails)}
+              {renderLeaveDetails(r.leaveDates)}
+            </>
+          )}
+          {view === "attendance" && (
+            <>
+              {renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates)}
+              {renderAbsentDetails(r.absentDates)}
+              {renderLateDetails(r.lateDetails)}
+              {renderEarlyDetails(r.earlyDetails)}
+              {renderLeaveDetails(r.leaveDates)}
+            </>
+          )}
+        </div>
+      </td>
+    </motion.tr>
+  )}
+</AnimatePresence>
                   </React.Fragment>
                 );
               })}
@@ -721,13 +767,37 @@ const getAttendancePercentage = (presentDays, totalWorkingDays) => {
     );
   };
 
-  const reportButtons = [
-    { key: "attendance", label: "Attendance Report", color: "blue", icon: <BarChart3 className="w-4 h-4" /> },
-    { key: "present", label: "Present Report", color: "green", icon: <UserCheck className="w-4 h-4" /> },
-    { key: "absent", label: "Absent Report", color: "red", icon: <UserX className="w-4 h-4" /> },
-    { key: "late", label: "Late Arrival Report", color: "orange", icon: <Clock className="w-4 h-4" /> },
-    { key: "early", label: "Early Departure Report", color: "yellow", icon: <AlertTriangle className="w-4 h-4" /> }
-  ];
+const reportButtons = [
+  { key: "attendance", label: "Attendance Report", color: "blue", icon: <BarChart3 className="w-4 h-4" /> },
+  { key: "present", label: "Present Report", color: "green", icon: <UserCheck className="w-4 h-4" /> },
+  { key: "absent", label: "Absent Report", color: "red", icon: <UserX className="w-4 h-4" /> },
+  { key: "late", label: "Late Arrival Report", color: "orange", icon: <Clock className="w-4 h-4" /> },
+  { key: "early", label: "Early Departure Report", color: "yellow", icon: <AlertTriangle className="w-4 h-4" /> },
+];
+
+  const renderLeaveDetails = (leaveDates) => {
+  if (!leaveDates || leaveDates.length === 0) return null;
+
+  return (
+    <motion.div 
+      className="mt-3 bg-purple-50 p-4 rounded-xl border border-purple-200"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+    >
+      <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+        <Calendar className="w-4 h-4" />
+        Leave Dates
+      </h4>
+      <div className="flex flex-wrap gap-2">
+        {leaveDates.map((date, index) => (
+          <span key={index} className="text-sm text-purple-700 bg-purple-100 px-3 py-1 rounded-lg">
+            {formatDate(date)}
+          </span>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
 
   return (
     <>

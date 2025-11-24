@@ -386,6 +386,38 @@ const getLeaveTypeBadge = (type) => {
     </div>
   );
 
+  const handleCancelLeave = async (applicationId) => {
+  try {
+    const { value: comments } = await Swal.fire({
+      title: 'Cancel Leave Application',
+      input: 'textarea',
+      inputLabel: 'Reason for cancellation',
+      inputPlaceholder: 'Enter reason for cancellation...',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Cancel Leave',
+      cancelButtonText: 'No, Keep It',
+      inputValidator: (value) => {
+        if (!value?.trim()) {
+          return 'Please provide reason for cancellation';
+        }
+      }
+    });
+
+    if (comments) {
+      await axiosInstance.put(`/leave/update-status/${applicationId}`, {
+        status: 'cancelled',
+        comments: comments
+      });
+
+      toast.success('Leave application cancelled successfully!');
+      fetchLeaveApplications(currentPage);
+      fetchStatistics();
+    }
+  } catch (err) {
+    toast.error('Failed to cancel leave application');
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -714,22 +746,28 @@ const getLeaveTypeBadge = (type) => {
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            {application.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleStatusUpdate(application._id, 'approved')}
-                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleStatusUpdate(application._id, 'rejected')}
-                                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
+                           {application.status === 'pending' && (
+  <>
+    <button
+      onClick={() => handleStatusUpdate(application._id, 'approved')}
+      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition"
+    >
+      Approve
+    </button>
+    <button
+      onClick={() => handleStatusUpdate(application._id, 'rejected')}
+      className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition"
+    >
+      Reject
+    </button>
+    <button
+      onClick={() => handleCancelLeave(application._id)}
+      className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 transition"
+    >
+      Cancel
+    </button>
+  </>
+)}
                             <button
                               onClick={() => deleteLeaveApplication(application._id)}
                               className="p-1 text-red-600 hover:text-red-800 transition"
