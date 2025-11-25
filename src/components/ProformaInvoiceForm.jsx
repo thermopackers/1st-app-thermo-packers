@@ -354,8 +354,8 @@ freight: e.target.value,
     <option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
       3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
     </option>
-    <option value="50% Advance and Balance 50% on delivery">
-      4) 50% Advance and Balance 50% on delivery
+    <option value="50% Advance & Balance 50% before Dispatch against PI">
+      4) 50% Advance & Balance 50% before Dispatch against PI
     </option>
     <option value="Credit (Udhaar): 45 Days">
       5) Credit (Udhaar): 45 Days
