@@ -369,9 +369,22 @@ const openFile = (url, i) => {
                   return entry.date === filterDateFormatted;
                 })
                 .map((entry) => (
-                <tr key={entry._id}>
-                  <td className="border p-2">{entry.date}</td>
-
+                             <tr key={entry._id}>
+                  <td className="border p-2">
+                    {editingId === entry._id ? (
+                      <input
+                        type="text"
+                        value={editData.date || entry.date}
+                        onChange={(e) =>
+                          setEditData({ ...editData, date: e.target.value })
+                        }
+                        className="border rounded p-1 w-full"
+                        placeholder="DD/MM/YYYY"
+                      />
+                    ) : (
+                      entry.date
+                    )}
+                  </td>
                   {[
                     "boilerRunningTime",
                     "chemicalQty",
