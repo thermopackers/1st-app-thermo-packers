@@ -9,6 +9,7 @@ export default function BoilerMaintenance() {
   const [savingEntry, setSavingEntry] = useState(false); // Track if entry is being saved
     const [filterDate, setFilterDate] = useState(""); // Add this line for date filter
   const [form, setForm] = useState({
+    date: new Date().toLocaleDateString('en-GB'),
     boilerRunningTime: "",
     chemicalQty: "",
     saltQty: "",
@@ -75,7 +76,8 @@ const handleSubmit = async (e) => {
 
     await axiosInstance.post("/boiler", { ...form, uploadedFiles: uploadedUrls });
 
-    setForm({
+     setForm({
+      date: new Date().toLocaleDateString('en-GB'),
       boilerRunningTime: "",
       chemicalQty: "",
       saltQty: "",
@@ -258,13 +260,14 @@ const openFile = (url, i) => {
         {/* ADD FORM */}
         <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-lg p-6 mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                       <div>
+                                  <div>
               <label className="block text-sm font-medium mb-1">Date</label>
               <input
                 type="text"
-                readOnly
-                value={new Date().toLocaleDateString('en-GB')}
-                className="border rounded p-2 w-full bg-gray-100"
+                value={form.date || new Date().toLocaleDateString('en-GB')}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="border rounded p-2 w-full"
+                placeholder="DD/MM/YYYY"
               />
             </div>
 
