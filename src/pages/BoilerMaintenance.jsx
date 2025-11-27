@@ -15,7 +15,6 @@ export default function BoilerMaintenance() {
     saltQty: "",
     blowDownTime: "",
     blowDownDuration: "",
-    sign: "",
     remarks: "",
     uploadedFiles: [],
   });
@@ -83,7 +82,6 @@ const handleSubmit = async (e) => {
       saltQty: "",
       blowDownTime: "",
       blowDownDuration: "",
-      sign: "",
       remarks: "",
       uploadedFiles: [],
     });
@@ -257,6 +255,33 @@ const openFile = (url, i) => {
           Boiler Monthly Running Report
         </h1>
 
+
+        {/* IMPORTANT NOTICE MESSAGE - VIVID VERSION */}
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 border-4 border-yellow-300 text-white p-6 mb-6 shadow-2xl rounded-lg transform hover:scale-105 transition-all duration-500">
+          <div className="flex items-center justify-center">
+            <div className="flex-shrink-0 mr-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-extrabold tracking-wide uppercase drop-shadow-lg">
+                ⚠️ IMPORTANT NOTICE ⚠️
+              </p>
+              <p className="text-lg font-bold mt-2 drop-shadow-md">
+                Cleaning of Boiler Pipes, Tubes & Ash Every Sunday.
+              </p>
+              <p className="text-sm font-semibold mt-1 opacity-90">
+                Please ensure compliance with maintenance schedule
+              </p>
+            </div>
+            <div className="flex-shrink-0 ml-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20" style={{animationDelay: '0.2s'}}>
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </div>
         {/* ADD FORM */}
         <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-lg p-6 mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -272,12 +297,11 @@ const openFile = (url, i) => {
             </div>
 
             {[
-              ["Boiler Running Time", "boilerRunningTime", "time"],
+              ["Boiler Starting Time", "boilerRunningTime", "time"],
               ["Scale Preventing Chemical (Ltrs)", "chemicalQty", "number"],
               ["Namak / Salt (Kgs)", "saltQty", "number"],
-              ["Blow Down Time", "blowDownTime", "time"],
-              ["Duration of Blow Down", "blowDownDuration", "time"],
-              ["Sign", "sign", "text"],
+              ["Boiler Ending Time", "blowDownTime", "time"],
+              ["Duration of Blow Down (before ending the Boiler)", "blowDownDuration", "time"],
             ].map(([label, key, type]) => (
               <div key={key}>
                 <label className="block text-sm font-medium mb-1">{label}</label>
@@ -353,7 +377,6 @@ const openFile = (url, i) => {
                 <th className="border p-2">Salt (Kgs)</th>
                 <th className="border p-2">Blow Time</th>
                 <th className="border p-2">Duration</th>
-                <th className="border p-2">Sign</th>
                 <th className="border p-2 min-w-[200px]">Files</th>
                 <th className="border p-2">Remarks</th>
                 <th className="border p-2 text-center">Actions</th>
@@ -394,7 +417,6 @@ const openFile = (url, i) => {
                     "saltQty",
                     "blowDownTime",
                     "blowDownDuration",
-                    "sign",
                   ].map((key) => (
                     <td key={key} className="border p-2">
                       {editingId === entry._id ? (

@@ -695,6 +695,7 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
               <option value="100% Advance">100% Advance</option>
               <option value="45 Days Credit">45 Days Credit</option>
               <option value="Cheque on Delivery">Cheque on Delivery</option>
+                <option value="10 days payment">10 days payment</option>
             </select>
 
             <label className="block font-medium mt-2 mb-1">

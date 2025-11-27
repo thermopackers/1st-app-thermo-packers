@@ -457,17 +457,17 @@ useEffect(() => {
       </div>
     </motion.button>
 
-    {/* Profile Panel */}
-    <AnimatePresence>
-      {showProfilePanel && (
-     <motion.div
-  ref={profilePanelRef}
-  className="absolute top-16 left-0 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 min-w-80 max-w-md z-50"
-  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-  animate={{ opacity: 1, y: 0, scale: 1 }}
-  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-  transition={{ duration: 0.2 }}
->
+{/* Profile Panel */}
+<AnimatePresence>
+  {showProfilePanel && (
+    <motion.div
+      ref={profilePanelRef}
+      className="absolute top-16 left-0 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 min-w-80 max-w-md z-50 mobile:left-4 mobile:right-4 mobile:max-w-none"
+      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+    >
           {/* Profile Header */}
           <div className="flex items-center gap-4 mb-6">
             {user?.profilePicture ? (
