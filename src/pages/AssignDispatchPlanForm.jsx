@@ -284,6 +284,44 @@ const fetchPlans = async () => {
     }
   };
 
+  // Edit vehicle function
+const handleEditVehicle = async (vehicle) => {
+  const { value: formValues } = await Swal.fire({
+    title: 'Edit Vehicle',
+    html: `
+      <input id="vehicle-number" class="swal2-input" placeholder="Vehicle Number" value="${vehicle.vehicleNumber}" readonly>
+      <input id="driver-email" class="swal2-input" placeholder="Driver Email" value="${vehicle.driverEmail}">
+      <input id="driver-name" class="swal2-input" placeholder="Driver Name" value="${vehicle.driverName || ''}">
+      <input id="phone" class="swal2-input" placeholder="Phone" value="${vehicle.phone || ''}">
+      <input id="gps-link" class="swal2-input" placeholder="GPS Link" value="${vehicle.gpsLink || ''}">
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: 'Update',
+    preConfirm: () => {
+      return {
+        vehicleNumber: document.getElementById('vehicle-number').value,
+        driverEmail: document.getElementById('driver-email').value,
+        driverName: document.getElementById('driver-name').value,
+        phone: document.getElementById('phone').value,
+        gpsLink: document.getElementById('gps-link').value
+      };
+    }
+  });
+
+  if (formValues) {
+    try {
+      await axiosInstance.patch(`/vehicles/update/${vehicle._id}`, formValues, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Vehicle updated successfully');
+      fetchRegisteredVehicles(); // Refresh the list
+    } catch (err) {
+      console.error('Vehicle update error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update vehicle');
+    }
+  }
+};
   // Fetch drivers
   useEffect(() => {
     if (!token) return;
