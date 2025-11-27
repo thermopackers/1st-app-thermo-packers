@@ -677,6 +677,17 @@ export default function DriverDispatchDashboard() {
                           {plan.status}
                         </span>
                       </p>
+                        {/* ✅ NEW: Diesel Liters and Expenses */}
+  {plan.dieselLiters && (
+    <p className="sm:col-span-1">
+      <strong>⛽ Diesel:</strong> {plan.dieselLiters} liters
+    </p>
+  )}
+  {plan.expenses && (
+    <p className="sm:col-span-1">
+      <strong>💰 Expenses:</strong> ₹{plan.expenses}
+    </p>
+  )}
                     </div>
 
                     {/* Audio Player */}

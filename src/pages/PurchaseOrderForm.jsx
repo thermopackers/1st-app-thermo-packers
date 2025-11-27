@@ -9,7 +9,7 @@ import { useUserContext } from "../context/UserContext"; // or your correct path
 
 export default function PurchaseOrderForm() {
 const { user } = useUserContext();
-const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.thermopackers@gmail.com"].includes(user?.email);
+const canApprove = user?.role?.includes("accounts");
 const [status, setStatus] = useState("pending");
 
   const [suppliers, setSuppliers] = useState([]);

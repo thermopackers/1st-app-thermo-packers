@@ -63,6 +63,8 @@ const [formData, setFormData] = useState({
   remarks: "",
   driverName: "",
     location: "", // ✅ NEW: Add location field
+      dieselLiters: "", // ✅ NEW: Diesel in liters
+  expenses: "", // ✅ NEW: Expenses field
   dateOfTrip: (() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -335,6 +337,8 @@ const handleTableSubmit = async () => {
       vehicleNumber,
       driverName,
         location: formData.location, // ✅ NEW: Add location
+         dieselLiters: formData.dieselLiters ? parseFloat(formData.dieselLiters) : null, // ✅ NEW: Add diesel liters
+  expenses: formData.expenses ? parseFloat(formData.expenses) : null, // ✅ NEW: Add expenses
       remarks,
       customerNames: customerNames.filter(name => name.trim()), // Remove empty customer names
         salesProducts: salesProducts.filter(product => product.trim()), // ✅ NEW: Add sales products
@@ -409,6 +413,8 @@ const handleTableSubmit = async () => {
         location: "", // ✅ NEW: Reset location
       driverName: "",
       remarks: "",
+        dieselLiters: "", // ✅ NEW: Reset diesel liters
+  expenses: "", // ✅ NEW: Reset expenses
       dateOfTrip: (() => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -649,6 +655,700 @@ const handleDelete = async (planId) => {
   }
 };
 
+// Enhanced Editable Plan Row Component with Document Uploads
+const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editablePlan, setEditablePlan] = useState(plan);
+  const [updating, setUpdating] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [recorder, setRecorder] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+
+  // Audio recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const newRecorder = new RecordRTC(stream, {
+        type: "audio",
+        mimeType: "audio/wav",
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16000,
+      });
+
+      newRecorder.startRecording();
+      setRecorder(newRecorder);
+      setRecording(true);
+      toast.success("Recording started...");
+    } catch (err) {
+      console.error("🎤 Microphone access denied:", err);
+      toast.error("Microphone access denied. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorder) {
+      recorder.stopRecording(() => {
+        const blob = recorder.getBlob();
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        setRecording(false);
+        toast.success("Recording completed");
+      });
+    }
+  };
+
+  const clearAudio = () => {
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setRecording(false);
+    toast.success("Audio cleared");
+  };
+
+  const uploadDocuments = async () => {
+    const uploadedDocuments = {
+      audioUrl: editablePlan.audioUrl,
+      attachmentUrls: [...(editablePlan.attachmentUrls || [])]
+    };
+
+    // Upload new audio if exists
+    if (audioBlob) {
+      try {
+        const audioForm = new FormData();
+        audioForm.append("file", audioBlob, "recording.wav");
+        audioForm.append("upload_preset", "todo_uploads");
+        audioForm.append("cloud_name", "dcr8k5amk");
+
+        const res = await fetch(
+          "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload",
+          {
+            method: "POST",
+            body: audioForm,
+          }
+        );
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "Audio upload failed");
+        uploadedDocuments.audioUrl = data.secure_url;
+      } catch (err) {
+        console.error("Audio upload error:", err);
+        throw new Error("Audio upload failed");
+      }
+    }
+
+    // Upload new attachments if exist
+    if (attachments.length > 0) {
+      const uploadedFiles = [];
+      for (let file of attachments) {
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", "todo_uploads");
+          formData.append("cloud_name", "dcr8k5amk");
+
+          const uploadUrl = file.type === "application/pdf"
+            ? "https://api.cloudinary.com/v1_1/dcr8k5amk/raw/upload"
+            : "https://api.cloudinary.com/v1_1/dcr8k5amk/image/upload";
+
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || "Attachment upload failed");
+          uploadedFiles.push(data.secure_url);
+        } catch (err) {
+          console.error("Attachment upload error:", err);
+          throw new Error("Attachment upload failed");
+        }
+      }
+      uploadedDocuments.attachmentUrls = [...uploadedDocuments.attachmentUrls, ...uploadedFiles];
+    }
+
+    return uploadedDocuments;
+  };
+
+  const handleUpdate = async () => {
+    setUpdating(true);
+    setUploadingDocuments(true);
+    
+    try {
+      let documents = {
+        audioUrl: editablePlan.audioUrl,
+        attachmentUrls: editablePlan.attachmentUrls || []
+      };
+
+      // Upload new documents if any
+      if (audioBlob || attachments.length > 0) {
+        documents = await uploadDocuments();
+      }
+
+      // Prepare update data with documents
+      const updateData = {
+        ...editablePlan,
+        audioUrl: documents.audioUrl,
+        attachmentUrls: documents.attachmentUrls
+      };
+
+      await axiosInstance.patch(`/dispatch-plans/${plan._id}`, updateData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      toast.success('Dispatch plan updated successfully');
+      setIsEditing(false);
+      setAudioBlob(null);
+      setAudioUrl(null);
+      setAttachments([]);
+      fetchPlans();
+    } catch (err) {
+      toast.error('Failed to update dispatch plan');
+      console.error('Update error:', err);
+    } finally {
+      setUpdating(false);
+      setUploadingDocuments(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditablePlan(plan);
+    setIsEditing(false);
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setAttachments([]);
+  };
+
+  return (
+    <tr className="hover:bg-gray-50 transition-colors duration-150">
+      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
+        {(page - 1) * 10 + index + 1}
+      </td>
+      
+      {/* Date - Editable */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        {isEditing ? (
+          <input
+            type="date"
+            value={editablePlan.dateOfTrip ? new Date(editablePlan.dateOfTrip).toISOString().split('T')[0] : ''}
+            onChange={(e) => setEditablePlan(prev => ({ ...prev, dateOfTrip: e.target.value }))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">
+            {plan.dateOfTrip ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB") : "—"}
+          </span>
+        )}
+      </td>
+
+      {/* Vehicle - Editable */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        {isEditing ? (
+          <select
+            value={editablePlan.vehicleNumber}
+            onChange={(e) => setEditablePlan(prev => ({ ...prev, vehicleNumber: e.target.value }))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">Select Vehicle</option>
+            {registeredVehicles.map((v) => (
+              <option key={v._id} value={v.vehicleNumber}>
+                {v.vehicleNumber}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="flex items-center gap-2">
+            {plan.vehicleNumber}
+            {plan.gpsLink && (
+              <a
+                href={plan.gpsLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700"
+                title="Track Vehicle"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </a>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* Driver - Editable */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editablePlan.driverName || ''}
+            onChange={(e) => setEditablePlan(prev => ({ ...prev, driverName: e.target.value }))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">
+            {plan.driverName || plan.assignedTo?.name || "-"}
+          </span>
+        )}
+      </td>
+
+      {/* Location - Editable */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editablePlan.location || ''}
+            onChange={(e) => setEditablePlan(prev => ({ ...prev, location: e.target.value }))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">
+            {plan.location || "-"}
+          </span>
+        )}
+      </td>
+
+      {/* Customers - Editable */}
+      <td className="px-4 py-4 border border-gray-200">
+        {isEditing ? (
+          <div className="space-y-1 min-w-[200px]">
+            {(editablePlan.customerNames || []).map((name, i) => (
+              <div key={i} className="flex gap-1">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    const updated = [...(editablePlan.customerNames || [])];
+                    updated[i] = e.target.value;
+                    setEditablePlan(prev => ({ ...prev, customerNames: updated }));
+                  }}
+                  list={`edit-customer-options-${index}-${i}`}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+                />
+                <datalist id={`edit-customer-options-${index}-${i}`}>
+                  {customerList
+                    .filter((c) => c.name.toLowerCase().includes(name.toLowerCase()))
+                    .map((c) => (
+                      <option key={c._id} value={c.name} />
+                    ))}
+                </datalist>
+                {(editablePlan.customerNames || []).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [...(editablePlan.customerNames || [])];
+                      updated.splice(i, 1);
+                      setEditablePlan(prev => ({ ...prev, customerNames: updated }));
+                    }}
+                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setEditablePlan(prev => ({ 
+                ...prev, 
+                customerNames: [...(prev.customerNames || []), ""] 
+              }))}
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Customer
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {Array.isArray(plan.customerNames) && plan.customerNames.length > 0 ? (
+              plan.customerNames.map((name, i) => (
+                <div key={i} className={`text-xs px-2 py-1 rounded ${
+                  plan.customerNames.length > 1 
+                    ? 'bg-blue-50 border border-blue-200 text-blue-700' 
+                    : 'bg-gray-50 text-gray-700'
+                }`}>
+                  <span className="font-medium">{name}</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* Sales Products - Editable */}
+      <td className="px-4 py-4 border border-gray-200">
+        {isEditing ? (
+          <div className="space-y-1 min-w-[200px]">
+            {(editablePlan.salesProducts || []).map((product, i) => (
+              <div key={i} className="flex gap-1">
+                <input
+                  type="text"
+                  value={product}
+                  onChange={(e) => {
+                    const updated = [...(editablePlan.salesProducts || [])];
+                    updated[i] = e.target.value;
+                    setEditablePlan(prev => ({ ...prev, salesProducts: updated }));
+                  }}
+                  list={`edit-product-options-${index}-${i}`}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+                />
+                <datalist id={`edit-product-options-${index}-${i}`}>
+                  {productsList
+                    .filter((p) => p.name?.toLowerCase().includes(product.toLowerCase()))
+                    .map((p) => (
+                      <option key={p._id} value={p.name} />
+                    ))}
+                </datalist>
+                {(editablePlan.salesProducts || []).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [...(editablePlan.salesProducts || [])];
+                      updated.splice(i, 1);
+                      setEditablePlan(prev => ({ ...prev, salesProducts: updated }));
+                    }}
+                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setEditablePlan(prev => ({ 
+                ...prev, 
+                salesProducts: [...(prev.salesProducts || []), ""] 
+              }))}
+              className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Product
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0 ? (
+              plan.salesProducts.map((product, i) => (
+                <div key={i} className={`text-xs px-2 py-1 rounded ${
+                  plan.salesProducts.length > 1 
+                    ? 'bg-green-50 border border-green-200 text-green-700' 
+                    : 'bg-gray-50 text-gray-700'
+                }`}>
+                  <span className="font-medium">{product}</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* Diesel in Liters - Editable */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  {isEditing ? (
+    <input
+      type="number"
+      step="0.01"
+      value={editablePlan.dieselLiters || ''}
+      onChange={(e) => setEditablePlan(prev => ({ ...prev, dieselLiters: e.target.value }))}
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+    />
+  ) : (
+    <span className="text-sm text-gray-900">
+      {plan.dieselLiters || "-"}
+    </span>
+  )}
+</td>
+
+{/* Expenses - Editable */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  {isEditing ? (
+    <input
+      type="number"
+      step="0.01"
+      value={editablePlan.expenses || ''}
+      onChange={(e) => setEditablePlan(prev => ({ ...prev, expenses: e.target.value }))}
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+    />
+  ) : (
+    <span className="text-sm text-gray-900">
+      {plan.expenses || "-"}
+    </span>
+  )}
+</td>
+
+      {/* Remarks - Editable */}
+      <td className="px-4 py-4 border border-gray-200">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editablePlan.remarks || ''}
+            onChange={(e) => setEditablePlan(prev => ({ ...prev, remarks: e.target.value }))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">
+            {plan.remarks || "-"}
+          </span>
+        )}
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+          plan.status === "Completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+        }`}>
+          {plan.status || "Pending"}
+        </span>
+      </td>
+
+      {/* Documents - Enhanced for Editing */}
+      <td className="px-4 py-4 border border-gray-200">
+        {isEditing ? (
+          <div className="flex flex-col gap-2 min-w-[150px]">
+            {/* Audio Recording */}
+            <div className="flex items-center gap-2">
+              {audioUrl ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    New Audio
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearAudio}
+                    className="text-red-500 hover:text-red-700 text-xs"
+                    title="Remove audio"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : recording ? (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 p-1 border border-red-200 rounded"
+                >
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 p-1 border border-blue-200 rounded"
+                  title="Record audio message"
+                >
+                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  Record
+                </button>
+              )}
+            </div>
+
+            {/* File Attachments */}
+            <div className="flex flex-col gap-1">
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files);
+                  if (files.length > 0) {
+                    setAttachments(prev => [...prev, ...files]);
+                  }
+                  e.target.value = '';
+                }}
+                className="hidden"
+                id={`file-input-${index}`}
+              />
+              <label
+                htmlFor={`file-input-${index}`}
+                className="text-blue-500 hover:text-blue-700 text-xs cursor-pointer flex items-center gap-1 p-1 border border-blue-200 rounded w-fit"
+              >
+                📎 Add Files
+              </label>
+              
+              {/* Show attached files preview */}
+              {attachments.length > 0 && (
+                <div className="text-xs text-gray-600">
+                  <div className="font-medium mb-1">New Files ({attachments.length}):</div>
+                  {attachments.map((file, fileIndex) => (
+                    <div key={fileIndex} className="flex items-center gap-1 mb-1">
+                      <span className="truncate max-w-[80px]" title={file.name}>
+                        {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = [...attachments];
+                          updated.splice(fileIndex, 1);
+                          setAttachments(updated);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Existing Documents */}
+            {(editablePlan.attachmentUrls && editablePlan.attachmentUrls.length > 0) && (
+              <div className="text-xs text-gray-600 mt-2">
+                <div className="font-medium mb-1">Existing Files:</div>
+                {editablePlan.attachmentUrls.map((url, i) => (
+                  <div key={i} className="flex items-center gap-1 mb-1">
+                    <span className="truncate max-w-[80px]" title={url}>
+                      {url.includes('.pdf') ? '📄 PDF' : '🖼️ Image'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...editablePlan.attachmentUrls];
+                        updated.splice(i, 1);
+                        setEditablePlan(prev => ({ ...prev, attachmentUrls: updated }));
+                      }}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-1 flex-wrap">
+            {(plan.imageUrls || []).map((url, i) => {
+              const isAudio = url.includes('audio') || url === plan.audioUrl || url.endsWith('.wav') || url.endsWith('.mp3');
+              const isPDF = url.includes('.pdf') || url.includes('/raw/upload') || url.endsWith('.pdf');
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (isAudio) {
+                      Swal.fire({
+                        title: 'Audio Recording',
+                        html: `
+                          <audio controls autoplay style="width: 100%; margin: 10px 0;">
+                            <source src="${url}" type="audio/wav">
+                            Your browser does not support the audio element.
+                          </audio>
+                        `,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        width: "80%",
+                        background: "#f9fafb",
+                        customClass: { popup: "rounded-xl" },
+                      });
+                    } else if (isPDF) {
+                      window.open(url, '_blank');
+                    } else {
+                      Swal.fire({
+                        imageUrl: url,
+                        imageAlt: `Document ${i + 1}`,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        width: "90%",
+                        background: "#f9fafb",
+                        customClass: { popup: "rounded-xl" },
+                      });
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg hover:opacity-80 transition-colors duration-200 border ${
+                    isAudio 
+                      ? 'bg-green-50 text-green-700 border-green-200' 
+                      : isPDF
+                      ? 'bg-orange-50 text-orange-700 border-orange-200'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                  }`}
+                  title={isAudio ? 'Play Audio' : isPDF ? 'Open PDF' : 'View Image'}
+                >
+                  {isAudio ? 'Audio' : isPDF ? 'PDF' : 'Image'}
+                </button>
+              );
+            })}
+            {(plan.imageUrls || []).length === 0 && (
+              <span className="text-xs text-gray-400">No documents</span>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* Actions */}
+      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+        <div className="flex flex-col gap-2">
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleUpdate}
+                disabled={updating || uploadingDocuments}
+                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:bg-gray-400 transition-colors duration-200 flex items-center gap-1"
+              >
+                {(updating || uploadingDocuments) ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    {uploadingDocuments ? 'Uploading...' : 'Saving...'}
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={updating}
+                className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 disabled:bg-gray-400 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              {!userRoles.includes("driver") && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={() => handleDelete(plan._id)}
+                className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+};
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Loading Overlay */}
@@ -787,6 +1487,12 @@ const handleDelete = async (planId) => {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Sales Products / Material Name
         </th>
+         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+      ⛽Diesel in Liters
+    </th>
+    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+      💰Expenses
+    </th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Remarks
         </th>
@@ -801,7 +1507,7 @@ const handleDelete = async (planId) => {
         </th>
       </tr>
     </thead>
-    <tbody className="bg-white">
+      <tbody className="bg-white">
       {/* Add New Plan Row */}
       {!userRoles.includes("dispatch") && !userRoles.includes("packaging") && (
         <tr className="bg-blue-50 hover:bg-blue-100 transition-colors duration-150">
@@ -845,15 +1551,15 @@ const handleDelete = async (planId) => {
               required
             />
           </td>
-           <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-      <input
-        type="text"
-        value={formData.location}
-        onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-        placeholder="Location"
-        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-      />
-    </td>
+          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+              placeholder="Location"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+            />
+          </td>
           <td className="px-4 py-4 border border-gray-200">
             <div className="space-y-1 min-w-[200px]">
               {/* Add customer count badge */}
@@ -968,6 +1674,29 @@ const handleDelete = async (planId) => {
               </button>
             </div>
           </td>
+          {/* Diesel in Liters */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  <input
+    type="number"
+    step="0.01"
+    value={formData.dieselLiters}
+    onChange={(e) => setFormData(prev => ({ ...prev, dieselLiters: e.target.value }))}
+    placeholder="Diesel in liters"
+    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+  />
+</td>
+
+{/* Expenses */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  <input
+    type="number"
+    step="0.01"
+    value={formData.expenses}
+    onChange={(e) => setFormData(prev => ({ ...prev, expenses: e.target.value }))}
+    placeholder="Expenses"
+    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+  />
+</td>
           <td className="px-4 py-4 border border-gray-200">
             <input
               type="text"
@@ -982,99 +1711,99 @@ const handleDelete = async (planId) => {
               New
             </span>
           </td>
-         <td className="px-4 py-4 border border-gray-200">
-  <div className="flex flex-col gap-2">
-    {/* Audio Recording */}
-    <div className="flex items-center gap-2">
-      {audioUrl ? (
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-green-600 flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-            Audio Ready
-          </span>
-          <button
-            type="button"
-            onClick={clearAudio}
-            className="text-red-500 hover:text-red-700 text-xs"
-            title="Remove audio"
-          >
-            ×
-          </button>
-        </div>
-      ) : recording ? (
-        <button
-          type="button"
-          onClick={stopRecording}
-          className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 p-1 border border-red-200 rounded"
-        >
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-          Stop
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={startRecording}
-          className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 p-1 border border-blue-200 rounded"
-          title="Record audio message"
-        >
-          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-          Record
-        </button>
-      )}
-    </div>
+          <td className="px-4 py-4 border border-gray-200">
+            <div className="flex flex-col gap-2">
+              {/* Audio Recording */}
+              <div className="flex items-center gap-2">
+                {audioUrl ? (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                      Audio Ready
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearAudio}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                      title="Remove audio"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : recording ? (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 p-1 border border-red-200 rounded"
+                  >
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 p-1 border border-blue-200 rounded"
+                    title="Record audio message"
+                  >
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    Record
+                  </button>
+                )}
+              </div>
 
-    {/* File Attachments */}
-    <div className="flex flex-col gap-1">
-      <input
-        type="file"
-        multiple
-        accept="image/*,.pdf"
-        onChange={(e) => {
-          const files = Array.from(e.target.files);
-          if (files.length > 0) {
-            setAttachments(prev => [...prev, ...files]);
-          }
-          e.target.value = '';
-        }}
-        className="hidden"
-        id="file-input"
-      />
-      <label
-        htmlFor="file-input"
-        className="text-blue-500 hover:text-blue-700 text-xs cursor-pointer flex items-center gap-1 p-1 border border-blue-200 rounded w-fit"
-      >
-        📎 Attach Files
-      </label>
-      
-      {/* Show attached files preview */}
-      {attachments.length > 0 && (
-        <div className="text-xs text-gray-600">
-          <div className="font-medium mb-1">Files ({attachments.length}):</div>
-          {attachments.map((file, index) => (
-            <div key={index} className="flex items-center gap-1 mb-1">
-              <span className="truncate max-w-[80px]" title={file.name}>
-                {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const updated = [...attachments];
-                  updated.splice(index, 1);
-                  setAttachments(updated);
-                }}
-                className="text-red-500 hover:text-red-700 text-xs"
-              >
-                ×
-              </button>
+              {/* File Attachments */}
+              <div className="flex flex-col gap-1">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) {
+                      setAttachments(prev => [...prev, ...files]);
+                    }
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                  id="file-input"
+                />
+                <label
+                  htmlFor="file-input"
+                  className="text-blue-500 hover:text-blue-700 text-xs cursor-pointer flex items-center gap-1 p-1 border border-blue-200 rounded w-fit"
+                >
+                  📎 Attach Files
+                </label>
+                
+                {/* Show attached files preview */}
+                {attachments.length > 0 && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-medium mb-1">Files ({attachments.length}):</div>
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center gap-1 mb-1">
+                        <span className="truncate max-w-[80px]" title={file.name}>
+                          {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...attachments];
+                            updated.splice(index, 1);
+                            setAttachments(updated);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-</td>
+          </td>
           <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
             <button
               onClick={handleTableSubmit}
@@ -1099,193 +1828,21 @@ const handleDelete = async (planId) => {
         </tr>
       )}
 
-      {/* Existing Plans */}
+      {/* Existing Plans - Now Editable */}
       {plans.map((plan, index) => (
-        <tr key={plan._id} className="hover:bg-gray-50 transition-colors duration-150">
-          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
-            {(page - 1) * 10 + index + 1}
-          </td>
-          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
-            {plan.dateOfTrip ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB") : "—"}
-          </td>
-          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border border-gray-200">
-            <div className="flex items-center gap-2">
-              {plan.vehicleNumber}
-              {plan.gpsLink && (
-                <a
-                  href={plan.gpsLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-700"
-                  title="Track Vehicle"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </a>
-              )}
-            </div>
-          </td>
-          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
-            {plan.driverName || plan.assignedTo?.name || "-"}
-          </td>
-            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 border border-gray-200">
-      {plan.location || "-"}
-    </td>
-          <td className="px-4 py-4 text-sm text-gray-900 max-w-xs border border-gray-200">
-            {Array.isArray(plan.customerNames) && plan.customerNames.length > 0 ? (
-              <div className="space-y-1">
-                {plan.customerNames.map((name, i) => (
-                  <div key={i} className={`text-xs px-2 py-1 rounded ${
-                    plan.customerNames.length > 1 
-                      ? 'bg-blue-50 border border-blue-200 text-blue-700' 
-                      : 'bg-gray-50 text-gray-700'
-                  }`}>
-                    <span className="font-medium">{name}</span>
-                   
-                  </div>
-                ))}
-                {plan.customerNames.length > 1 && (
-                  <div className="text-xs text-blue-600 font-medium mt-1">
-                    📋 {plan.customerNames.length} customers selected
-                  </div>
-                )}
-              </div>
-            ) : (
-              <span className="text-gray-400">-</span>
-            )}
-          </td>
-          <td className="px-4 py-4 text-sm text-gray-900 max-w-xs border border-gray-200">
-            {Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0 ? (
-              <div className="space-y-1">
-                {plan.salesProducts.map((product, i) => (
-                  <div key={i} className={`text-xs px-2 py-1 rounded ${
-                    plan.salesProducts.length > 1 
-                      ? 'bg-green-50 border border-green-200 text-green-700' 
-                      : 'bg-gray-50 text-gray-700'
-                  }`}>
-                    <span className="font-medium">{product}</span>
-                   
-                  </div>
-                ))}
-                {plan.salesProducts.length > 1 && (
-                  <div className="text-xs text-green-600 font-medium mt-1">
-                    🏷️ {plan.salesProducts.length} products selected
-                  </div>
-                )}
-              </div>
-            ) : (
-              <span className="text-gray-400">-</span>
-            )}
-          </td>
-          <td className="px-4 py-4 text-sm text-gray-900 border border-gray-200">
-            {plan.remarks || "-"}
-          </td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-              plan.status === "Completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-            }`}>
-              {plan.status || "Pending"}
-            </span>
-          </td>
-         <td className="px-4 py-4 border border-gray-200">
-  <div className="flex gap-1 flex-wrap">
-    {(plan.imageUrls || []).map((url, i) => {
-      // Check file type
-      const isAudio = url.includes('audio') || url === plan.audioUrl || url.endsWith('.wav') || url.endsWith('.mp3');
-      const isPDF = url.includes('.pdf') || url.includes('/raw/upload') || url.endsWith('.pdf');
-      
-      return (
-        <button
-          key={i}
-          onClick={() => {
-            if (isAudio) {
-              // Show audio player for audio files
-              Swal.fire({
-                title: 'Audio Recording',
-                html: `
-                  <audio controls autoplay style="width: 100%; margin: 10px 0;">
-                    <source src="${url}" type="audio/wav">
-                    Your browser does not support the audio element.
-                  </audio>
-                `,
-                showCloseButton: true,
-                showConfirmButton: false,
-                width: "80%",
-                background: "#f9fafb",
-                customClass: { popup: "rounded-xl" },
-              });
-            } else if (isPDF) {
-              // Open PDF in new tab
-              window.open(url, '_blank');
-            } else {
-              // Show image for image files
-              Swal.fire({
-                imageUrl: url,
-                imageAlt: `Document ${i + 1}`,
-                showCloseButton: true,
-                showConfirmButton: false,
-                width: "90%",
-                background: "#f9fafb",
-                customClass: { popup: "rounded-xl" },
-              });
-            }
-          }}
-          className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg hover:opacity-80 transition-colors duration-200 border ${
-            isAudio 
-              ? 'bg-green-50 text-green-700 border-green-200' 
-              : isPDF
-              ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'bg-blue-50 text-blue-700 border-blue-200'
-          }`}
-          title={isAudio ? 'Play Audio' : isPDF ? 'Open PDF' : 'View Image'}
-        >
-          {isAudio ? (
-            <>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 1.414m-2.828-9.9a9 9 0 012.728-2.728" />
-              </svg>
-              Audio
-            </>
-          ) : isPDF ? (
-            <>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              PDF
-            </>
-          ) : (
-            <>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Image
-            </>
-          )}
-        </button>
-      );
-    })}
-    
-    {/* Show message if no documents */}
-    {(plan.imageUrls || []).length === 0 && (
-      <span className="text-xs text-gray-400">No documents</span>
-    )}
-  </div>
-</td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-            <button
-              onClick={() => handleDelete(plan._id)}
-              className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          </td>
-        </tr>
+        <EditablePlanRow 
+          key={plan._id} 
+          plan={plan} 
+          index={index}
+          page={page}
+          userRoles={userRoles}
+          handleDelete={handleDelete}
+          registeredVehicles={registeredVehicles}
+          customerList={customerList}
+          productsList={productsList}
+          token={token}
+          fetchPlans={fetchPlans}
+        />
       ))}
     </tbody>
   </table>

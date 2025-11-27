@@ -129,7 +129,7 @@ const handleSendWhatsApp = (order) => {
   const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   window.open(whatsappUrl, "_blank");
 };
-const canApprove = ["prateek@thermopackers.com", "496saurabh@mail.com", "it.thermopackers@gmail.com"].includes(user?.email);
+const canApprove = user?.role?.includes("accounts");
 
 // Add these functions to your PurchaseOrdersList component
 const handleApprove = async (orderId) => {
