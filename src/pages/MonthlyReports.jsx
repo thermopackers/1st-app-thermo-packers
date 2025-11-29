@@ -88,65 +88,75 @@ const parseUserRoles = (user) => {
     }
   }, [month]);
 
-  const fetchReport = async (type) => {
-    setExpandedUser(null);
-    if (!month) {
-      alert("Please select a month");
-      return;
-    }
+ const fetchReport = async (type) => {
+  setExpandedUser(null);
+  if (!month) {
+    alert("Please select a month");
+    return;
+  }
 
-    setLoading(true);
-    const [year, m] = month.split("-");
-    const from = `${year}-${m}-01`;
-    const lastDay = new Date(year, parseInt(m), 0).getDate();
-    const to = `${year}-${m}-${String(lastDay).padStart(2, "0")}`;
+  setLoading(true);
+  const [year, m] = month.split("-");
+  const from = `${year}-${m}-01`;
+  const lastDay = new Date(year, parseInt(m), 0).getDate();
+  const to = `${year}-${m}-${String(lastDay).padStart(2, "0")}`;
+  
+  // Get current date to filter out future dates
+  const currentDate = new Date();
+  const currentDateStr = currentDate.toISOString().split('T')[0];
+  
+  // Calculate all dates in the month (only up to today)
+  const allDates = [];
+  for (let day = 1; day <= lastDay; day++) {
+    const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
+    // Only include dates that are today or in the past
+    if (dateStr <= currentDateStr) {
+      allDates.push(dateStr);
+    }
+  }
+  
+  // Calculate number of Sundays in the month up to today only
+  let sundayCount = 0;
+  for (const dateStr of allDates) {
+    const date = new Date(dateStr);
+    if (date.getDay() === 0) {
+      sundayCount++;
+    }
+  }
+  
+  try {
+    setView(type);
     
-    // Get current date to filter out future dates
-    const currentDate = new Date();
-    const currentDateStr = currentDate.toISOString().split('T')[0];
+    // ✅ FIX: Only pass userId if user has admin/accounts role
+    const userRoles = parseUserRoles(user);
+    const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
     
-    // Calculate all dates in the month (only up to today)
-    const allDates = [];
-    for (let day = 1; day <= lastDay; day++) {
-      const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
-      // Only include dates that are today or in the past
-      if (dateStr <= currentDateStr) {
-        allDates.push(dateStr);
-      }
+    const params = { from, to };
+    
+    // Only add userId parameter for admin/accounts users
+    if (hasAdminAccess && employee) {
+      params.userId = employee;
     }
     
-    // Calculate number of Sundays in the month up to today only
-    let sundayCount = 0;
-    for (const dateStr of allDates) {
-      const date = new Date(dateStr);
-      if (date.getDay() === 0) {
-        sundayCount++;
-      }
-    }
+    const res = await axiosInstance.get("/attendance/monthly", { params });
     
-    try {
-      setView(type);
-      const res = await axiosInstance.get("/attendance/monthly", {
-        params: { from, to, userId: employee },
-      });
-      
-      // Add sundayCount and calculate working days
-      const reportWithSundays = res.data.map(item => ({
-        ...item,
-        sundayCount,
-        totalWorkingDays: item.totalDays - sundayCount,
-        absentDays: item.absentDates ? item.absentDates.length : 0,
-        allDates: allDates
-      }));
-      
-      setReport(reportWithSundays);
-    } catch (err) {
-      console.error("❌ Error fetching monthly report:", err.response?.data || err);
-      alert("Failed to fetch report. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Add sundayCount and calculate working days
+    const reportWithSundays = res.data.map(item => ({
+      ...item,
+      sundayCount,
+      totalWorkingDays: item.totalDays - sundayCount,
+      absentDays: item.absentDates ? item.absentDates.length : 0,
+      allDates: allDates
+    }));
+    
+    setReport(reportWithSundays);
+  } catch (err) {
+    console.error("❌ Error fetching monthly report:", err.response?.data || err);
+    alert("Failed to fetch report. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
 const getAttendancePercentage = (presentDays, totalWorkingDays) => {
   if (totalWorkingDays === 0) return 0;
@@ -723,24 +733,28 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
             <>
               {renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates)}
               {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
           )}
           {view === "absent" && (
             <>
               {renderAbsentDetails(r.absentDates)}
               {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
           )}
           {view === "late" && (
             <>
               {renderLateDetails(r.lateDetails)}
               {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
           )}
           {view === "early" && (
             <>
               {renderEarlyDetails(r.earlyDetails)}
               {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
           )}
           {view === "attendance" && (
@@ -750,6 +764,13 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
               {renderLateDetails(r.lateDetails)}
               {renderEarlyDetails(r.earlyDetails)}
               {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
+            </>
+          )}
+          {view === "leave" && (
+            <>
+              {renderLeaveDetails(r.leaveDates)}
+              {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
           )}
         </div>
@@ -797,6 +818,44 @@ const reportButtons = [
       </div>
     </motion.div>
   );
+};
+
+const renderUpcomingLeaves = (upcomingLeaves) => {
+  if (!upcomingLeaves || upcomingLeaves.length === 0) return null;
+
+  return (
+    <motion.div 
+      className="mt-3 bg-indigo-50 p-4 rounded-xl border border-indigo-200"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+    >
+      <h4 className="font-medium text-indigo-800 mb-3 flex items-center gap-2">
+        <Calendar className="w-4 h-4" />
+        Upcoming Approved Leaves
+      </h4>
+      <div className="space-y-2">
+        {upcomingLeaves.map((leave, index) => (
+          <div key={index} className="text-sm text-indigo-700 bg-indigo-100 p-3 rounded-lg">
+            <div className="font-medium">
+              {formatDate(leave.startDate)} to {formatDate(leave.endDate)}
+            </div>
+            <div className="text-xs text-indigo-600 mt-1">
+              Duration: {calculateLeaveDuration(leave.startDate, leave.endDate)} days
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+// Add this helper function
+const calculateLeaveDuration = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end - start);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+  return diffDays;
 };
 
   return (
@@ -850,12 +909,12 @@ const reportButtons = [
                 />
               </div>
 
-             {(() => {
+           {(() => {
   // ✅ FIX: Handle role array properly
   const userRoles = parseUserRoles(user);
   const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
   
-  return hasAdminAccess && (
+  return hasAdminAccess ? (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
         <Users className="w-4 h-4" />
@@ -873,6 +932,17 @@ const reportButtons = [
           </option>
         ))}
       </select>
+    </div>
+  ) : (
+    // Show current user's name for non-admin users
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Employee
+      </label>
+      <div className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50 text-gray-600">
+        {user?.name} (You)
+      </div>
     </div>
   );
 })()}

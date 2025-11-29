@@ -60,61 +60,76 @@ const AttendanceLogs = () => {
   const isPrivileged = userRoles.some(role => ["admin", "accounts"].includes(role));
   const limit = 20;
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get("/attendance", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          date: dateFilter,
-          role: roleFilter,
-          userId: userFilter,
-          page,
-          limit,
-        },
-      });
-      setLogs(res.data.logs);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchLogs = async () => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.get("/attendance", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        date: dateFilter,
+        role: roleFilter,
+        userId: userFilter,
+        page,
+        limit,
+        sortBy: "user_date", // Add this parameter
+      },
+    });
+    setLogs(res.data.logs);
+    setTotalPages(res.data.totalPages);
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchLogs();
   }, [page, dateFilter, roleFilter, userFilter]);
 
-  useEffect(() => {
-    const groupByUserAndDate = () => {
-      const groups = {};
-      logs.forEach((log) => {
-        const userId = log.user?._id;
-        const date = new Date(log.time).toISOString().split("T")[0];
-        const key = `${userId}-${date}`;
+useEffect(() => {
+  const groupByUserAndDate = () => {
+    const groups = {};
+    
+    // First pass: group all logs by user and date
+    logs.forEach((log) => {
+      const userId = log.user?._id;
+      const date = new Date(log.time).toISOString().split("T")[0];
+      const key = `${userId}-${date}`;
 
-        if (!groups[key]) {
-          groups[key] = {
-            user: log.user,
-            date,
-            checkIn: null,
-            checkOut: null,
-          };
-        }
+      if (!groups[key]) {
+        groups[key] = {
+          user: log.user,
+          date,
+          checkIn: null,
+          checkOut: null,
+        };
+      }
 
-        if (log.type === "check-in") {
+      // Only update if we don't have a value or if this is a more recent record
+      if (log.type === "check-in") {
+        // If we already have a check-in, keep the earlier one (first check-in of the day)
+        if (!groups[key].checkIn || new Date(log.time) < new Date(groups[key].checkIn.time)) {
           groups[key].checkIn = log;
-        } else if (log.type === "check-out") {
+        }
+      } else if (log.type === "check-out") {
+        // If we already have a check-out, keep the later one (last check-out of the day)
+        if (!groups[key].checkOut || new Date(log.time) > new Date(groups[key].checkOut.time)) {
           groups[key].checkOut = log;
         }
-      });
+      }
+    });
 
-      setGroupedLogs(Object.values(groups));
-    };
+    // Convert to array and sort by date descending
+    const groupedArray = Object.values(groups).sort((a, b) => 
+      new Date(b.date) - new Date(a.date)
+    );
 
-    groupByUserAndDate();
-  }, [logs]);
+    setGroupedLogs(groupedArray);
+  };
+
+  groupByUserAndDate();
+}, [logs]);
 
   const clearFilters = () => {
     setDateFilter("");
@@ -257,32 +272,30 @@ const AttendanceLogs = () => {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {/* Export Button */}
-              <motion.button
-                onClick={exportToCSV}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </motion.button>
+           <div className="flex flex-wrap gap-3">
+  {/* Export Button */}
+  <motion.button
+    onClick={exportToCSV}
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
+  >
+    <Download className="w-4 h-4" />
+    <span className="hidden sm:inline">Export CSV</span>
+  </motion.button>
 
-              {/* Monthly Reports Button */}
-              {isPrivileged && (
-                <NavLink to="/monthly-reports">
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span className="hidden sm:inline">Monthly Reports</span>
-                  </motion.div>
-                </NavLink>
-              )}
-            </div>
+  {/* Monthly Reports Button - Show to ALL users */}
+  <NavLink to="/monthly-reports">
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
+    >
+      <FileText className="w-4 h-4" />
+      <span className="hidden sm:inline">Monthly Reports</span>
+    </motion.div>
+  </NavLink>
+</div>
           </motion.div>
 
           {/* Filters Section */}

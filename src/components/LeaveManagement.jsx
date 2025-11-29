@@ -4,8 +4,12 @@ import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import InternalNavbar from './InternalNavbar';
+import { useUserContext } from '../context/UserContext';
+import NotificationBell from '../components/NotificationBell'
 
 const LeaveManagement = () => {
+  const { user: currentUser, loading: userLoading } = useUserContext();
+const userRoles = currentUser?.role || [];
   const [leaveApplications, setLeaveApplications] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
@@ -47,6 +51,51 @@ const LeaveManagement = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters.status, filters.user, filters.leaveType, filters.dateRange, filters.search]);
+
+   // Add this useEffect to fetch user roles
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await axiosInstance.get('/users/me');
+        const user = res.data;
+        
+        // Parse user roles similar to your dashboard
+        let roles = [];
+        if (Array.isArray(user.role)) {
+          if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+            try {
+              roles = JSON.parse(user.role[0]);
+            } catch (parseError) {
+              roles = user.role;
+            }
+          } else {
+            roles = user.role;
+          }
+        } else if (typeof user.role === 'string') {
+          try {
+            roles = JSON.parse(user.role);
+          } catch (parseError) {
+            roles = [user.role];
+          }
+        } else {
+          roles = [user.role];
+        }
+        
+        setUserRoles(roles);
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  // Auto-select current user for non-accounts roles
+useEffect(() => {
+  if (!userLoading && currentUser && !userRoles.includes('accounts') && currentUser._id) {
+    setSelectedUser(currentUser._id);
+  }
+}, [userLoading, currentUser, userRoles]);
 
   const fetchLeaveApplications = async (page = 1) => {
     try {
@@ -154,10 +203,12 @@ const LeaveManagement = () => {
         }
       });
 
-      toast.success('Leave application submitted successfully!');
+         toast.success('Leave application submitted successfully!');
       
-      // Reset form
-      setSelectedUser('');
+      // Reset form - but don't reset selectedUser for non-accounts users
+      if (userRoles.includes('accounts')) {
+        setSelectedUser(''); // Only reset for accounts users who can select different users
+      }
       setLeaveFiles([]);
     setLeaveForm({
   leaveType: 'personal',
@@ -433,6 +484,7 @@ const getLeaveTypeBadge = (type) => {
                 </h1>
                 <p className="text-gray-600 mt-1">Manage and track employee leave applications</p>
               </div>
+                <NotificationBell />
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowStatistics(!showStatistics)}
@@ -481,25 +533,45 @@ const getLeaveTypeBadge = (type) => {
                 </h2>
 
                 <form onSubmit={handleSubmitLeave} className="space-y-4">
-                  {/* User Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Employee *
-                    </label>
-                    <select
-                      value={selectedUser}
-                      onChange={(e) => setSelectedUser(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-                      required
-                    >
-                      <option value="">Select Employee</option>
-                      {users.map(user => (
-                        <option key={user._id} value={user._id}>
-                          {user.name} - {user.designation || 'No Designation'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                 {/* User Selection */}
+{userRoles.includes('accounts') ? (
+  // Accounts role: Show dropdown to select any employee
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Select Employee *
+    </label>
+    <select
+      value={selectedUser}
+      onChange={(e) => setSelectedUser(e.target.value)}
+      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+      required
+    >
+      <option value="">Select Employee</option>
+      {users.map(user => (
+        <option key={user._id} value={user._id}>
+          {user.name} - {user.designation || 'No Designation'}
+        </option>
+      ))}
+    </select>
+  </div>
+) : (
+  // Non-accounts role: Auto-select current user and show as read-only
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Employee
+    </label>
+    <div className="w-full border border-gray-300 rounded-lg p-2 bg-gray-50 text-gray-700">
+      {userLoading ? (
+        'Loading user information...'
+      ) : currentUser ? (
+        `${currentUser.name} - ${currentUser.designation || 'No Designation'}`
+      ) : (
+        'User not found'
+      )}
+    </div>
+    <input type="hidden" value={selectedUser} />
+  </div>
+)}
 
                   {/* Leave Type */}
                   <div>
@@ -645,16 +717,18 @@ const getLeaveTypeBadge = (type) => {
                     <option value="cancelled">Cancelled</option>
                   </select>
 
-                  <select
-                    value={filters.user}
-                    onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-                    className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-sm"
-                  >
-                    <option value="">All Employees</option>
-                    {users.map(user => (
-                      <option key={user._id} value={user._id}>{user.name}</option>
-                    ))}
-                  </select>
+                {userRoles.includes('accounts') && (
+  <select
+    value={filters.user}
+    onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
+    className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-sm"
+  >
+    <option value="">All Employees</option>
+    {users.map(user => (
+      <option key={user._id} value={user._id}>{user.name}</option>
+    ))}
+  </select>
+)}
 
                 <select
   value={filters.leaveType}
@@ -737,46 +811,51 @@ const getLeaveTypeBadge = (type) => {
                           </div>
                         )}
 
-                        {/* Actions */}
-                        <div className="flex items-center justify-between pt-3 border-t">
-                          <div className="text-xs text-gray-500">
-                            Applied: {new Date(application.appliedDate).toLocaleDateString()}
-                            {application.reviewedBy && ` • Reviewed: ${new Date(application.reviewedAt).toLocaleDateString()}`}
-                            {application.reviewerName && ` by ${application.reviewerName}`}
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                           {application.status === 'pending' && (
-  <>
-    <button
-      onClick={() => handleStatusUpdate(application._id, 'approved')}
-      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition"
-    >
-      Approve
-    </button>
-    <button
-      onClick={() => handleStatusUpdate(application._id, 'rejected')}
-      className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition"
-    >
-      Reject
-    </button>
-    <button
-      onClick={() => handleCancelLeave(application._id)}
-      className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 transition"
-    >
-      Cancel
-    </button>
-  </>
-)}
-                            <button
-                              onClick={() => deleteLeaveApplication(application._id)}
-                              className="p-1 text-red-600 hover:text-red-800 transition"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
+                    {/* Actions */}
+<div className="flex items-center justify-between pt-3 border-t">
+  <div className="text-xs text-gray-500">
+    Applied: {new Date(application.appliedDate).toLocaleDateString()}
+    {application.reviewedBy && ` • Reviewed: ${new Date(application.reviewedAt).toLocaleDateString()}`}
+    {application.reviewerName && ` by ${application.reviewerName}`}
+  </div>
+  
+  <div className="flex items-center gap-2">
+    {/* Show action buttons only for accounts role */}
+    {userRoles.includes('accounts') && (
+      <>
+        {application.status === 'pending' && (
+          <>
+            <button
+              onClick={() => handleStatusUpdate(application._id, 'approved')}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handleStatusUpdate(application._id, 'rejected')}
+              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition"
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => handleCancelLeave(application._id)}
+              className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 transition"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => deleteLeaveApplication(application._id)}
+          className="p-1 text-red-600 hover:text-red-800 transition"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </>
+    )}
+  </div>
+</div>
 
                         {/* Review Comments */}
                         {application.reviewComments && (

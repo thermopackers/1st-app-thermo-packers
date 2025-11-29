@@ -1424,17 +1424,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           </div>
         </ActionButton>
 
-        {/* ✅ ADD THIS NEW LEAVE MANAGEMENT BUTTON */}
-        {userRoles.includes("accounts") && (
-          <ActionButton to="/leave-management" variant="teal" icon="📋">
-            <div className="text-lg font-semibold mb-2">
-              Leave Management
-            </div>
-            <div className="text-teal-100 text-sm opacity-90">
-              Manage employee leave applications & records
-            </div>
-          </ActionButton>
-        )}
+    
 
         <motion.div
           className="opacity-60 cursor-not-allowed"
@@ -1490,6 +1480,29 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     </DashboardCard>
   </DashboardSection>
 )}
+
+   {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
+          <DashboardSection>
+            <DashboardCard>
+              <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                <span className="text-3xl">📋</span>
+                Leave Management
+              </h3>
+              <p className="text-gray-600 text-center mb-6">
+                Manage employee leave applications, approvals, and records
+              </p>
+              <div className="flex justify-center">
+                <ActionButton to="/leave-management" variant="teal" icon="📋" className="max-w-md">
+                  <div className="text-xl font-semibold mb-2">
+                    Leave Management System
+                  </div>
+                  <div className="text-teal-100 text-sm opacity-90">
+                    Apply for leave, manage applications & view records
+                  </div>
+                </ActionButton>
+              </div>
+            </DashboardCard>
+          </DashboardSection>
 
           {/* Enhanced Attendance Logs */}
           {user.allowAttendance && (

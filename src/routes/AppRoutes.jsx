@@ -367,7 +367,7 @@ export default function AppRoutes() {
  <Route
               path="/leave-management"
               element={
-                <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver","guard"]}>
                   <PageWrapper><LeaveManagement /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -509,7 +509,7 @@ export default function AppRoutes() {
 <Route
   path="/attendance-logs"
   element={
-    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver","guard"]}>
       <PageWrapper>
         <AttendanceLogs />
       </PageWrapper>
@@ -519,7 +519,7 @@ export default function AppRoutes() {
 <Route
   path="/monthly-reports"
   element={
-    <ProtectedRoute allowedRoles={["accounts","admin"]}>
+    <ProtectedRoute allowedRoles={["admin", "sales", "production", "dispatch", "accounts","packaging","driver","guard"]}>
       <PageWrapper>
         <MonthlyReports />
       </PageWrapper>

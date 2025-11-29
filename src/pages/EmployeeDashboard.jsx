@@ -1576,3 +1576,4 @@ const parseUserRoles = (user) => {
 };
 
 export default EmployeeDashboard;
+
