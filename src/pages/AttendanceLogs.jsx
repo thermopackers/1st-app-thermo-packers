@@ -22,7 +22,6 @@ import {
 
 const AttendanceLogs = () => {
   const { token, user } = useUserContext();
-  const [logs, setLogs] = useState([]);
   const [groupedLogs, setGroupedLogs] = useState([]);
   const [dateFilter, setDateFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -60,69 +59,33 @@ const AttendanceLogs = () => {
   const isPrivileged = userRoles.some(role => ["admin", "accounts"].includes(role));
   const limit = 20;
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get("/attendance", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          date: dateFilter,
-          role: roleFilter,
-          userId: userFilter,
-          page,
-          limit,
-        },
-      });
-      setLogs(res.data.logs);
-      setTotalPages(res.data.totalPages);
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchLogs = async () => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.get("/attendance", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        date: dateFilter,
+        role: roleFilter,
+        userId: userFilter,
+        page,
+        limit,
+      },
+    });
+    // Backend now returns grouped logs directly
+    setGroupedLogs(res.data.logs);
+    setTotalPages(res.data.totalPages);
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchLogs();
-  }, [page, dateFilter, roleFilter, userFilter]);
-
+// ✅ ADD THIS USEEFFECT HOOK
 useEffect(() => {
-  const groupByUserAndDate = () => {
-    const groups = {};
-    
-    // First, create a map of all logs by user-date key
-    logs.forEach((log) => {
-      const userId = log.user?._id;
-      const date = new Date(log.time).toISOString().split("T")[0];
-      const key = `${userId}-${date}`;
-
-      if (!groups[key]) {
-        groups[key] = {
-          user: log.user,
-          date,
-          checkIn: null,
-          checkOut: null,
-        };
-      }
-
-      // Only update if we don't have a value yet, or if we're getting more complete data
-      if (log.type === "check-in") {
-        groups[key].checkIn = log;
-      } else if (log.type === "check-out") {
-        groups[key].checkOut = log;
-      }
-    });
-
-    // Convert to array and sort by date (newest first)
-    const groupedArray = Object.values(groups).sort((a, b) => {
-      return new Date(b.date) - new Date(a.date);
-    });
-
-    setGroupedLogs(groupedArray);
-  };
-
-  groupByUserAndDate();
-}, [logs]);
+  fetchLogs();
+}, [page, dateFilter, roleFilter, userFilter]);
 
   const clearFilters = () => {
     setDateFilter("");
