@@ -26,6 +26,34 @@ const getFileUrl = (file) => {
   }
   return String(file);
 };
+
+// Utility to calculate time difference in hours
+const calculateTimeDifference = (startTime, endTime) => {
+  if (!startTime || !endTime) return "";
+  
+  try {
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    
+    let startTotalMinutes = startHours * 60 + startMinutes;
+    let endTotalMinutes = endHours * 60 + endMinutes;
+    
+    // Handle case where end time is next day
+    if (endTotalMinutes < startTotalMinutes) {
+      endTotalMinutes += 24 * 60; // Add 24 hours
+    }
+    
+    const diffMinutes = endTotalMinutes - startTotalMinutes;
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  } catch (error) {
+    console.error('Error calculating time difference:', error);
+    return "";
+  }
+};
+
   const [files, setFiles] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -296,23 +324,46 @@ const openFile = (url, i) => {
               />
             </div>
 
-            {[
-              ["Boiler Starting Time", "boilerRunningTime", "time"],
-              ["Scale Preventing Chemical (Ltrs)", "chemicalQty", "number"],
-              ["Namak / Salt (Kgs)", "saltQty", "number"],
-              ["Boiler Ending Time", "blowDownTime", "time"],
-              ["Duration of Blow Down (before ending the Boiler)", "blowDownDuration", "time"],
-            ].map(([label, key, type]) => (
-              <div key={key}>
-                <label className="block text-sm font-medium mb-1">{label}</label>
-                <input
-                  type={type}
-                  value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className="border rounded p-2 w-full"
-                />
-              </div>
-            ))}
+        {[
+  ["Boiler Starting Time", "boilerRunningTime", "time"],
+  ["Scale Preventing Chemical (Ltrs)", "chemicalQty", "number"],
+  ["Namak / Salt (Kgs)", "saltQty", "number"],
+  ["Boiler Ending Time", "blowDownTime", "time"],
+].map(([label, key, type]) => (
+  <div key={key}>
+    <label className="block text-sm font-medium mb-1">{label}</label>
+    <input
+      type={type}
+      value={form[key]}
+      onChange={(e) => {
+        const updatedForm = { ...form, [key]: e.target.value };
+        // Auto-calculate duration when both times are available
+        if (updatedForm.boilerRunningTime && updatedForm.blowDownTime) {
+          updatedForm.blowDownDuration = calculateTimeDifference(
+            updatedForm.boilerRunningTime, 
+            updatedForm.blowDownTime
+          );
+        }
+        setForm(updatedForm);
+      }}
+      className="border rounded p-2 w-full"
+    />
+  </div>
+))}
+
+{/* Duration Field - Readonly and auto-calculated */}
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Duration of Blow Down (before ending the Boiler)
+  </label>
+  <input
+    type="text"
+    value={form.blowDownDuration}
+    readOnly
+    className="border rounded p-2 w-full bg-gray-100"
+    placeholder="Auto-calculated"
+  />
+</div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Upload Files (images or PDFs)</label>
@@ -372,10 +423,10 @@ const openFile = (url, i) => {
             <thead className="bg-slate-200 text-left">
               <tr>
                 <th className="border p-2">Date</th>
-                <th className="border p-2">Running Time</th>
+                <th className="border p-2">Boiler Starting Time</th>
                 <th className="border p-2">Chemical (Ltrs)</th>
                 <th className="border p-2">Salt (Kgs)</th>
-                <th className="border p-2">Blow Time</th>
+                <th className="border p-2">Boiler Ending Time</th>
                 <th className="border p-2">Duration</th>
                 <th className="border p-2 min-w-[200px]">Files</th>
                 <th className="border p-2">Remarks</th>
@@ -412,27 +463,48 @@ const openFile = (url, i) => {
                     )}
                   </td>
                   {[
-                    "boilerRunningTime",
-                    "chemicalQty",
-                    "saltQty",
-                    "blowDownTime",
-                    "blowDownDuration",
-                  ].map((key) => (
-                    <td key={key} className="border p-2">
-                      {editingId === entry._id ? (
-                        <input
-                          type="text"
-                          value={editData[key] || ""}
-                          onChange={(e) =>
-                            setEditData({ ...editData, [key]: e.target.value })
-                          }
-                          className="border rounded p-1 w-full"
-                        />
-                      ) : (
-                        entry[key]
-                      )}
-                    </td>
-                  ))}
+  "boilerRunningTime",
+  "chemicalQty",
+  "saltQty",
+  "blowDownTime",
+].map((key) => (
+  <td key={key} className="border p-2">
+    {editingId === entry._id ? (
+      <input
+        type="text"
+        value={editData[key] || ""}
+        onChange={(e) => {
+          const updatedEditData = { ...editData, [key]: e.target.value };
+          // Auto-calculate duration when both times are available in edit mode
+          if (updatedEditData.boilerRunningTime && updatedEditData.blowDownTime) {
+            updatedEditData.blowDownDuration = calculateTimeDifference(
+              updatedEditData.boilerRunningTime, 
+              updatedEditData.blowDownTime
+            );
+          }
+          setEditData(updatedEditData);
+        }}
+        className="border rounded p-1 w-full"
+      />
+    ) : (
+      entry[key]
+    )}
+  </td>
+))}
+
+{/* Duration Field - Readonly in edit mode */}
+<td className="border p-2">
+  {editingId === entry._id ? (
+    <input
+      type="text"
+      value={editData.blowDownDuration || ""}
+      readOnly
+      className="border rounded p-1 w-full bg-gray-100"
+    />
+  ) : (
+    entry.blowDownDuration
+  )}
+</td>
 
          {/* FILE THUMBNAILS - FIXED */}
 <td className="border p-2 flex flex-wrap gap-2">
