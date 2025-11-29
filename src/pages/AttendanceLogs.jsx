@@ -60,28 +60,27 @@ const AttendanceLogs = () => {
   const isPrivileged = userRoles.some(role => ["admin", "accounts"].includes(role));
   const limit = 20;
 
-const fetchLogs = async () => {
-  setLoading(true);
-  try {
-    const res = await axiosInstance.get("/attendance", {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        date: dateFilter,
-        role: roleFilter,
-        userId: userFilter,
-        page,
-        limit,
-        sortBy: "user_date", // Add this parameter
-      },
-    });
-    setLogs(res.data.logs);
-    setTotalPages(res.data.totalPages);
-  } catch (err) {
-    console.error("Error fetching attendance:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get("/attendance", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          date: dateFilter,
+          role: roleFilter,
+          userId: userFilter,
+          page,
+          limit,
+        },
+      });
+      setLogs(res.data.logs);
+      setTotalPages(res.data.totalPages);
+    } catch (err) {
+      console.error("Error fetching attendance:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchLogs();
@@ -91,7 +90,7 @@ useEffect(() => {
   const groupByUserAndDate = () => {
     const groups = {};
     
-    // First pass: group all logs by user and date
+    // First, create a map of all logs by user-date key
     logs.forEach((log) => {
       const userId = log.user?._id;
       const date = new Date(log.time).toISOString().split("T")[0];
@@ -106,24 +105,18 @@ useEffect(() => {
         };
       }
 
-      // Only update if we don't have a value or if this is a more recent record
+      // Only update if we don't have a value yet, or if we're getting more complete data
       if (log.type === "check-in") {
-        // If we already have a check-in, keep the earlier one (first check-in of the day)
-        if (!groups[key].checkIn || new Date(log.time) < new Date(groups[key].checkIn.time)) {
-          groups[key].checkIn = log;
-        }
+        groups[key].checkIn = log;
       } else if (log.type === "check-out") {
-        // If we already have a check-out, keep the later one (last check-out of the day)
-        if (!groups[key].checkOut || new Date(log.time) > new Date(groups[key].checkOut.time)) {
-          groups[key].checkOut = log;
-        }
+        groups[key].checkOut = log;
       }
     });
 
-    // Convert to array and sort by date descending
-    const groupedArray = Object.values(groups).sort((a, b) => 
-      new Date(b.date) - new Date(a.date)
-    );
+    // Convert to array and sort by date (newest first)
+    const groupedArray = Object.values(groups).sort((a, b) => {
+      return new Date(b.date) - new Date(a.date);
+    });
 
     setGroupedLogs(groupedArray);
   };
