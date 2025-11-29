@@ -348,68 +348,90 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
                            
                           ],
                         },
-                        {
-                          table: {
-                            widths: ["*"],
-                            body: [
-                              [
-                                {
-                                  text: "Supplier/Vendor Bank Details",
-                                  bold: true,
-                                  fontSize: 9,
-                                  alignment: "left",
-                                },
-                              ],
-                              [
-                                {
-                                  text: `Account Name: ${
-                                    selectedSupplier?.accountName || "-"
-                                  }`,
-                                  fontSize: 8,
-                                  alignment: "left",
-                                },
-                              ],
-                              [
-                                {
-                                  text: `Bank Name: ${
-                                    selectedSupplier?.bankName || "-"
-                                  }`,
-                                  fontSize: 8,
-                                  alignment: "left",
-                                },
-                              ],
-                              [
-                                {
-                                  text: `A/C No: ${
-                                    selectedSupplier?.accountNumber || "-"
-                                  }`,
-                                  fontSize: 8,
-                                  alignment: "left",
-                                },
-                              ],
-                              [
-                                {
-                                  text: `IFSC: ${
-                                    selectedSupplier?.ifscCode || "-"
-                                  }`,
-                                  fontSize: 8,
-                                  alignment: "left",
-                                },
-                              ],
-                            ],
-                          },
-                          layout: {
-                            hLineWidth: () => 1,
-                            vLineWidth: () => 1,
-                            hLineColor: () => "black",
-                            vLineColor: () => "black",
-                            paddingLeft: () => 5,
-                            paddingRight: () => 5,
-                          },
-                          alignment: "right", // Aligns the whole table to the right side of the page
-                          margin: [0, 0, 0, 10],
-                          width: 250,
-                        },
+                       {
+  stack: [
+    // Bank details table
+    {
+      table: {
+        widths: ["*"],
+        body: [
+          [
+            {
+              text: "Supplier/Vendor Bank Details",
+              bold: true,
+              fontSize: 9,
+              alignment: "left",
+            },
+          ],
+          [
+            {
+              text: `Account Name: ${selectedSupplier?.accountName || "-"}`,
+              fontSize: 8,
+              alignment: "left",
+            },
+          ],
+          [
+            {
+              text: `Bank Name: ${selectedSupplier?.bankName || "-"}`,
+              fontSize: 8,
+              alignment: "left",
+            },
+          ],
+          [
+            {
+              text: `A/C No: ${selectedSupplier?.accountNumber || "-"}`,
+              fontSize: 8,
+              alignment: "left",
+            },
+          ],
+          [
+            {
+              text: `IFSC: ${selectedSupplier?.ifscCode || "-"}`,
+              fontSize: 8,
+              alignment: "left",
+            },
+          ],
+        ],
+      },
+      layout: {
+        hLineWidth: () => 1,
+        vLineWidth: () => 1,
+        hLineColor: () => "black",
+        vLineColor: () => "black",
+        paddingLeft: () => 5,
+        paddingRight: () => 5,
+      },
+      width: 250,
+    },
+    // Cheque photo section
+    {
+      stack: [
+        {
+          text: "Cheque Photo:",
+          bold: true,
+          fontSize: 8,
+          margin: [0, 5, 0, 2],
+        },
+        selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0
+          ? {
+              image: "chequeImage",
+              width: 80,
+              height: 40,
+              alignment: "center",
+              margin: [0, 2, 0, 5],
+            }
+          : {
+              text: "No cheque photo available",
+              fontSize: 7,
+              italics: true,
+              color: "gray",
+            },
+      ],
+    },
+  ],
+  alignment: "right",
+  margin: [0, 0, 0, 10],
+},
                       ],
                       margin: [0, 0, 0, 20],
                     },
@@ -511,9 +533,17 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
     const logoUrl =
       "https://res.cloudinary.com/dcr8k5amk/image/upload/v1753784825/THERMO_PACKERS_12032021-01_q181qx.jpg";
     const logoBase64 = await convertImageToBase64(logoUrl);
-    docDefinition.images = {
-      logoImage: logoBase64,
-    };
+
+    let chequeBase64 = null;
+if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
+  const chequeUrl = selectedSupplier.chequeFiles[0]?.url || selectedSupplier.chequeFiles[0];
+  chequeBase64 = await convertImageToBase64(chequeUrl);
+}
+
+ docDefinition.images = {
+  logoImage: logoBase64,
+  ...(chequeBase64 && { chequeImage: chequeBase64 }),
+};
 
     pdfMake.createPdf(docDefinition).getBlob(async (blob) => {
       try {
