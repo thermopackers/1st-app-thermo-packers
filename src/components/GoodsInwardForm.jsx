@@ -5,6 +5,256 @@ import Swal from 'sweetalert2';
 import InternalNavbar from '../components/InternalNavbar';
 import { useUserContext } from '../context/UserContext';
 
+// Product Editor Component
+const ProductEditor = ({ products, onProductsChange }) => {
+  const [purchaseProducts, setPurchaseProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showManualProduct, setShowManualProduct] = useState(false);
+  const [manualProductName, setManualProductName] = useState('');
+
+
+  useEffect(() => {
+    fetchPurchaseProducts();
+  }, []);
+
+  useEffect(() => {
+    if (productSearchQuery.trim() === '') {
+      setFilteredProducts(purchaseProducts);
+    } else {
+      const filtered = purchaseProducts.filter(product =>
+        product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+        (product.code && product.code.toLowerCase().includes(productSearchQuery.toLowerCase()))
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [productSearchQuery, purchaseProducts]);
+
+  // Add this useEffect inside ProductEditor component
+useEffect(() => {
+  const handleClickOutside = () => {
+    setShowProductDropdown(false);
+  };
+
+  document.addEventListener('click', handleClickOutside);
+  return () => {
+    document.removeEventListener('click', handleClickOutside);
+  };
+}, []);
+
+  const fetchPurchaseProducts = async () => {
+    try {
+      const res = await axiosInstance.get('/purchase-products');
+      setPurchaseProducts(res.data.data || []);
+      setFilteredProducts(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch purchase products', err);
+    }
+  };
+
+  const handleProductSelect = (product) => {
+    const existingProductIndex = products.findIndex(p => 
+      p.product?._id === product._id || p.productName === product.name
+    );
+    
+    let newProducts;
+    if (existingProductIndex !== -1) {
+      newProducts = products.map((p, index) => 
+        index === existingProductIndex 
+          ? { ...p, quantity: p.quantity + 1 }
+          : p
+      );
+    } else {
+      newProducts = [...products, { 
+        product: { _id: product._id, name: product.name, code: product.code },
+        quantity: 1 
+      }];
+    }
+    
+    onProductsChange(newProducts);
+    setProductSearchQuery('');
+    setShowProductDropdown(false);
+  };
+
+  const handleAddManualProduct = () => {
+    if (!manualProductName.trim()) {
+      Swal.fire('Warning', 'Please enter product name', 'warning');
+      return;
+    }
+
+    const newProducts = [...products, { 
+      productName: manualProductName.trim(),
+      quantity: 1,
+      product: { _id: `manual_${Date.now()}`, name: manualProductName.trim(), isManual: true }
+    }];
+    
+    onProductsChange(newProducts);
+    setManualProductName('');
+    setShowManualProduct(false);
+  };
+
+  const handleRemoveProduct = (productId) => {
+    const newProducts = products.filter(p => 
+      p.product?._id !== productId && p.productName !== productId
+    );
+    onProductsChange(newProducts);
+  };
+
+  const handleQuantityChange = (productId, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    const newProducts = products.map(p =>
+      (p.product?._id === productId || p.productName === productId)
+        ? { ...p, quantity: newQuantity }
+        : p
+    );
+    onProductsChange(newProducts);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Product Search */}
+     <div className="relative" onClick={(e) => e.stopPropagation()}>
+  <input
+    type="text"
+    value={productSearchQuery}
+    onChange={(e) => {
+      setProductSearchQuery(e.target.value);
+      setShowProductDropdown(true);
+    }}
+    onFocus={() => setShowProductDropdown(true)}
+    placeholder="Search products by name or code..."
+    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+    disabled={showManualProduct}
+  />
+        
+        {productSearchQuery && !showManualProduct && (
+          <button
+            type="button"
+            onClick={() => setProductSearchQuery('')}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        )}
+        
+        {!productSearchQuery && !showManualProduct && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            🔍
+          </div>
+        )}
+
+        {/* Manual Product Toggle */}
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowManualProduct(!showManualProduct)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {showManualProduct ? 'Select from list' : 'Not in list? Add manually'}
+          </button>
+        </div>
+
+        {showManualProduct ? (
+          <div className="mt-2">
+            <input
+              type="text"
+              value={manualProductName}
+              onChange={(e) => setManualProductName(e.target.value)}
+              placeholder="Enter product name manually..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+            />
+            <button
+              type="button"
+              onClick={handleAddManualProduct}
+              className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+            >
+              ➕ Add Manual Product
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Product Dropdown Results */}
+            {showProductDropdown && filteredProducts.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {filteredProducts.map(product => (
+                  <div
+                    key={product._id}
+                    onClick={() => handleProductSelect(product)}
+                    className="px-4 py-3 cursor-pointer hover:bg-blue-50 transition border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="font-medium text-gray-900">{product.name}</div>
+                    {product.code && (
+                      <div className="text-sm text-gray-600">Code: {product.code}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* No Products Found Message */}
+            {showProductDropdown && productSearchQuery && filteredProducts.length === 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+                No products found matching "{productSearchQuery}"
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Selected Products Display */}
+      {products.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-medium text-gray-700">Selected Products ({products.length}):</h4>
+          {products.map((item, index) => (
+            <div key={item.product?._id || item.productName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+              <div className="flex-1">
+                <div className="font-medium flex items-center gap-2">
+                  {item.product?.name || item.productName}
+                  {item.productName && (
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
+                  )}
+                </div>
+                {item.product?.code && !item.productName && (
+                  <div className="text-sm text-gray-600">Code: {item.product.code}</div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded border">
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(item.product?._id || item.productName, item.quantity - 1)}
+                    className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(item.product?._id || item.productName, item.quantity + 1)}
+                    className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveProduct(item.product?._id || item.productName)}
+                  className="text-red-600 hover:text-red-800 p-1"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const GoodsInwardForm = () => {
   const { user } = useUserContext();
   const navigate = useNavigate();
@@ -15,6 +265,13 @@ const GoodsInwardForm = () => {
   const [submitting, setSubmitting] = useState(false);
   const [epsGrades, setEpsGrades] = useState([]);
   
+    const [editingProducts, setEditingProducts] = useState(false);
+  const [editingPhotos, setEditingPhotos] = useState(false);
+  const [tempProducts, setTempProducts] = useState([]);
+  const [tempPhotos, setTempPhotos] = useState([]);
+  const [newPhotos, setNewPhotos] = useState([]);
+const [savingProducts, setSavingProducts] = useState(false);
+const [savingPhotos, setSavingPhotos] = useState(false);
   // Items state - array of categories
   const [items, setItems] = useState([
     {
@@ -48,6 +305,7 @@ const GoodsInwardForm = () => {
   const [goodsInwards, setGoodsInwards] = useState([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [showEntries, setShowEntries] = useState(false);
+  const userRoles = Array.isArray(user?.role) ? user.role : [user?.role];
 
   // Wood type options
   const woodTypeOptions = [
@@ -71,14 +329,13 @@ const GoodsInwardForm = () => {
     fetchGoodsInwards(); // Fetch existing entries when component loads
   }, [guardEntryId]);
 
-  useEffect(() => {
-    // Check if user has accounts role
-    const userRoles = Array.isArray(user?.role) ? user.role : [user?.role];
-    if (!userRoles.includes('accounts') && !userRoles.includes('admin')) {
-      Swal.fire('Access Denied', 'Only accounts team can access this page', 'error');
-      navigate('/guard-entries-view');
-    }
-  }, [user, navigate]);
+useEffect(() => {
+  // Check if user has accounts role
+  if (!userRoles.includes('accounts') && !userRoles.includes('admin')) {
+    Swal.fire('Access Denied', 'Only accounts team can access this page', 'error');
+    navigate('/guard-entries-view');
+  }
+}, [user, navigate, userRoles]);
 
   const fetchGuardEntryDetails = async () => {
     try {
@@ -104,7 +361,6 @@ const GoodsInwardForm = () => {
   const fetchEpsGrades = async () => {
     try {
       const res = await axiosInstance.get('/purchase-products');
-      console.log("res",res);
       
       setEpsGrades(res.data.data || []);
     } catch (err) {
@@ -553,6 +809,7 @@ const handleSubmit = async (e) => {
     setSubmitting(false);
   }
 };
+
   if (loading) {
     return (
       <>
@@ -566,6 +823,146 @@ const handleSubmit = async (e) => {
       </>
     );
   }
+// Handler functions for editing guard data
+const handleEditRemarks = async () => {
+  const { value: newRemarks } = await Swal.fire({
+    title: 'Edit Remarks',
+    input: 'textarea',
+    inputValue: guardEntry.remarks || '',
+    inputPlaceholder: 'Enter new remarks...',
+    showCancelButton: true,
+    confirmButtonText: 'Update Remarks',
+    cancelButtonText: 'Cancel'
+  });
+
+  if (newRemarks !== undefined) {
+    try {
+      const response = await axiosInstance.patch(`/guard-entries/${guardEntryId}`, {
+        remarks: newRemarks
+      });
+      setGuardEntry(prev => ({ ...prev, remarks: newRemarks }));
+      Swal.fire('Success!', 'Remarks updated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to update remarks', error);
+      Swal.fire('Error', 'Failed to update remarks', 'error');
+    }
+  }
+};
+
+const handleEditProducts = () => {
+  // Convert guard entry products to the format expected by ProductEditor
+  const formattedProducts = guardEntry.purchaseProducts.map(item => ({
+    product: item.product ? {
+      _id: item.product._id,
+      name: item.product.name,
+      code: item.product.code
+    } : null,
+    productName: item.productName || null,
+    quantity: item.quantity
+  }));
+  
+  setTempProducts(formattedProducts);
+  setEditingProducts(true);
+};
+
+const handleSaveProducts = async () => {
+  if (tempProducts.length === 0) {
+    Swal.fire('Warning', 'Please add at least one product', 'warning');
+    return;
+  }
+  setSavingProducts(true);
+
+  try {
+    const productsToSend = tempProducts.map(item => ({
+      product: item.product?._id || null,
+      productName: item.productName || item.product?.name || null,
+      quantity: item.quantity
+    }));
+
+    const response = await axiosInstance.patch(`/guard-entries/${guardEntryId}`, {
+      purchaseProducts: JSON.stringify(productsToSend)
+    });
+
+    setGuardEntry(prev => ({ ...prev, purchaseProducts: response.data.entry.purchaseProducts }));
+    setEditingProducts(false);
+    Swal.fire('Success!', 'Products updated successfully', 'success');
+  } catch (error) {
+    console.error('Failed to update products', error);
+    Swal.fire('Error', 'Failed to update products', 'error');
+  } finally {
+    setSavingProducts(false);
+  }
+};
+
+const handleEditPhotos = () => {
+  setTempPhotos([...guardEntry.photos]);
+  setEditingPhotos(true);
+};
+
+const handleNewPhotoUpload = (e) => {
+  const files = Array.from(e.target.files);
+  const totalPhotos = tempPhotos.length + newPhotos.length + files.length;
+  
+  if (totalPhotos > 5) {
+    Swal.fire('Warning', 'Maximum 5 photos allowed in total', 'warning');
+    return;
+  }
+  
+  setNewPhotos(prev => [...prev, ...files]);
+};
+
+const handleRemovePhoto = async (index) => {
+  const photoToRemove = tempPhotos[index];
+  
+  // If it's an existing photo (not a new one), we need to delete from Cloudinary
+  if (!photoToRemove.startsWith('blob:')) {
+    try {
+      await axiosInstance.delete(`/guard-entries/${guardEntryId}/photos`, {
+        data: { photoUrl: photoToRemove }
+      });
+    } catch (error) {
+      console.error('Failed to delete photo from server', error);
+      Swal.fire('Error', 'Failed to delete photo', 'error');
+      return; // Don't proceed if deletion fails
+    }
+  }
+  
+  const updatedPhotos = tempPhotos.filter((_, i) => i !== index);
+  setTempPhotos(updatedPhotos);
+};
+
+const handleRemoveNewPhoto = (index) => {
+  setNewPhotos(prev => prev.filter((_, i) => i !== index));
+};
+
+const handleSavePhotos = async () => {
+    setSavingPhotos(true);
+  try {
+    const formData = new FormData();
+    
+    // Add new photos
+    newPhotos.forEach(photo => {
+      formData.append('photos', photo);
+    });
+
+    // Send the update request
+    const response = await axiosInstance.patch(`/guard-entries/${guardEntryId}/photos`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    setGuardEntry(prev => ({ ...prev, photos: response.data.entry.photos }));
+    setEditingPhotos(false);
+    setNewPhotos([]);
+    Swal.fire('Success!', 'Photos updated successfully', 'success');
+  } catch (error) {
+    console.error('Failed to update photos', error);
+    Swal.fire('Error', 'Failed to update photos', 'error');
+  } finally {
+    setSavingPhotos(false);
+  }
+};
 
   if (!guardEntry) {
     return null;
@@ -639,58 +1036,132 @@ const handleSubmit = async (e) => {
 
           {/* Goods Inward Form */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            {/* Guard Uploaded Data Display */}
+     {/* Guard Uploaded Data Display - EDITABLE FOR ACCOUNTS ROLE */}
 <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-6">
-  <h3 className="text-lg font-semibold text-yellow-800 mb-4">
-    📋 Data Uploaded by Guard
-  </h3>
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold text-yellow-800">
+      📋 Data Uploaded by Guard
+    </h3>
+    <div className="text-sm text-blue-600 font-medium">
+      Entry Time: {formatDate(guardEntry.createdAt)}
+    </div>
+  </div>
   
-  {/* Products from Guard Entry */}
+  {/* Products from Guard Entry - EDITABLE */}
   {guardEntry.purchaseProducts && guardEntry.purchaseProducts.length > 0 && (
     <div className="mb-4">
-      <h4 className="font-medium text-yellow-700 mb-2">Products Recorded by Guard:</h4>
-      <div className="space-y-2">
-        {guardEntry.purchaseProducts.map((product, index) => (
-          <div key={index} className="bg-white p-3 rounded-lg border border-yellow-100">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-medium text-gray-900">
-                  {product.product?.name || product.productName || 'Unknown Product'}
-                </span>
-                {product.product?.code && (
-                  <div className="text-sm text-gray-600">Code: {product.product.code}</div>
-                )}
-                {product.productName && (
-                  <div className="text-xs text-green-600 font-medium">📝 Manual Entry</div>
-                )}
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-bold text-blue-600">{product.quantity}</div>
-                <div className="text-xs text-gray-500">Quantity</div>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="font-medium text-yellow-700">Products Recorded by Guard:</h4>
+        {userRoles.includes('accounts') && !editingProducts && (
+          <button
+            type="button"
+            onClick={() => handleEditProducts()}
+            className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+          >
+            Edit Products
+          </button>
+        )}
+      </div>
+
+      {!editingProducts ? (
+        // Display mode
+        <div className="space-y-2">
+          {guardEntry.purchaseProducts.map((product, index) => (
+            <div key={index} className="bg-white p-3 rounded-lg border border-yellow-100">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="font-medium text-gray-900">
+                    {product.product?.name || product.productName || 'Unknown Product'}
+                  </span>
+                  {product.product?.code && (
+                    <div className="text-sm text-gray-600">Code: {product.product.code}</div>
+                  )}
+                  {product.productName && (
+                    <div className="text-xs text-green-600 font-medium">📝 Manual Entry</div>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-blue-600">{product.quantity}</div>
+                  <div className="text-xs text-gray-500">Quantity</div>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        // Edit mode for products
+        <div className="bg-white p-4 rounded-lg border border-yellow-200">
+          <ProductEditor 
+            products={tempProducts}
+            onProductsChange={setTempProducts}
+          />
+          <div className="flex gap-2 mt-4">
+           <button
+  type="button"
+  onClick={handleSaveProducts}
+  disabled={savingProducts}
+  className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${
+    savingProducts ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+>
+  {savingProducts ? 'Saving...' : 'Save Products'}
+</button>
+            <button
+              type="button"
+              onClick={() => setEditingProducts(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Cancel
+            </button>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   )}
 
-  {/* Remarks from Guard Entry */}
-  {guardEntry.remarks && guardEntry.remarks.trim() && (
-    <div className="mb-4">
-      <h4 className="font-medium text-yellow-700 mb-2">Remarks by Guard:</h4>
-      <div className="bg-white p-3 rounded-lg border border-yellow-100">
-        <p className="text-gray-700 whitespace-pre-wrap">{guardEntry.remarks}</p>
-      </div>
+  {/* Remarks from Guard Entry - EDITABLE */}
+  <div className="mb-4">
+    <div className="flex justify-between items-center mb-2">
+      <h4 className="font-medium text-yellow-700">Remarks by Guard:</h4>
+      {userRoles.includes('accounts') && (
+        <button
+          type="button"
+          onClick={() => handleEditRemarks()}
+          className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+        >
+          Edit Remarks
+        </button>
+      )}
     </div>
-  )}
+    <div className="bg-white p-3 rounded-lg border border-yellow-100">
+      <p className="text-gray-700 whitespace-pre-wrap">
+        {guardEntry.remarks || 'No remarks provided by guard'}
+      </p>
+    </div>
+  </div>
 
-  {/* Photos from Guard Entry */}
-  {guardEntry.photos && guardEntry.photos.length > 0 && (
-    <div>
-      <h4 className="font-medium text-yellow-700 mb-2">Photos by Guard ({guardEntry.photos.length}):</h4>
+  {/* Photos from Guard Entry - EDITABLE */}
+  <div>
+    <div className="flex justify-between items-center mb-2">
+      <h4 className="font-medium text-yellow-700">
+        Photos by Guard ({guardEntry.photos?.length || 0}):
+        {editingPhotos && <span className="text-blue-600 ml-2">Editing Mode</span>}
+      </h4>
+      {userRoles.includes('accounts') && !editingPhotos && (
+        <button
+          type="button"
+          onClick={() => handleEditPhotos()}
+          className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+        >
+          Edit Photos
+        </button>
+      )}
+    </div>
+
+    {!editingPhotos ? (
+      // Display mode for photos
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {guardEntry.photos.map((photo, index) => (
+        {guardEntry.photos?.map((photo, index) => (
           <div key={index} className="relative">
             <img
               src={photo}
@@ -704,8 +1175,98 @@ const handleSubmit = async (e) => {
           </div>
         ))}
       </div>
-    </div>
-  )}
+    ) : (
+      // Edit mode for photos
+      <div className="bg-white p-4 rounded-lg border border-yellow-200">
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Upload New Photos (Max 5 total)
+          </label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleNewPhotoUpload}
+            className="w-full border border-gray-300 rounded-lg px-4 py-3"
+          />
+        </div>
+
+        {/* Current photos with delete option */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+          {tempPhotos.map((photo, index) => (
+            <div key={index} className="relative">
+              <img
+                src={photo}
+                alt={`Photo ${index + 1}`}
+                className="w-full h-32 object-cover rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemovePhoto(index)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+              >
+                ×
+              </button>
+              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+                {photo.startsWith('blob:') ? 'New Photo' : `Photo ${index + 1}`}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* New photo previews */}
+        {newPhotos.length > 0 && (
+          <div className="mb-4">
+            <h5 className="font-medium text-gray-700 mb-2">New Photos to Upload:</h5>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {newPhotos.map((photo, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={URL.createObjectURL(photo)}
+                    alt={`New photo ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveNewPhoto(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+                    New Photo {index + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+        <button
+  type="button"
+  onClick={handleSavePhotos}
+  disabled={savingPhotos}
+  className={`bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${
+    savingPhotos ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+>
+  {savingPhotos ? 'Saving...' : 'Save Photos'}
+</button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingPhotos(false);
+              setNewPhotos([]);
+            }}
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
 </div>
             <form onSubmit={handleSubmit} className="space-y-6">
           
