@@ -17,7 +17,7 @@ const TableHeader = ({ role }) => (
       <TableHeaderCell>Qty</TableHeaderCell>
       <TableHeaderCell>Stock</TableHeaderCell>
       <TableHeaderCell>Remaining to Produce</TableHeaderCell>
-      <TableHeaderCell>Price</TableHeaderCell>
+      <TableHeaderCell>Basic Price</TableHeaderCell>
       <TableHeaderCell>Density</TableHeaderCell>
       <TableHeaderCell>Packaging Charge</TableHeaderCell>
       <TableHeaderCell>P/O</TableHeaderCell>
