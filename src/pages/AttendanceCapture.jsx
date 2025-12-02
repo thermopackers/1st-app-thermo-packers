@@ -168,6 +168,7 @@ export default function AttendanceCapture() {
 
   const saveAttendance = async () => {
     if (isSaving) return;
+      setIsSaving(true); // Add this line
 
     if (!modelsLoaded) {
       Swal.fire({
@@ -176,6 +177,7 @@ export default function AttendanceCapture() {
         text: "Face recognition models are still loading.",
         confirmButtonColor: "#B0BC27",
       });
+          setIsSaving(false); // Reset if models aren't loaded
       return;
     }
 
@@ -315,38 +317,78 @@ export default function AttendanceCapture() {
       const compressedImage = await compressImage(image1, 0.3);
       const location = await getLocation();
 
-      // 🚀 Show success
-      Swal.fire({
-        icon: "success",
-        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">✅</div>
-            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-            <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
+         // 🗜️ Compress image
+      const compressedImage = await compressImage(image1, 0.3);
+      const location = await getLocation();
 
-      setCapturing(false);
-
-      // 📤 Upload in background
+      // 📤 Upload attendance FIRST, then show success
       const photoPayload = compressedImage.startsWith("data:")
         ? compressedImage
         : `data:image/jpeg;base64,${compressedImage}`;
 
-      axiosInstance.post(
-        "/attendance/mark",
-        { type, photo: photoPayload, location },
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-      ).catch((err) => {
-        if (err.response?.data?.error?.includes("already marked")) {
-          console.log("⚠️ Attendance already marked today, ignoring duplicate.");
+      try {
+        const response = await axiosInstance.post(
+          "/attendance/mark",
+          { type, photo: photoPayload, location },
+          { 
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "application/json"
+            } 
+          }
+        );
+
+        // Only show success if API returns success
+        if (response.data.success) {
+          Swal.fire({
+            icon: "success",
+            title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+            html: `
+              <div class="text-center">
+                <div class="text-6xl mb-4">✅</div>
+                <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+                <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
+              </div>
+            `,
+            confirmButtonColor: "#B0BC27",
+          });
+          
+          setCapturing(false);
+          
+          // Refresh the logs to show updated attendance
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
-          console.error("Background upload failed:", err.response?.data || err.message);
+          throw new Error(response.data.error || "Attendance not saved");
         }
-      });
+      } catch (err) {
+        console.error("Attendance upload failed:", err);
+        
+        // Show specific error messages
+        let errorMessage = "Failed to save attendance. Please try again.";
+        
+        if (err.response?.data?.error) {
+          if (err.response.data.error.includes("already marked")) {
+            errorMessage = `You already marked ${type} today.`;
+          } else if (err.response.data.error.includes("Face not registered")) {
+            errorMessage = "Face not registered. Please contact Accounts department.";
+          } else {
+            errorMessage = err.response.data.error;
+          }
+        }
+        
+        Swal.fire({
+          icon: "error",
+          title: "Attendance Failed",
+          text: errorMessage,
+          confirmButtonColor: "#B0BC27",
+        });
+        
+        setCapturing(false);
+        setIsSaving(false);
+        return;
+      }
 
     } catch (err) {
       console.error("Error marking attendance:", err);
@@ -362,16 +404,18 @@ export default function AttendanceCapture() {
     }
   };
 
-  const handleCapture = (captureType) => {
-    if (!modelsLoaded) {
-      Swal.fire({
-        icon: "info",
-        title: "Please Wait",
-        text: "Face recognition models are still loading.",
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
+const handleCapture = (captureType) => {
+  if (!modelsLoaded || isSaving) { // Add isSaving check
+    Swal.fire({
+      icon: "info",
+      title: "Please Wait",
+      text: "Face recognition models are still loading.",
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
+  
+  setIsSaving(true); // Set saving state immediately
 
     if (!user?.faceUrl) {
       Swal.fire({
@@ -410,7 +454,6 @@ export default function AttendanceCapture() {
     setTimeout(() => {
       setCapturing(true);
       Swal.close();
-      setIsSaving(false);
     }, 800);
   };
 
