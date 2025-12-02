@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, UserCheck, MapPin, Clock, Loader, X, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AttendanceCapture() {
-  const { user } = useUserContext();
+  const { user, token } = useUserContext();
   const webcamRef = useRef(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [showLivenessPrompt, setShowLivenessPrompt] = useState(false);
@@ -311,42 +311,77 @@ export default function AttendanceCapture() {
         return;
       }
 
-      // 🗜️ Compress image
+          // 🗜️ Compress image
       const compressedImage = await compressImage(image1, 0.3);
       const location = await getLocation();
 
-      // 🚀 Show success
-      Swal.fire({
-        icon: "success",
-        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">✅</div>
-            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-            <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-
-      setCapturing(false);
-
-      // 📤 Upload in background
+      // 📤 Upload FIRST, then show success
       const photoPayload = compressedImage.startsWith("data:")
         ? compressedImage
         : `data:image/jpeg;base64,${compressedImage}`;
 
-      axiosInstance.post(
-        "/attendance/mark",
-        { type, photo: photoPayload, location },
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-      ).catch((err) => {
+      try {
+        // 1. FIRST: Try to save to database
+        const response = await axiosInstance.post(
+          "/attendance/mark",
+          { type, photo: photoPayload, location },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        // 2. ONLY if save succeeds, show success
+        Swal.fire({
+          icon: "success",
+          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">✅</div>
+              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+              <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+
+        setCapturing(false);
+        console.log("✅ Attendance saved successfully to database:", response.data);
+
+      } catch (err) {
+        setCapturing(false);
+        
         if (err.response?.data?.error?.includes("already marked")) {
-          console.log("⚠️ Attendance already marked today, ignoring duplicate.");
+          Swal.fire({
+            icon: "info",
+            title: "Already Marked",
+            text: `You already marked ${type} for today.`,
+            confirmButtonColor: "#B0BC27",
+          });
+          console.log("⚠️ Attendance already marked today");
         } else {
-          console.error("Background upload failed:", err.response?.data || err.message);
+          // Show actual error to user
+          Swal.fire({
+            icon: "error",
+            title: "Save Failed",
+            html: `
+              <div class="text-center">
+                <div class="text-6xl mb-4">❌</div>
+                <p class="text-gray-600 mb-2">Attendance could not be saved to the server.</p>
+                <p class="text-sm text-gray-500">Error: ${err.response?.data?.error || err.message || "Unknown error"}</p>
+                <p class="text-xs text-gray-400 mt-4">Please try again or contact support.</p>
+              </div>
+            `,
+            confirmButtonColor: "#B0BC27",
+          });
+          console.error("❌ Attendance save failed:", err.response?.data || err.message);
+          
+          // Store for retry
+          const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+          failedUploads.push({
+            data: { type, photo: photoPayload, location },
+            timestamp: new Date().toISOString()
+          });
+          localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
         }
-      });
+      }
 
     } catch (err) {
       console.error("Error marking attendance:", err);
@@ -361,6 +396,42 @@ export default function AttendanceCapture() {
       console.timeEnd("🕒 Total Attendance Time");
     }
   };
+
+  const retryFailedUploads = async () => {
+    const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+    
+    if (failedUploads.length === 0) return;
+    
+    const successfulRetries = [];
+    
+    for (const upload of failedUploads) {
+      try {
+        await axiosInstance.post(
+          "/attendance/mark",
+          upload.data,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        successfulRetries.push(upload);
+        console.log("✅ Retried and saved:", upload.data.type);
+      } catch (err) {
+        console.error("❌ Retry failed:", err.message);
+      }
+    }
+    
+    // Remove successful retries
+    const remainingUploads = failedUploads.filter(
+      upload => !successfulRetries.includes(upload)
+    );
+    
+    localStorage.setItem('failedAttendanceUploads', JSON.stringify(remainingUploads));
+  };
+
+// Call this on component mount or when connection is restored
+useEffect(() => {
+  if (navigator.onLine) {
+    retryFailedUploads();
+  }
+}, [token]);
 
   const handleCapture = (captureType) => {
     if (!modelsLoaded) {
