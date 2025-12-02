@@ -218,6 +218,7 @@ const removeFile = async (index) => {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("upload_preset", "bank_uploads");
+              formData.append("folder", "incoming_payments"); // ← ADD THIS LINE
 
         const response = await fetch(
           `https://api.cloudinary.com/v1_1/dcr8k5amk/upload`,
@@ -490,7 +491,7 @@ const removeFile = async (index) => {
 </p>
             </div>
 
-       {/* Customer Name with Search and Manual Entry */}
+{/* Customer Name with Search and Manual Entry */}
 <div className="relative">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Customer Name *
@@ -502,7 +503,6 @@ const removeFile = async (index) => {
       value={formData.customerName}
       onChange={handleInputChange}
       onFocus={() => setIsCustomerDropdownOpen(true)}
-      onBlur={() => setTimeout(() => setIsCustomerDropdownOpen(false), 200)}
       placeholder="Type to search customers or enter manually..."
       required
       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
@@ -525,7 +525,8 @@ const removeFile = async (index) => {
         .map(customer => (
           <div
             key={customer._id}
-            onClick={() => {
+            onMouseDown={(e) => { // Use onMouseDown instead of onClick
+              e.preventDefault(); // Prevent blur event
               setFormData(prev => ({
                 ...prev,
                 customerName: customer.name
@@ -556,7 +557,8 @@ const removeFile = async (index) => {
         customer.name?.toLowerCase().includes(formData.customerName.toLowerCase())
       ).length === 0 && (
         <div
-          onClick={() => {
+          onMouseDown={(e) => { // Use onMouseDown here too
+            e.preventDefault();
             setIsCustomerDropdownOpen(false);
           }}
           className="px-4 py-3 bg-green-50 hover:bg-green-100 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
