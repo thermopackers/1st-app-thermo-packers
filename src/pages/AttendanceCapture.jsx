@@ -167,47 +167,47 @@ export default function AttendanceCapture() {
   };
 
   const saveAttendance = async () => {
-    if (isSaving) return;
-      setIsSaving(true); // Add this line
+  if (isSaving) return;
+  setIsSaving(true);
 
-    if (!modelsLoaded) {
-      Swal.fire({
-        icon: "info",
-        title: "Please Wait",
-        text: "Face recognition models are still loading.",
-        confirmButtonColor: "#B0BC27",
-      });
-          setIsSaving(false); // Reset if models aren't loaded
-      return;
-    }
+  if (!modelsLoaded) {
+    Swal.fire({
+      icon: "info",
+      title: "Please Wait",
+      text: "Face recognition models are still loading.",
+      confirmButtonColor: "#B0BC27",
+    });
+    setIsSaving(false);
+    return;
+  }
 
-    // 🚫 Block if face is not registered
-    if (!user?.faceUrl) {
-      Swal.fire({
-        icon: "error",
-        title: "Face Not Registered",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">👤</div>
-            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
+  // 🚫 Block if face is not registered
+  if (!user?.faceUrl) {
+    Swal.fire({
+      icon: "error",
+      title: "Face Not Registered",
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+        </div>
+      `,
+      confirmButtonColor: "#B0BC27",
+    });
+    setIsSaving(false);
+    return;
+  }
 
-    // ⏳ Countdown before capture
-    setShowLivenessPrompt(true);
-    for (let i = 3; i > 0; i--) {
-      setLivenessCountdown(i);
-      await new Promise((res) => setTimeout(res, 1000));
-    }
-    setShowLivenessPrompt(false);
+  // ⏳ Countdown before capture
+  setShowLivenessPrompt(true);
+  for (let i = 3; i > 0; i--) {
+    setLivenessCountdown(i);
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+  setShowLivenessPrompt(false);
 
-    console.time("🕒 Total Attendance Time");
-    setIsSaving(true);
+  console.time("🕒 Total Attendance Time");
 
     try {
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
@@ -222,6 +222,7 @@ export default function AttendanceCapture() {
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
+                setCapturing(false); // Also add this
         return;
       }
 
@@ -240,6 +241,7 @@ export default function AttendanceCapture() {
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
+                setCapturing(false); // Add this line
         return;
       }
 
@@ -270,6 +272,7 @@ export default function AttendanceCapture() {
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
+                setCapturing(false); // Also add this
         return;
       }
 
@@ -294,6 +297,7 @@ export default function AttendanceCapture() {
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
+                setCapturing(false); // Also add this
         return;
       }
 
@@ -310,94 +314,81 @@ export default function AttendanceCapture() {
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
+                setCapturing(false); // Also add this
         return;
       }
-
-      // 🗜️ Compress image
-      const compressedImage = await compressImage(image1, 0.3);
-      const location = await getLocation();
 
          // 🗜️ Compress image
       const compressedImage = await compressImage(image1, 0.3);
       const location = await getLocation();
 
-      // 📤 Upload attendance FIRST, then show success
+           // 📤 Upload attendance FIRST, then show success
       const photoPayload = compressedImage.startsWith("data:")
         ? compressedImage
         : `data:image/jpeg;base64,${compressedImage}`;
 
-      try {
-        const response = await axiosInstance.post(
-          "/attendance/mark",
-          { type, photo: photoPayload, location },
-          { 
-            headers: { 
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json"
-            } 
-          }
-        );
+      const response = await axiosInstance.post(
+        "/attendance/mark",
+        { type, photo: photoPayload, location },
+        { 
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          } 
+        }
+      );
 
-        // Only show success if API returns success
-        if (response.data.success) {
-          Swal.fire({
-            icon: "success",
-            title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-            html: `
-              <div class="text-center">
-                <div class="text-6xl mb-4">✅</div>
-                <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-                <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
-              </div>
-            `,
-            confirmButtonColor: "#B0BC27",
-          });
-          
-          setCapturing(false);
-          
-          // Refresh the logs to show updated attendance
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
-        } else {
-          throw new Error(response.data.error || "Attendance not saved");
-        }
-      } catch (err) {
-        console.error("Attendance upload failed:", err);
-        
-        // Show specific error messages
-        let errorMessage = "Failed to save attendance. Please try again.";
-        
-        if (err.response?.data?.error) {
-          if (err.response.data.error.includes("already marked")) {
-            errorMessage = `You already marked ${type} today.`;
-          } else if (err.response.data.error.includes("Face not registered")) {
-            errorMessage = "Face not registered. Please contact Accounts department.";
-          } else {
-            errorMessage = err.response.data.error;
-          }
-        }
-        
+      // Only show success if API returns success
+      if (response.data.success) {
         Swal.fire({
-          icon: "error",
-          title: "Attendance Failed",
-          text: errorMessage,
+          icon: "success",
+          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">✅</div>
+              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+              <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
+            </div>
+          `,
           confirmButtonColor: "#B0BC27",
         });
         
         setCapturing(false);
-        setIsSaving(false);
-        return;
+        
+        // Refresh the logs to show updated attendance
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(response.data.error || "Attendance not saved");
       }
 
-    } catch (err) {
+        } catch (err) {
       console.error("Error marking attendance:", err);
+      
+      // Show specific error messages
+      let errorMessage = "Failed to save attendance. Please try again.";
+      
+      if (err.response?.data?.error) {
+        if (err.response.data.error.includes("already marked")) {
+          errorMessage = `You already marked ${type} today.`;
+        } else if (err.response.data.error.includes("Face not registered")) {
+          errorMessage = "Face not registered. Please contact Accounts department.";
+        } else {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       Swal.fire({
         icon: "error",
         title: "Attendance Failed",
-        text: "An unexpected error occurred. Please try again.",
+        text: errorMessage,
         confirmButtonColor: "#B0BC27",
       });
+      
+      setCapturing(false);
     } finally {
       setIsSaving(false);
       console.timeEnd("🕒 Total Attendance Time");
@@ -405,7 +396,7 @@ export default function AttendanceCapture() {
   };
 
 const handleCapture = (captureType) => {
-  if (!modelsLoaded || isSaving) { // Add isSaving check
+  if (!modelsLoaded || isSaving) {
     Swal.fire({
       icon: "info",
       title: "Please Wait",
@@ -415,47 +406,47 @@ const handleCapture = (captureType) => {
     return;
   }
   
-  setIsSaving(true); // Set saving state immediately
+  setIsSaving(true);
 
-    if (!user?.faceUrl) {
-      Swal.fire({
-        icon: "error",
-        title: "Face Not Registered",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">👤</div>
-            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    const now = new Date();
-    const formatted = now.toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "medium",
-    });
-
-    setCaptureTimestamp(formatted);
-    setType(captureType);
-
+  if (!user?.faceUrl) {
     Swal.fire({
-      title: "📷 Initializing Camera...",
-      text: "Please hold still and look at the camera.",
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      didOpen: () => Swal.showLoading(),
+      icon: "error",
+      title: "Face Not Registered",
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+        </div>
+      `,
+      confirmButtonColor: "#B0BC27",
     });
+    setIsSaving(false); // Reset saving state
+    return;
+  }
 
-    setTimeout(() => {
-      setCapturing(true);
-      Swal.close();
-    }, 800);
-  };
+  const now = new Date();
+  const formatted = now.toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  });
+
+  setCaptureTimestamp(formatted);
+  setType(captureType);
+
+  Swal.fire({
+    title: "📷 Initializing Camera...",
+    text: "Please hold still and look at the camera.",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  setTimeout(() => {
+    setCapturing(true);
+    Swal.close();
+  }, 800);
+};
 
   function AutoCaptureTrigger({ saveAttendance }) {
     useEffect(() => {
