@@ -483,19 +483,17 @@ useEffect(() => {
                 </span>
               </div>
             )}
-           <div className="flex-1">
-  <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
-  <p className="text-gray-600 text-xs truncate" title={user?.email}>
-    {user?.email}
-  </p>
-  {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
-    <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
-      {parseUserRoles(user)
-        .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
-        .join(", ")}
-    </span>
-  )}
-</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
+              <p className="text-gray-600 text-[8px]">{user?.email}</p>
+              {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
+                <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
+                  {parseUserRoles(user)
+                    .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
+                    .join(", ")}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Visiting Card */}
