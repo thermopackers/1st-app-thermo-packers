@@ -485,7 +485,7 @@ useEffect(() => {
             )}
             <div className="flex-1">
               <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
-              <p className="text-gray-600 text-sm">{user?.email}</p>
+              <p className="text-gray-600 text-xs">{user?.email}</p>
               {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
                 <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
                   {parseUserRoles(user)
