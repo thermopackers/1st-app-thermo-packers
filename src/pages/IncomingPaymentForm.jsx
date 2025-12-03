@@ -208,55 +208,52 @@ const removeFile = async (index) => {
   }
 };
 
-  const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+const handleFileUpload = async (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
 
-    setUploading(true);
-    try {
-      const uploadPromises = files.map(async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "bank_uploads");
-              formData.append("folder", "incoming_payments"); // ← ADD THIS LINE
-
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/dcr8k5amk/upload`,
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        if (!response.ok) throw new Error("Upload failed");
-        const data = await response.json();
-        return data.secure_url;
+  setUploading(true);
+  try {
+    const uploadPromises = files.map(async (file) => {
+      const formData = new FormData();
+      // Only append the file - backend will handle the upload preset and folder
+      formData.append("file", file);
+      
+      // Use your backend endpoint instead of direct Cloudinary API
+      const response = await axiosInstance.post("/cloudinary/upload/incoming-payments", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises);
-      setFormData(prev => ({
-        ...prev,
-        files: [...prev.files, ...uploadedUrls]
-      }));
+      if (!response.data.success) throw new Error(response.data.message || "Upload failed");
+      return response.data.secure_url;
+    });
 
-      Swal.fire({
-        title: "Success!",
-        text: "Files uploaded successfully",
-        icon: "success",
-        confirmButtonColor: "#2563eb",
-      });
-    } catch (error) {
-      console.error("Upload error:", error);
-      Swal.fire({
-        title: "Upload Failed!",
-        text: "Failed to upload files",
-        icon: "error",
-        confirmButtonColor: "#2563eb",
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
+    const uploadedUrls = await Promise.all(uploadPromises);
+    setFormData(prev => ({
+      ...prev,
+      files: [...prev.files, ...uploadedUrls]
+    }));
+
+    Swal.fire({
+      title: "Success!",
+      text: "Files uploaded successfully",
+      icon: "success",
+      confirmButtonColor: "#2563eb",
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    Swal.fire({
+      title: "Upload Failed!",
+      text: error.response?.data?.message || "Failed to upload files",
+      icon: "error",
+      confirmButtonColor: "#2563eb",
+    });
+  } finally {
+    setUploading(false);
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
