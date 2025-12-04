@@ -65,6 +65,9 @@ import GuardEntriesView from "../pages/GuardEntriesView";
 import GoodsInwardForm from "../components/GoodsInwardForm";
 import LeaveManagement from "../components/LeaveManagement";
 import GateInwardPrintout from "../components/GateInwardPrintout";
+import GateOutwardForm from "../components/GateOutwardForm";
+import GateOutwardsView from "../pages/GateOutwardsView";
+import GateOutwardPrintout from "../components/GateOutwardPrintout";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -451,6 +454,15 @@ export default function AppRoutes() {
         <GateInwardPrintout />
       </PageWrapper>
     </ProtectedRoute>} />
+
+    <Route path="/gate-outward-printout/:gateOutwardId" element={<ProtectedRoute allowedRoles={["admin","accounts"]}>
+      <PageWrapper>
+        <GateOutwardPrintout />
+      </PageWrapper>
+    </ProtectedRoute>} />
+
+<Route path="/gate-outward" element={<GateOutwardForm />} />
+<Route path="/gate-outwards-view" element={<GateOutwardsView />} />
 
 <Route
   path="/proforma-dashboard"

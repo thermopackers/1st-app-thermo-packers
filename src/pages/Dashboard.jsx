@@ -944,6 +944,44 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
   </DashboardSection>
 )}
 
+{userRoles.some(role => ["guard"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">🚚</span>
+        Gate Outwards/Record Vehicle Exit
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ActionButton 
+          to="/gate-outward" 
+          variant="orange" 
+          icon="📤"
+        >
+          <div className="text-xl font-semibold mb-2">
+            Record Vehicle Exit
+          </div>
+          <div className="text-orange-100 text-sm opacity-90">
+            Record material sent for repair or sale to customer
+          </div>
+        </ActionButton>
+        
+        <ActionButton 
+          to="/gate-outwards-view" 
+          variant="purple" 
+          icon="📋"
+        >
+          <div className="text-xl font-semibold mb-2">
+            View All Outwards
+          </div>
+          <div className="text-purple-100 text-sm opacity-90">
+            Check previous gate outward records
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
           {/* Enhanced Main Grid Section */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1198,6 +1236,44 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     </ActionButton>
   )}
 </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
+{userRoles.some(role => ["accounts", "admin"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">🚚</span>
+        Gate Outwards Management
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ActionButton 
+          to="/gate-outward" 
+          variant="orange" 
+          icon="📤"
+        >
+          <div className="text-xl font-semibold mb-2">
+            Record Gate Outward
+          </div>
+          <div className="text-orange-100 text-sm opacity-90">
+            Material sent for repair or sold
+          </div>
+        </ActionButton>
+        
+        <ActionButton 
+          to="/gate-outwards-view" 
+          variant="emerald" 
+          icon="📊"
+        >
+          <div className="text-xl font-semibold mb-2">
+            Manage Outwards
+          </div>
+          <div className="text-amber-100 text-sm opacity-90">
+            View, edit & manage all outward entries
+          </div>
+        </ActionButton>
+      </div>
     </DashboardCard>
   </DashboardSection>
 )}

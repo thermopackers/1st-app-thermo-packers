@@ -17,6 +17,8 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/leave-management",
+    "/gate-outward",
+    "/gate-outwards-view",
     "/send-rfq",
     "/tour-expenses",
     "/timestamp-generator-pkc",
