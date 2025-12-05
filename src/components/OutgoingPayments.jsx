@@ -14,7 +14,9 @@ const OutgoingPayments = () => {
 const [editUploadProgress, setEditUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [nextBillNo, setNextBillNo] = useState(1);
+  // Add these state variables
+const [isRefund, setIsRefund] = useState(false);
+const [customers, setCustomers] = useState([]);
   const [uploading, setUploading] = useState(false);
 const [uploadProgress, setUploadProgress] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -101,7 +103,8 @@ const formatDateForInput = (date) => {
     modeOfPayment: '',
     billNo: '',
     remarks: '',
-    files: []
+    files: [],
+      paymentType: 'supplier' // Add this line
   });
 const [editingPayment, setEditingPayment] = useState(null);
 const [editFormData, setEditFormData] = useState({
@@ -112,7 +115,8 @@ const [editFormData, setEditFormData] = useState({
   modeOfPayment: '',
   billNo: '',
   remarks: '',
-  files: []
+  files: [],
+    paymentType: 'supplier' // Add this line
 });
 const [editLoading, setEditLoading] = useState(false);
   // Fetch suppliers
@@ -125,12 +129,35 @@ const [editLoading, setEditLoading] = useState(false);
     fetchPayments(currentPage);
   }, [currentPage]);
 
-  // Calculate next bill number when payments are loaded
+  // Fetch customers when isRefund is true
 useEffect(() => {
-  if (!loading && payments.length >= 0) {
-    calculateNextBillNo();
+  if (isRefund) {
+    const fetchCustomers = async () => {
+      try {
+        const response = await axiosInstance.get('/customers/all-customers');
+        
+        let customersData = [];
+        
+        // Handle different response structures
+        if (Array.isArray(response.data)) {
+          customersData = response.data;
+        } else if (response.data && Array.isArray(response.data.customers)) {
+          customersData = response.data.customers;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          customersData = response.data.data;
+        }
+        
+        setCustomers(customersData || []);
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        setCustomers([]);
+        toast.error('Failed to fetch customers');
+      }
+    };
+    
+    fetchCustomers();
   }
-}, [payments, loading]);
+}, [isRefund]);
 
   const fetchSuppliers = async () => {
     try {
@@ -284,7 +311,8 @@ const handleFileUpload = async (e) => {
         paymentDoneBy: {
           name: user?.name || 'Unknown',
           email: user?.email || 'unknown@example.com'
-        }
+        },
+              paymentType: isRefund ? 'customer' : 'supplier' // Add this line
       };
       
       await axiosInstance.post('/outgoing-payments', submissionData);
@@ -297,11 +325,14 @@ const handleFileUpload = async (e) => {
         amount: '',
         paymentAuthorizedBy: '',
         modeOfPayment: '',
-        billNo: prev.billNo,
+        billNo: '',
         remarks: '',
-        files: []
+        files: [],
+              paymentType: 'supplier' // Add this line
       }));
-      
+
+       // Reset checkbox
+    setIsRefund(false);
       fetchPayments(currentPage);
     } catch (error) {
       console.error('Error creating payment:', error);
@@ -438,8 +469,16 @@ const handleEditClick = (payment) => {
     modeOfPayment: payment.modeOfPayment,
     billNo: payment.billNo,
     remarks: payment.remarks || '',
-    files: payment.files || []
+    files: payment.files || [],
+   paymentType: payment.paymentType || 'supplier' // Add this line
   });
+  
+  // Set isRefund based on paymentType
+  if (payment.paymentType === 'customer') {
+    setIsRefund(true);
+  } else {
+    setIsRefund(false);
+  }
 };
 
 // Cancel editing
@@ -453,8 +492,12 @@ const handleCancelEdit = () => {
     modeOfPayment: '',
     billNo: '',
     remarks: '',
-    files: []
+    files: [],
+    paymentType: 'supplier' // Add this line
   });
+  
+  // Reset checkbox
+  setIsRefund(false);
 };
 
 // Handle edit form input changes
@@ -632,50 +675,6 @@ const handleDeletePayment = async (paymentId, files) => {
   }
 };
 
-// Calculate next bill number from existing payments
-const calculateNextBillNo = () => {
-  if (payments.length === 0) {
-    // If no payments exist, start from 1
-    setFormData(prev => ({
-      ...prev,
-      billNo: '1'
-    }));
-    return;
-  }
-
-  // Find the highest bill number from all payments, but ignore very large numbers
-  let highestBillNo = 0;
-  let validPaymentsCount = 0;
-  
-  payments.forEach(payment => {
-    if (payment.billNo) {
-      const billNoNum = parseInt(payment.billNo);
-      // Only consider numbers that are reasonable (less than 1000)
-      if (!isNaN(billNoNum) && billNoNum < 1000) {
-        if (billNoNum > highestBillNo) {
-          highestBillNo = billNoNum;
-        }
-        validPaymentsCount++;
-      }
-    }
-  });
-  
-  // If we found valid payments with small numbers, continue from there
-  if (validPaymentsCount > 0) {
-    const nextBillNo = highestBillNo + 1;
-    setFormData(prev => ({
-      ...prev,
-      billNo: nextBillNo.toString()
-    }));
-  } else {
-    // If all existing payments have large numbers, start fresh from 1
-    setFormData(prev => ({
-      ...prev,
-      billNo: '1'
-    }));
-  }
-};
-
   return (
     <>
     <InternalNavbar />
@@ -727,242 +726,321 @@ const calculateNextBillNo = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Outgoing Payments</h1>
         
-        {/* Payment Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-6">Create New Payment</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Date of Payment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-  Date of Payment *
-</label>
-<input
-  type="date"
-  name="dateOfPayment"
-  value={formData.dateOfPayment}
-  onChange={handleInputChange}
-  required
-  max={new Date().toISOString().split('T')[0]}
-  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-/>
-            </div>
-
-            {/* Supplier Name with Search */}
-<div className="relative">
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Supplier Name *
-  </label>
-  <div className="relative">
-    <input
-      type="text"
-      name="supplierName"
-      value={formData.supplierName}
-      onChange={handleInputChange}
-      onFocus={() => setIsSupplierDropdownOpen(true)}
-      onBlur={() => setTimeout(() => setIsSupplierDropdownOpen(false), 200)}
-      placeholder="Type to search suppliers..."
-      required
-      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
+    {/* Payment Form */}
+<div className="bg-white rounded-lg shadow-md p-6 mb-8">
+  <h2 className="text-xl font-semibold mb-6">Create New Payment</h2>
+  <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* Checkbox for Refund/Material Return */}
+    <div className="md:col-span-2">
+      <label className="inline-flex items-center">
+        <input
+          type="checkbox"
+          checked={isRefund}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            setIsRefund(checked);
+            setFormData(prev => ({
+              ...prev,
+              supplierName: '',
+              paymentType: checked ? 'customer' : 'supplier'
+            }));
+          }}
+          className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+        />
+        <span className="ml-2 text-sm font-medium text-gray-700">
+          Refund/Material Return Amount to Customers
+        </span>
+      </label>
+      <p className="text-xs text-gray-500 ml-6 mt-1">
+        {isRefund 
+          ? "Selecting a customer for refund/return amount" 
+          : "Selecting a supplier for outgoing payment"
+        }
+      </p>
     </div>
-  </div>
-  
-  {/* Search Dropdown */}
-  {isSupplierDropdownOpen && suppliers.length > 0 && (
-    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-      {suppliers
-        .filter(supplier => {
-          const supplierName = supplier.name || supplier.supplierName || '';
-          return supplierName.toLowerCase().includes(formData.supplierName.toLowerCase());
-        })
-        .map(supplier => (
-          <div
-            key={supplier._id || supplier.id}
-            onClick={() => {
-              setFormData(prev => ({
-                ...prev,
-                supplierName: supplier.name || supplier.supplierName
-              }));
-              setIsSupplierDropdownOpen(false);
-            }}
-            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-          >
-            <div className="font-medium text-gray-900">
-              {supplier.name || supplier.supplierName || 'Unnamed Supplier'}
-            </div>
-            {supplier.contactNumber && (
-              <div className="text-sm text-gray-500">
-                {supplier.contactNumber}
-              </div>
-            )}
-          </div>
-        ))
-      }
+
+    {/* Date of Payment */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Date of Payment *
+      </label>
+      <input
+        type="date"
+        name="dateOfPayment"
+        value={formData.dateOfPayment}
+        onChange={handleInputChange}
+        required
+        max={new Date().toISOString().split('T')[0]}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
     </div>
-  )}
-  
-  {(!Array.isArray(suppliers) || suppliers.length === 0) && (
-    <p className="text-red-500 text-sm mt-1">No suppliers available</p>
-  )}
-</div>
 
-        {/* Bill No */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Bill No *
-  </label>
-  <input
-    type="text"
-    name="billNo"
-    value={formData.billNo}
-    onChange={handleInputChange}
-    required
-    readOnly
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
-    placeholder="Auto-generated"
-  />
-  <p className="text-xs text-gray-500 mt-1">Bill number is auto-generated</p>
-</div>
-
-            {/* Amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount (₹) *
-              </label>
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-                required
-                step="0.01"
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
-            </div>
-
-            {/* Payment Authorized By */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Authorized By *
-              </label>
-              <input
-                type="text"
-                name="paymentAuthorizedBy"
-                value={formData.paymentAuthorizedBy}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter authorizer name"
-              />
-            </div>
-
-            {/* Mode of Payment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mode of Payment *
-              </label>
-              <select
-                name="modeOfPayment"
-                value={formData.modeOfPayment}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Mode</option>
-                <option value="upi">UPI</option>
-                <option value="bank transfer">Bank Transfer</option>
-                <option value="cash">Cash</option>
-                <option value="cheque">Cheque</option>
-              </select>
-            </div>
-
-            {/* File Upload */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Files (Multiple files supported)
-              </label>
-              <input
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Supported formats: PDF, JPG, PNG, DOC (Max 10MB per file)
-              </p>
-              
-              {/* File Previews */}
-              {formData.files.length > 0 && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Uploaded Files:
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {formData.files.map((file, index) => (
-                      <div key={index} className="relative border rounded-lg p-2 bg-gray-50">
-                        <div className="h-20 bg-white rounded flex items-center justify-center overflow-hidden">
-                          {file.url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                            <img
-                              src={file.url}
-                              alt="Preview"
-                              className="h-full w-full object-cover rounded"
-                            />
-                          ) : (
-                            <div className="text-center p-2">
-                              <svg className="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <p className="text-xs mt-1 truncate">{file.name}</p>
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Remarks */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Remarks
-              </label>
-              <textarea
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleInputChange}
-                rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes or comments..."
-              />
-            </div>
-
-            {/* Submit Button */}
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition duration-200"
-              >
-                Create Payment
-              </button>
-            </div>
-          </form>
+    {/* Supplier/Customer Name with Search */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        {isRefund ? 'Customer Name *' : 'Supplier Name *'}
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          name="supplierName"
+          value={formData.supplierName}
+          onChange={handleInputChange}
+          onFocus={() => setIsSupplierDropdownOpen(true)}
+          onBlur={(e) => {
+            const relatedTarget = e.relatedTarget;
+            if (!relatedTarget || !relatedTarget.closest('.name-dropdown-item')) {
+              setTimeout(() => setIsSupplierDropdownOpen(false), 200);
+            }
+          }}
+          placeholder={isRefund ? "Type to search customers..." : "Type to search suppliers..."}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
+      </div>
+      
+      {/* Search Dropdown */}
+      {isSupplierDropdownOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto name-dropdown">
+          {isRefund ? (
+            customers.length > 0 ? (
+              customers
+                .filter(customer => {
+                  const customerName = customer.name || customer.customerName || '';
+                  return customerName.toLowerCase().includes(formData.supplierName.toLowerCase());
+                })
+                .map(customer => (
+                  <button
+                    type="button"
+                    key={customer._id || customer.id}
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        supplierName: customer.name || customer.customerName
+                      }));
+                      setIsSupplierDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 name-dropdown-item"
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <div className="font-medium text-gray-900">
+                      {customer.name || customer.customerName || 'Unnamed Customer'}
+                    </div>
+                    {customer.contactNumber && (
+                      <div className="text-sm text-gray-500">
+                        {customer.contactNumber}
+                      </div>
+                    )}
+                    {customer.email && (
+                      <div className="text-sm text-gray-500">
+                        {customer.email}
+                      </div>
+                    )}
+                  </button>
+                ))
+            ) : (
+              <div className="px-4 py-2 text-gray-500 text-sm">
+                {formData.supplierName ? 'No customers found' : 'Loading customers...'}
+              </div>
+            )
+          ) : (
+            suppliers.length > 0 ? (
+              suppliers
+                .filter(supplier => {
+                  const supplierName = supplier.name || supplier.supplierName || '';
+                  return supplierName.toLowerCase().includes(formData.supplierName.toLowerCase());
+                })
+                .map(supplier => (
+                  <button
+                    type="button"
+                    key={supplier._id || supplier.id}
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        supplierName: supplier.name || supplier.supplierName
+                      }));
+                      setIsSupplierDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 name-dropdown-item"
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <div className="font-medium text-gray-900">
+                      {supplier.name || supplier.supplierName || 'Unnamed Supplier'}
+                    </div>
+                    {supplier.contactNumber && (
+                      <div className="text-sm text-gray-500">
+                        {supplier.contactNumber}
+                      </div>
+                    )}
+                  </button>
+                ))
+            ) : (
+              <div className="px-4 py-2 text-gray-500 text-sm">
+                No suppliers available
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* Bill No */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Bill No *
+      </label>
+      <input
+        type="text"
+        name="billNo"
+        value={formData.billNo}
+        onChange={handleInputChange}
+        required
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Enter bill number"
+      />
+      <p className="text-xs text-gray-500 mt-1">Enter the bill number manually</p>
+    </div>
+
+    {/* Amount */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Amount (₹) *
+      </label>
+      <input
+        type="number"
+        name="amount"
+        value={formData.amount}
+        onChange={handleInputChange}
+        required
+        step="0.01"
+        min="0"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="0.00"
+      />
+    </div>
+
+    {/* Payment Authorized By */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Payment Authorized By *
+      </label>
+      <input
+        type="text"
+        name="paymentAuthorizedBy"
+        value={formData.paymentAuthorizedBy}
+        onChange={handleInputChange}
+        required
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Enter authorizer name"
+      />
+    </div>
+
+    {/* Mode of Payment */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Mode of Payment *
+      </label>
+      <select
+        name="modeOfPayment"
+        value={formData.modeOfPayment}
+        onChange={handleInputChange}
+        required
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">Select Mode</option>
+        <option value="upi">UPI</option>
+        <option value="bank transfer">Bank Transfer</option>
+        <option value="cash">Cash</option>
+        <option value="cheque">Cheque</option>
+      </select>
+    </div>
+
+    {/* File Upload */}
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Upload Files (Multiple files supported)
+      </label>
+      <input
+        type="file"
+        multiple
+        onChange={handleFileUpload}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+      />
+      <p className="text-sm text-gray-500 mt-1">
+        Supported formats: PDF, JPG, PNG, DOC (Max 10MB per file)
+      </p>
+      
+      {/* File Previews */}
+      {formData.files.length > 0 && (
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Uploaded Files:
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {formData.files.map((file, index) => (
+              <div key={index} className="relative border rounded-lg p-2 bg-gray-50">
+                <div className="h-20 bg-white rounded flex items-center justify-center overflow-hidden">
+                  {file.url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                    <img
+                      src={file.url}
+                      alt="Preview"
+                      className="h-full w-full object-cover rounded"
+                    />
+                  ) : (
+                    <div className="text-center p-2">
+                      <svg className="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <p className="text-xs mt-1 truncate">{file.name}</p>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Remarks */}
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Remarks
+      </label>
+      <textarea
+        name="remarks"
+        value={formData.remarks}
+        onChange={handleInputChange}
+        rows="3"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Additional notes or comments..."
+      />
+    </div>
+
+    {/* Submit Button */}
+    <div className="md:col-span-2">
+      <button
+        type="submit"
+        className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition duration-200"
+      >
+        Create Payment
+      </button>
+    </div>
+  </form>
+</div>
 
     {/* Payments List */}
 <div className="bg-white rounded-lg shadow-md p-6">
@@ -1071,9 +1149,12 @@ const calculateNextBillNo = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Bill No
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      Type
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      Name
+    </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
@@ -1089,6 +1170,9 @@ const calculateNextBillNo = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Files
                   </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      Remarks
+    </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -1122,6 +1206,17 @@ const calculateNextBillNo = () => {
                             className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 cursor-not-allowed"
                           />
                         </td>
+                        <td className="px-6 py-4">
+    <select
+      name="paymentType"
+      value={editFormData.paymentType || 'supplier'}
+      onChange={handleEditInputChange}
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+    >
+      <option value="supplier">Supplier</option>
+      <option value="customer">Customer</option>
+    </select>
+  </td>
                         <td className="px-6 py-4">
                           <input
   type="text"
@@ -1213,6 +1308,16 @@ const calculateNextBillNo = () => {
                             )}
                           </div>
                         </td>
+                         <td className="px-6 py-4">
+    <textarea
+      name="remarks"
+      value={editFormData.remarks || ''}
+      onChange={handleEditInputChange}
+      rows="2"
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+      placeholder="Enter remarks"
+    />
+  </td>
                         <td className="px-6 py-4 space-x-2">
                           <button
                             onClick={handleUpdatePayment}
@@ -1238,6 +1343,15 @@ const calculateNextBillNo = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {payment.billNo}
                         </td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+      payment.paymentType === 'customer' 
+        ? 'bg-purple-100 text-purple-800' 
+        : 'bg-blue-100 text-blue-800'
+    }`}>
+      {payment.paymentType === 'customer' ? 'Customer' : 'Supplier'}
+    </span>
+  </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {payment.supplierName}
                         </td>
@@ -1291,6 +1405,32 @@ const calculateNextBillNo = () => {
                             <span className="text-gray-400 text-xs">No files</span>
                           )}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+    {payment.remarks ? (
+      <div className="max-w-xs">
+        <div className="truncate" title={payment.remarks}>
+          {payment.remarks}
+        </div>
+        {payment.remarks.length > 50 && (
+          <button
+            onClick={() => {
+              Swal.fire({
+                title: 'Remarks',
+                text: payment.remarks,
+                icon: 'info',
+                confirmButtonText: 'Close'
+              });
+            }}
+            className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+          >
+            View full
+          </button>
+        )}
+      </div>
+    ) : (
+      <span className="text-gray-400 text-xs">No remarks</span>
+    )}
+  </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           <button
                             onClick={() => handleEditClick(payment)}
