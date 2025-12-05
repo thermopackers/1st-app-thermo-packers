@@ -12,7 +12,13 @@ export default function TourExpenses() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false); // <-- loader state
 const [moneyTaken, setMoneyTaken] = useState([{ date: "", amount: "", remarks: "" }]);
-
+const [selectedVehicle, setSelectedVehicle] = useState("");
+const vehicleOptions = [
+  "PB08 DQ 5360",
+  "PB08 DC 2570", 
+  "PB08 DQ 8496",
+  "PB08 CS 0496"
+];
   const addExpense = () => setExpenses([...expenses, { description: "", amount: "" }]);
   const removeExpense = (index) => setExpenses(expenses.filter((_, i) => i !== index));
 
@@ -44,6 +50,7 @@ const balance = moneyTakenTotal - total;
     setLoading(true); // show loader
     try {
       const formData = new FormData();
+          formData.append("vehicleNumber", selectedVehicle); // ✅ ADD THIS LINE
 formData.append("startDate", startDate);
 formData.append("endDate", endDate);
       formData.append("location", location);
@@ -57,6 +64,7 @@ formData.append("endDate", endDate);
       });
 
       toast.success("Tour expenses submitted!");
+          setSelectedVehicle(""); // ✅ ADD THIS LINE
 setStartDate("");
 setEndDate("");
       setLocation("");
@@ -125,6 +133,26 @@ const removeMoneyTaken = (index) => setMoneyTaken(moneyTaken.filter((_, i) => i 
               required
             />
           </div>
+
+          {/* Vehicle Selection */}
+<div>
+  <label className="block text-sm font-medium">Select Vehicle (Optional)</label>
+  <select
+    value={selectedVehicle}
+    onChange={(e) => setSelectedVehicle(e.target.value)}
+    className="mt-1 w-full rounded-lg border px-3 py-2 bg-white"
+  >
+    <option value="">-- Select a vehicle --</option>
+    {vehicleOptions.map((vehicle, index) => (
+      <option key={index} value={vehicle}>
+        {vehicle}
+      </option>
+    ))}
+  </select>
+  <p className="text-xs text-gray-500 mt-1">
+    Choose the vehicle used for this tour (optional)
+  </p>
+</div>
 
           {/* Expenses */}
           <div>

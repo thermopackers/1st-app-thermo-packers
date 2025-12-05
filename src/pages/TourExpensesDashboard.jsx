@@ -222,10 +222,16 @@ export default function TourExpensesDashboard() {
                             {isAccounts && (
                               <div className="text-sm text-gray-600 mb-1">{exp.user?.name || "—"}</div>
                             )}
-                            <h4 className="font-bold text-gray-900">{exp.location}</h4>
-                            <p className="text-gray-600 text-sm">
-                              {new Date(exp.startDate).toLocaleDateString("en-GB")} – {new Date(exp.endDate).toLocaleDateString("en-GB")}
-                            </p>
+                           <h4 className="font-bold text-gray-900">{exp.location}</h4>
+<p className="text-gray-600 text-sm">
+  {new Date(exp.startDate).toLocaleDateString("en-GB")} – {new Date(exp.endDate).toLocaleDateString("en-GB")}
+</p>
+{/* ✅ ADD VEHICLE DISPLAY HERE */}
+{exp.vehicleNumber && (
+  <div className="text-sm text-blue-600 font-medium mt-1">
+    🚗 Vehicle: {exp.vehicleNumber}
+  </div>
+)}
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-bold text-green-600">₹{exp.total}</div>
@@ -370,12 +376,18 @@ export default function TourExpensesDashboard() {
 
                             {/* Tour Details Column */}
                             <td className="px-6 py-4">
-                              <div className="space-y-2">
-                                <div className="font-medium text-gray-900">{exp.location}</div>
-                                <div className="text-sm text-gray-600">
-                                  {new Date(exp.startDate).toLocaleDateString("en-GB")} – {new Date(exp.endDate).toLocaleDateString("en-GB")}
-                                </div>
-                              </div>
+                            <div className="space-y-2">
+  <div className="font-medium text-gray-900">{exp.location}</div>
+  <div className="text-sm text-gray-600">
+    {new Date(exp.startDate).toLocaleDateString("en-GB")} – {new Date(exp.endDate).toLocaleDateString("en-GB")}
+  </div>
+  {/* ✅ ADD VEHICLE DISPLAY HERE */}
+  {exp.vehicleNumber && (
+    <div className="text-sm text-blue-600 font-medium">
+      🚗 {exp.vehicleNumber}
+    </div>
+  )}
+</div>
                             </td>
 
                             {/* Expenses Column */}

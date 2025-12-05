@@ -267,18 +267,39 @@ const parseUserRoles = (user) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vehicle Number *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., PB08 EL 9364"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                  value={newVehicle.vehicleNumber.toUpperCase()}
-                  onChange={(e) => setNewVehicle((v) => ({ ...v, vehicleNumber: e.target.value }))}
-                />
-              </div>
+           <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Vehicle Number *
+  </label>
+  <input
+    type="text"
+    placeholder="e.g., PB08 EL 9364"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+    value={newVehicle.vehicleNumber}
+    onChange={(e) => {
+      let value = e.target.value.toUpperCase();
+      
+      // Remove all spaces first
+      let cleanValue = value.replace(/\s/g, '');
+      
+      // Format as PB08 AB 1234 (if long enough)
+      let formattedValue = cleanValue;
+      if (cleanValue.length > 4) {
+        formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4, 6) + ' ' + cleanValue.slice(6, 10);
+      } else if (cleanValue.length > 2) {
+        formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4);
+      }
+      
+      // Remove trailing spaces
+      formattedValue = formattedValue.trim();
+      
+      setNewVehicle((v) => ({ ...v, vehicleNumber: formattedValue }));
+    }}
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Format: PB08 AB 1234 (automatically formatted)
+  </p>
+</div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

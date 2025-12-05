@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, FileText, Calendar, User, Trash2, Eye, Download, Filter, BarChart3, Search } from 'lucide-react';
+import { Upload, FileText, Calendar, User, Trash2, Eye, Download, Filter, BarChart3, Search, X } from 'lucide-react';
 import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -10,6 +10,13 @@ import NotificationBell from '../components/NotificationBell'
 const LeaveManagement = () => {
   const { user: currentUser, loading: userLoading } = useUserContext();
 const userRoles = currentUser?.role || [];
+ const [selectedUserForTask, setSelectedUserForTask] = useState(''); // ADD THIS
+  const [taskDueDate, setTaskDueDate] = useState(''); // ADD THIS
+const [editingRemarksId, setEditingRemarksId] = useState(null);
+const [isCreatingTask, setIsCreatingTask] = useState(false);
+const [remarksText, setRemarksText] = useState('');
+const [showTaskModal, setShowTaskModal] = useState(false);
+const [selectedLeaveForTask, setSelectedLeaveForTask] = useState(null);
   const [leaveApplications, setLeaveApplications] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
@@ -34,6 +41,7 @@ const userRoles = currentUser?.role || [];
   leaveType: 'personal',
   startDate: '',
   endDate: '',
+    pendingWorkRemarks: '', // ADD THIS
 });
 
   // Fetch users and statistics only once on component mount
@@ -192,6 +200,7 @@ useEffect(() => {
       formData.append('startDate', leaveForm.startDate);
       formData.append('endDate', leaveForm.endDate);
       formData.append('reason', leaveForm.reason);
+  formData.append('pendingWorkRemarks', leaveForm.pendingWorkRemarks || ''); // ADD THIS LINE
 
       leaveFiles.forEach(file => {
         formData.append('applicationFiles', file);
@@ -214,6 +223,7 @@ useEffect(() => {
   leaveType: 'personal',
   startDate: '',
   endDate: '',
+    pendingWorkRemarks: '', // ADD THIS
 });
       
       // Refresh data - reset to page 1 to see the new application
@@ -321,7 +331,7 @@ useEffect(() => {
       cancelled: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Cancelled' },
     };
     const config = statusConfig[status] || statusConfig.pending;
-    return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}>{config.label}</span>;
+    return <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${config.color}`}>{config.label}</span>;
   };
 
 // Replace the getLeaveTypeBadge function with:
@@ -332,7 +342,7 @@ const getLeaveTypeBadge = (type) => {
     others: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Others' },
   };
   const config = typeConfig[type] || typeConfig.others;
-  return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}>{config.label}</span>;
+  return <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${config.color}`}>{config.label}</span>;
 };
 
   const clearFilters = () => {
@@ -467,6 +477,33 @@ const getLeaveTypeBadge = (type) => {
   } catch (err) {
     toast.error('Failed to cancel leave application');
   }
+};
+
+const handleUpdateRemarks = async (applicationId, currentRemarks) => {
+  setEditingRemarksId(applicationId);
+  setRemarksText(currentRemarks || '');
+};
+
+const handleSubmitRemarks = async (applicationId) => {
+  try {
+    await axiosInstance.put(`/leave/update-remarks/${applicationId}`, {
+      pendingWorkRemarks: remarksText
+    });
+    
+    toast.success('Pending work remarks updated successfully!');
+    setEditingRemarksId(null);
+    setRemarksText('');
+    fetchLeaveApplications(currentPage);
+  } catch (err) {
+    toast.error('Failed to update remarks');
+  }
+};
+
+const handleCreateTaskFromPending = (application) => {
+  setSelectedLeaveForTask(application);
+    setSelectedUserForTask(''); // Reset selected user
+  setTaskDueDate(''); // Reset due date
+  setShowTaskModal(true);
 };
 
   return (
@@ -658,6 +695,20 @@ const getLeaveTypeBadge = (type) => {
                     </div>
                   )}
 
+                {/* Pending Work Remarks */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Pending Work Remarks (Optional)
+  </label>
+  <textarea
+    value={leaveForm.pendingWorkRemarks || ''}
+    onChange={(e) => setLeaveForm(prev => ({ ...prev, pendingWorkRemarks: e.target.value }))}
+    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+    rows="3"
+    placeholder="Describe any pending work that needs to be covered during your leave..."
+  />
+</div>
+
                   {/* Submit Button */}
                   <button
                     type="submit"
@@ -786,10 +837,70 @@ const getLeaveTypeBadge = (type) => {
                           </div>
                         </div>
 
-                        <p className="text-gray-700 mb-3 text-sm">{application.reason}</p>
+               <p className="text-gray-700 mb-3 text-sm">{application.reason}</p>
 
-                        {/* Files */}
-                        {application.applicationFiles && application.applicationFiles.length > 0 && (
+{/* Pending Work Remarks Display & Editing */}
+{(application.pendingWorkRemarks || editingRemarksId === application._id) && (
+  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex justify-between items-center mb-2">
+      <p className="text-sm font-medium text-gray-700">Pending Work Remarks:</p>
+      {/* Show Create Task button ONLY for accounts AND when leave is approved AND has remarks */}
+      {userRoles.includes('accounts') && 
+       application.status === 'approved' && 
+       application.pendingWorkRemarks && (
+        <button
+          onClick={() => handleCreateTaskFromPending(application)}
+          className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+        >
+          Create Task
+        </button>
+      )}
+    </div>
+    
+    {editingRemarksId === application._id ? (
+      <div>
+        <textarea
+          value={remarksText}
+          onChange={(e) => setRemarksText(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2"
+          rows="3"
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleSubmitRemarks(application._id)}
+            className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => {
+              setEditingRemarksId(null);
+              setRemarksText('');
+            }}
+            className="text-sm bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ) : (
+      <>
+        <p className="text-gray-600 text-sm">{application.pendingWorkRemarks}</p>
+        {(application.userId === currentUser?._id || userRoles.includes('accounts')) && (
+          <button
+            onClick={() => handleUpdateRemarks(application._id, application.pendingWorkRemarks)}
+            className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+          >
+            Edit Remarks
+          </button>
+        )}
+      </>
+    )}
+  </div>
+)}
+
+{/* Files */}
+{application.applicationFiles && application.applicationFiles.length > 0 && (
                           <div className="mb-3">
                             <p className="text-sm font-medium text-gray-700 mb-2">Application Files:</p>
                             <div className="flex flex-wrap gap-2">
@@ -876,6 +987,146 @@ const getLeaveTypeBadge = (type) => {
           </div>
         </div>
       </div>
+    {/* Task Creation Modal */}
+{showTaskModal && selectedLeaveForTask && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Create Task from Pending Work
+          </h3>
+          <button
+            onClick={() => {
+              setShowTaskModal(false);
+              setSelectedLeaveForTask(null);
+              setSelectedUserForTask('');
+              setTaskDueDate('');
+            }}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+       <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+  <div className="flex justify-between items-start mb-2">
+    <p className="text-sm font-medium text-gray-700">Pending Work:</p>
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+      selectedLeaveForTask.status === 'approved' 
+        ? 'bg-green-100 text-green-800 border-green-200' 
+        : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    } border`}>
+      {selectedLeaveForTask.status.toUpperCase()}
+    </span>
+  </div>
+  <p className="text-gray-600 text-sm mt-1">{selectedLeaveForTask.pendingWorkRemarks}</p>
+  <p className="text-xs text-gray-500 mt-2">
+    From: {selectedLeaveForTask.userName} ({new Date(selectedLeaveForTask.startDate).toLocaleDateString()} - {new Date(selectedLeaveForTask.endDate).toLocaleDateString()})
+  </p>
+</div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assign To *
+            </label>
+            <select
+              value={selectedUserForTask}
+              onChange={(e) => setSelectedUserForTask(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+              required
+                disabled={isCreatingTask} // Add this
+            >
+              <option value="">Select user</option>
+              {users
+                .filter(user => user._id !== selectedLeaveForTask.userId)
+                .map(user => (
+                  <option key={user._id} value={user._id}>
+                    {user.name} ({user.designation || 'No Designation'})
+                  </option>
+                ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Due Date (Optional)
+            </label>
+            <input
+              type="date"
+              value={taskDueDate}
+              onChange={(e) => setTaskDueDate(e.target.value)}
+                disabled={isCreatingTask} // Add this
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+            />
+          </div>
+          
+         <div className="flex justify-end gap-3 pt-4">
+  <button
+    onClick={() => {
+      setShowTaskModal(false);
+      setSelectedLeaveForTask(null);
+      setSelectedUserForTask('');
+      setTaskDueDate('');
+    }}
+    disabled={isCreatingTask}
+    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    Cancel
+  </button>
+  <button
+    onClick={async () => {
+      if (!selectedUserForTask) {
+        toast.error('Please select a user to assign the task to');
+        return;
+      }
+      
+      setIsCreatingTask(true); // Start loading
+      
+      try {
+        // Use your EXISTING task creation endpoint
+        await axiosInstance.post('/todos/create', {
+          title: `Cover pending work for ${selectedLeaveForTask.userName}'s leave`,
+          description: `Pending work during ${selectedLeaveForTask.userName}'s leave (${new Date(selectedLeaveForTask.startDate).toLocaleDateString()} - ${new Date(selectedLeaveForTask.endDate).toLocaleDateString()}):\n\n${selectedLeaveForTask.pendingWorkRemarks}`,
+          assignedTo: selectedUserForTask,
+          dueDate: taskDueDate || null,
+          repeat: 'ONE_TIME',
+          isOrderFollowUp: false
+        });
+        
+        toast.success('Task created successfully! It will appear in the employee\'s task dashboard.');
+        setShowTaskModal(false);
+        setSelectedLeaveForTask(null);
+        setSelectedUserForTask('');
+        setTaskDueDate('');
+      } catch (err) {
+        toast.error('Failed to create task: ' + (err.response?.data?.message || err.message));
+      } finally {
+        setIsCreatingTask(false); // Stop loading
+      }
+    }}
+    disabled={isCreatingTask}
+    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+  >
+    {isCreatingTask ? (
+      <>
+        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Creating...
+      </>
+    ) : (
+      'Create Task'
+    )}
+  </button>
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 };

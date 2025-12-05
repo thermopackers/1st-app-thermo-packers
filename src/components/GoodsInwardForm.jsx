@@ -53,46 +53,47 @@ useEffect(() => {
     }
   };
 
-  const handleProductSelect = (product) => {
-    const existingProductIndex = products.findIndex(p => 
-      p.product?._id === product._id || p.productName === product.name
+const handleProductSelect = (product) => {
+  const existingProductIndex = products.findIndex(p => 
+    p.product?._id === product._id || p.productName === product.name
+  );
+  
+  let newProducts;
+  if (existingProductIndex !== -1) {
+    newProducts = products.map((p, index) => 
+      index === existingProductIndex 
+        ? { ...p, quantity: p.quantity + 1 }
+        : p
     );
-    
-    let newProducts;
-    if (existingProductIndex !== -1) {
-      newProducts = products.map((p, index) => 
-        index === existingProductIndex 
-          ? { ...p, quantity: p.quantity + 1 }
-          : p
-      );
-    } else {
-      newProducts = [...products, { 
-        product: { _id: product._id, name: product.name, code: product.code },
-        quantity: 1 
-      }];
-    }
-    
-    onProductsChange(newProducts);
-    setProductSearchQuery('');
-    setShowProductDropdown(false);
-  };
-
-  const handleAddManualProduct = () => {
-    if (!manualProductName.trim()) {
-      Swal.fire('Warning', 'Please enter product name', 'warning');
-      return;
-    }
-
-    const newProducts = [...products, { 
-      productName: manualProductName.trim(),
-      quantity: 1,
-      product: { _id: `manual_${Date.now()}`, name: manualProductName.trim(), isManual: true }
+  } else {
+    newProducts = [...products, { 
+      product: { _id: product._id, name: product.name, code: product.code },
+      productName: null, // Set productName to null for database products
+      quantity: 1 
     }];
-    
-    onProductsChange(newProducts);
-    setManualProductName('');
-    setShowManualProduct(false);
-  };
+  }
+  
+  onProductsChange(newProducts);
+  setProductSearchQuery('');
+  setShowProductDropdown(false);
+};
+
+const handleAddManualProduct = () => {
+  if (!manualProductName.trim()) {
+    Swal.fire('Warning', 'Please enter product name', 'warning');
+    return;
+  }
+
+  const newProducts = [...products, { 
+    productName: manualProductName.trim(),
+    quantity: 1,
+    product: null // Set to null instead of creating fake _id
+  }];
+  
+  onProductsChange(newProducts);
+  setManualProductName('');
+  setShowManualProduct(false);
+};
 
   const handleRemoveProduct = (productId) => {
     const newProducts = products.filter(p => 
@@ -209,17 +210,19 @@ useEffect(() => {
           <h4 className="font-medium text-gray-700">Selected Products ({products.length}):</h4>
           {products.map((item, index) => (
             <div key={item.product?._id || item.productName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-              <div className="flex-1">
-                <div className="font-medium flex items-center gap-2">
-                  {item.product?.name || item.productName}
-                  {item.productName && (
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
-                  )}
-                </div>
-                {item.product?.code && !item.productName && (
-                  <div className="text-sm text-gray-600">Code: {item.product.code}</div>
-                )}
-              </div>
+             {/* In the selected products display section */}
+<div className="flex-1">
+  <div className="font-medium flex items-center gap-2">
+    {item.product?.name || item.productName}
+    {/* Show "Manual" badge only for actual manual entries */}
+    {item.productName && (!item.product || item.product === null) && (
+      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
+    )}
+  </div>
+  {item.product?.code && item.product?._id && (
+    <div className="text-sm text-gray-600">Code: {item.product.code}</div>
+  )}
+</div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-white px-3 py-1 rounded border">
                   <button
@@ -851,15 +854,26 @@ const handleEditRemarks = async () => {
 
 const handleEditProducts = () => {
   // Convert guard entry products to the format expected by ProductEditor
-  const formattedProducts = guardEntry.purchaseProducts.map(item => ({
-    product: item.product ? {
-      _id: item.product._id,
-      name: item.product.name,
-      code: item.product.code
-    } : null,
-    productName: item.productName || null,
-    quantity: item.quantity
-  }));
+  const formattedProducts = guardEntry.purchaseProducts.map(item => {
+    // If it's a manual product (productName exists but product is null or doesn't exist)
+    if (item.productName && (!item.product || item.product === null)) {
+      return {
+        product: null,
+        productName: item.productName,
+        quantity: item.quantity
+      };
+    }
+    // If it's a regular product from database
+    return {
+      product: item.product ? {
+        _id: item.product._id,
+        name: item.product.name,
+        code: item.product.code
+      } : null,
+      productName: item.productName || null,
+      quantity: item.quantity
+    };
+  });
   
   setTempProducts(formattedProducts);
   setEditingProducts(true);
@@ -873,11 +887,23 @@ const handleSaveProducts = async () => {
   setSavingProducts(true);
 
   try {
-    const productsToSend = tempProducts.map(item => ({
-      product: item.product?._id || null,
-      productName: item.productName || item.product?.name || null,
-      quantity: item.quantity
-    }));
+    // Prepare products for backend - handle manual products correctly
+    const productsToSend = tempProducts.map(item => {
+      // For manual products (productName exists but no valid product._id)
+      if (item.productName && (!item.product || !item.product._id || item.product._id.startsWith('manual_'))) {
+        return {
+          product: null, // Send null for manual products
+          productName: item.productName,
+          quantity: item.quantity
+        };
+      }
+      // For existing products from database
+      return {
+        product: item.product?._id || null,
+        productName: item.product?.name || null, // Still include productName for reference
+        quantity: item.quantity
+      };
+    });
 
     const response = await axiosInstance.patch(`/guard-entries/${guardEntryId}`, {
       purchaseProducts: JSON.stringify(productsToSend)
@@ -1065,29 +1091,30 @@ const handleSavePhotos = async () => {
 
       {!editingProducts ? (
         // Display mode
-        <div className="space-y-2">
-          {guardEntry.purchaseProducts.map((product, index) => (
-            <div key={index} className="bg-white p-3 rounded-lg border border-yellow-100">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="font-medium text-gray-900">
-                    {product.product?.name || product.productName || 'Unknown Product'}
-                  </span>
-                  {product.product?.code && (
-                    <div className="text-sm text-gray-600">Code: {product.product.code}</div>
-                  )}
-                  {product.productName && (
-                    <div className="text-xs text-green-600 font-medium">📝 Manual Entry</div>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-blue-600">{product.quantity}</div>
-                  <div className="text-xs text-gray-500">Quantity</div>
-                </div>
-              </div>
-            </div>
-          ))}
+<div className="space-y-2">
+  {guardEntry.purchaseProducts.map((product, index) => (
+    <div key={index} className="bg-white p-3 rounded-lg border border-yellow-100">
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="font-medium text-gray-900">
+            {product.product?.name || product.productName || 'Unknown Product'}
+          </span>
+          {product.product?.code && (
+            <div className="text-sm text-gray-600">Code: {product.product.code}</div>
+          )}
+          {/* Show "Manual Entry" when productName exists but product doesn't OR when product is null */}
+          {(product.productName && (!product.product || product.product === null)) && (
+            <div className="text-xs text-green-600 font-medium">📝 Manual Entry</div>
+          )}
         </div>
+        <div className="text-right">
+          <div className="text-lg font-bold text-blue-600">{product.quantity}</div>
+          <div className="text-xs text-gray-500">Quantity</div>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
       ) : (
         // Edit mode for products
         <div className="bg-white p-4 rounded-lg border border-yellow-200">
