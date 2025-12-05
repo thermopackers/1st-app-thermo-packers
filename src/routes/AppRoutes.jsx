@@ -68,6 +68,7 @@ import GateInwardPrintout from "../components/GateInwardPrintout";
 import GateOutwardForm from "../components/GateOutwardForm";
 import GateOutwardsView from "../pages/GateOutwardsView";
 import GateOutwardPrintout from "../components/GateOutwardPrintout";
+import WaterFilterMaintenance from "../pages/WaterFilterMaintenance";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -598,6 +599,17 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+
+<Route
+path="/maintenance/water-filter"
+  element={
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
+      <PageWrapper><WaterFilterMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
 <Route
   path="/plant-machinery-maintenance-power-factor"
   element={

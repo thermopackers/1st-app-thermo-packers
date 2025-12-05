@@ -32,7 +32,8 @@ export default function PlantMachineryMaintenance() {
                              s.name === "Boiler" || 
                              s.name === "Earthing" ||
                              s.name === "Power Factor - Main Electric Panel" ||
-                             s.name === "DG Set (Diesel Generator) - Main Electric Panel";
+                             s.name === "DG Set (Diesel Generator) - Main Electric Panel" ||
+                             s.name === "Water Filter";
             return isEnabled ? (
               <NavLink key={idx} to={s.path}>
                 <button

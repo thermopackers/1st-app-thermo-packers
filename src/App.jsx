@@ -19,6 +19,7 @@ export default function App() {
     "/leave-management",
     "/gate-outward",
     "/gate-outwards-view",
+    "/maintenance/water-filter",
     "/send-rfq",
     "/tour-expenses",
     "/timestamp-generator-pkc",
