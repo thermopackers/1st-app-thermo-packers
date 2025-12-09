@@ -273,48 +273,50 @@ useEffect(() => {
   }
 }, [filters.customerName, searchTerm]);
   // Auto-complete orders - Only for current page
-  useEffect(() => {
-    const checkAndCompleteOrders = async () => {
-      for (const order of orders) {
-        const isProductionComplete = order.status?.toLowerCase() === "processed";
-        const isPackagingComplete = order.packagingStatus?.toLowerCase() === "packaged";
-        const isDispatchComplete = order.dispatchStatus?.toLowerCase() === "dispatched";
-        const isNotCompleted = order.status?.toLowerCase() !== "completed";
-        
-        if (isProductionComplete && isPackagingComplete && isDispatchComplete && isNotCompleted) {
-          try {
-            await axiosInstance.put(
-              `/orders/${order._id}`,
-              {
-                status: "completed",
-                danaBeadsStatus: "completed",
-              },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            setOrders(prev =>
-              prev.map(o =>
-                o._id === order._id
-                  ? {
-                      ...o,
-                      status: "completed",
-                      danaBeadsStatus: "completed",
-                    }
-                  : o
-              )
-            );
-            
-          } catch (err) {
-            console.error("Failed to auto-complete order:", err);
-          }
+// In the auto-complete useEffect, update the condition to check remainingBalance:
+useEffect(() => {
+  const checkAndCompleteOrders = async () => {
+    for (const order of orders) {
+      const isProductionComplete = order.status?.toLowerCase() === "processed";
+      const isPackagingComplete = order.packagingStatus?.toLowerCase() === "packaged";
+      const isDispatchComplete = order.dispatchStatus?.toLowerCase() === "dispatched";
+      const isNotCompleted = order.status?.toLowerCase() !== "completed";
+      const isFullyDelivered = (order.remainingBalance || order.quantity) === 0;  // ADD THIS
+      
+      if (isProductionComplete && isPackagingComplete && isDispatchComplete && isNotCompleted && isFullyDelivered) {  // MODIFIED THIS LINE
+        try {
+          await axiosInstance.put(
+            `/orders/${order._id}`,
+            {
+              status: "completed",
+              danaBeadsStatus: "completed",
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          setOrders(prev =>
+            prev.map(o =>
+              o._id === order._id
+                ? {
+                    ...o,
+                    status: "completed",
+                    danaBeadsStatus: "completed",
+                  }
+                : o
+            )
+          );
+          
+        } catch (err) {
+          console.error("Failed to auto-complete order:", err);
         }
       }
-    };
-
-    if (orders.length > 0) {
-      checkAndCompleteOrders();
     }
-  }, [orders, token, setOrders]);
+  };
+
+  if (orders.length > 0) {
+    checkAndCompleteOrders();
+  }
+}, [orders, token, setOrders]);
 
   // Add this useEffect after your other useEffect hooks
 useEffect(() => {
@@ -366,6 +368,8 @@ useEffect(() => {
         Customer: order.customerName || order.customer?.name || "",
         Product: order.product,
         Quantity: order.quantity,
+         DeliveredQuantity: order.deliveredQuantity || 0,  // ADD THIS
+  RemainingBalance: order.remainingBalance || order.quantity,  // ADD THIS
         Unit: order.unit,
         Size: order.size,
         Density: order.density,
