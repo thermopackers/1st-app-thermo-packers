@@ -69,6 +69,7 @@ import GateOutwardForm from "../components/GateOutwardForm";
 import GateOutwardsView from "../pages/GateOutwardsView";
 import GateOutwardPrintout from "../components/GateOutwardPrintout";
 import WaterFilterMaintenance from "../pages/WaterFilterMaintenance";
+import FireSafetyMaintenance from "../pages/FireSafetyMaintenance";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -599,6 +600,8 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/maintenance/fire-safety" element={<FireSafetyMaintenance />} />
 
 
 <Route

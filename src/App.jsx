@@ -20,6 +20,7 @@ export default function App() {
     "/gate-outward",
     "/gate-outwards-view",
     "/maintenance/water-filter",
+    "/maintenance/fire-safety",
     "/send-rfq",
     "/tour-expenses",
     "/timestamp-generator-pkc",

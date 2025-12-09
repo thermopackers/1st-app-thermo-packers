@@ -15,6 +15,7 @@ export default function PlantMachineryMaintenance() {
     { name: "Water Filter", path: "/maintenance/water-filter",color: "bg-blue-600 hover:bg-blue-700" },
     { name: "Pre-expander", path: "/maintenance/pre-expander", color: "bg-blue-600 hover:bg-blue-700" },
     { name: "Block Moulding Machine", path: "/maintenance/block-moulding",color: "bg-blue-600 hover:bg-blue-700" },
+    { name: "Fire Safety Check", path: "/maintenance/fire-safety", color: "bg-blue-600 hover:bg-blue-700" }, // NEW BUTTON
   ];
 
   return (
@@ -33,7 +34,8 @@ export default function PlantMachineryMaintenance() {
                              s.name === "Earthing" ||
                              s.name === "Power Factor - Main Electric Panel" ||
                              s.name === "DG Set (Diesel Generator) - Main Electric Panel" ||
-                             s.name === "Water Filter";
+                             s.name === "Water Filter" ||
+                             s.name === "Fire Safety Check"; // ADDED FIRE SAFETY CHECK HERE
             return isEnabled ? (
               <NavLink key={idx} to={s.path}>
                 <button

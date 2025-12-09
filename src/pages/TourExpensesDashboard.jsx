@@ -319,10 +319,74 @@ export default function TourExpensesDashboard() {
                             </button>
                           </div>
                         )}
+                              {/* Vehicle Trip Log Info - Mobile */}
+{(exp.meterReadingStart || exp.meterReadingEnd || exp.dieselLiters || exp.oilQuantity || exp.distance || exp.average) && (
+  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+    <h5 className="font-medium text-gray-700 text-sm mb-2">Vehicle Trip Log: {exp.vehicleNumber}</h5>
+    <div className="grid grid-cols-2 gap-2 text-xs">
+      {exp.meterReadingStart && (
+        <div>
+          <span className="text-gray-600">Start KM:</span>
+          <span className="font-medium ml-1">{exp.meterReadingStart}</span>
+        </div>
+      )}
+      {exp.meterReadingEnd && (
+        <div>
+          <span className="text-gray-600">End KM:</span>
+          <span className="font-medium ml-1">{exp.meterReadingEnd}</span>
+        </div>
+      )}
+      {exp.distance && (
+        <div>
+          <span className="text-gray-600">Distance:</span>
+          <span className="font-medium ml-1">{exp.distance} km</span>
+        </div>
+      )}
+      {exp.dieselLiters && (
+        <div>
+          <span className="text-gray-600">Diesel:</span>
+          <span className="font-medium ml-1">{exp.dieselLiters} L</span>
+        </div>
+      )}
+      {exp.oilQuantity && (
+        <div>
+          <span className="text-gray-600">Oil Qty:</span>
+          <span className="font-medium ml-1">{exp.oilQuantity} L</span>
+        </div>
+      )}
+      {exp.average && (
+        <div>
+          <span className="text-gray-600">Average:</span>
+          <span className="font-medium ml-1 text-green-600">{exp.average} km/l</span>
+        </div>
+      )}
+    </div>
+    
+    {/* Trip Log Files */}
+    {exp.tripLogFiles?.length > 0 && (
+      <div className="mt-2">
+        <div className="text-xs text-gray-600 mb-1">Trip Log Files:</div>
+        <div className="flex flex-wrap gap-1">
+          {exp.tripLogFiles.map((fileData, idx) => (
+            <button
+              key={idx}
+              onClick={() => window.open(fileData.url, '_blank')}
+              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
+            >
+              📄 File {idx + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
                       </motion.div>
                     );
                   })}
+                     
                 </div>
+       
 
                 {/* Desktop Table View */}
                 <div className="hidden lg:block overflow-x-auto">
@@ -347,6 +411,10 @@ export default function TourExpensesDashboard() {
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Files
                         </th>
+                        {/* Add this column after the Files column */}
+<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+  Vehicle Trip Log
+</th>
                         {/* ✅ FIX: Use isAccounts variable */}
                         {isAccounts && (
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -469,6 +537,73 @@ export default function TourExpensesDashboard() {
                                 ))}
                               </div>
                             </td>
+
+                            {/* Vehicle Trip Log Column */}
+<td className="px-6 py-4">
+  {(exp.meterReadingStart || exp.meterReadingEnd || exp.dieselLiters || exp.oilQuantity || exp.distance || exp.average) ? (
+    <div className="space-y-2 min-w-[180px]">
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        {exp.meterReadingStart && (
+          <div>
+            <span className="text-gray-600">Start:</span>
+            <span className="font-medium ml-1">{exp.meterReadingStart}</span>
+          </div>
+        )}
+        {exp.meterReadingEnd && (
+          <div>
+            <span className="text-gray-600">End:</span>
+            <span className="font-medium ml-1">{exp.meterReadingEnd}</span>
+          </div>
+        )}
+        {exp.distance && (
+          <div className="col-span-2">
+            <span className="text-gray-600">Distance:</span>
+            <span className="font-medium ml-1 text-blue-600">{exp.distance} km</span>
+          </div>
+        )}
+        {exp.dieselLiters && (
+          <div>
+            <span className="text-gray-600">Diesel:</span>
+            <span className="font-medium ml-1">{exp.dieselLiters} L</span>
+          </div>
+        )}
+        {exp.oilQuantity && (
+          <div>
+            <span className="text-gray-600">Oil:</span>
+            <span className="font-medium ml-1">{exp.oilQuantity} L</span>
+          </div>
+        )}
+        {exp.average && (
+          <div className="col-span-2">
+            <span className="text-gray-600">Avg:</span>
+            <span className="font-medium ml-1 text-green-600">{exp.average} km/l</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Trip Log Files */}
+      {exp.tripLogFiles?.length > 0 && (
+        <div className="pt-2 border-t">
+          <div className="text-xs text-gray-600 mb-1">Log Files:</div>
+          <div className="flex flex-wrap gap-1">
+            {exp.tripLogFiles.map((fileData, idx) => (
+              <button
+                key={idx}
+                onClick={() => window.open(fileData.url, '_blank')}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
+                title="View file"
+              >
+                📄 {idx + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
+    <span className="text-gray-400 text-sm">-</span>
+  )}
+</td>
 
                             {/* ✅ FIX: Actions Column - use isAccounts variable */}
                             {isAccounts && (
