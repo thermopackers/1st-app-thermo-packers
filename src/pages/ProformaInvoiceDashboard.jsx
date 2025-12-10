@@ -316,6 +316,7 @@ ${user.email ? `(${user.email})` : ''}`
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">P/I ID</th>
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Date</th>
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Customer</th>
+                                <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Created By</th> {/* NEW COLUMN */}
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Bill To</th>
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Products</th>
                       <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Actions</th>
@@ -340,6 +341,18 @@ ${user.email ? `(${user.email})` : ''}`
                           <td className="py-4 px-6">
                             <p className="font-medium text-gray-800">{inv.customerName || "—"}</p>
                           </td>
+                                <td className="py-4 px-6">
+                <div className="flex flex-col">
+                  <p className="font-medium text-gray-800">
+                    {inv.createdBy?.name || "Unknown"}
+                  </p>
+                  {inv.createdBy?.email && (
+                    <p className="text-xs text-gray-500 truncate max-w-[150px]">
+                      {inv.createdBy.email}
+                    </p>
+                  )}
+                </div>
+              </td>
                           <td className="py-4 px-6 text-sm text-gray-600 max-w-xs truncate">
                             {inv.billTo}
                           </td>
@@ -460,6 +473,9 @@ ${user.email ? `(${user.email})` : ''}`
                       <div className="mb-3">
                         <p className="font-medium text-gray-800">{inv.customerName || "—"}</p>
                         <p className="text-sm text-gray-600 truncate">{inv.billTo}</p>
+                         <p className="text-xs text-gray-500 mt-1">
+              Created by: {inv.createdBy?.name || "Unknown"}
+            </p>
                       </div>
 
                       {/* Actions */}
