@@ -24,7 +24,8 @@ export default function ProformaEditForm() {
     destination: "",
     freight: 0,
       freightType: "", // new field to track selected checkbox
-    packaging: 0,
+      toPayAmount: 0, // 🔥 ADD THIS LINE
+      packaging: 0,
     contact: "",
     remarks: "",
     products: [],
@@ -76,6 +77,7 @@ useEffect(() => {
 
     setForm({
       ...invoice,
+            toPayAmount: invoice.toPayAmount || 0, // 🔥 ADD THIS LINE
       products: productsWithCNCDefaults
     });
 
@@ -280,7 +282,7 @@ useEffect(() => {
 />
 
   </div>
- <div>
+<div>
   <label className="text-sm font-medium">Freight Type</label>
   <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
     {["Self Pickup", "PAID", "To Pay", "Billed"].map((type) => (
@@ -293,6 +295,7 @@ useEffect(() => {
               ...f,
               freightType: f.freightType === type ? "" : type,
               freight: type === "Billed" ? f.freight : 0, // reset if not billed
+              toPayAmount: type === "To Pay" ? f.toPayAmount : 0, // 🔥 ADD THIS LINE
             }))
           }
         />
@@ -300,6 +303,24 @@ useEffect(() => {
       </label>
     ))}
   </div>
+  {/* 🔥 ADD THIS SECTION FOR "TO PAY" AMOUNT */}
+  {form.freightType === "To Pay" && (
+    <div className="mt-2">
+      <label className="text-sm font-medium">To Pay Amount (₹)</label>
+      <input
+        className="input w-full"
+        type="number"
+        placeholder="Enter To Pay Amount"
+        value={form.toPayAmount ?? ""}
+        onChange={(e) =>
+          setForm((f) => ({
+            ...f,
+            toPayAmount: Number(e.target.value),
+          }))
+        }
+      />
+    </div>
+  )}
 </div>
 
 
