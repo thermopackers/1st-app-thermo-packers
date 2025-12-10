@@ -65,9 +65,11 @@ export default function ProformaInvoiceDashboard() {
   const [page, setPage] = useState(1);
   const [convertedInvoices, setConvertedInvoices] = useState({});
   const [loading, setLoading] = useState(false);
+    const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const limit = 10;
   const navigate = useNavigate();
+console.log("invoices",invoices);
 
   // Responsive detection
   useEffect(() => {
@@ -218,19 +220,71 @@ ${user.email ? `(${user.email})` : ''}`
     toast.success("Conversion status reset");
   };
 
-  const downloadPdf = (pdfUrl, invoiceNo) => {
+const downloadPdf = async (pdfUrl, invoiceNo, customerName, invoiceId) => {
+  try {
+    setDownloadingInvoiceId(invoiceId); // Start loading
+    
+    // Create a clean filename with customer name and invoice number
+    const cleanCustomerName = customerName 
+      ? customerName.replace(/[^\w\s-]/gi, '').replace(/\s+/g, '_')
+      : 'Customer';
+    
+    // Clean invoice number (remove special characters including /)
+    const cleanInvoiceNo = invoiceNo ? invoiceNo.replace(/[/\\?%*:|"<>]/g, '-') : 'Invoice';
+    
+    const filename = `${cleanCustomerName}_${cleanInvoiceNo}.pdf`;
+    
+    // Fetch the PDF file
+    const response = await fetch(pdfUrl);
+    const blob = await response.blob();
+    
+    // Create a download link
+    const link = document.createElement('a');
+    const url = window.URL.createObjectURL(blob);
+    
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+    toast.error('Failed to download PDF');
+    
+    // Fallback to simple download
     const link = document.createElement('a');
     link.href = pdfUrl;
-    link.download = `Proforma_Invoice_${invoiceNo}.pdf`;
+    const cleanCustomerName = customerName 
+      ? customerName.replace(/[^\w\s-]/gi, '').replace(/\s+/g, '_')
+      : 'Customer';
+    const cleanInvoiceNo = invoiceNo ? invoiceNo.replace(/[/\\?%*:|"<>]/g, '-') : 'Invoice';
+    link.download = `${cleanCustomerName}_${cleanInvoiceNo}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  } finally {
+    setDownloadingInvoiceId(null); // Stop loading
+  }
+};
 
   return (
     <>
       <InternalNavbar />
-      
+
+          {/* Add this loader for PDF downloads */}
+    {downloadingInvoiceId && (
+      <div className="fixed inset-0 bg-[#000000b7] bg-opacity-40 flex items-center justify-center z-[9999]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid mb-4"></div>
+          <span className="text-white text-lg font-medium">Downloading PDF...</span>
+        </div>
+      </div>
+    )}
+
       {/* Main Container */}
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -366,13 +420,25 @@ ${user.email ? `(${user.email})` : ''}`
                           <td className="py-4 px-6">
                             <div className="flex flex-col gap-2 min-w-[200px]">
                               {/* View PDF */}
-                              <button
-                                onClick={() => downloadPdf(inv.pdfUrl, inv.invoiceNo)}
-                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium"
-                              >
-                                <Download size={16} />
-                                Download PDF
-                              </button>
+                            <button
+  onClick={() => downloadPdf(inv.pdfUrl, inv.invoiceNo, inv.customerName, inv._id)}
+  disabled={downloadingInvoiceId === inv._id}
+  className={`flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium ${
+    downloadingInvoiceId === inv._id ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+>
+  {downloadingInvoiceId === inv._id ? (
+    <>
+      <div className="w-4 h-4 border-t-2 border-white rounded-full animate-spin"></div>
+      Downloading...
+    </>
+  ) : (
+    <>
+      <Download size={16} />
+      Download PDF
+    </>
+  )}
+</button>
 
                               {/* Share Actions */}
                               <div className="flex gap-2">
@@ -482,13 +548,25 @@ ${user.email ? `(${user.email})` : ''}`
                       <div className="space-y-2">
                         {/* PDF Actions */}
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => downloadPdf(inv.pdfUrl, inv.invoiceNo)}
-                            className="flex-1 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium"
-                          >
-                            <Download size={16} />
-                            PDF
-                          </button>
+                         <button
+  onClick={() => downloadPdf(inv.pdfUrl, inv.invoiceNo, inv.customerName, inv._id)}
+  disabled={downloadingInvoiceId === inv._id}
+  className={`flex-1 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium ${
+    downloadingInvoiceId === inv._id ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+>
+  {downloadingInvoiceId === inv._id ? (
+    <>
+      <div className="w-4 h-4 border-t-2 border-white rounded-full animate-spin"></div>
+      PDF
+    </>
+  ) : (
+    <>
+      <Download size={16} />
+      PDF
+    </>
+  )}
+</button>
                         </div>
 
                         {/* Share Actions */}
