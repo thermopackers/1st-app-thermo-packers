@@ -569,10 +569,10 @@ placeholder="🔍 Search pages, products, suppliers, or categories..."
           </div>
           
           {/* Search Info */}
-      <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
+      {/* <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
   <span>💡</span>
   <span>Search for dashboard pages, customers, products, suppliers, or categories. Click pages to navigate, products to edit, suppliers for details.</span>
-</div>
+</div> */}
         </div>
       </motion.div>
 

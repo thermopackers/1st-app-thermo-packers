@@ -242,23 +242,56 @@ const handleProductSelect = (product) => {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded border">
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(item.product?._id || item.productName, item.quantity - 1)}
-                    className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center font-medium">{item.quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(item.product?._id || item.productName, item.quantity + 1)}
-                    className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
-                  >
-                    +
-                  </button>
-                </div>
+               <div className="flex items-center gap-2">
+  <input
+    type="number"
+    min="1"
+    value={item.quantity}
+    onChange={(e) => {
+      const value = e.target.value;
+      const numValue = parseInt(value, 10);
+      
+      // Allow empty input while typing
+      if (value === '') {
+        const productId = item.product?._id || item.productName;
+        const newProducts = products.map(p =>
+          (p.product?._id === productId || p.productName === productId)
+            ? { ...p, quantity: '' }
+            : p
+        );
+        onProductsChange(newProducts);
+      } else if (!isNaN(numValue) && numValue >= 1) {
+        handleQuantityChange(item.product?._id || item.productName, numValue);
+      }
+    }}
+    onBlur={(e) => {
+      const value = e.target.value;
+      const numValue = parseInt(value, 10);
+      
+      // When field loses focus, ensure valid value
+      if (value === '' || isNaN(numValue) || numValue < 1) {
+        handleQuantityChange(item.product?._id || item.productName, 1);
+      }
+    }}
+    className="w-20 px-3 py-1 border border-gray-300 rounded text-center font-medium"
+  />
+  <div className="flex flex-col gap-1">
+    <button
+      type="button"
+      onClick={() => handleQuantityChange(item.product?._id || item.productName, item.quantity + 1)}
+      className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300 text-sm"
+    >
+      ▲
+    </button>
+    <button
+      type="button"
+      onClick={() => handleQuantityChange(item.product?._id || item.productName, Math.max(1, item.quantity - 1))}
+      className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300 text-sm"
+    >
+      ▼
+    </button>
+  </div>
+</div>
                 <button
                   type="button"
                   onClick={() => handleRemoveProduct(item.product?._id || item.productName)}

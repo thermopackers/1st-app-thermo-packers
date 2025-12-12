@@ -5,8 +5,9 @@ const TableHeader = ({ role }) => (
     <tr>
       <TableHeaderCell>Order Date</TableHeaderCell>
       <TableHeaderCell>Order ID</TableHeaderCell>
-      <TableHeaderCell>Handled By</TableHeaderCell>
-      <TableHeaderCell>Client Name</TableHeaderCell>
+      <TableHeaderCell>Customer Handled By</TableHeaderCell>
+            <TableHeaderCell>Order Added By</TableHeaderCell>
+      <TableHeaderCell>Customer Name</TableHeaderCell>
       <TableHeaderCell>Order Actions</TableHeaderCell>
       <TableHeaderCell>Product Name</TableHeaderCell>
       <TableHeaderCell>Narration</TableHeaderCell>

@@ -1086,14 +1086,18 @@ const handleCreateTaskFromPending = (application) => {
       
       try {
         // Use your EXISTING task creation endpoint
-        await axiosInstance.post('/todos/create', {
-          title: `Cover pending work for ${selectedLeaveForTask.userName}'s leave`,
-          description: `Pending work during ${selectedLeaveForTask.userName}'s leave (${new Date(selectedLeaveForTask.startDate).toLocaleDateString()} - ${new Date(selectedLeaveForTask.endDate).toLocaleDateString()}):\n\n${selectedLeaveForTask.pendingWorkRemarks}`,
-          assignedTo: selectedUserForTask,
-          dueDate: taskDueDate || null,
-          repeat: 'ONE_TIME',
-          isOrderFollowUp: false
-        });
+await axiosInstance.post('/todos/create', {
+  title: `Cover pending work for ${selectedLeaveForTask.userName}'s leave`,
+  description: `Pending work during ${selectedLeaveForTask.userName}'s leave (${new Date(selectedLeaveForTask.startDate).toLocaleDateString()} - ${new Date(selectedLeaveForTask.endDate).toLocaleDateString()}):\n\n${selectedLeaveForTask.pendingWorkRemarks}`,
+  assignedTo: selectedUserForTask,
+  dueDate: taskDueDate || null,
+  repeat: 'ONE_TIME',
+  isOrderFollowUp: false,
+  origin: "leave_reassignment", // ✅ Now this will work with your updated schema
+  leaveUserName: selectedLeaveForTask.userName,
+  leaveStartDate: new Date(selectedLeaveForTask.startDate).toLocaleDateString(),
+  leaveEndDate: new Date(selectedLeaveForTask.endDate).toLocaleDateString(),
+});
         
         toast.success('Task created successfully! It will appear in the employee\'s task dashboard.');
         setShowTaskModal(false);

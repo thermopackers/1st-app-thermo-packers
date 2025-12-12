@@ -50,9 +50,9 @@ const OrderRow = ({
     if (order.status === "cancelled") return "bg-red-50";
     
     if (remainingBalance === 0 && deliveredQuantity > 0) {
-      return "bg-green-50 border-l-4 border-l-green-500";
+      return "bg-green-300 border-l-4 border-l-green-500";
     } else if (remainingBalance > 0 && deliveredQuantity > 0) {
-      return "bg-yellow-50 border-l-4 border-l-yellow-500";
+      return "bg-yellow-300 border-l-4 border-l-yellow-500";
     }
     
     return "odd:bg-white even:bg-gray-50";
@@ -137,16 +137,52 @@ const OrderRow = ({
       
       <OrderCell>{order.shortId}</OrderCell>
       
-      <OrderCell className="whitespace-nowrap">
-        {order.employee ? (
-          <>
-            <div>{order.employee.name}</div>
-            <div className="text-xs text-gray-500">{order.employee.email}</div>
-          </>
-        ) : (
-          "N/A"
-        )}
-      </OrderCell>
+<OrderCell className="whitespace-nowrap">
+  {order.customer?.createdBy ? (
+    <>
+      <div>{order.customer.createdBy.name}</div>
+      <div className="text-[10px] text-gray-500">{order.customer.createdBy.email}</div>
+    </>
+  ) : order.employee ? (
+    // Fallback to order creator if customer creator not available
+    <>
+      <div>{order.employee.name}</div>
+      <div className="text-[5px] text-gray-500">{order.employee.email}</div>
+    </>
+  ) : (
+    "N/A"
+  )}
+</OrderCell>
+
+<OrderCell className="whitespace-nowrap">
+  {order.createdBy ? (
+    <>
+      <div className="font-medium">{order.createdBy.name}</div>
+      <div className="text-[10px] text-gray-500">
+        {order.createdBy.email}
+      </div>
+      <div className="text-xs text-gray-400 mt-1">
+        📅 {new Date(order.createdAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })}
+      </div>
+    </>
+  ) : order.employee ? (
+    <>
+      <div className="font-medium">{order.employee.name}</div>
+      <div className="text-xs text-gray-500">
+        {order.employee.email}
+      </div>
+      <div className="text-xs text-gray-400 mt-1">
+        📅 {new Date(order.createdAt).toLocaleDateString("en-GB")}
+      </div>
+    </>
+  ) : (
+    "N/A"
+  )}
+</OrderCell>
 
       <OrderCell className="whitespace-nowrap">
         {order.customer?.name || order.customerName}

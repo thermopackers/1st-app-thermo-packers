@@ -299,7 +299,32 @@ export default function WaterFilterMaintenance() {
             Water Filter Monthly Maintenance
           </h1>
         </div>
-
+{/* IMPORTANT NOTICE MESSAGE - VIVID VERSION */}
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 border-4 border-yellow-300 text-white p-6 mb-6 shadow-2xl rounded-lg transform hover:scale-105 transition-all duration-500">
+          <div className="flex items-center justify-center">
+            <div className="flex-shrink-0 mr-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-extrabold tracking-wide uppercase drop-shadow-lg">
+                ⚠️ IMPORTANT NOTICE ⚠️
+              </p>
+              <p className="text-lg font-bold mt-2 drop-shadow-md">
+                Don't use soap while cleaning the tanks.
+              </p>
+              <p className="text-sm font-semibold mt-1 opacity-90">
+                Please ensure compliance with maintenance schedule
+              </p>
+            </div>
+            <div className="flex-shrink-0 ml-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20" style={{animationDelay: '0.2s'}}>
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </div>
         {/* Add New Entry Form */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <h2 className="text-xl font-semibold text-slate-800 mb-4">Add New Maintenance Entry</h2>

@@ -61,25 +61,23 @@ useEffect(() => {
 
     fetchAllTasks(params);
     setCurrentPage(page);
-  }, [filterStatus, selectedUser, page]);
+  }, [filterStatus, selectedUser, page, repeatFilter]);
 
-  // Update URL params when filters change
-  const updateFilters = (newFilters) => {
-    const repeatFilter = searchParams.get("repeat") || "";
-    const updated = {
-      status: newFilters.status ?? filterStatus,
-      assignedTo: newFilters.assignedTo ?? selectedUser,
-      repeat: newFilters.repeat ?? repeatFilter,
-      page: newFilters.page ?? 1,
-    };
-
-    // Remove empty keys to keep URL clean
-    Object.keys(updated).forEach((key) => {
-      if (!updated[key]) delete updated[key];
-    });
-
-    setSearchParams(updated);
+ const updateFilters = (newFilters) => {
+  const updated = {
+    status: newFilters.status ?? filterStatus,
+    assignedTo: newFilters.assignedTo ?? selectedUser,
+    repeat: newFilters.repeat ?? repeatFilter,
+    page: newFilters.page ?? 1,
   };
+
+  // Remove empty keys to keep URL clean
+  Object.keys(updated).forEach((key) => {
+    if (!updated[key] && updated[key] !== 0) delete updated[key];
+  });
+
+  setSearchParams(updated);
+};
 
   const clearFilters = () => {
     setSearchParams({});
@@ -94,12 +92,13 @@ useEffect(() => {
       try {
         await axiosInstance.delete(`/todos/${taskId}`);
         toast.success("Task deleted successfully!");
-        fetchAllTasks({
-          page: currentPage,
-          limit: 9,
-          status: filterStatus || undefined,
-          assignedTo: selectedUser || undefined,
-        });
+            fetchAllTasks({
+        page: currentPage,
+        limit: 9,
+        status: filterStatus || undefined,
+        assignedTo: selectedUser || undefined,
+        repeat: repeatFilter || undefined, // 👈 ADD THIS
+      });
       } catch (error) {
         console.error("Delete error:", error);
         toast.error("Failed to delete task");
@@ -124,18 +123,19 @@ useEffect(() => {
         {/* Filters and Assign Task Button */}
         <div className="flex flex-wrap items-center gap-4">
           {!searchParams.get("isOrderFollowUp") && (
-            <select
-              className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              onChange={(e) =>
-                updateFilters({ repeat: e.target.value, page: 1 })
-              }
-              value={searchParams.get("repeat") || ""}
-            >
-              <option value="">All Type of Tasks</option>
-              <option value="One time">One time</option>
-              <option value="Repeat every month">Repeat every month</option>
-              <option value="Repeat every year">Repeat every year</option>
-            </select>
+           <select
+  className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+  onChange={(e) =>
+    updateFilters({ repeat: e.target.value, page: 1 })
+  }
+  value={repeatFilter}
+>
+  <option value="">All Type of Tasks</option>
+  <option value="ONE_TIME">One time</option>
+  <option value="DAILY">Repeat every day</option>
+  <option value="MONTHLY">Repeat every month</option>
+  <option value="YEARLY">Repeat every year</option>
+</select>
           )}
 
           <select
@@ -197,12 +197,13 @@ useEffect(() => {
           <AssignTaskForm
             users={users}
             task={editingTask}
-            onTaskCreated={() => {
+                       onTaskCreated={() => {
               fetchAllTasks({
                 page: currentPage,
                 limit: 9,
                 status: filterStatus || undefined,
                 assignedTo: selectedUser || undefined,
+                repeat: repeatFilter || undefined, // 👈 ADD THIS
               });
               setShowAssignForm(false);
               setEditingTask(null);
@@ -341,9 +342,15 @@ useEffect(() => {
                         : "N/A"}
                     </p>
 
-                    {!task.isOrderFollowUp && task.repeat && (
+                                       {!task.isOrderFollowUp && task.repeat && (
                       <p className="text-sm text-gray-500 mt-1">
-                        Repeat: {task.repeat}
+                        Repeat: {
+                          task.repeat === "ONE_TIME" ? "One time" :
+                          task.repeat === "DAILY" ? "Daily" :
+                          task.repeat === "MONTHLY" ? "Monthly" :
+                          task.repeat === "YEARLY" ? "Yearly" :
+                          task.repeat
+                        }
                       </p>
                     )}
 

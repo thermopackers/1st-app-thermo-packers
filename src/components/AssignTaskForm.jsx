@@ -51,6 +51,13 @@ useEffect(() => {
       setRepeat(task.repeat || "ONE_TIME");
       setExistingImages(task.images || []);
       setIsOrderFollowUp(task?.isOrderFollowUp || false);
+      setCustomerPhone(task?.customerPhone || ""); // ✅ Add this line
+      setSelectedProducts( // ✅ Add this for products
+        task.products?.map(p => ({
+          value: p._id,
+          label: `${p.name} ${p.unit ? `(${p.unit})` : ''}`
+        })) || []
+      );
     } else {
       setTitle("");
       setDescription("");
@@ -59,9 +66,12 @@ useEffect(() => {
       setRepeat("ONE_TIME");
       setExistingImages([]);
       setNewImages([]);
-          setIsOrderFollowUp(false); // ✅ Reset when creating new task
+      setIsOrderFollowUp(false);
+      setCustomerPhone(""); // ✅ Reset customer phone
+      setSelectedProducts([]); // ✅ Reset products
     }
   }, [task]);
+  
 const startRecording = async () => {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const newRecorder = new RecordRTC(stream, {

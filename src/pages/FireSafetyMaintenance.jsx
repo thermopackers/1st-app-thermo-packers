@@ -121,7 +121,7 @@ const isValidDate = (dateString) => {
   }
 };
 
-// Water Hydrant Daily Report Component
+// Water Hydrant Daily Report Component - UPDATED WITH ADD BUTTON
 function WaterHydrantDailyReport() {
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -133,6 +133,7 @@ function WaterHydrantDailyReport() {
   });
   const [filterDate, setFilterDate] = useState("");
   const [filterDateInput, setFilterDateInput] = useState(""); // For input field
+  const [newEntryDate, setNewEntryDate] = useState(""); // For adding new entries
   
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -166,36 +167,39 @@ function WaterHydrantDailyReport() {
 
   // Initialize with today's data
   useEffect(() => {
-    const today = getTodayDate();
+    fetchLogs(1);
+  }, []);
+
+  // Add new entry button handler
+  const handleAddNewEntry = () => {
+    // Check if we already have an unsaved entry for the selected date
+    if (tableData.length > 0) {
+      Swal.fire("Info", "You already have an unsaved entry. Please save or cancel it first.", "info");
+      return;
+    }
+
+    // Use today's date by default, or selected date if any
+    const selectedDate = newEntryDate ? convertToDDMMYYYY(newEntryDate) : getTodayDate();
     
-    // Check if entry exists for today
-    const checkTodayEntry = async () => {
-      try {
-        const res = await axiosInstance.get(`/fire-safety/water-hydrant/date/${encodeURIComponent(today)}`);
-        if (res.data) {
-          // Today's entry exists, fetch all logs
-          fetchLogs(1);
-        } else {
-          // Create new entry for today in tableData
-          const newEntry = {
-            id: Math.random().toString(36).substr(2, 9),
-            date: today,
-            waterSystem1: { status: "No", files: [] },
-            waterSystem2: { status: "No", files: [] },
-            waterSystem3: { status: "No", files: [] },
-            remarks: ""
-          };
-          setTableData([newEntry]);
-          fetchLogs(1);
-        }
-      } catch (err) {
-        // No entry for today, fetch all logs
-        fetchLogs(1);
-      }
+    // Check if entry already exists for this date
+    const existingEntry = logs.find(log => log.date === selectedDate);
+    if (existingEntry) {
+      Swal.fire("Info", `An entry already exists for ${selectedDate}. Please edit the existing entry.`, "info");
+      return;
+    }
+
+    const newEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: selectedDate,
+      waterSystem1: { status: "No", files: [] },
+      waterSystem2: { status: "No", files: [] },
+      waterSystem3: { status: "No", files: [] },
+      remarks: ""
     };
     
-    checkTodayEntry();
-  }, []);
+    setTableData([newEntry]);
+    setNewEntryDate(""); // Clear the date input after adding
+  };
 
   // Handle input changes
   const handleInputChange = (id, field, value) => {
@@ -354,13 +358,19 @@ function WaterHydrantDailyReport() {
     } catch (err) {
       console.error("Error saving data:", err);
       if (err.response?.data?.message?.includes("already exists")) {
-        Swal.fire("Error", "A report already exists for today. Please edit the existing report.", "error");
+        Swal.fire("Error", "A report already exists for this date. Please edit the existing report.", "error");
       } else {
         Swal.fire("Error", "Error saving report", "error");
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Cancel new entry
+  const cancelNewEntry = () => {
+    setTableData([]);
+    setNewEntryDate("");
   };
 
   // Start editing
@@ -551,19 +561,70 @@ function WaterHydrantDailyReport() {
         </div>
       </div>
 
+      {/* Add New Entry Section */}
+      <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <h3 className="text-lg font-semibold mb-4">Add New Daily Check Entry</h3>
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Date for New Entry (Can be past or present date):
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={newEntryDate}
+                onChange={(e) => setNewEntryDate(e.target.value)}
+                className="border rounded p-2 flex-1"
+                max={getTodayDateInput()}
+              />
+              <button
+                onClick={handleAddNewEntry}
+                disabled={loading || tableData.length > 0}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                Add New Entry
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {newEntryDate 
+                ? `Selected: ${convertToDDMMYYYY(newEntryDate)}` 
+                : "Leave empty to use today's date"}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Table for New Entry */}
       {tableData.length > 0 && (
-        <div className="mb-8 border rounded-lg p-4 bg-blue-50">
-          <h3 className="text-lg font-semibold mb-4">New Daily Check Entry</h3>
+        <div className="mb-8 border rounded-lg p-4 bg-green-50 border-green-200">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">New Daily Check Entry</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={submitData}
+                disabled={loading}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors text-sm"
+              >
+                {loading ? "Saving..." : "Save Entry"}
+              </button>
+              <button
+                onClick={cancelNewEntry}
+                disabled={loading}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
           <table className="min-w-full border border-slate-300 text-sm">
-            <thead className="bg-blue-600 text-white">
+            <thead className="bg-green-600 text-white">
               <tr>
                 <th className="border px-3 py-2">Date</th>
                 <th className="border px-3 py-2">Water System 1</th>
                 <th className="border px-3 py-2">Water System 2</th>
                 <th className="border px-3 py-2">Water System 3</th>
                 <th className="border px-3 py-2">Remarks</th>
-                <th className="border px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -573,13 +634,14 @@ function WaterHydrantDailyReport() {
                   
                   {/* Water System 1 */}
                   <td className="border px-3 py-2">
+                    <span className="text-xs">Water Coming</span>
                     <select
                       value={row.waterSystem1.status}
                       onChange={(e) => handleSystemStatusChange(row.id, 1, e.target.value)}
                       className="w-full border rounded p-1 mb-2"
                     >
-                      <option value="Yes">Water Coming - Yes</option>
-                      <option value="No">Water Coming - No</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
                     </select>
                     <input
                       type="file"
@@ -597,13 +659,14 @@ function WaterHydrantDailyReport() {
                   
                   {/* Water System 2 */}
                   <td className="border px-3 py-2">
+                    <span className="text-xs">Water Coming</span>
                     <select
                       value={row.waterSystem2.status}
                       onChange={(e) => handleSystemStatusChange(row.id, 2, e.target.value)}
                       className="w-full border rounded p-1 mb-2"
                     >
-                      <option value="Yes">Water Coming - Yes</option>
-                      <option value="No">Water Coming - No</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
                     </select>
                     <input
                       type="file"
@@ -621,13 +684,14 @@ function WaterHydrantDailyReport() {
                   
                   {/* Water System 3 */}
                   <td className="border px-3 py-2">
+                    <span className="text-xs">Water Coming</span>
                     <select
                       value={row.waterSystem3.status}
                       onChange={(e) => handleSystemStatusChange(row.id, 3, e.target.value)}
                       className="w-full border rounded p-1 mb-2"
                     >
-                      <option value="Yes">Water Coming - Yes</option>
-                      <option value="No">Water Coming - No</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
                     </select>
                     <input
                       type="file"
@@ -652,20 +716,11 @@ function WaterHydrantDailyReport() {
                       placeholder="Remarks..."
                     />
                   </td>
-                  
-                  <td className="border px-3 py-2">
-                    <button
-                      onClick={submitData}
-                      disabled={loading}
-                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm w-full mb-2"
-                    >
-                      {loading ? "Saving..." : "Save Report"}
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -702,7 +757,7 @@ function WaterHydrantDailyReport() {
               ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="border px-3 py-8 text-center text-gray-500">
-                    {filterDate ? "No reports found for selected date" : "No daily check reports found. Create a new report above."}
+                    {filterDate ? "No reports found for selected date" : "No daily check reports found. Add a new entry using the form above."}
                   </td>
                 </tr>
               ) : (
@@ -717,6 +772,7 @@ function WaterHydrantDailyReport() {
                       
                       {/* Water System 1 - Editing Mode */}
                       <td className="border px-3 py-2">
+                                                    <span className="text-xs">Water Coming</span>
                         {isEditing ? (
                           <div>
                             <select
@@ -730,8 +786,8 @@ function WaterHydrantDailyReport() {
                               })}
                               className="w-full border rounded p-1 mb-2"
                             >
-                              <option value="Yes">Water Coming - Yes</option>
-                              <option value="No">Water Coming - No</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                             
                             {/* Existing Files with delete option */}
@@ -852,6 +908,7 @@ function WaterHydrantDailyReport() {
                       <td className="border px-3 py-2">
                         {isEditing ? (
                           <div>
+                            <span className="text-xs">Water Coming</span>
                             <select
                               value={editForm.waterSystem2?.status || "No"}
                               onChange={(e) => setEditForm({
@@ -863,8 +920,8 @@ function WaterHydrantDailyReport() {
                               })}
                               className="w-full border rounded p-1 mb-2"
                             >
-                              <option value="Yes">Water Coming - Yes</option>
-                              <option value="No">Water Coming - No</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                             
                             <div className="mb-2">
@@ -980,6 +1037,7 @@ function WaterHydrantDailyReport() {
                       
                       {/* Water System 3 - Similar structure */}
                       <td className="border px-3 py-2">
+                                                    <span className="text-xs">Water Coming</span>
                         {isEditing ? (
                           <div>
                             <select
@@ -993,8 +1051,8 @@ function WaterHydrantDailyReport() {
                               })}
                               className="w-full border rounded p-1 mb-2"
                             >
-                              <option value="Yes">Water Coming - Yes</option>
-                              <option value="No">Water Coming - No</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                             
                             <div className="mb-2">

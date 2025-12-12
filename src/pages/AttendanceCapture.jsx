@@ -328,19 +328,23 @@ export default function AttendanceCapture() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        // 2. ONLY if save succeeds, show success
-        Swal.fire({
-          icon: "success",
-          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">✅</div>
-              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-              <p class="text-sm text-gray-500">Time: ${new Date().toLocaleTimeString()}</p>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
+       // 2. ONLY if save succeeds, show success
+Swal.fire({
+  icon: "success",
+  title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+  html: `
+    <div class="text-center">
+      <div class="text-6xl mb-4">✅</div>
+      <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+      <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+      <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
+        View Attendance Logs
+      </a>
+    </div>
+  `,
+  confirmButtonColor: "#B0BC27",
+  showConfirmButton: false,
+});
 
         setCapturing(false);
         console.log("✅ Attendance saved successfully to database:", response.data);

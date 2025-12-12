@@ -407,7 +407,7 @@ useEffect(() => {
   return (
  <>
   <InternalNavbar />
-  
+
   {/* Compact Profile Button */}
   <div className="fixed top-47 left-4 z-50">
 <motion.button
@@ -434,7 +434,7 @@ useEffect(() => {
         )}
         
         {/* Notification Badges */}
-        <div className="flex items-center gap-1">
+        {/* <div className="flex items-center gap-1">
           {unreadCount > 0 && (
             <motion.span
               className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
@@ -453,7 +453,7 @@ useEffect(() => {
               {docNotifCount}
             </motion.span>
           )}
-        </div>
+        </div> */}
       </div>
     </motion.button>
 
@@ -468,141 +468,86 @@ useEffect(() => {
       exit={{ opacity: 0, y: -10, scale: 0.95 }}
       transition={{ duration: 0.2 }}
     >
-          {/* Profile Header */}
-          <div className="flex items-center gap-4 mb-6">
-            {user?.profilePicture ? (
-              <img
-                src={user.profilePicture}
-                alt="Profile"
-                className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-blue-200">
-                <span className="text-white font-bold text-xl">
-                  {user?.name?.charAt(0)?.toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
-              <p className="text-gray-600 text-[8px]">{user?.email}</p>
-              {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
-                <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
-                  {parseUserRoles(user)
-                    .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
-                    .join(", ")}
-                </span>
-              )}
-            </div>
+      {/* Profile Header */}
+      <div className="flex items-center gap-4 mb-6">
+        {user?.profilePicture ? (
+          <img
+            src={user.profilePicture}
+            alt="Profile"
+            className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-blue-200">
+            <span className="text-white font-bold text-xl">
+              {user?.name?.charAt(0)?.toUpperCase()}
+            </span>
           </div>
+        )}
+        <div className="flex-1">
+          <h3 className="font-bold text-gray-900 text-lg">{user?.name}</h3>
+          <p className="text-gray-600 text-[8px]">{user?.email}</p>
+          {!(userRoles.includes("suppliers") || userRoles.includes("viewer")) && (
+            <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
+              {parseUserRoles(user)
+                .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
+                .join(", ")}
+            </span>
+          )}
+        </div>
+      </div>
 
-          {/* Visiting Card */}
-          {user?.visitingCard && (
+      {/* Visiting Card */}
+      {user?.visitingCard && (
+        <motion.button
+          onClick={() =>
+            Swal.fire({
+              title: "Your Visiting Card",
+              imageUrl: user.visitingCard,
+              imageAlt: "Visiting Card",
+              confirmButtonText: "Close",
+              confirmButtonColor: "#2563eb",
+              width: "auto",
+              background: "#f8fafc",
+              customClass: {
+                popup: "rounded-2xl",
+              },
+            })
+          }
+          className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 mb-4"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span>📇</span>
+          View Visiting Card
+        </motion.button>
+      )}
+
+      {/* Attendance Banner (if allowed) */}
+      {user?.allowAttendance && (
+        <motion.div
+          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-xl mb-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-sm">📋 Mark Attendance</p>
+              <p className="text-blue-100 text-xs">Daily check-in</p>
+            </div>
             <motion.button
-              onClick={() =>
-                Swal.fire({
-                  title: "Your Visiting Card",
-                  imageUrl: user.visitingCard,
-                  imageAlt: "Visiting Card",
-                  confirmButtonText: "Close",
-                  confirmButtonColor: "#2563eb",
-                  width: "auto",
-                  background: "#f8fafc",
-                  customClass: {
-                    popup: "rounded-2xl",
-                  },
-                })
-              }
-              className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 mb-4"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("/attendance")}
+              className="bg-white text-blue-600 px-3 py-1 rounded-lg font-semibold text-sm hover:bg-gray-100 transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <span>📇</span>
-              View Visiting Card
+              Go
             </motion.button>
-          )}
-
-          {/* Attendance Banner (if allowed) */}
-          {user?.allowAttendance && (
-            <motion.div
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-xl mb-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-sm">📋 Mark Attendance</p>
-                  <p className="text-blue-100 text-xs">Daily check-in</p>
-                </div>
-                <motion.button
-                  onClick={() => navigate("/attendance")}
-                  className="bg-white text-blue-600 px-3 py-1 rounded-lg font-semibold text-sm hover:bg-gray-100 transition-all"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Go
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Document Notifications (if accounts role) */}
-        {userRoles.includes("accounts") && (
-  <motion.button
-    onClick={() => {
-      setShowDocNotifications((prev) => !prev);
-      setShowProfilePanel(false); // Close profile panel when opening document alerts
-    }}
-    className="w-full bg-white border border-gray-300 px-4 py-3 rounded-xl font-medium shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between mb-4"
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    data-doc-notifications-button
-  >
-    <div className="flex items-center gap-3">
-      <div className="text-xl">📋</div>
-      <span>Document Alerts</span>
-    </div>
-    {docNotifCount > 0 && (
-      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-        {docNotifCount}
-      </span>
-    )}
-  </motion.button>
-)}
-
-          {/* Follow-up Notifications */}
-          {followUps.length > 0 && (
-            <motion.div
-              className="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4 mb-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <h3 className="font-semibold text-amber-900 text-sm mb-2 flex items-center gap-2">
-                🔔 Follow-up Reminders ({followUps.length})
-              </h3>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {followUps.slice(0, 3).map((note, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 text-amber-800 text-xs"
-                  >
-                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                    <span className="flex-1 leading-tight">{note.message}</span>
-                  </div>
-                ))}
-                {followUps.length > 3 && (
-                  <p className="text-amber-600 text-xs text-center mt-2">
-                    +{followUps.length - 3} more reminders
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-         
+          </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </motion.div>
+  )}
+</AnimatePresence>
   </div>
 
 {/* Document Notifications Panel */}
@@ -618,9 +563,118 @@ useEffect(() => {
     <DocumentNotifications setDocNotifCount={setDocNotifCount} />
   </motion.div>
 )}
-      <ProductCustomerSearch />
+               <ProductCustomerSearch />
 
-      {/* Main Dashboard Content */}
+      <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
+{/* Document Alerts Button - Top Center */}
+{userRoles.includes("accounts") && docNotifCount > 0 && (
+  <div className="flex justify-center">
+    <motion.button
+      onClick={() => {
+        setShowDocNotifications((prev) => !prev);
+        setShowProfilePanel(false);
+      }}
+      className="bg-white border border-gray-300 px-4 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-between"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="text-xl">📋</div>
+        <span className="font-semibold text-xs">Document Alerts</span>
+      </div>
+      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-3">
+        {docNotifCount}
+      </span>
+    </motion.button>
+  </div>
+)}
+
+{/* Follow-up Reminders Button - Fixed Position */}
+{followUps.length > 0 && (
+  <motion.button
+    onClick={() => {
+      // Show follow-ups in a modal with links
+      const followUpContent = followUps.slice(0, 5).map((note, idx) => {
+        // Check if note has a link (e.g., sales order link)
+        let linkText = note.message;
+        let linkUrl = "#";
+        
+        // Extract link from message if available (you can customize this based on your notification structure)
+        if (note.link) {
+          linkUrl = note.link;
+        } else if (note.message?.includes("Sales Order")) {
+          // Example: Extract sales order ID from message
+          const orderMatch = note.message.match(/Sales Order\s*[:#]?\s*(\w+)/i);
+          if (orderMatch) {
+            linkUrl = `/orders/${orderMatch[1]}`;
+          }
+        }
+        
+        return `
+          <div class="flex items-start gap-2 mb-2 p-2 hover:bg-gray-50 rounded-lg">
+            <div class="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
+            <a href="${linkUrl}" class="flex-1 text-sm text-gray-700 hover:text-blue-600 hover:underline" 
+               onclick="event.preventDefault(); window.location.href='${linkUrl}'">
+              ${linkText}
+            </a>
+          </div>
+        `;
+      }).join('');
+
+      Swal.fire({
+        title: "🔔 Follow-up Reminders",
+        html: `
+          <div class="text-left max-h-60 overflow-y-auto">
+            <p class="mb-3 text-gray-600">You have <strong class="text-amber-600">${followUps.length}</strong> follow-up reminders:</p>
+            <div class="space-y-1">
+              ${followUpContent}
+            </div>
+            ${followUps.length > 5 ? 
+              `<p class="mt-3 text-sm text-gray-500 text-center">
+                +${followUps.length - 5} more reminders
+              </p>` : 
+              ''
+            }
+          </div>
+        `,
+        icon: "info",
+        confirmButtonText: "Close",
+        showCancelButton: true,
+        cancelButtonText: "View All Notifications",
+        confirmButtonColor: "#2563eb",
+        cancelButtonColor: "#6b7280",
+        background: "#f8fafc",
+        customClass: {
+          popup: "rounded-2xl",
+          confirmButton: "px-4 py-2",
+          cancelButton: "px-4 py-2"
+        },
+      }).then((result) => {
+        if (result.dismiss === Swal.DismissReason.cancel) {
+          navigate("/my-tasks"); // Or your notifications page
+        }
+      });
+    }}
+    className="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-between"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="flex items-center gap-3">
+      <div className="text-xl">🔔</div>
+      <span className="font-semibold text-xs text-amber-900">Follow-up Reminders</span>
+    </div>
+    <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-3">
+      {followUps.length}
+    </span>
+  </motion.button>
+)}
+</div>
+
+{/* Main Dashboard Content */}
 <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8 pt-20">       
    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
