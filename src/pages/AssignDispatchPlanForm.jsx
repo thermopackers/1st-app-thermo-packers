@@ -1547,7 +1547,7 @@ const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registere
     </thead>
       <tbody className="bg-white">
       {/* Add New Plan Row */}
-      {!userRoles.includes("dispatch") && !userRoles.includes("packaging") && (
+      {!userRoles.includes("packaging") && (
         <tr className="bg-blue-50 hover:bg-blue-100 transition-colors duration-150">
           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
             New
