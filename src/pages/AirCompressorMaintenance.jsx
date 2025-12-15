@@ -10,7 +10,9 @@ export default function AirCompressorMaintenance() {
   const [entries, setEntries] = useState([]);
 const [existingFiles, setExistingFiles] = useState([]); // existing uploaded files
 const [deletingFiles, setDeletingFiles] = useState({}); // Track deleting files by URL
+const [selectedCompressor, setSelectedCompressor] = useState(""); // Add this line
   const [formData, setFormData] = useState({
+      compressorName: "china-made-120-hp", // default value
     runningHours: "",
     foamCleaning: "No",
     currentConsumption: "",
@@ -37,8 +39,15 @@ const fetchLogs = async (pageNum = 1) => {
   try {
     setLoading(true);
     let url = `/air-compressors?page=${pageNum}&limit=${limit}`;
+    
+    // Add date filter if selected
     if (selectedDate) {
       url += `&date=${selectedDate}`;
+    }
+    
+    // Add compressor filter if selected
+    if (selectedCompressor) {
+      url += `&compressorName=${selectedCompressor}`;
     }
     
     const res = await axiosInstance.get(url);
@@ -53,7 +62,7 @@ const fetchLogs = async (pageNum = 1) => {
 
   useEffect(() => {
     fetchLogs(page);
-  }, [page,selectedDate]);
+  }, [page,selectedDate, selectedCompressor]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -85,6 +94,7 @@ const handleAddRow = async () => {
 
     fetchLogs(page);
     setFormData({
+        compressorName: "china-made-120-hp", // Reset to default
       runningHours: "",
       foamCleaning: "No",
       currentConsumption: "",
@@ -105,6 +115,7 @@ const handleAddRow = async () => {
 const startEditing = (entry) => {
   setEditingId(entry._id);
   setEditFormData({
+        compressorName: entry.compressorName,
     runningHours: entry.runningHours,
     foamCleaning: entry.foamCleaning,
     currentConsumption: entry.currentConsumption,
@@ -125,8 +136,8 @@ const cancelEditing = () => {
 };
 
 const saveEdit = async (id) => {
-  if (!editFormData.runningHours || !editFormData.currentConsumption) {
-    alert("Please fill all required fields");
+  if (!editFormData.compressorName || !editFormData.runningHours || !editFormData.currentConsumption) {
+    alert("Please fill all required fields including Compressor Name");
     return;
   }
 
@@ -202,39 +213,94 @@ const formatDate = (dateString) => {
         <h1 className="text-3xl font-bold text-center text-blue-800 mb-8">
           Air Compressor Maintenance Log Book
         </h1>
+          {/* IMPORTANT NOTICE MESSAGE - VIVID VERSION */}
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 border-4 border-yellow-300 text-white p-6 mb-6 shadow-2xl rounded-lg transform hover:scale-105 transition-all duration-500">
+          <div className="flex items-center justify-center">
+            <div className="flex-shrink-0 mr-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-extrabold tracking-wide uppercase drop-shadow-lg">
+                ⚠️ IMPORTANT NOTICE ⚠️
+              </p>
+              <p className="text-lg font-bold mt-2 drop-shadow-md">
+                Cleaning of Compressor on Every Sunday.
+              </p>
+              <p className="text-sm font-semibold mt-1 opacity-90">
+                Please ensure compliance with maintenance schedule
+              </p>
+            </div>
+            <div className="flex-shrink-0 ml-4">
+              <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20" style={{animationDelay: '0.2s'}}>
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </div>
 {/* Add this above the table */}
-<div className="mb-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-  <h1 className="text-3xl font-bold text-blue-800">
-    Air Compressor Maintenance Log Book
-  </h1>
-  
-  <div className="flex items-center gap-2">
-    <label htmlFor="dateFilter" className="text-sm font-medium text-gray-700">
-      Filter by Date:
-    </label>
-    <input
-      type="date"
-      id="dateFilter"
-      value={selectedDate}
-      onChange={(e) => setSelectedDate(e.target.value)}
-      className="border rounded p-2 text-sm"
-    />
-    <button
-      onClick={() => {
-        setSelectedDate("");
-        setPage(1);
-        fetchLogs(1);
-      }}
-      className="px-3 py-2 bg-gray-300 hover:bg-gray-400 rounded text-sm"
-    >
-      Clear
-    </button>
+<div className="mb-4">
+  {/* Filters container */}
+  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Date Filter */}
+      <div className="flex flex-col">
+        <label htmlFor="dateFilter" className="text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          Filter by Date:
+        </label>
+        <input
+          type="date"
+          id="dateFilter"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="border rounded p-2 text-sm w-full"
+        />
+      </div>
+      
+      {/* Compressor Filter */}
+      <div className="flex flex-col">
+        <label htmlFor="compressorFilter" className="text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          Filter by Compressor:
+        </label>
+        <select
+          id="compressorFilter"
+          value={selectedCompressor}
+          onChange={(e) => setSelectedCompressor(e.target.value)}
+          className="border rounded p-2 text-sm w-full"
+        >
+          <option value="">All Compressors</option>
+          <option value="china-made-120-hp">China Made - 120 HP</option>
+          <option value="china-made-30-hp">China Made - 30 HP</option>
+          <option value="cp-60-hp">CP - 60 HP</option>
+        </select>
+      </div>
+      
+      {/* Clear Button - on mobile it spans full width, on desktop it's inline */}
+      <div className="flex flex-col sm:col-span-1 lg:col-span-2">
+        <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 invisible sm:visible">
+          &nbsp;
+        </label>
+        <button
+          onClick={() => {
+            setSelectedDate("");
+            setSelectedCompressor("");
+            setPage(1);
+            fetchLogs(1);
+          }}
+          className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded text-sm w-full sm:w-auto"
+        >
+          Clear All Filters
+        </button>
+      </div>
+    </div>
   </div>
 </div>
         <div className="overflow-x-auto bg-white shadow-lg rounded-2xl p-4">
           <table className="min-w-full border border-slate-300 text-sm text-center">
             <thead className="bg-blue-600 text-white">
               <tr>
+                  <th className="border px-3 py-2">Air Compressor</th>
                 <th className="border px-3 py-2">Date</th>
                 <th className="border px-3 py-2">Compressor Running Hours (Dont mention Loading Hours, Mention Running Hours)</th>
                 <th className="border px-3 py-2">Compressor Suction Foam Cleaning Done (Yes/No)</th>
@@ -252,6 +318,24 @@ const formatDate = (dateString) => {
                 const isEditing = editingId === entry._id;
                 return (
                   <tr key={entry._id || i} className="border-b">
+                  <td className="border px-3 py-2">
+  {isEditing ? (
+    <select
+      name="compressorName"
+      value={editFormData.compressorName}
+      onChange={handleEditChange}
+      className="w-full border rounded p-1"
+    >
+      <option value="china-made-120-hp">China Made - 120 HP</option>
+      <option value="china-made-30-hp">China Made - 30 HP</option>
+      <option value="cp-60-hp">CP - 60 HP</option>
+    </select>
+  ) : (
+    entry.compressorName === "china-made-120-hp" ? "China Made - 120 HP" :
+    entry.compressorName === "china-made-30-hp" ? "China Made - 30 HP" :
+    entry.compressorName === "cp-60-hp" ? "CP - 60 HP" : entry.compressorName
+  )}
+</td>
 <td className="border px-3 py-2">
   {formatDate(entry.date)}
 </td>                   
@@ -459,9 +543,21 @@ const formatDate = (dateString) => {
 
               {/* Input Row for new entry */}
               <tr className="bg-slate-50">
-                <td className="border px-3 py-2 font-medium text-blue-700">
-                  {new Date().toLocaleDateString()}
-                </td>
+               <td className="border px-3 py-2">
+  <select
+    name="compressorName"
+    value={formData.compressorName}
+    onChange={handleChange}
+    className="w-full border rounded p-1"
+  >
+    <option value="china-made-120-hp">China Made - 120 HP</option>
+    <option value="china-made-30-hp">China Made - 30 HP</option>
+    <option value="cp-60-hp">CP - 60 HP</option>
+  </select>
+</td>
+<td className="border px-3 py-2 font-medium text-blue-700">
+  {new Date().toLocaleDateString()}
+</td>
                 <td className="border px-3 py-2">
                   <input
                     type="number"
