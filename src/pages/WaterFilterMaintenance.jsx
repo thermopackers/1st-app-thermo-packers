@@ -317,6 +317,9 @@ export default function WaterFilterMaintenance() {
               <p className="text-sm font-semibold mt-1 opacity-90">
                 Please ensure compliance with maintenance schedule
               </p>
+              <p className="text-sm font-semibold mt-1 opacity-90">
+                After each 15 days, cleaning of the Tanks should be done.
+              </p>
             </div>
             <div className="flex-shrink-0 ml-4">
               <svg className="h-8 w-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20" style={{animationDelay: '0.2s'}}>
