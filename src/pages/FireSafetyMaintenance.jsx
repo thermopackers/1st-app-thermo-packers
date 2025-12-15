@@ -1265,7 +1265,7 @@ function WaterHydrantDailyReport() {
   );
 }
 
-// Fire Extinguisher Weekly Report Component - UPDATED WITH 45L AND 50L OPTIONS
+// Fire Extinguisher Weekly Report Component - WITH IMAGES
 function FireExtinguisherWeeklyReport() {
   const [fireExtinguishers, setFireExtinguishers] = useState(
     Array.from({ length: 21 }, (_, i) => ({
@@ -1292,6 +1292,51 @@ function FireExtinguisherWeeklyReport() {
   
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ date: "", extinguishers: [] });
+
+  // Fire Extinguisher Images Mapping
+  const fireExtinguisherImages = {
+    'FE1': '/images/fe1.jpg',
+    'FE2': '/images/fe2.jpg',
+    'FE3': '/images/fe3.jpg',
+    'FE4': '/images/fe4.jpg',
+    'FE5': '/images/fe5.jpg',
+    'FE6': '/images/fe6.jpg',
+    'FE7': '/images/fe7.jpg',
+    'FE8': '/images/fe8.jpg',
+    'FE9': '/images/fe9.jpg',
+    'FE10': '/images/fe10.jpg',
+    'FE11': '/images/fe11.jpg',
+    'FE12': '/images/fe12.jpg',
+    'FE13': '/images/fe13.jpg',
+    'FE14': '/images/fe14.jpg',
+    'FE15': '/images/fe15.jpg',
+    'FE16': '/images/fe16.jpg',
+    'FE17': '/images/fe17.jpg',
+    'FE18': '/images/fe18.jpg',
+    'FE19': '/images/fe19.jpg',
+    'FE20': '/images/fe20.jpg',
+    'FE21': '/images/fe21.jpg'
+  };
+
+  // Function to open image in modal
+  const openImageModal = (imageUrl, extinguisherCode) => {
+    Swal.fire({ 
+      imageUrl: imageUrl, 
+      imageAlt: `${extinguisherCode} Image`,
+      showCloseButton: true, 
+      showConfirmButton: false,
+      width: '80%',
+      padding: '2rem',
+      background: '#f8fafc',
+      imageHeight: 'auto',
+      imageWidth: '80%',
+      customClass: {
+        popup: 'extinguisher-modal',
+        image: 'extinguisher-modal-image',
+        closeButton: 'extinguisher-modal-close'
+      }
+    });
+  };
 
   // Fetch logs with pagination
   const fetchLogs = async (pageNum = 1, dateFilter = "") => {
@@ -1630,8 +1675,31 @@ function FireExtinguisherWeeklyReport() {
             <tbody>
               {fireExtinguishers.map((ext) => (
                 <tr key={ext.id} className="hover:bg-gray-50 bg-white">
-                  <td className="border px-3 py-2 font-semibold">
-                    {ext.code}
+                  <td className="border px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
+                        onClick={() => openImageModal(fireExtinguisherImages[ext.code], ext.code)}
+                        title={`View ${ext.code} image`}
+                      >
+                        <img 
+                          src={fireExtinguisherImages[ext.code]}
+                          alt={`${ext.code} Image`}
+                          className="w-10 h-10 object-cover rounded border shadow-sm"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="hidden w-10 h-10 bg-gradient-to-br from-red-100 to-red-200 rounded items-center justify-center text-red-700 text-xs font-semibold border shadow-sm">
+                          {ext.code}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">{ext.code}</div>
+                        <div className="text-xs text-gray-500">Fire Extinguisher</div>
+                      </div>
+                    </div>
                   </td>
                   
                   <td className="border px-3 py-2">
@@ -1805,8 +1873,31 @@ function FireExtinguisherWeeklyReport() {
                       <tbody>
                         {entry.extinguishers.map((ext, index) => (
                           <tr key={index} className="hover:bg-gray-50">
-                            <td className="border px-3 py-2 font-semibold">
-                              {ext.code}
+                            <td className="border px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
+                                  onClick={() => openImageModal(fireExtinguisherImages[ext.code], ext.code)}
+                                  title={`View ${ext.code} image`}
+                                >
+                                  <img 
+                                    src={fireExtinguisherImages[ext.code]}
+                                    alt={`${ext.code} Image`}
+                                    className="w-10 h-10 object-cover rounded border shadow-sm"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="hidden w-10 h-10 bg-gradient-to-br from-red-100 to-red-200 rounded items-center justify-center text-red-700 text-xs font-semibold border shadow-sm">
+                                    {ext.code}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-gray-800">{ext.code}</div>
+                                  <div className="text-xs text-gray-500">Fire Extinguisher</div>
+                                </div>
+                              </div>
                             </td>
                             <td className="border px-3 py-2">
                               {ext.type}

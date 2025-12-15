@@ -65,6 +65,7 @@ const [formData, setFormData] = useState({
     location: "", // ✅ NEW: Add location field
       dieselLiters: "", // ✅ NEW: Diesel in liters
   expenses: "", // ✅ NEW: Expenses field
+    isManualVehicle: false, // ✅ NEW: Track if vehicle is manually entered
   dateOfTrip: (() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -381,6 +382,7 @@ const handleTableSubmit = async () => {
       customerNames: customerNames.filter(name => name.trim()), // Remove empty customer names
         salesProducts: salesProducts.filter(product => product.trim()), // ✅ NEW: Add sales products
       dateOfTrip,
+        isManualVehicle: formData.isManualVehicle, // ✅ Add this line
     };
 
     console.log("Submitting payload:", payload); // Debug log
@@ -696,7 +698,11 @@ const handleDelete = async (planId) => {
 // Enhanced Editable Plan Row Component with Document Uploads
 const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editablePlan, setEditablePlan] = useState(plan);
+const [editablePlan, setEditablePlan] = useState({
+  ...plan,
+  // Check if this is a manual vehicle (not found in registered vehicles)
+  isManualVehicle: !registeredVehicles.find(v => v.vehicleNumber === plan.vehicleNumber)
+});
   const [updating, setUpdating] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -829,7 +835,8 @@ const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registere
       const updateData = {
         ...editablePlan,
         audioUrl: documents.audioUrl,
-        attachmentUrls: documents.attachmentUrls
+        attachmentUrls: documents.attachmentUrls,
+          isManualVehicle: editablePlan.isManualVehicle // ✅ Add this
       };
 
       await axiosInstance.patch(`/dispatch-plans/${plan._id}`, updateData, {
@@ -852,8 +859,11 @@ const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registere
   };
 
   const handleCancel = () => {
-    setEditablePlan(plan);
-    setIsEditing(false);
+  setEditablePlan({
+    ...plan,
+    isManualVehicle: !registeredVehicles.find(v => v.vehicleNumber === plan.vehicleNumber)
+  });
+      setIsEditing(false);
     setAudioBlob(null);
     setAudioUrl(null);
     setAttachments([]);
@@ -881,41 +891,107 @@ const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registere
         )}
       </td>
 
-      {/* Vehicle - Editable */}
-      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-        {isEditing ? (
-          <select
-            value={editablePlan.vehicleNumber}
-            onChange={(e) => setEditablePlan(prev => ({ ...prev, vehicleNumber: e.target.value }))}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">Select Vehicle</option>
-            {registeredVehicles.map((v) => (
-              <option key={v._id} value={v.vehicleNumber}>
-                {v.vehicleNumber}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <div className="flex items-center gap-2">
-            {plan.vehicleNumber}
-            {plan.gpsLink && (
-              <a
-                href={plan.gpsLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700"
-                title="Track Vehicle"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </a>
-            )}
+    {/* Vehicle - Editable */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  {isEditing ? (
+    <div className="relative">
+      {/* Combobox for vehicle selection */}
+      <div className="flex gap-1">
+        <select
+          value={editablePlan.vehicleNumber}
+          onChange={(e) => {
+            if (e.target.value === "manual") {
+              // Show manual input
+              setEditablePlan(prev => ({ 
+                ...prev, 
+                vehicleNumber: "",
+                isManualVehicle: true 
+              }));
+            } else {
+              setEditablePlan(prev => ({ 
+                ...prev, 
+                vehicleNumber: e.target.value,
+                isManualVehicle: false 
+              }));
+            }
+          }}
+          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="">Select Vehicle</option>
+          {registeredVehicles.map((v) => (
+            <option key={v._id} value={v.vehicleNumber}>
+              {v.vehicleNumber}
+            </option>
+          ))}
+          <option value="manual" className="text-blue-600 font-medium">
+            + Add New Vehicle Manually
+          </option>
+        </select>
+      </div>
+      
+      {/* Manual input field (shown when "Add New Vehicle Manually" is selected OR when editing a manual vehicle) */}
+      {(editablePlan.isManualVehicle || (!registeredVehicles.find(v => v.vehicleNumber === editablePlan.vehicleNumber) && editablePlan.vehicleNumber)) && (
+        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-yellow-600 text-sm font-medium">⚠️ Manual Vehicle Entry</span>
           </div>
+          <input
+            type="text"
+            value={editablePlan.vehicleNumber}
+            onChange={(e) => {
+              let value = e.target.value.toUpperCase();
+              
+              // Format the vehicle number as user types
+              let cleanValue = value.replace(/\s/g, '');
+              let formattedValue = cleanValue;
+              
+              if (cleanValue.length > 4) {
+                formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4, 6) + ' ' + cleanValue.slice(6, 10);
+              } else if (cleanValue.length > 2) {
+                formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4);
+              }
+              
+              formattedValue = formattedValue.trim();
+              
+              setEditablePlan(prev => ({ ...prev, vehicleNumber: formattedValue, isManualVehicle: true }));
+            }}
+            placeholder="Enter vehicle number (e.g., PB08 EL 9364)"
+            className="w-full px-2 py-1 border border-yellow-300 rounded text-sm focus:ring-1 focus:ring-yellow-500"
+            autoFocus={editablePlan.isManualVehicle}
+          />
+          <p className="text-xs text-yellow-600 mt-1">
+            This vehicle is not registered in the system. It will be used for this dispatch only.
+          </p>
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <div>
+        {plan.vehicleNumber}
+        {plan.isManualVehicle && (
+          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            Manual
+          </span>
         )}
-      </td>
+      </div>
+      {plan.gpsLink && (
+        <a
+          href={plan.gpsLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-700"
+          title="Track Vehicle"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </a>
+      )}
+    </div>
+  )}
+</td>
 
       {/* Driver - Editable */}
       <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
@@ -1561,24 +1637,83 @@ const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registere
               required
             />
           </td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-            <select
-              value={formData.vehicleNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, vehicleNumber: e.target.value }))}
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-              disabled={user.role === "driver"}
-              required
-            >
-              <option value="">Select Vehicle</option>
-              {registeredVehicles
-                .filter((v) => user.role === "driver" ? v.driverEmail === user.email : true)
-                .map((v) => (
-                  <option key={v._id} value={v.vehicleNumber}>
-                    {v.vehicleNumber}
-                  </option>
-                ))}
-            </select>
-          </td>
+         <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  <div className="relative">
+    {/* Combobox for vehicle selection */}
+    <div className="flex gap-1">
+      <select
+        value={formData.vehicleNumber}
+        onChange={(e) => {
+          if (e.target.value === "manual") {
+            // Show manual input
+            setFormData(prev => ({ 
+              ...prev, 
+              vehicleNumber: "",
+              isManualVehicle: true 
+            }));
+          } else {
+            setFormData(prev => ({ 
+              ...prev, 
+              vehicleNumber: e.target.value,
+              isManualVehicle: false 
+            }));
+          }
+        }}
+        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+        disabled={user.role === "driver"}
+        required
+      >
+        <option value="">Select Vehicle</option>
+        {registeredVehicles
+          .filter((v) => user.role === "driver" ? v.driverEmail === user.email : true)
+          .map((v) => (
+            <option key={v._id} value={v.vehicleNumber}>
+              {v.vehicleNumber}
+            </option>
+          ))}
+        <option value="manual" className="text-blue-600 font-medium">
+          + Add New Vehicle Manually
+        </option>
+      </select>
+    </div>
+    
+    {/* Manual input field (shown when "Add New Vehicle Manually" is selected) */}
+    {formData.isManualVehicle && (
+      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-yellow-600 text-sm font-medium">⚠️ Manual Vehicle Entry</span>
+        </div>
+        <input
+          type="text"
+          value={formData.vehicleNumber}
+          onChange={(e) => {
+            let value = e.target.value.toUpperCase();
+            
+            // Format the vehicle number as user types
+            let cleanValue = value.replace(/\s/g, '');
+            let formattedValue = cleanValue;
+            
+            if (cleanValue.length > 4) {
+              formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4, 6) + ' ' + cleanValue.slice(6, 10);
+            } else if (cleanValue.length > 2) {
+              formattedValue = cleanValue.slice(0, 4) + ' ' + cleanValue.slice(4);
+            }
+            
+            formattedValue = formattedValue.trim();
+            
+            setFormData(prev => ({ ...prev, vehicleNumber: formattedValue }));
+          }}
+          placeholder="Enter vehicle number (e.g., PB08 EL 9364)"
+          className="w-full px-2 py-1 border border-yellow-300 rounded text-sm focus:ring-1 focus:ring-yellow-500"
+          autoFocus
+        />
+        <p className="text-xs text-yellow-600 mt-1">
+          This vehicle is not registered in the system. It will be used for this dispatch only.
+        </p>
+      </div>
+    )}
+  </div>
+</td>
           <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
             <input
               type="text"

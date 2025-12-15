@@ -433,9 +433,9 @@ const earthingImages = {
     E18: '/images/plate18.jpg'
   },
   unit3: {
-    E1: '/images/earthings/unit3/E1.jpg',
-    E2: '/images/earthings/unit3/E2.jpg',
-    E3: '/images/earthings/unit3/E3.jpg'
+    E1: '/images/unit3E1.jpg',
+    E2: '/images/unit3E2.jpg',
+    E3: '/images/unit3E3.jpg'
   }
 };
 
