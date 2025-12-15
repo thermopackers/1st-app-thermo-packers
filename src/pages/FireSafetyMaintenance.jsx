@@ -1265,7 +1265,7 @@ function WaterHydrantDailyReport() {
   );
 }
 
-// Fire Extinguisher Weekly Report Component
+// Fire Extinguisher Weekly Report Component - UPDATED WITH 45L AND 50L OPTIONS
 function FireExtinguisherWeeklyReport() {
   const [fireExtinguishers, setFireExtinguishers] = useState(
     Array.from({ length: 21 }, (_, i) => ({
@@ -1329,7 +1329,7 @@ function FireExtinguisherWeeklyReport() {
           id: Math.random().toString(36).substr(2, 9),
           code: ext.code,
           type: ext.type,
-          weight: ext.weight,
+          weight: ext.weight || "45", // Default to 45L for Water Foam if not specified
           pressureGauge: ext.pressureGauge,
           exactPressure: ext.exactPressure || "",
           weightKg: ext.weightKg || "",
@@ -1419,7 +1419,7 @@ function FireExtinguisherWeeklyReport() {
               updatedExt.exactPressure = '';
               updatedExt.weightKg = '';
             } else if (value === 'Water Foam') {
-              updatedExt.weight = '45';
+              updatedExt.weight = '45'; // Default to 45L
               updatedExt.exactPressure = '';
               updatedExt.weightKg = '';
             }
@@ -1483,7 +1483,7 @@ function FireExtinguisherWeeklyReport() {
       id: Math.random().toString(36).substr(2, 9),
       code: ext.code,
       type: ext.type,
-      weight: ext.weight,
+      weight: ext.weight || (ext.type === 'Water Foam' ? '45' : (ext.type === 'ABC' ? '6' : '4.5')),
       pressureGauge: ext.pressureGauge,
       exactPressure: ext.exactPressure || "",
       weightKg: ext.weightKg || "",
@@ -1543,11 +1543,11 @@ function FireExtinguisherWeeklyReport() {
     fetchLogs(newPage);
   };
 
-  // Get weight display text
+  // Get weight display text - UPDATED FOR WATER FOAM
   const getWeightDisplay = (ext) => {
     if (ext.type === "ABC") return `${ext.weight} kg`;
     if (ext.type === "Co2") return "4.5 kg";
-    if (ext.type === "Water Foam") return "45 ltr";
+    if (ext.type === "Water Foam") return `${ext.weight} ltr`;
     return "";
   };
 
@@ -1645,6 +1645,7 @@ function FireExtinguisherWeeklyReport() {
                       <option value="Water Foam">Water Foam</option>
                     </select>
                     
+                    {/* ABC Type - Weight Selection */}
                     {ext.type === "ABC" && (
                       <select
                         value={ext.weight}
@@ -1654,6 +1655,25 @@ function FireExtinguisherWeeklyReport() {
                         <option value="6">6 kg</option>
                         <option value="9">9 kg</option>
                       </select>
+                    )}
+                    
+                    {/* Water Foam Type - Weight Selection (45L or 50L) */}
+                    {ext.type === "Water Foam" && (
+                      <select
+                        value={ext.weight}
+                        onChange={(e) => handleExtinguisherChange(ext.id, 'weight', e.target.value)}
+                        className="w-full border rounded p-1 mt-1"
+                      >
+                        <option value="45">45 liter</option>
+                        <option value="50">50 liter</option>
+                      </select>
+                    )}
+                    
+                    {/* Co2 Type - No weight selection (fixed 4.5 kg) */}
+                    {ext.type === "Co2" && (
+                      <div className="text-xs text-gray-500 text-center mt-1">
+                        4.5 kg (fixed)
+                      </div>
                     )}
                   </td>
                   
@@ -1794,7 +1814,7 @@ function FireExtinguisherWeeklyReport() {
                             <td className="border px-3 py-2 text-center">
                               {ext.type === "ABC" && `${ext.weight} kg`}
                               {ext.type === "Co2" && "4.5 kg"}
-                              {ext.type === "Water Foam" && "45 ltr"}
+                              {ext.type === "Water Foam" && `${ext.weight} ltr`}
                             </td>
                             <td className="border px-3 py-2">
                               <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
