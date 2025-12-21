@@ -49,6 +49,25 @@ const parseUserRoles = (user) => {
   const [salesUsers, setSalesUsers] = useState([]);
 const [selectedSalesId, setSelectedSalesId] = useState("");
 const [productFilter, setProductFilter] = useState("");
+const [hasDiwaliGift, setHasDiwaliGift] = useState(""); // "yes", "no", or ""
+const [giftProducts, setGiftProducts] = useState([]); // Add this state
+const [selectedGift, setSelectedGift] = useState(""); // Change from hasDiwaliGift
+
+// Add this useEffect to fetch gift products
+useEffect(() => {
+  const fetchGiftProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/purchase-products/purchase-products-all", {
+        params: { isGiftItem: true }
+      });
+      setGiftProducts(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch gift products", err);
+    }
+  };
+
+  fetchGiftProducts();
+}, []);
 
 useEffect(() => {
   const fetchSalesUsers = async () => {
@@ -81,7 +100,8 @@ const fetchCustomers = async () => {
         createdBy: selectedSalesId, 
         page, 
         limit: 10,
-        product: productFromUrl // Use the URL parameter
+        product: productFromUrl,
+        giftType: selectedGift // ✅ Change from hasDiwaliGift to giftType
       },
     });
     
@@ -118,7 +138,7 @@ const fetchCustomers = async () => {
 
 useEffect(() => {
   fetchCustomers();
-}, [search, addedBySearch, selectedSalesId, page, window.location.search]); // Add window.location.search as dependency
+}, [search, addedBySearch, selectedSalesId, page, window.location.search, selectedGift]); // Add window.location.search as dependency
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this customer?")) return;
@@ -141,8 +161,9 @@ const exportToExcel = async () => {
       params: { 
         search, 
         addedBy: addedBySearch, 
-        createdBy: selectedSalesId 
-      },
+        createdBy: selectedSalesId,
+  giftType: selectedGift // ✅ Change to giftType
+        },
     });
 
     if (res.data.success && res.data.data.length > 0) {
@@ -230,6 +251,32 @@ const exportToExcel = async () => {
 </select>
 )}
 
+{/* Gift Type Filter */}
+<div className="mb-4">
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Filter by Gift Type:
+  </label>
+  <select
+    value={selectedGift}
+    onChange={(e) => {
+      setSelectedGift(e.target.value);
+      setPage(1);
+    }}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  >
+    <option value="">All Customers</option>
+    <option value="all_gifts">Has Any Diwali Gift</option>
+    <option value="no_gifts">No Diwali Gifts</option>
+    <optgroup label="Specific Gift Types">
+      {giftProducts.map((gift) => (
+        <option key={gift._id} value={gift._id}>
+          {gift.name} ({gift.stock || 0} in stock)
+        </option>
+      ))}
+    </optgroup>
+  </select>
+</div>
+
 {/* Add this button after the search inputs */}
 <div className="flex justify-between items-center mb-4">
   <div className="flex-1"></div>
@@ -258,6 +305,7 @@ const exportToExcel = async () => {
                 <th className="p-3 border">Name</th>
                 <th className="p-3 border">GST No.</th>
                     <th className="p-3 border">Frequently Bought Products</th> {/* NEW COLUMN */}
+                        <th className="p-3 border">Gifts Received</th>
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
@@ -300,6 +348,25 @@ const exportToExcel = async () => {
         <span className="text-gray-400">—</span>
       )}
     </td>
+    <td className="p-3 border">
+  {c.giftHistory && c.giftHistory.length > 0 ? (
+    <div className="max-w-[150px]">
+      <div className="text-sm text-gray-700">
+        Total: {c.giftHistory.length} Diwali gifts
+      </div>
+<button
+  onClick={() => {
+    navigate(`/customers/edit/${c._id}#gifts`);
+  }}
+  className="text-blue-600 hover:underline text-sm mt-1"
+>
+  View Details
+</button>
+    </div>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
                   <td className="p-3 border">{c.phone}</td>
                   <td className="p-3 border">{c.email}</td>
                   <td className="p-3 border whitespace-pre-line">{c.address}</td>

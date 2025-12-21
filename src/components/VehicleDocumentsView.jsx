@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 
 const DOCUMENT_TYPES = {
   insurance_renewal: 'Insurance Renewal',
-  registration_tax_renewal: 'Registration Tax Renewal',
+  rto_tax_receipt_renewal: 'RTO Tax Receipt(Renewal)',
   pollution_renewal: 'Pollution Renewal',
   fitness_renewal: 'Fitness Renewal',
   all_india_permit_renewal: 'All India Permit Renewal',

@@ -27,7 +27,8 @@ import {
   ArrowRight,
   Filter,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Gift // Add Gift icon
 } from "lucide-react";
 
 export default function AllPurchaseProducts() {
@@ -42,6 +43,7 @@ export default function AllPurchaseProducts() {
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [filterType, setFilterType] = useState("all"); // "all", "gifts", "products"
   const detailRef = useRef(null);
   const navigate = useNavigate();
 
@@ -71,7 +73,7 @@ export default function AllPurchaseProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, [page, query]);
+  }, [page, query, filterType]); // Add filterType to dependencies
 
   useEffect(() => {
     if (selectedSupplier && detailRef.current) {
@@ -94,7 +96,16 @@ export default function AllPurchaseProducts() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`/purchase-products?page=${page}&limit=10&search=${query}`);
+      let apiUrl = `/purchase-products?page=${page}&limit=10&search=${query}`;
+      
+      // Add filter parameter based on filterType
+      if (filterType === "gifts") {
+        apiUrl += "&isGiftItem=true";
+      } else if (filterType === "products") {
+        apiUrl += "&isGiftItem=false";
+      }
+      
+      const res = await axiosInstance.get(apiUrl);
       setProducts(res.data.data);
       setTotalPages(res.data.totalPages);
       setTotalProducts(res.data.total || res.data.data.length);
@@ -171,6 +182,17 @@ export default function AllPurchaseProducts() {
     }
   };
 
+  // Function to get gift category badge color
+  const getGiftCategoryColor = (category) => {
+    switch(category) {
+      case "Diwali": return "bg-orange-100 text-orange-800 border-orange-200";
+      case "New Year": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Festival": return "bg-purple-100 text-purple-800 border-purple-200";
+      case "General": return "bg-gray-100 text-gray-800 border-gray-200";
+      default: return "bg-green-100 text-green-800 border-green-200";
+    }
+  };
+
   return (
     <>
       <InternalNavbar />
@@ -221,11 +243,52 @@ export default function AllPurchaseProducts() {
                 />
               </div>
 
-              {/* Stats */}
-              <div className="flex items-center gap-4">
-                <div className="bg-blue-50 rounded-xl px-4 py-2 border border-blue-200">
-                  <p className="text-sm text-blue-600 font-medium">Total Products</p>
-                  <p className="text-2xl font-bold text-blue-700">{totalProducts}</p>
+              {/* Stats and Filter */}
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                {/* Filter Buttons */}
+                <div className="flex items-center gap-2">
+                  <Filter size={20} className="text-gray-500" />
+                  <div className="flex bg-gray-100 rounded-xl p-1">
+                    <button
+                      onClick={() => setFilterType("all")}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                        filterType === "all" 
+                          ? "bg-white text-blue-600 shadow-sm" 
+                          : "text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilterType("products")}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                        filterType === "products" 
+                          ? "bg-white text-green-600 shadow-sm" 
+                          : "text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      Products
+                    </button>
+                    <button
+                      onClick={() => setFilterType("gifts")}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                        filterType === "gifts" 
+                          ? "bg-white text-purple-600 shadow-sm" 
+                          : "text-gray-600 hover:text-gray-800"
+                      }`}
+                    >
+                      <Gift size={16} className="inline mr-1" />
+                      Gifts
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-50 rounded-xl px-4 py-2 border border-blue-200">
+                    <p className="text-sm text-blue-600 font-medium">Total {filterType === "gifts" ? "Gifts" : filterType === "products" ? "Products" : "Items"}</p>
+                    <p className="text-2xl font-bold text-blue-700">{totalProducts}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -234,10 +297,14 @@ export default function AllPurchaseProducts() {
           {/* Products Table/Cards */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+            <div className={`px-6 py-4 ${
+              filterType === "gifts" 
+                ? "bg-gradient-to-r from-purple-600 to-pink-600" 
+                : "bg-gradient-to-r from-blue-600 to-purple-600"
+            }`}>
               <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                <Package size={24} />
-                Products ({products.length})
+                {filterType === "gifts" ? <Gift size={24} /> : <Package size={24} />}
+                {filterType === "gifts" ? "Gift Items" : filterType === "products" ? "Products" : "All Items"} ({products.length})
               </h2>
             </div>
 
@@ -263,74 +330,107 @@ export default function AllPurchaseProducts() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {products.map((prod) => (
-                      <tr key={prod._id} className={`hover:bg-gray-50 transition-colors duration-150 ${prod.stock < 10 ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
+                      <tr key={prod._id} className={`hover:bg-gray-50 transition-colors duration-150 ${
+                        prod.stock < 10 ? 'bg-red-50 border-l-4 border-l-red-500' : ''
+                      } ${prod.isGiftItem ? 'bg-purple-50/50' : ''}`}>
                         
                         {/* Product Details */}
                         <td className="py-4 px-6">
                           <div className="space-y-2">
-                            <h3 className="font-semibold text-gray-800 text-lg">{prod.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-800 text-lg">{prod.name}</h3>
+                              {prod.isGiftItem && (
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getGiftCategoryColor(prod.giftCategory)}`}>
+                                  🎁 {prod.giftCategory || "Gift"}
+                                </span>
+                              )}
+                            </div>
+                            {!prod.isGiftItem && prod.unit && (
                             <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>Unit:</span>
+                              <span>Unit:</span>
                               <span>{prod.unit}</span>
-                            </div>
-                            <div 
-                              className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 flex items-center gap-1 text-sm font-medium"
-                              onClick={() => handleCategoryClick(prod.category?.name)}
-                            >
-                          <span>Category:</span>
-                              {prod.category?.name || "—"}
-                            </div>
+                            </div>)}
+                            {!prod.isGiftItem &&  prod.category?.name && (
+                              <div 
+                                className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 flex items-center gap-1 text-sm font-medium"
+                                onClick={() => handleCategoryClick(prod.category?.name)}
+                              >
+                                <span>Category:</span>
+                                {prod.category?.name || "—"}
+                              </div>
+                            )}
                             {prod.description && (
                               <p className="text-sm text-gray-600 line-clamp-2">
                                 {prod.description}
                               </p>
                             )}
-                            {prod.comment && (
+                            {!prod.isGiftItem && prod.comment && (
                               <p className="text-sm text-gray-500 italic line-clamp-2">
                                 {prod.comment}
                               </p>
+                            )}
+                            {/* Show gift specific info */}
+                            {prod.isGiftItem && prod.initialQuantity && (
+                              <div className="text-sm text-gray-600">
+                                <span className="font-medium">Initial Quantity: </span>
+                                {prod.initialQuantity}
+                              </div>
                             )}
                           </div>
                         </td>
 
                         {/* Tax & Pricing */}
-                        <td className="py-4 px-6">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                          <span>HSN:</span>
-                              <span className="text-sm font-medium text-gray-700">
-                                {prod.hsnCode || "—"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                          <span>GST:</span>
-                              <span className="text-sm font-medium text-gray-700">
-                                {prod.gstPercent || "—"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                          <span>price:</span>
-                              <span className="text-sm font-bold text-green-600">
-                                ₹{prod.price}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+                       <td className="py-4 px-6">
+  {!prod.isGiftItem ? (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span>HSN:</span>
+        <span className="text-sm font-medium text-gray-700">
+          {prod.hsnCode || "—"}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span>GST:</span>
+        <span className="text-sm font-medium text-gray-700">
+          {prod.gstPercent || "—"}%
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span>Price:</span>
+        <span className="text-sm font-bold text-green-600">
+          ₹{prod.price || "—"}
+        </span>
+      </div>
+    </div>
+  ) : (
+    // Show gift-specific information or empty state for gifts
+    <div className="text-gray-400 italic text-sm">
+      Gift Item - No tax info
+    </div>
+  )}
+</td>
 
                         {/* Stock */}
                         <td className="py-4 px-6">
-  <div className="flex flex-col gap-1">
-    <span className="text-xs text-gray-500 font-medium">Stock in Hand</span>
-    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
-      prod.stock < 10 
-        ? "bg-red-100 text-red-700" 
-        : "bg-green-100 text-green-700"
-    }`}>
-      {prod.stock < 10 && <AlertTriangle size={14} />}
-      {prod.stock || 0} {prod.unit}
-    </div>
-  </div>
-</td>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-gray-500 font-medium">Stock in Hand</span>
+                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+                              prod.stock < 10 
+                                ? "bg-red-100 text-red-700" 
+                                : "bg-green-100 text-green-700"
+                            }`}>
+                              {prod.stock < 10 && <AlertTriangle size={14} />}
+                              {prod.stock || 0} {prod.unit}
+                            </div>
+                            {/* Show available quantity for gifts */}
+                            {prod.isGiftItem && prod.availableQuantity !== undefined && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                <span className="font-medium">Available for gifts: </span>
+                                {prod.availableQuantity}
+                              </div>
+                            )}
+                          </div>
+                        </td>
 
                         {/* Files */}
                         <td className="py-4 px-6">
@@ -389,6 +489,7 @@ export default function AllPurchaseProducts() {
                             </div>
 
                             {/* Internal Files */}
+                            {!prod.isGiftItem && prod.internalImages && (
                             <div>
                               <p className="text-xs text-gray-500 mb-2">Internal Files</p>
                               <div className="flex flex-wrap gap-2">
@@ -439,7 +540,7 @@ export default function AllPurchaseProducts() {
                                   );
                                 })}
                               </div>
-                            </div>
+                            </div>)}
                           </div>
                         </td>
 
@@ -473,70 +574,91 @@ export default function AllPurchaseProducts() {
             {isMobile && !loading && (
               <div className="p-4 space-y-4">
                 {products.map((prod) => (
-                  <div key={prod._id} className={`bg-gray-50 rounded-2xl p-4 border border-gray-200 ${prod.stock < 10 ? 'border-l-4 border-l-red-500 bg-red-50' : ''}`}>
+                  <div key={prod._id} className={`bg-gray-50 rounded-2xl p-4 border border-gray-200 ${
+                    prod.stock < 10 ? 'border-l-4 border-l-red-500 bg-red-50' : ''
+                  } ${prod.isGiftItem ? 'bg-purple-50/50 border-purple-200' : ''}`}>
                     
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 text-lg mb-1">{prod.name}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-800 text-lg">{prod.name}</h3>
+                          {prod.isGiftItem && (
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getGiftCategoryColor(prod.giftCategory)}`}>
+                              🎁 {prod.giftCategory || "Gift"}
+                            </span>
+                          )}
+                        </div>
+                        {!prod.isGiftItem && prod.unit && (
                         <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                           <span>Unit:</span>
                           <span>{prod.unit}</span>
-                        </div>
-                        <div 
-                          className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 flex items-center gap-1 text-sm font-medium mb-2"
-                          onClick={() => handleCategoryClick(prod.category?.name)}
-                        >
-                          <span>Category:</span>
-                          {prod.category?.name || "—"}
+                        </div>)}
+                        {!prod.isGiftItem && prod.category?.name && (
+                          <div 
+                            className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 flex items-center gap-1 text-sm font-medium mb-2"
+                            onClick={() => handleCategoryClick(prod.category?.name)}
+                          >
+                            <span>Category:</span>
+                            {prod.category?.name || "—"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-500 font-medium">Stock</span>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                          prod.stock < 10 
+                            ? "bg-red-100 text-red-700" 
+                            : "bg-green-100 text-green-700"
+                        }`}>
+                          {prod.stock < 10 && <AlertTriangle size={12} />}
+                          {prod.stock || 0} {prod.unit}
                         </div>
                       </div>
-                     <div className="flex flex-col gap-1">
-  <span className="text-xs text-gray-500 font-medium">Stock in Hand</span>
-  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-    prod.stock < 10 
-      ? "bg-red-100 text-red-700" 
-      : "bg-green-100 text-green-700"
-  }`}>
-    {prod.stock < 10 && <AlertTriangle size={12} />}
-    {prod.stock || 0} {prod.unit}
-  </div>
-</div>
                     </div>
 
                     {/* Description */}
                     {prod.description && (
-                      <>
-                                    <span>Desc:</span>
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {prod.description}
-                      </p>
-                      </>
+                      <div className="mb-2">
+                        <span className="text-xs text-gray-500 font-medium">Desc:</span>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {prod.description}
+                        </p>
+                      </div>
                     )}
-                    {prod.comment && (
-                      <>
-                                                <span>Internal Desc:</span>
-                      <p className="text-sm text-gray-500 italic mb-3 line-clamp-2">
-                        {prod.comment}
-                      </p>
-                      </>
+                    {!prod.isGiftItem && prod.comment && (
+                      <div className="mb-3">
+                        <span className="text-xs text-gray-500 font-medium">Internal Desc:</span>
+                        <p className="text-sm text-gray-500 italic line-clamp-2">
+                          {prod.comment}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Gift specific info */}
+                    {prod.isGiftItem && prod.initialQuantity && (
+                      <div className="mb-2 text-sm text-gray-600">
+                        <span className="font-medium">Initial Qty: </span>
+                        {prod.initialQuantity}
+                      </div>
                     )}
 
                     {/* Tax & Pricing */}
+                    {!prod.isGiftItem && (
                     <div className="flex items-center gap-4 mb-3 text-sm">
                       <div className="flex items-center gap-1">
-                          <span>HSN:</span>
+                        <span>HSN:</span>
                         <span className="text-gray-700">{prod.hsnCode || "—"}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                          <span>GST:</span>
-                        <span className="text-gray-700">{prod.gstPercent || "—"}</span>
+                        <span>GST:</span>
+                        <span className="text-gray-700">{prod.gstPercent || "—"}%</span>
                       </div>
                       <div className="flex items-center gap-1">
-                          <span>PRICE:</span>
-                        <span className="font-bold text-green-600">₹{prod.price}</span>
+                        <span>PRICE:</span>
+                        <span className="font-bold text-green-600">₹{prod.price || "—"}</span>
                       </div>
-                    </div>
+                    </div>)}
 
                     {/* Files */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
@@ -590,6 +712,7 @@ export default function AllPurchaseProducts() {
                       </div>
 
                       {/* Internal Files */}
+                      {!prod.isGiftItem && prod.internalImages && (
                       <div>
                         <p className="text-xs text-gray-500 mb-2">Internal Files</p>
                         <div className="flex flex-wrap gap-1">
@@ -636,7 +759,7 @@ export default function AllPurchaseProducts() {
                             );
                           })}
                         </div>
-                      </div>
+                      </div>)}
                     </div>
 
                     {/* Actions */}
@@ -665,19 +788,33 @@ export default function AllPurchaseProducts() {
             {!loading && products.length === 0 && (
               <div className="text-center py-12">
                 <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Package className="text-gray-400 text-2xl" />
+                  {filterType === "gifts" ? (
+                    <Gift className="text-gray-400 text-2xl" />
+                  ) : (
+                    <Package className="text-gray-400 text-2xl" />
+                  )}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">No Products Found</h3>
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                  {filterType === "gifts" ? "No Gift Items Found" : 
+                   filterType === "products" ? "No Products Found" : 
+                   "No Items Found"}
+                </h3>
                 <p className="text-gray-500 max-w-md mx-auto mb-6">
-                  {query ? "Try adjusting your search criteria" : "Get started by adding your first purchase product"}
+                  {query ? "Try adjusting your search criteria" : 
+                   filterType === "gifts" ? "Get started by adding your first gift item" :
+                   "Get started by adding your first purchase product"}
                 </p>
                 {!query && (
                   <button
-                    onClick={() => navigate("/purchase-products/add")}
-                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 font-semibold mx-auto"
+                    onClick={() => navigate("/add-purchase-product")}
+                    className={`px-6 py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 font-semibold mx-auto ${
+                      filterType === "gifts" 
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                        : "bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
+                    }`}
                   >
                     <Plus size={20} />
-                    Add First Product
+                    {filterType === "gifts" ? "Add Gift Item" : "Add First Product"}
                   </button>
                 )}
               </div>

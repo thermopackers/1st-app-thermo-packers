@@ -1,16 +1,17 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
 
 export default function EditCustomer() {
+  const location = useLocation();
   const {user} = useUserContext();
   const { id } = useParams();
   const navigate = useNavigate();
 const [gstError, setGstError] = useState("");
-
+const [loadingGifts, setLoadingGifts] = useState(false);
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -19,6 +20,46 @@ const [gstError, setGstError] = useState("");
   const [removedDocs, setRemovedDocs] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [frequentProducts, setFrequentProducts] = useState([]);
+const [giftProducts, setGiftProducts] = useState([]);
+const [showGiftForm, setShowGiftForm] = useState(false);
+const [giftForm, setGiftForm] = useState({
+  giftType: "",
+  quantity: 1,
+  notes: "",
+});
+  const [giftHistory, setGiftHistory] = useState([]);
+  const [giftPage, setGiftPage] = useState(1);
+  const [giftTotalPages, setGiftTotalPages] = useState(1);
+  const [giftTotal, setGiftTotal] = useState(0);
+  const [loadingGiftHistory, setLoadingGiftHistory] = useState(false);
+  const giftLimit = 5; // Show 5 gifts per page
+  const giftsSectionRef = useRef(null);
+
+    // Function to fetch paginated gift history
+const fetchGiftHistory = async (page = 1) => {
+  setLoadingGiftHistory(true);
+  try {
+    const res = await axiosInstance.get(`/customers/${id}/gifts`, {
+      params: {
+        page: page,
+        limit: giftLimit
+      }
+    });
+    
+    if (res.data.success) {
+      setGiftHistory(res.data.gifts || []);
+      setGiftTotal(res.data.total);
+      setGiftTotalPages(res.data.pages);
+      setGiftPage(res.data.page);
+    }
+  } catch (err) {
+    console.error("Failed to fetch gift history", err);
+    toast.error("Failed to load gift history");
+  } finally {
+    setLoadingGiftHistory(false);
+  }
+};
+
 
 useEffect(() => {
   async function fetchUsers() {
@@ -33,32 +74,106 @@ useEffect(() => {
   fetchUsers();
 }, []);
 
-  useEffect(() => {
-    async function fetchCustomer() {
-      try {
-        const res = await axiosInstance.get(`/customers/${id}`);
-        setCustomer(res.data);
-          // ✅ Fetch frequently bought products here
+useEffect(() => {
+  async function fetchCustomer() {
+    try {
+      const res = await axiosInstance.get(`/customers/${id}`);
+      setCustomer(res.data);
+      
+      // ✅ Fetch frequently bought products here
       if (res.data.name) {
         const ordersRes = await axiosInstance.get(
           `/orders/customer-summary/${encodeURIComponent(res.data.name)}`
         );
         setFrequentProducts(ordersRes.data);
       }
-      } catch (err) {
-        if (err.response?.status === 404) {
-          toast.error("Customer not found or deleted");
-          navigate("/customers");
-        } else {
-          toast.error("Failed to load customer");
-        }
-      } finally {
-        setLoading(false);
+      
+      // ✅ Fetch gift history after customer data is loaded
+      fetchGiftHistory();
+      
+    } catch (err) {
+      if (err.response?.status === 404) {
+        toast.error("Customer not found or deleted");
+        navigate("/customers");
+      } else {
+        toast.error("Failed to load customer");
       }
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchCustomer();
-  }, [id, navigate]);
+  fetchCustomer();
+}, [id, navigate]);
+
+// Refresh gift history when a new gift is added
+useEffect(() => {
+  if (customer) {
+    fetchGiftHistory(giftPage);
+  }
+}, [customer?.giftHistory?.length]); // Refresh when gift history length changes
+
+useEffect(() => {
+  async function fetchGiftProducts() {
+    setLoadingGifts(true);
+    try {
+      const res = await axiosInstance.get("/purchase-products/purchase-products-all", {
+        params: { isGiftItem: true }
+      });
+      setGiftProducts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load gift products", err);
+      toast.error("Failed to load gift products");
+    } finally {
+      setLoadingGifts(false);
+    }
+  }
+  fetchGiftProducts();
+}, []);
+
+useEffect(() => {
+  if (!customer) return;
+  
+  console.log("Checking for #gifts hash:", window.location.hash);
+  console.log("Customer loaded:", customer.name);
+  
+  // Check if URL has #gifts hash
+  if (window.location.hash === '#gifts') {
+    console.log("Found #gifts hash, preparing to scroll...");
+    
+    // Remove the hash from URL without reloading
+    window.history.replaceState(null, null, window.location.pathname + window.location.search);
+    
+    // Wait a bit longer to ensure everything is rendered
+    const scrollTimer = setTimeout(() => {
+      console.log("Attempting to scroll to gifts section...");
+      
+      if (giftsSectionRef.current) {
+        console.log("Found gifts section ref, scrolling...");
+        giftsSectionRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      } else {
+        console.error("giftsSectionRef is null!");
+        
+        // Try alternative: scroll to the gift management div by ID
+        const giftSection = document.getElementById('gift-management-section');
+        if (giftSection) {
+          console.log("Found gift section by ID, scrolling...");
+          giftSection.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          });
+        } else {
+          console.error("Could not find gift section by ID either");
+        }
+      }
+    }, 100); // Increased delay to 800ms for more reliability
+    
+    return () => clearTimeout(scrollTimer);
+  }
+}, [customer, location]);
 
 const handleChange = (e) => {
   const { name, value } = e.target;
@@ -424,6 +539,211 @@ if (!customer.company || customer.company.trim() === "") {
               </div>
             )}
           </div>
+
+          {/* Gift Management Section */}
+<div ref={giftsSectionRef} id="gift-management-section" className="mt-8 border-t pt-8">
+<div className="flex justify-between items-center mb-4">
+  <h3 className="text-xl font-bold">🪔 Diwali Gift Distribution</h3>
+  <button
+    type="button"
+    onClick={() => setShowGiftForm(!showGiftForm)}
+    className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+  >
+    {showGiftForm ? "Cancel" : "➕ Add Diwali Gift"}
+  </button>
+</div>
+
+{showGiftForm && (
+  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+<h4 className="font-semibold mb-3">Distribute Diwali Gift to Customer</h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block mb-1 font-semibold">Gift Type *</label>
+        <select
+          name="giftType"
+          value={giftForm.giftType}
+          onChange={(e) => setGiftForm(prev => ({ ...prev, giftType: e.target.value }))}
+          className="w-full border p-2 rounded"
+          required
+          disabled={loadingGifts}
+        >
+          <option value="">{loadingGifts ? "Loading gifts..." : "Select Gift Item"}</option>
+          {giftProducts.map(product => (
+            <option key={product._id} value={product._id}>
+              {product.name} (Stock: {product.stock || 0})
+            </option>
+          ))}
+        </select>
+        {loadingGifts && (
+          <p className="text-sm text-gray-500 mt-1">Loading gift items...</p>
+        )}
+      </div>
+      
+      <div>
+        <label className="block mb-1 font-semibold">Quantity *</label>
+        <input
+          type="number"
+          min="1"
+          value={giftForm.quantity}
+          onChange={(e) => setGiftForm(prev => ({ ...prev, quantity: e.target.value }))}
+          className="w-full border p-2 rounded"
+          required
+        />
+      </div>
+      
+      <div className="md:col-span-2">
+        <label className="block mb-1 font-semibold">Notes</label>
+        <input
+          type="text"
+          value={giftForm.notes}
+          onChange={(e) => setGiftForm(prev => ({ ...prev, notes: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Optional notes about this gift distribution"
+        />
+      </div>
+    </div>
+    
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          if (!giftForm.giftType) {
+            toast.error("Please select a gift type");
+            return;
+          }
+          
+          if (!giftForm.quantity || giftForm.quantity < 1) {
+            toast.error("Please enter a valid quantity");
+            return;
+          }
+          
+          // ✅ Remove isDiwaliGift from the request since all gifts are Diwali gifts
+          const giftData = {
+            giftType: giftForm.giftType,
+            quantity: giftForm.quantity,
+            notes: giftForm.notes
+            // isDiwaliGift is automatically determined from gift product
+          };
+          
+          const res = await axiosInstance.post(`/customers/${id}/gift`, giftData);
+          toast.success("Diwali gift added successfully!");
+          setGiftForm({ giftType: "", quantity: 1, notes: "", isDiwaliGift: false });
+          setShowGiftForm(false);
+          
+          // ✅ Refresh gift history instead of reloading entire customer
+          fetchGiftHistory();
+          
+          // Also refresh gift products stock
+          const updatedGiftProducts = await axiosInstance.get("/purchase-products/purchase-products-all", {
+            params: { isGiftItem: true }
+          });
+          setGiftProducts(updatedGiftProducts.data || []);
+          
+        } catch (err) {
+          console.error("Add gift error:", err);
+          toast.error(err.response?.data?.error || "Failed to add gift");
+        }
+      }}
+      className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+    >
+      ✅ Distribute Diwali Gift
+    </button>
+  </div>
+)}
+
+{/* Gift History Table with Pagination */}
+<div className="mt-6">
+  <div className="flex justify-between items-center mb-3">
+    <h4 className="font-semibold">Gift History</h4>
+    {giftTotal > 0 && (
+      <div className="text-sm text-gray-600">
+        Total: {giftTotal} gifts
+      </div>
+    )}
+  </div>
+
+  {loadingGiftHistory ? (
+    <div className="text-center py-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="text-sm text-gray-500 mt-2">Loading gift history...</p>
+    </div>
+  ) : giftHistory.length > 0 ? (
+    <>
+      <div className="overflow-x-auto mb-4">
+        <table className="min-w-full border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-2 border">Date</th>
+              <th className="p-2 border">Gift Type</th>
+              <th className="p-2 border">Quantity</th>
+              <th className="p-2 border">Distributed By</th>
+              <th className="p-2 border">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {giftHistory.map((gift, index) => (
+              <tr key={index}>
+                <td className="p-2 border">
+                  {new Date(gift.date).toLocaleDateString()}
+                </td>
+     <td className="p-2 border">
+  {gift.isDiwaliGift && "🪔 "}
+  {gift.giftType?.name || "Unknown"}
+  {gift.isDiwaliGift && ( // Only show badge if it's a Diwali gift
+    <span className="ml-1 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Diwali</span>
+  )}
+</td>
+                <td className="p-2 border">{gift.quantity}</td>
+                <td className="p-2 border">
+                  {gift.distributedBy?.name || "Unknown"}
+                </td>
+                <td className="p-2 border">{gift.notes || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Controls */}
+      {giftTotalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-gray-600">
+            Page {giftPage} of {giftTotalPages}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                const newPage = Math.max(1, giftPage - 1);
+                setGiftPage(newPage);
+                fetchGiftHistory(newPage);
+              }}
+              disabled={giftPage === 1}
+              className="px-3 py-1 bg-gray-200 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={() => {
+                const newPage = Math.min(giftTotalPages, giftPage + 1);
+                setGiftPage(newPage);
+                fetchGiftHistory(newPage);
+              }}
+              disabled={giftPage === giftTotalPages}
+              className="px-3 py-1 bg-gray-200 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="text-center py-6 border rounded-lg bg-gray-50">
+      <p className="text-gray-500">No gift history found</p>
+    </div>
+  )}
+</div>
+</div>
 
           <div className="flex justify-between items-center space-x-4">
             <button
