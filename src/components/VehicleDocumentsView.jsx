@@ -26,6 +26,7 @@ export default function VehicleDocumentsView({ vehicleNumber }) {
       return [];
     }
     
+    
     // If role is already an array, return it directly
     if (Array.isArray(user.role)) {
       return user.role;
