@@ -37,6 +37,8 @@ const [allowPlantMaintenance, setAllowPlantMaintenance] = useState(false);
 const [allowTourExpenses, setAllowTourExpenses] = useState(false);  
 const [allowIncomingPayments, setAllowIncomingPayments] = useState(false);
 const [allowQuotation, setAllowQuotation] = useState(false);
+// Add this line with other allow states
+const [allowDanaBeads, setAllowDanaBeads] = useState(false);
 const [role, setRole] = useState([]);
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
@@ -131,7 +133,8 @@ formData.append('allowHR', allowHR);
 formData.append('allowPlantMaintenance', allowPlantMaintenance);
 formData.append('allowTourExpenses', allowTourExpenses);
 formData.append('allowIncomingPayments', allowIncomingPayments); // Add this line
-formData.append('allowQuotation', allowQuotation); // Add this line      
+formData.append('allowQuotation', allowQuotation); // Add this line 
+formData.append('allowDanaBeads', allowDanaBeads);     
 formData.append("dob", dob);
       formData.append("address", address);
 formData.append("emergencyNumber", emergencyNumber);
@@ -230,7 +233,7 @@ setAllowPlantMaintenance(false);
 setAllowTourExpenses(false);
 setAllowIncomingPayments(false);
 setAllowQuotation(false);
-
+setAllowDanaBeads(false);
 fetchUsers();
 
    } catch (err) {
@@ -338,6 +341,7 @@ setAllowPlantMaintenance(user.allowPlantMaintenance || false);
 setAllowTourExpenses(user.allowTourExpenses || false);
 setAllowIncomingPayments(user.allowIncomingPayments || false); // Add this line
 setAllowQuotation(user.allowQuotation || false); // Add this line    
+setAllowDanaBeads(user.allowDanaBeads || false);
 setDob(user.dob ? formatDateForInput(user.dob) : "");
     setAddress(user.address || "");
     setEmergencyNumber(user.emergencyNumber || "");
@@ -883,6 +887,19 @@ setAllowQuotation(false); // Add this line
                     Allow for Quotation / Proforma Invoice
                   </label>
                 </div>
+                {/* ✅ Add this after the allowQuotation checkbox */}
+<div className="flex items-center space-x-2">
+  <input
+    type="checkbox"
+    id="allowDanaBeads"
+    checked={allowDanaBeads}
+    onChange={() => setAllowDanaBeads(!allowDanaBeads)}
+    className="w-4 h-4"
+  />
+  <label htmlFor="allowDanaBeads" className="text-sm text-gray-700">
+    Allow for Dana / Beads Production Section
+  </label>
+</div>
               </>
             )}
           </div>

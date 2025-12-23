@@ -830,7 +830,7 @@ useEffect(() => {
                             </ActionButton>
                           )}
 
-                          {userRoles.includes("accounts") && (
+{(userRoles.includes("accounts") || user.allowDanaBeads) && (
                             <ActionButton
                               to="/dana-beads-dashboard"
                               variant="pink"
