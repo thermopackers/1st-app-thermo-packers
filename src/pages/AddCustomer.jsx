@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 import { useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
@@ -38,6 +38,15 @@ const parseUserRoles = (user) => {
 
   const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
 const [gstError, setGstError] = useState("");
+const [categories, setCategories] = useState([]);
+
+useEffect(() => {
+  // Load categories from localStorage
+  const savedCategories = localStorage.getItem('customerCategories');
+  if (savedCategories) {
+    setCategories(JSON.parse(savedCategories));
+  }
+}, []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -47,6 +56,7 @@ const [gstError, setGstError] = useState("");
     address: "",
       locationLink: "", // ✅ New field
         instructions: "", // ✅ NEW FIELD
+          salesCategory: "", // ✅ NEW FIELD
   });
 const [submitting, setSubmitting] = useState(false);
 
@@ -312,6 +322,25 @@ const handleSubmit = async (e) => {
     placeholder="Add any special instructions or notes for this customer..."
     rows={3}
   />
+</div>
+{/* ✅ NEW: Sales Category Field */}
+<div>
+  <label className="block mb-1 font-medium text-gray-700">
+    Sales Category
+  </label>
+  <select
+    name="salesCategory"
+    value={formData.salesCategory}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+  >
+    <option value="">Select a category (optional)</option>
+    {categories.map((category) => (
+      <option key={category} value={category}>
+        {category}
+      </option>
+    ))}
+  </select>
 </div>
            <button
   type="submit"

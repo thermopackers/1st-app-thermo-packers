@@ -34,7 +34,15 @@ const [giftForm, setGiftForm] = useState({
   const [loadingGiftHistory, setLoadingGiftHistory] = useState(false);
   const giftLimit = 5; // Show 5 gifts per page
   const giftsSectionRef = useRef(null);
+const [categories, setCategories] = useState([]);
 
+useEffect(() => {
+  // Load categories from localStorage
+  const savedCategories = localStorage.getItem('customerCategories');
+  if (savedCategories) {
+    setCategories(JSON.parse(savedCategories));
+  }
+}, []);
     // Function to fetch paginated gift history
 const fetchGiftHistory = async (page = 1) => {
   setLoadingGiftHistory(true);
@@ -460,6 +468,23 @@ if (!customer.company || customer.company.trim() === "") {
     className="w-full border p-2 rounded"
     placeholder="Add any special instructions or notes for this customer..."
   />
+</div>
+{/* ✅ NEW: Sales Category Field */}
+<div>
+  <label className="block mb-1 font-semibold">Sales Category</label>
+  <select
+    name="salesCategory"
+    value={customer.salesCategory || ""}
+    onChange={handleChange}
+    className="w-full border p-2 rounded"
+  >
+    <option value="">Select a category (optional)</option>
+    {categories.map((category) => (
+      <option key={category} value={category}>
+        {category}
+      </option>
+    ))}
+  </select>
 </div>
           <div>
             <label className="block mb-1 font-semibold">GST Documents</label>

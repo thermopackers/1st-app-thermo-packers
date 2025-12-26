@@ -52,6 +52,66 @@ const [productFilter, setProductFilter] = useState("");
 const [hasDiwaliGift, setHasDiwaliGift] = useState(""); // "yes", "no", or ""
 const [giftProducts, setGiftProducts] = useState([]); // Add this state
 const [selectedGift, setSelectedGift] = useState(""); // Change from hasDiwaliGift
+console.log("customers",customers);
+
+  // ✅ NEW: Category states
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  
+  // Add this useEffect to fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        // Load categories from localStorage or fetch from server
+        const savedCategories = localStorage.getItem('customerCategories');
+        if (savedCategories) {
+          setCategories(JSON.parse(savedCategories));
+        } else {
+          // Default categories
+          const defaultCategories = ['VIP', 'Regular', 'New', 'Corporate', 'Retail'];
+          setCategories(defaultCategories);
+          localStorage.setItem('customerCategories', JSON.stringify(defaultCategories));
+        }
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // ✅ NEW: Function to add category
+  const handleAddCategory = () => {
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      const updatedCategories = [...categories, newCategory.trim()];
+      setCategories(updatedCategories);
+      localStorage.setItem('customerCategories', JSON.stringify(updatedCategories));
+      setNewCategory("");
+      toast.success("Category added successfully!");
+    }
+  };
+  
+  // ✅ NEW: Function to remove category
+  const handleRemoveCategory = (categoryToRemove) => {
+    const updatedCategories = categories.filter(cat => cat !== categoryToRemove);
+    setCategories(updatedCategories);
+    localStorage.setItem('customerCategories', JSON.stringify(updatedCategories));
+    toast.success("Category removed!");
+  };
+  
+  // ✅ NEW: Function to filter by category
+  const handleCategoryFilter = (category) => {
+    setSelectedCategory(category);
+    setPage(1);
+  };
+  
+  // ✅ NEW: Function to clear category filter
+  const clearCategoryFilter = () => {
+    setSelectedCategory("");
+    setPage(1);
+  };
 
 // Add this useEffect to fetch gift products
 useEffect(() => {
@@ -101,7 +161,8 @@ const fetchCustomers = async () => {
         page, 
         limit: 10,
         product: productFromUrl,
-        giftType: selectedGift // ✅ Change from hasDiwaliGift to giftType
+        giftType: selectedGift, // ✅ Change from hasDiwaliGift to giftType
+        category: selectedCategory // ✅ NEW
       },
     });
     
@@ -138,7 +199,7 @@ const fetchCustomers = async () => {
 
 useEffect(() => {
   fetchCustomers();
-}, [search, addedBySearch, selectedSalesId, page, window.location.search, selectedGift]); // Add window.location.search as dependency
+}, [search, addedBySearch, selectedSalesId, page, window.location.search, selectedGift, selectedCategory]); // Add window.location.search as dependency
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this customer?")) return;
@@ -277,6 +338,106 @@ const exportToExcel = async () => {
   </select>
 </div>
 
+{/* Category Management Section */}
+<div className="mb-4 space-y-3">
+  <div className="flex items-center gap-2">
+    <label className="block text-sm font-medium text-gray-700">
+      Filter by Sales Category:
+    </label>
+    <button
+      onClick={() => setShowCategoryModal(!showCategoryModal)}
+      className="text-sm text-blue-600 hover:underline"
+    >
+      {showCategoryModal ? "Hide Categories" : "Manage Categories"}
+    </button>
+  </div>
+  
+  <div className="flex flex-wrap gap-2 mb-2">
+    <button
+      onClick={() => clearCategoryFilter()}
+      className={`px-3 py-1 text-sm rounded-full ${
+        selectedCategory === "" 
+        ? "bg-blue-600 text-white" 
+        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+      }`}
+    >
+      All Categories
+    </button>
+    {categories.map((category) => (
+      <button
+        key={category}
+        onClick={() => handleCategoryFilter(category)}
+        className={`px-3 py-1 text-sm rounded-full flex items-center gap-1 ${
+          selectedCategory === category 
+          ? "bg-blue-600 text-white" 
+          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+        }`}
+      >
+        {category}
+        {selectedCategory === category && (
+          <span 
+            onClick={(e) => {
+              e.stopPropagation();
+              clearCategoryFilter();
+            }}
+            className="ml-1 text-xs"
+          >
+            ✕
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+  
+  {/* Category Management Modal */}
+  {showCategoryModal && (
+    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4">
+      <h4 className="font-medium text-gray-800 mb-3">Manage Sales Categories</h4>
+      
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          placeholder="Add new category..."
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+          onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+        />
+        <button
+          onClick={handleAddCategory}
+          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+        >
+          Add
+        </button>
+      </div>
+      
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-600">Existing Categories:</p>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <div 
+              key={category} 
+              className="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1"
+            >
+              <span className="text-sm">{category}</span>
+              <button
+                onClick={() => handleRemoveCategory(category)}
+                className="text-red-500 hover:text-red-700 text-xs"
+                title="Remove category"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {categories.length === 0 && (
+            <p className="text-gray-500 text-sm">No categories added yet</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
 {/* Add this button after the search inputs */}
 <div className="flex justify-between items-center mb-4">
   <div className="flex-1"></div>
@@ -310,6 +471,7 @@ const exportToExcel = async () => {
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
                                 <th className="p-3 border">Instructions</th>
+                                    <th className="p-3 border">Sales Category</th> {/* ✅ NEW COLUMN */}
                 <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
                 <th className="p-3 border">Customer Handled / Managed By</th>
@@ -385,6 +547,15 @@ const exportToExcel = async () => {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
+                  <td className="p-3 border">
+  {c.salesCategory ? (
+    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+      {c.salesCategory}
+    </span>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
                   <td className="p-3 border">
   {c.locationLink ? (
     <a
