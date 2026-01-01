@@ -259,8 +259,16 @@ export default function CampaignDetail() {
                   {campaign.status}
                 </span>
                 <span className="text-gray-500 text-sm">
-                  Scheduled: {format(new Date(campaign.scheduledAt), 'dd/MM/yyyy HH:mm')}
-                </span>
+  Scheduled: {new Date(campaign.scheduledAt).toLocaleString('en-US', {
+    timeZone: campaign.timezone || 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })} ({campaign.timezone})
+</span>
               </div>
             </div>
           </div>
@@ -589,9 +597,19 @@ export default function CampaignDetail() {
                   <h4 className="font-medium text-gray-800 mb-2">Delivery Information</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex">
-                      <span className="w-32 text-gray-600">Scheduled for:</span>
-                      <span>{format(new Date(campaign.scheduledAt), 'dd/MM/yyyy HH:mm')}</span>
-                    </div>
+  <span className="w-32 text-gray-600">Scheduled for:</span>
+  <span>
+    {new Date(campaign.scheduledAt).toLocaleString('en-US', {
+      timeZone: campaign.timezone || 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })} ({campaign.timezone})
+  </span>
+</div>
                     <div className="flex">
                       <span className="w-32 text-gray-600">Started at:</span>
                       <span>{campaign.startedAt ? format(new Date(campaign.startedAt), 'dd/MM/yyyy HH:mm') : 'Not started'}</span>

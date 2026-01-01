@@ -252,6 +252,27 @@ export default function CampaignForm() {
       throw err;
     }
   };
+
+  const convertToTimezone = (localDateTime, timezone) => {
+  if (!localDateTime) return '';
+  
+  // Create a date object from the local datetime input
+  const localDate = new Date(localDateTime);
+  
+  // Format for display - show in user's local time
+  const options = {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  };
+  
+  return localDate.toLocaleString('en-US', options);
+};
+
   
   const applyFilters = async () => {
     setApplyingFilters(true);
@@ -331,17 +352,30 @@ const handleSubmit = async (e) => {
   
   setLoading(true);
   try {
-    const campaignData = {
-      title: formData.title,
-      type: type,
-      message: formData.message,
-      mediaUrl: formData.mediaUrl || "",
-      mediaType: formData.mediaType,
-      filters: formData.filters,
-      scheduledAt: formData.scheduledAt,
-      timezone: formData.timezone,
-      longMessageWithMedia: formData.longMessageWithMedia || false // ADD THIS
-    };
+  // Convert local time to ISO string with timezone consideration
+let scheduledAtISO = formData.scheduledAt;
+if (formData.scheduledAt) {
+  // Create date object from local datetime input
+  const localDate = new Date(formData.scheduledAt);
+  
+  // Convert to ISO string (this will be in UTC)
+  scheduledAtISO = localDate.toISOString();
+  
+  console.log(`📅 Local time selected: ${formData.scheduledAt}`);
+  console.log(`📅 UTC time stored: ${scheduledAtISO}`);
+}
+
+const campaignData = {
+  title: formData.title,
+  type: type,
+  message: formData.message,
+  mediaUrl: formData.mediaUrl || "",
+  mediaType: formData.mediaType,
+  filters: formData.filters,
+  scheduledAt: scheduledAtISO, // Use the converted ISO string
+  timezone: formData.timezone,
+  longMessageWithMedia: formData.longMessageWithMedia || false
+};
     
     // Add multiple media fields
     if (uploadedMedia.length > 0) {
@@ -486,22 +520,26 @@ const handleSubmit = async (e) => {
                 />
               </div>
               
-              <div>
-                <label className="block mb-2 font-medium text-gray-700">
-                  Schedule Date & Time *
-                </label>
-                <input
-                  type="datetime-local"
-                  name="scheduledAt"
-                  value={formData.scheduledAt}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Campaign will run automatically at this time
-                </p>
-              </div>
+          <div>
+  <label className="block mb-2 font-medium text-gray-700">
+    Schedule Date & Time *
+  </label>
+  <input
+    type="datetime-local"
+    name="scheduledAt"
+    value={formData.scheduledAt}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+    required
+  />
+  {formData.scheduledAt && (
+    <p className="text-sm text-gray-500 mt-1">
+      Campaign will run automatically at: <span className="font-medium">
+        {convertToTimezone(formData.scheduledAt, formData.timezone)}
+      </span> ({formData.timezone})
+    </p>
+  )}
+</div>
               
           {/* Message Section - UPDATED with CharacterCounter */}
 <div className="md:col-span-2">
