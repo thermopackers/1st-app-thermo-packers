@@ -621,9 +621,9 @@ function WaterHydrantDailyReport() {
             <thead className="bg-green-600 text-white">
               <tr>
                 <th className="border px-3 py-2">Date</th>
-                <th className="border px-3 py-2">Water System 1</th>
-                <th className="border px-3 py-2">Water System 2</th>
-                <th className="border px-3 py-2">Water System 3</th>
+                <th className="border px-3 py-2">Water Hydrant System 1</th>
+                <th className="border px-3 py-2">Water Hydrant System 2</th>
+                <th className="border px-3 py-2">Water Hydrant System 3</th>
                 <th className="border px-3 py-2">Remarks</th>
               </tr>
             </thead>
@@ -738,9 +738,9 @@ function WaterHydrantDailyReport() {
             <thead className="bg-blue-600 text-white">
               <tr>
                 <th className="border px-3 py-2">Date (dd/mm/yyyy)</th>
-                <th className="border px-3 py-2">Water System 1</th>
-                <th className="border px-3 py-2">Water System 2</th>
-                <th className="border px-3 py-2">Water System 3</th>
+                <th className="border px-3 py-2">Water Hydrant System 1</th>
+                <th className="border px-3 py-2">Water Hydrant System 2</th>
+                <th className="border px-3 py-2">Water Hydrant System 3</th>
                 <th className="border px-3 py-2">Remarks</th>
                 <th className="border px-3 py-2">Actions</th>
               </tr>
