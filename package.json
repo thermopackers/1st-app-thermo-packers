@@ -16,6 +16,7 @@
     "axios": "^1.8.4",
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.4.9",
+    "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "face-api.js": "^0.22.2",
     "ffmpeg.js": "^4.2.9003",

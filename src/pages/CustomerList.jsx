@@ -113,6 +113,17 @@ console.log("customers",customers);
     setPage(1);
   };
 
+  // ✅ NEW: Function to clear all filters
+const clearAllFilters = () => {
+  setSearch("");
+  setSelectedCategory("");
+  setSelectedGift("");
+  setProductFilter("");
+  setAddedBySearch("");
+  setSelectedSalesId("");
+  setPage(1);
+};
+
 // Add this useEffect to fetch gift products
 useEffect(() => {
   const fetchGiftProducts = async () => {
@@ -269,17 +280,27 @@ const exportToExcel = async () => {
           Customers
         </h2>
 
-       <input
-  type="text"
-  placeholder="Search customer name..."
-  value={search}
-  onChange={(e) => {
-    setSearch(e.target.value);
-    setPage(1);
-  }}
-  className="mb-4 w-full px-4 py-2 border border-gray-300 rounded-md"
-/>
-{!userRoles.includes("sales") && (
+       <div className="space-y-4 mb-4">
+  {/* Main Search Input */}
+  <div className="relative">
+    <input
+      type="text"
+      placeholder="Search customer name, phone, email, or category..."
+      value={search}
+      onChange={(e) => {
+        setSearch(e.target.value);
+        setPage(1);
+      }}
+      className="w-full px-4 py-2 border border-gray-300 rounded-md pl-10"
+    />
+    <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+      🔍
+    </div>
+  </div>
+  
+
+</div>
+{/* {!userRoles.includes("sales") && (
   <input
   type="text"
   placeholder="Search by Sales Name or Email"
@@ -290,7 +311,7 @@ const exportToExcel = async () => {
   }}
   className="mb-6 w-full px-4 py-2 border border-gray-300 rounded-md"
 />
-)}
+)} */}
 
 
         <div className="overflow-x-auto w-full rounded-lg shadow">
@@ -438,15 +459,107 @@ const exportToExcel = async () => {
   )}
 </div>
 
-{/* Add this button after the search inputs */}
+{/* Active Filters Display */}
+{(search || selectedCategory || selectedGift || productFilter) && (
+  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+    <div className="flex items-center justify-between">
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-blue-700 font-medium">Active Filters:</span>
+        
+        {search && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center gap-1">
+            Search: "{search}"
+            <button 
+              onClick={() => setSearch("")}
+              className="text-blue-600 hover:text-blue-800 text-xs"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+        
+        {selectedCategory && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center gap-1">
+            Category: {selectedCategory}
+            <button 
+              onClick={clearCategoryFilter}
+              className="text-blue-600 hover:text-blue-800 text-xs"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+        
+        {selectedGift && giftProducts.find(g => g._id === selectedGift) && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center gap-1">
+            Gift: {giftProducts.find(g => g._id === selectedGift)?.name}
+            <button 
+              onClick={() => setSelectedGift("")}
+              className="text-blue-600 hover:text-blue-800 text-xs"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+        
+        {productFilter && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center gap-1">
+            Product: {productFilter}
+            <button 
+              onClick={() => setProductFilter("")}
+              className="text-blue-600 hover:text-blue-800 text-xs"
+            >
+              ✕
+            </button>
+          </span>
+        )}
+      </div>
+      
+      <button
+        onClick={clearAllFilters}
+        className="text-sm text-blue-600 hover:text-blue-800"
+      >
+        Clear All
+      </button>
+    </div>
+  </div>
+)}
+
+
+{/* Clear Filters Button */}
 <div className="flex justify-between items-center mb-4">
   <div className="flex-1"></div>
-  <button
-    onClick={exportToExcel}
-    className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex items-center gap-2"
-  >
-    📊 Export to Excel
-  </button>
+  <div className="flex gap-2">
+    {(search || selectedCategory || selectedGift || addedBySearch || selectedSalesId) && (
+      <button
+        onClick={clearAllFilters}
+        className="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 flex items-center gap-2"
+      >
+        🗑️ Clear Filters
+      </button>
+    )}
+       {/* Campaign Buttons */}
+    <button
+      onClick={() => navigate('/campaigns/new/whatsapp')}
+      className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex items-center gap-2"
+    >
+      💬 Start WhatsApp Campaign
+    </button>
+    
+    <button
+      onClick={() => navigate('/campaigns/new/email')}
+      className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 flex items-center gap-2"
+    >
+      ✉️ Start Email Campaign
+    </button>
+    
+    <button
+      onClick={exportToExcel}
+      className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex items-center gap-2"
+    >
+      📊 Export to Excel
+    </button>
+  </div>
 </div>
 
 {/* Product Filter Display */}

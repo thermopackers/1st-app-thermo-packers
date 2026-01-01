@@ -70,6 +70,9 @@ import GateOutwardsView from "../pages/GateOutwardsView";
 import GateOutwardPrintout from "../components/GateOutwardPrintout";
 import WaterFilterMaintenance from "../pages/WaterFilterMaintenance";
 import FireSafetyMaintenance from "../pages/FireSafetyMaintenance";
+import CampaignsList from "../components/CampaignsList";
+import CampaignForm from "../components/CampaignForm";
+import CampaignDetail from "../components/CampaignDetail";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -133,6 +136,9 @@ export default function AppRoutes() {
             <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
             <Route path="/features/:slug" element={<PageWrapper><FeatureDetail /></PageWrapper>} />
             <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
+<Route path="/campaigns" element={<PageWrapper><CampaignsList /></PageWrapper>} />
+<Route path="/campaigns/new/:type" element={<PageWrapper><CampaignForm /></PageWrapper>} />
+<Route path="/campaigns/:id" element={<PageWrapper><CampaignDetail /></PageWrapper>} />
 <Route
   path="/timestamp-generator-pkc"
   element={
