@@ -61,45 +61,59 @@ console.log("customers",customers);
   const [selectedCategory, setSelectedCategory] = useState("");
   
   // Add this useEffect to fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        // Load categories from localStorage or fetch from server
-        const savedCategories = localStorage.getItem('customerCategories');
-        if (savedCategories) {
-          setCategories(JSON.parse(savedCategories));
-        } else {
-          // Default categories
-          const defaultCategories = ['VIP', 'Regular', 'New', 'Corporate', 'Retail'];
-          setCategories(defaultCategories);
-          localStorage.setItem('customerCategories', JSON.stringify(defaultCategories));
-        }
-      } catch (err) {
-        console.error("Failed to load categories", err);
-      }
-    };
-    
-    fetchCategories();
-  }, []);
-  
-  // ✅ NEW: Function to add category
-  const handleAddCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      const updatedCategories = [...categories, newCategory.trim()];
-      setCategories(updatedCategories);
-      localStorage.setItem('customerCategories', JSON.stringify(updatedCategories));
-      setNewCategory("");
-      toast.success("Category added successfully!");
+// Replace the existing useEffect for fetching categories
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/settings/categories");
+      setCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+      // Fallback to default categories
+      const defaultCategories = ['VIP', 'Regular', 'New', 'Corporate', 'Retail'];
+      setCategories(defaultCategories);
     }
   };
   
+  fetchCategories();
+}, []);
+  
+  // ✅ NEW: Function to add category
+const handleAddCategory = async () => {
+  if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+    try {
+      const res = await axiosInstance.post("/customers/settings/categories", {
+        category: newCategory.trim()
+      });
+      
+      if (res.data.success) {
+        const updatedCategories = [...categories, newCategory.trim()];
+        setCategories(updatedCategories);
+        setNewCategory("");
+        toast.success("Category added successfully!");
+      }
+    } catch (err) {
+      console.error("Failed to add category", err);
+      toast.error(err.response?.data?.error || "Failed to add category");
+    }
+  }
+};
+  
   // ✅ NEW: Function to remove category
-  const handleRemoveCategory = (categoryToRemove) => {
-    const updatedCategories = categories.filter(cat => cat !== categoryToRemove);
-    setCategories(updatedCategories);
-    localStorage.setItem('customerCategories', JSON.stringify(updatedCategories));
-    toast.success("Category removed!");
-  };
+const handleRemoveCategory = async (categoryToRemove) => {
+  try {
+    const res = await axiosInstance.delete(`/customers/settings/categories/${encodeURIComponent(categoryToRemove)}`);
+    
+    if (res.data.success) {
+      const updatedCategories = categories.filter(cat => cat !== categoryToRemove);
+      setCategories(updatedCategories);
+      toast.success("Category removed!");
+    }
+  } catch (err) {
+    console.error("Failed to remove category", err);
+    toast.error(err.response?.data?.error || "Failed to remove category");
+  }
+};
   
   // ✅ NEW: Function to filter by category
   const handleCategoryFilter = (category) => {

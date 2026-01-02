@@ -37,11 +37,19 @@ const [giftForm, setGiftForm] = useState({
 const [categories, setCategories] = useState([]);
 
 useEffect(() => {
-  // Load categories from localStorage
-  const savedCategories = localStorage.getItem('customerCategories');
-  if (savedCategories) {
-    setCategories(JSON.parse(savedCategories));
-  }
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/settings/categories");
+      setCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+      // Fallback to default categories
+      const defaultCategories = ['VIP', 'Regular', 'New', 'Corporate', 'Retail'];
+      setCategories(defaultCategories);
+    }
+  };
+  
+  fetchCategories();
 }, []);
     // Function to fetch paginated gift history
 const fetchGiftHistory = async (page = 1) => {
@@ -84,32 +92,41 @@ useEffect(() => {
 
 useEffect(() => {
   async function fetchCustomer() {
-    try {
-      const res = await axiosInstance.get(`/customers/${id}`);
-      setCustomer(res.data);
-      
-      // ✅ Fetch frequently bought products here
-      if (res.data.name) {
-        const ordersRes = await axiosInstance.get(
-          `/orders/customer-summary/${encodeURIComponent(res.data.name)}`
-        );
-        setFrequentProducts(ordersRes.data);
-      }
-      
-      // ✅ Fetch gift history after customer data is loaded
-      fetchGiftHistory();
-      
-    } catch (err) {
-      if (err.response?.status === 404) {
-        toast.error("Customer not found or deleted");
-        navigate("/customers");
-      } else {
-        toast.error("Failed to load customer");
-      }
-    } finally {
-      setLoading(false);
+  try {
+    const res = await axiosInstance.get(`/customers/${id}`);
+    
+    // ✅ Ensure createdBy is either an object or an ID string
+    const customerData = res.data;
+    
+    // If createdBy is an object (populated by backend), extract just the ID
+    if (customerData.createdBy && typeof customerData.createdBy === 'object' && customerData.createdBy._id) {
+      customerData.createdBy = customerData.createdBy._id;
     }
+    
+    setCustomer(customerData);
+    
+    // ✅ Fetch frequently bought products here
+    if (customerData.name) {
+      const ordersRes = await axiosInstance.get(
+        `/orders/customer-summary/${encodeURIComponent(customerData.name)}`
+      );
+      setFrequentProducts(ordersRes.data);
+    }
+    
+    // ✅ Fetch gift history after customer data is loaded
+    fetchGiftHistory();
+    
+  } catch (err) {
+    if (err.response?.status === 404) {
+      toast.error("Customer not found or deleted");
+      navigate("/customers");
+    } else {
+      toast.error("Failed to load customer");
+    }
+  } finally {
+    setLoading(false);
   }
+}
 
   fetchCustomer();
 }, [id, navigate]);
