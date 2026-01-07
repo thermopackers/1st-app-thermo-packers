@@ -44,65 +44,116 @@ export default function CampaignDetail() {
     fetchCampaignDetails();
   }, [id]);
 
-  useEffect(() => {
-    if (activeTab === 'recipients' && campaign) {
-      fetchRecipients();
-    }
-  }, [activeTab, recipientsPagination.page, recipientFilters]);
+useEffect(() => {
+  if (activeTab === 'recipients' && campaign) {
+    console.log('Fetching recipients for campaign:', campaign._id);
+    // Clear recipients and fetch fresh data when tab is clicked
+    setRecipients([]);
+    fetchRecipients();
+  }
+}, [activeTab, campaign]);
 
-  const fetchCampaignDetails = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get(`/campaigns/${id}`);
-      setCampaign(res.data.campaign);
-    } catch (err) {
-      toast.error("Failed to load campaign details");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRecipients = async () => {
-    setRecipientsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: recipientsPagination.page,
-        limit: recipientsPagination.limit,
-        ...(recipientFilters.status !== 'all' && { status: recipientFilters.status }),
-        ...(recipientFilters.search && { search: recipientFilters.search })
-      });
-      
-      const res = await axiosInstance.get(`/campaigns/${id}/recipients?${params}`);
-      setRecipients(res.data.recipients || []);
-      setRecipientsPagination(res.data.pagination || recipientsPagination);
-      setStatusCounts(res.data.statusCounts || statusCounts);
-    } catch (err) {
-      toast.error("Failed to load recipients");
-      console.error(err);
-    } finally {
-      setRecipientsLoading(false);
-    }
-  };
-
-  const handleRecipientPageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= recipientsPagination.totalPages) {
-      setRecipientsPagination(prev => ({ ...prev, page: newPage }));
-    }
-  };
-
-  const handleRecipientFilterChange = (key, value) => {
-    setRecipientFilters(prev => ({ ...prev, [key]: value }));
-    setRecipientsPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const clearRecipientFilters = () => {
-    setRecipientFilters({
-      status: 'all',
-      search: ''
+const fetchCampaignDetails = async () => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.get(`/campaigns/${id}`);
+    console.log('Campaign data received:', {
+      hasFilters: !!res.data.campaign.filters,
+      filters: res.data.campaign.filters,
+      targetType: res.data.campaign.targetType
     });
-    setRecipientsPagination(prev => ({ ...prev, page: 1 }));
+    setCampaign(res.data.campaign);
+  } catch (err) {
+    toast.error("Failed to load campaign details");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const fetchRecipients = async (page = recipientsPagination.page, filters = recipientFilters, limit = recipientsPagination.limit) => {
+  setRecipientsLoading(true);
+  try {
+    const params = new URLSearchParams({
+      page: page,
+      limit: limit,
+      ...(filters.status !== 'all' && { status: filters.status }),
+      ...(filters.search && { search: filters.search })
+    });
+    
+    console.log('Fetching recipients with params:', {
+      page, limit, status: filters.status, search: filters.search
+    });
+    
+    const res = await axiosInstance.get(`/campaigns/${id}/recipients?${params}`);
+    
+    // Update all states properly
+    setRecipients(res.data.recipients || []);
+    
+    // Make sure to update pagination with the response
+    if (res.data.pagination) {
+      setRecipientsPagination({
+        page: res.data.pagination.page || 1,
+        limit: res.data.pagination.limit || limit,
+        totalRecipients: res.data.pagination.totalRecipients || 0,
+        totalPages: res.data.pagination.totalPages || 1,
+        hasNextPage: res.data.pagination.hasNextPage || false,
+        hasPrevPage: res.data.pagination.hasPrevPage || false
+      });
+    }
+    
+    if (res.data.statusCounts) {
+      setStatusCounts(res.data.statusCounts);
+    }
+    
+    console.log('Fetched recipients:', {
+      count: res.data.recipients?.length || 0,
+      pagination: res.data.pagination,
+      statusCounts: res.data.statusCounts
+    });
+    
+  } catch (err) {
+    toast.error("Failed to load recipients");
+    console.error('Error fetching recipients:', err);
+  } finally {
+    setRecipientsLoading(false);
+  }
+};
+
+const handleRecipientPageChange = (newPage) => {
+  if (newPage >= 1 && newPage <= recipientsPagination.totalPages) {
+    // Clear recipients while loading
+    setRecipients([]);
+    
+    // Fetch with new page
+    fetchRecipients(newPage, recipientFilters, recipientsPagination.limit);
+  }
+};
+
+const handleRecipientFilterChange = (key, value) => {
+  const newFilters = { ...recipientFilters, [key]: value };
+  setRecipientFilters(newFilters);
+  
+  // Clear recipients immediately to show loading state
+  setRecipients([]);
+  
+  // Fetch with new filters
+  fetchRecipients(1, newFilters, recipientsPagination.limit);
+};
+
+const clearRecipientFilters = () => {
+  const newFilters = {
+    status: 'all',
+    search: ''
   };
+  setRecipientFilters(newFilters);
+  
+  // Clear recipients immediately to show loading state
+  setRecipients([]);
+  
+  // Fetch with cleared filters
+  fetchRecipients(1, newFilters, recipientsPagination.limit);
+};
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -630,279 +681,326 @@ export default function CampaignDetail() {
             </div>
           )}
 
-          {activeTab === 'recipients' && (
-            <div>
-              <div className="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <div>
-                  <h3 className="font-medium text-gray-800">Recipient List</h3>
-                  <div className="text-sm text-gray-600">
-                    Total: {recipientsPagination.totalRecipients} recipients
-                  </div>
-                </div>
+        {activeTab === 'recipients' && (
+  <div>
+    <div className="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <div>
+        <h3 className="font-medium text-gray-800">Recipient List</h3>
+        <div className="text-sm text-gray-600">
+          Total: {recipientsPagination.totalRecipients} recipients
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-3">
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap gap-2 border-b-0">
+          {[
+            { value: 'all', label: 'All', count: statusCounts.all },
+            { value: 'sent', label: 'Sent', count: statusCounts.sent },
+            { value: 'failed', label: 'Failed', count: statusCounts.failed },
+            { value: 'pending', label: 'Pending', count: statusCounts.pending },
+            { value: 'skipped', label: 'Skipped', count: statusCounts.skipped },
+            { value: 'restricted', label: 'Restricted', count: statusCounts.restricted },
+            { value: 'queued', label: 'Queued', count: statusCounts.queued }
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => handleRecipientFilterChange('status', tab.value)}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                recipientFilters.status === tab.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title={`${tab.label} (${tab.count})`}
+            >
+              {tab.label} <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
+                recipientFilters.status === tab.value
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-300 text-gray-700'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+        
+        {/* Search and other controls */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={recipientFilters.search}
+              onChange={(e) => handleRecipientFilterChange('search', e.target.value)}
+              placeholder="Search recipients..."
+              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm w-full md:w-64"
+            />
+          </div>
+          
+          {recipientFilters.status !== 'all' || recipientFilters.search ? (
+            <button
+              onClick={clearRecipientFilters}
+              className="text-sm text-red-600 hover:text-red-800 whitespace-nowrap px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          ) : null}
+        </div>
+        
+        {/* Export Button */}
+        <button
+          onClick={exportRecipientsToCSV}
+          disabled={exportingRecipients || recipientsPagination.totalRecipients === 0}
+          className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          {exportingRecipients ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              Export CSV
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+    
+    {/* Rest of your recipients table and pagination code remains the same */}
+    {recipientsLoading ? (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    ) : recipients.length > 0 ? (
+      <>
+        <div className="overflow-x-auto border rounded-lg">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-3 text-left font-medium text-gray-700">Customer</th>
+                <th className="p-3 text-left font-medium text-gray-700">Phone</th>
+                <th className="p-3 text-left font-medium text-gray-700">Email</th>
+                <th className="p-3 text-left font-medium text-gray-700">Status</th>
+                <th className="p-3 text-left font-medium text-gray-700">Sent At</th>
+                <th className="p-3 text-left font-medium text-gray-700">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recipients.map((recipient, index) => {
+                // Determine if this is a customer or supplier
+                const isSupplier = recipient.recipientType === 'supplier';
+                const contactInfo = isSupplier ? recipient.supplier : recipient.customer;
                 
-                <div className="flex flex-col md:flex-row gap-3">
-                  {/* Recipient Filters */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Search */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        value={recipientFilters.search}
-                        onChange={(e) => handleRecipientFilterChange('search', e.target.value)}
-                        placeholder="Search recipients..."
-                        className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm w-full md:w-64"
-                      />
-                    </div>
-                    
-                    {/* Status Filter */}
-                    <div className="flex items-center gap-2">
-                      <Filter className="text-gray-400 w-4 h-4" />
-                      <select
-                        value={recipientFilters.status}
-                        onChange={(e) => handleRecipientFilterChange('status', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full"
-                      >
-                        <option value="all">All Status ({statusCounts.all})</option>
-                        <option value="sent">Sent ({statusCounts.sent})</option>
-                        <option value="failed">Failed ({statusCounts.failed})</option>
-                        <option value="pending">Pending ({statusCounts.pending})</option>
-                        <option value="skipped">Skipped ({statusCounts.skipped})</option>
-                        <option value="restricted">Restricted ({statusCounts.restricted})</option>
-                        <option value="queued">Queued ({statusCounts.queued})</option>
-                      </select>
-                    </div>
-                    
-                    {recipientFilters.status !== 'all' || recipientFilters.search ? (
-                      <button
-                        onClick={clearRecipientFilters}
-                        className="text-sm text-red-600 hover:text-red-800 whitespace-nowrap px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                      >
-                        Clear Filters
-                      </button>
-                    ) : null}
-                  </div>
+                return (
+                  <tr key={index} className="border-t hover:bg-gray-50">
+                    <td className="p-3">
+                      <div className="font-medium">
+                        {contactInfo?.name || contactInfo?.company || 'Unknown'}
+                        {isSupplier && (
+                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                            Supplier
+                          </span>
+                        )}
+                      </div>
+                      {!isSupplier && recipient.customer?.salesCategory && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {recipient.customer.salesCategory}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3 font-mono">
+                      {contactInfo?.phone || contactInfo?.phone2 || '-'}
+                    </td>
+                    <td className="p-3">{contactInfo?.email || '-'}</td>
+                    <td className="p-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRecipientStatusColor(recipient.status)}`}>
+                        {recipient.status}
+                      </span>
+                      {recipient.whatsappRestricted && (
+                        <div className="text-xs text-orange-600 mt-1">WhatsApp Restricted</div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {recipient.sentAt ? format(new Date(recipient.sentAt), 'dd/MM/yyyy HH:mm') : '-'}
+                    </td>
+                    <td className="p-3">
+                      <span className="text-red-500 text-sm max-w-xs truncate inline-block" title={recipient.error}>
+                        {recipient.error || '-'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination - keep your existing pagination code here */}
+        {recipientsPagination.totalPages > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Showing {((recipientsPagination.page - 1) * recipientsPagination.limit) + 1} to{' '}
+              {Math.min(recipientsPagination.page * recipientsPagination.limit, recipientsPagination.totalRecipients)} of{' '}
+              {recipientsPagination.totalRecipients} recipients
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleRecipientPageChange(recipientsPagination.page - 1)}
+                disabled={!recipientsPagination.hasPrevPage}
+                className="p-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                title="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, recipientsPagination.totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (recipientsPagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (recipientsPagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (recipientsPagination.page >= recipientsPagination.totalPages - 2) {
+                    pageNum = recipientsPagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = recipientsPagination.page - 2 + i;
+                  }
                   
-                  {/* Export Button */}
-                  <button
-                    onClick={exportRecipientsToCSV}
-                    disabled={exportingRecipients || recipientsPagination.totalRecipients === 0}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    {exportingRecipients ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        Export CSV
-                      </>
-                    )}
-                  </button>
-                </div>
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handleRecipientPageChange(pageNum)}
+                      className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                        recipientsPagination.page === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'border hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
               </div>
               
-              {recipientsLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : recipients.length > 0 ? (
-                <>
-                  <div className="overflow-x-auto border rounded-lg">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-3 text-left font-medium text-gray-700">Customer</th>
-                          <th className="p-3 text-left font-medium text-gray-700">Phone</th>
-                          <th className="p-3 text-left font-medium text-gray-700">Email</th>
-                          <th className="p-3 text-left font-medium text-gray-700">Status</th>
-                          <th className="p-3 text-left font-medium text-gray-700">Sent At</th>
-                          <th className="p-3 text-left font-medium text-gray-700">Error</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recipients.map((recipient, index) => (
-                          <tr key={index} className="border-t hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-medium">{recipient.customer?.name || 'Unknown'}</div>
-                              {recipient.customer?.salesCategory && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {recipient.customer.salesCategory}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 font-mono">{recipient.customer?.phone || '-'}</td>
-                            <td className="p-3">{recipient.customer?.email || '-'}</td>
-                            <td className="p-3">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRecipientStatusColor(recipient.status)}`}>
-                                {recipient.status}
-                              </span>
-                              {recipient.whatsappRestricted && (
-                                <div className="text-xs text-orange-600 mt-1">WhatsApp Restricted</div>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              {recipient.sentAt ? format(new Date(recipient.sentAt), 'dd/MM/yyyy HH:mm') : '-'}
-                            </td>
-                            <td className="p-3">
-                              <span className="text-red-500 text-sm max-w-xs truncate inline-block" title={recipient.error}>
-                                {recipient.error || '-'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {/* Pagination */}
-                  {recipientsPagination.totalPages > 1 && (
-                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="text-sm text-gray-600">
-                        Showing {((recipientsPagination.page - 1) * recipientsPagination.limit) + 1} to{' '}
-                        {Math.min(recipientsPagination.page * recipientsPagination.limit, recipientsPagination.totalRecipients)} of{' '}
-                        {recipientsPagination.totalRecipients} recipients
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRecipientPageChange(recipientsPagination.page - 1)}
-                          disabled={!recipientsPagination.hasPrevPage}
-                          className="p-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                          title="Previous page"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, recipientsPagination.totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (recipientsPagination.totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (recipientsPagination.page <= 3) {
-                              pageNum = i + 1;
-                            } else if (recipientsPagination.page >= recipientsPagination.totalPages - 2) {
-                              pageNum = recipientsPagination.totalPages - 4 + i;
-                            } else {
-                              pageNum = recipientsPagination.page - 2 + i;
-                            }
-                            
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => handleRecipientPageChange(pageNum)}
-                                className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                                  recipientsPagination.page === pageNum
-                                    ? 'bg-blue-600 text-white'
-                                    : 'border hover:bg-gray-50'
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        
-                        <button
-                          onClick={() => handleRecipientPageChange(recipientsPagination.page + 1)}
-                          disabled={!recipientsPagination.hasNextPage}
-                          className="p-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                          title="Next page"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                      
-                      <div className="text-sm text-gray-600">
-                        Page {recipientsPagination.page} of {recipientsPagination.totalPages}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-12 border rounded-lg bg-gray-50">
-                  <div className="text-gray-400 mb-2">📭</div>
-                  <p className="text-gray-500 mb-2">No recipients found</p>
-                  {recipientFilters.status !== 'all' || recipientFilters.search ? (
-                    <p className="text-sm text-gray-400">
-                      Try changing your filters or search term
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-400">
-                      This campaign has no recipients
-                    </p>
-                  )}
-                </div>
-              )}
+              <button
+                onClick={() => handleRecipientPageChange(recipientsPagination.page + 1)}
+                disabled={!recipientsPagination.hasNextPage}
+                className="p-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                title="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-          )}
+            
+            <div className="text-sm text-gray-600">
+              Page {recipientsPagination.page} of {recipientsPagination.totalPages}
+            </div>
+          </div>
+        )}
+      </>
+    ) : (
+      <div className="text-center py-12 border rounded-lg bg-gray-50">
+        <div className="text-gray-400 mb-2">📭</div>
+        <p className="text-gray-500 mb-2">No recipients found</p>
+        {recipientFilters.status !== 'all' || recipientFilters.search ? (
+          <p className="text-sm text-gray-400">
+            Try changing your filters or search term
+          </p>
+        ) : (
+          <p className="text-sm text-gray-400">
+            This campaign has no recipients
+          </p>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
-          {activeTab === 'filters' && (
-            <div>
-              <h3 className="font-medium text-gray-800 mb-4">Applied Filters</h3>
-              
-              {Object.keys(campaign.filters || {}).length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No filters applied (all customers)
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {campaign.filters.search && (
-                    <div className="flex items-center gap-4">
-                      <span className="w-32 text-gray-600 font-medium">Search:</span>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        {campaign.filters.search}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {campaign.filters.categories?.length > 0 && (
-                    <div className="flex items-start gap-4">
-                      <span className="w-32 text-gray-600 font-medium mt-1">Categories:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {campaign.filters.categories.map((category, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            {category}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {campaign.filters.createdBy && (
-                    <div className="flex items-center gap-4">
-                      <span className="w-32 text-gray-600 font-medium">Sales Person:</span>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                        {campaign.filters.createdBy}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {campaign.filters.giftType && (
-                    <div className="flex items-center gap-4">
-                      <span className="w-32 text-gray-600 font-medium">Gift Type:</span>
-                      <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                        {campaign.filters.giftType === 'all_gifts' ? 'Has Any Diwali Gift' :
-                         campaign.filters.giftType === 'no_gifts' ? 'No Diwali Gifts' :
-                         campaign.filters.giftType}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {campaign.filters.product && (
-                    <div className="flex items-center gap-4">
-                      <span className="w-32 text-gray-600 font-medium">Product:</span>
-                      <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
-                        {campaign.filters.product}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
+      {activeTab === 'filters' && (
+  <div>
+    <h3 className="font-medium text-gray-800 mb-4">Applied Filters</h3>
+    
+    {/* Check if any filter has a non-empty value */}
+    {(!campaign.filters || 
+      (!campaign.filters.search && 
+       (!campaign.filters.categories || campaign.filters.categories.length === 0) && 
+       !campaign.filters.createdBy && 
+       !campaign.filters.giftType && 
+       !campaign.filters.product)) ? (
+      <div className="text-center py-8 text-gray-500">
+        No filters applied (recipients were manually selected)
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {campaign.filters.search && (
+          <div className="flex items-center gap-4">
+            <span className="w-32 text-gray-600 font-medium">Search:</span>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+              {campaign.filters.search}
+            </span>
+          </div>
+        )}
+        
+        {campaign.filters.categories && Array.isArray(campaign.filters.categories) && campaign.filters.categories.length > 0 && (
+          <div className="flex items-start gap-4">
+            <span className="w-32 text-gray-600 font-medium mt-1">Categories:</span>
+            <div className="flex flex-wrap gap-2">
+              {campaign.filters.categories.map((category, idx) => (
+                <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                  {category}
+                </span>
+              ))}
             </div>
-          )}
+          </div>
+        )}
+        
+        {campaign.filters.createdBy && (
+          <div className="flex items-center gap-4">
+            <span className="w-32 text-gray-600 font-medium">Sales Person:</span>
+            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+              {campaign.filters.createdBy}
+            </span>
+          </div>
+        )}
+        
+        {campaign.filters.giftType && (
+          <div className="flex items-center gap-4">
+            <span className="w-32 text-gray-600 font-medium">Gift Type:</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+              {campaign.filters.giftType === 'all_gifts' ? 'Has Any Diwali Gift' :
+               campaign.filters.giftType === 'no_gifts' ? 'No Diwali Gifts' :
+               campaign.filters.giftType}
+            </span>
+          </div>
+        )}
+        
+        {campaign.filters.product && (
+          <div className="flex items-center gap-4">
+            <span className="w-32 text-gray-600 font-medium">Product:</span>
+            <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
+              {campaign.filters.product}
+            </span>
+          </div>
+        )}
+        
+        {/* Add a note if all filters are empty but filters object exists */}
+        {!campaign.filters.search && 
+         (!campaign.filters.categories || campaign.filters.categories.length === 0) && 
+         !campaign.filters.createdBy && 
+         !campaign.filters.giftType && 
+         !campaign.filters.product && (
+          <div className="text-center py-4 text-gray-500">
+            No specific filters applied (all customers included)
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
         </div>
       </div>
     </>

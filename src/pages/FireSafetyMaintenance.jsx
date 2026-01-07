@@ -1309,13 +1309,13 @@ function FireExtinguisherWeeklyReport() {
     'FE12': '/images/fe12.jpeg',
     'FE13': '/images/fe13.jpeg',
     'FE14': '/images/fe14.jpeg',
-    'FE15': '/images/fe15.jpg',
-    'FE16': '/images/fe16.jpg',
-    'FE17': '/images/fe17.jpg',
-    'FE18': '/images/fe18.jpg',
-    'FE19': '/images/fe19.jpg',
-    'FE20': '/images/fe20.jpg',
-    'FE21': '/images/fe21.jpg'
+    'FE15': '/images/fe15.jpeg',
+    'FE16': '/images/fe16.jpeg',
+    'FE17': '/images/fe17.jpeg',
+    'FE18': '/images/fe18.jpeg',
+    'FE19': '/images/fe19.jpeg',
+    'FE20': '/images/fe20.jpeg',
+    'FE21': '/images/fe21.jpeg'
   };
 
   // Function to open image in modal
