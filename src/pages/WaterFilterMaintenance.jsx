@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
@@ -11,7 +11,15 @@ export default function WaterFilterMaintenance() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
-  
+   const [showCamera, setShowCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+    // Camera states for EDITING entry (separate)
+  const [showEditCamera, setShowEditCamera] = useState(false);
+  const [capturedEditImage, setCapturedEditImage] = useState(null);
+  const editVideoRef = useRef(null);
+  const editStreamRef = useRef(null);
   // Pagination state
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -97,14 +105,10 @@ export default function WaterFilterMaintenance() {
     });
   };
 
-  // Handle file selection
-  const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
-  };
-
-  const handleEditFileChange = (e) => {
-    setEditFiles(Array.from(e.target.files));
-  };
+// Remove captured file in edit mode
+const removeEditFile = (index) => {
+  setEditFiles(editFiles.filter((_, i) => i !== index));
+};
 
   // Add new entry
   const handleAddEntry = async () => {
@@ -284,6 +288,256 @@ export default function WaterFilterMaintenance() {
     });
   };
 
+// Camera capture functions
+const startCameraCapture = async () => {
+  try {
+    // Request camera access
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'environment', // Use back camera
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false 
+    });
+    
+    streamRef.current = stream;
+    setShowCamera(true);
+    
+    // Wait for the video element to be ready
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+    alert('Camera access denied. Please allow camera access to capture photos.');
+  }
+};
+
+const stopCameraCapture = () => {
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  }
+  setShowCamera(false);
+  setCapturedImage(null);
+  
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+  }
+};
+
+const capturePhoto = () => {
+  if (!videoRef.current) return;
+  
+  const canvas = document.createElement('canvas');
+  const video = videoRef.current;
+  
+  // Set canvas dimensions to match video
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  // Draw video frame to canvas
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Add date and time stamp
+  addTimestampToImage(ctx, canvas.width, canvas.height);
+  
+  // Convert to data URL and set as captured image
+  const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  setCapturedImage(imageDataUrl);
+};
+
+// Function to add timestamp overlay
+const addTimestampToImage = (ctx, width, height) => {
+  const now = new Date();
+  
+  // Format date and time
+  const dateStr = now.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+  
+  const timeStr = now.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  const timestampText = `${dateStr} ${timeStr}`;
+  
+  // Set font properties
+  ctx.font = 'bold 24px Arial';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; // White with transparency
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black outline
+  ctx.lineWidth = 3;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  
+  // Calculate position (bottom right corner with padding)
+  const padding = 20;
+  const textWidth = ctx.measureText(timestampText).width;
+  const x = width - padding;
+  const y = height - padding;
+  
+  // Draw text outline
+  ctx.strokeText(timestampText, x, y);
+  
+  // Draw text fill
+  ctx.fillText(timestampText, x, y);
+  
+  // Add a small semi-transparent background for better readability
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(
+    x - textWidth - 10, // x position
+    y - 30, // y position (24px font + 6px padding)
+    textWidth + 20, // width
+    30 // height
+  );
+  
+  // Redraw text on top of background
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.fillText(timestampText, x, y);
+};
+
+// Also update the filename to match the timestamp
+const saveCapturedPhoto = () => {
+  if (!capturedImage) return;
+  
+  // Get current date/time for filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+  
+  const filename = `water-filter-${dateStr}_${timeStr}.jpg`;
+  
+  // Convert data URL to Blob
+  fetch(capturedImage)
+    .then(res => res.blob())
+    .then(blob => {
+      // Create File object from Blob
+      const file = new File([blob], filename, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      
+      // Add to files array
+      setFiles([...files, file]);
+      
+      // Reset camera
+      stopCameraCapture();
+    })
+    .catch(error => {
+      console.error('Error saving captured photo:', error);
+      alert('Error saving photo. Please try again.');
+    });
+};
+
+// Remove captured file
+const removeCapturedFile = (index) => {
+  setFiles(files.filter((_, i) => i !== index));
+};
+
+// Camera capture functions for EDIT mode
+const startEditCameraCapture = async () => {
+  try {
+    // Request camera access
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'environment', // Use back camera
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false 
+    });
+    
+    editStreamRef.current = stream;
+    setShowEditCamera(true);
+    
+    // Wait for the video element to be ready
+    setTimeout(() => {
+      if (editVideoRef.current) {
+        editVideoRef.current.srcObject = stream;
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Error accessing camera in edit mode:', error);
+    alert('Camera access denied. Please allow camera access to capture photos.');
+  }
+};
+
+const stopEditCameraCapture = () => {
+  if (editStreamRef.current) {
+    editStreamRef.current.getTracks().forEach(track => track.stop());
+    editStreamRef.current = null;
+  }
+  setShowEditCamera(false);
+  setCapturedEditImage(null);
+  
+  if (editVideoRef.current) {
+    editVideoRef.current.srcObject = null;
+  }
+};
+
+const captureEditPhoto = () => {
+  if (!editVideoRef.current) return;
+  
+  const canvas = document.createElement('canvas');
+  const video = editVideoRef.current;
+  
+  // Set canvas dimensions to match video
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  // Draw video frame to canvas
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Add date and time stamp
+  addTimestampToImage(ctx, canvas.width, canvas.height);
+  
+  // Convert to data URL and set as captured image
+  const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  setCapturedEditImage(imageDataUrl);
+};
+
+const saveEditCapturedPhoto = () => {
+  if (!capturedEditImage) return;
+  
+  // Get current date/time for filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+  
+  const filename = `water-filter-edit-${dateStr}_${timeStr}.jpg`;
+  
+  // Convert data URL to Blob
+  fetch(capturedEditImage)
+    .then(res => res.blob())
+    .then(blob => {
+      // Create File object from Blob
+      const file = new File([blob], filename, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      
+      // Add to editFiles array
+      setEditFiles([...editFiles, file]);
+      
+      // Reset edit camera
+      stopEditCameraCapture();
+    })
+    .catch(error => {
+      console.error('Error saving edit captured photo:', error);
+      alert('Error saving photo. Please try again.');
+    });
+};
+
   return (
     <div className="min-h-screen bg-slate-100">
       <InternalNavbar />
@@ -376,23 +630,218 @@ export default function WaterFilterMaintenance() {
             </div>
           </div>
           
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Upload Files (Images/Documents)
-            </label>
-            <input
-              id="fileInput"
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {files.length > 0 && (
-              <p className="text-sm text-slate-600 mt-2">
-                {files.length} file(s) selected
-              </p>
-            )}
+         <div className="mb-4">
+  <label className="block text-sm font-medium text-slate-700 mb-2">
+    Capture Photos (Camera Only)
+  </label>
+  
+  {/* Camera capture button */}
+  <button
+    type="button"
+    onClick={startCameraCapture}
+    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-3"
+  >
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture Photo with Camera
+  </button>
+  
+  {/* Camera preview modal */}
+  {showCamera && (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-2xl">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Camera Capture</h3>
+          <button
+            type="button"
+            onClick={stopCameraCapture}
+            className="text-slate-500 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div className="p-4">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-64 md:h-96 bg-black rounded-lg"
+          />
+        </div>
+        
+        <div className="p-4 border-t flex justify-center gap-4">
+          <button
+            type="button"
+            onClick={capturePhoto}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            </svg>
+            Capture Photo
+          </button>
+          
+          <button
+            type="button"
+            onClick={stopCameraCapture}
+            className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+          >
+            Cancel
+          </button>
+        </div>
+        
+        {capturedImage && (
+          <div className="p-4 border-t">
+            <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+            <div className="flex items-center gap-4">
+              <img
+                src={capturedImage}
+                alt="Captured preview"
+                className="w-32 h-32 object-cover rounded-lg border"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveCapturedPhoto}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Save Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCapturedImage(null)}
+                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
           </div>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* Edit Camera preview modal */}
+{showEditCamera && (
+  <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-lg w-full max-w-2xl">
+      <div className="p-4 border-b flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Capture Photo for Edit</h3>
+        <button
+          type="button"
+          onClick={stopEditCameraCapture}
+          className="text-slate-500 hover:text-slate-700"
+        >
+          ✕
+        </button>
+      </div>
+      
+      <div className="p-4">
+        <video
+          ref={editVideoRef}
+          autoPlay
+          playsInline
+          className="w-full h-64 md:h-96 bg-black rounded-lg"
+        />
+      </div>
+      
+      <div className="p-4 border-t flex justify-center gap-4">
+        <button
+          type="button"
+          onClick={captureEditPhoto}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+          </svg>
+          Capture Photo
+        </button>
+        
+        <button
+          type="button"
+          onClick={stopEditCameraCapture}
+          className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+        >
+          Cancel
+        </button>
+      </div>
+      
+      {capturedEditImage && (
+        <div className="p-4 border-t">
+          <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+          <div className="flex items-center gap-4">
+            <img
+              src={capturedEditImage}
+              alt="Captured preview"
+              className="w-32 h-32 object-cover rounded-lg border"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveEditCapturedPhoto}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Save Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => setCapturedEditImage(null)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+              >
+                Retake
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+  
+{/* Preview of captured images */}
+{files.length > 0 && (
+  <div className="mt-4">
+    <p className="text-sm font-medium text-slate-700 mb-2">
+      Captured Photos ({files.length})
+    </p>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {files.map((file, index) => {
+        // Extract timestamp from filename for display
+        const filename = file.name;
+        const timestampMatch = filename.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/);
+        const displayTime = timestampMatch 
+          ? timestampMatch[0].replace('_', ' ').replace(/-/g, ':')
+          : 'No timestamp';
+        
+        return (
+          <div key={index} className="relative group captured-image-container">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Captured ${index + 1}`}
+              className="w-full h-32 object-cover rounded-lg border border-slate-300"
+            />
+            {/* Timestamp badge */}
+            <div className="timestamp-badge">
+              {displayTime}
+            </div>
+            <button
+              type="button"
+              onClick={() => removeCapturedFile(index)}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Remove photo"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+</div>
 
           <button
             onClick={handleAddEntry}
@@ -507,19 +956,39 @@ export default function WaterFilterMaintenance() {
                                   );
                                 })}
                                 
-                                <div>
-                                  <input
-                                    type="file"
-                                    multiple
-                                    onChange={handleEditFileChange}
-                                    className="text-sm text-slate-600"
-                                  />
-                                  {editFiles.length > 0 && (
-                                    <p className="text-xs text-slate-500 mt-1">
-                                      +{editFiles.length} new file(s)
-                                    </p>
-                                  )}
-                                </div>
+                          <div>
+  <button
+    type="button"
+    onClick={startEditCameraCapture}
+    className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 transition-colors mb-2"
+  >
+    📸 Capture New Photo
+  </button>
+  
+  {editFiles.length > 0 && (
+    <div className="mt-2">
+      <p className="text-xs text-slate-600 mb-1">New captured photos:</p>
+      <div className="flex flex-wrap gap-2">
+        {editFiles.map((file, index) => (
+          <div key={index} className="relative">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`New capture ${index + 1}`}
+              className="w-16 h-16 object-cover rounded border"
+            />
+            <button
+              type="button"
+              onClick={() => removeEditFile(index)}
+              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap space-x-2">
@@ -562,24 +1031,36 @@ export default function WaterFilterMaintenance() {
                               {entry.dataEnteredBy}
                             </td>
                             <td className="px-6 py-4">
-                              {entry.files && entry.files.length > 0 ? (
-                                <div className="space-y-1">
-                                  {entry.files.map((file) => (
-                                    <div key={file.public_id}>
-                                      <button
-                                        onClick={() => previewFile(file.url, file.originalName)}
-                                        className="text-blue-600 hover:text-blue-800 text-sm block truncate max-w-xs flex items-center gap-1"
-                                        title={file.originalName}
-                                      >
-                                        📎 {file.originalName}
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 text-sm">No files</span>
-                              )}
-                            </td>
+  {entry.files && entry.files.length > 0 ? (
+    <div className="space-y-1">
+      {entry.files.map((file) => {
+        // Extract timestamp from filename
+        const filename = file.originalName;
+        const timestampMatch = filename.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/);
+        const displayTime = timestampMatch 
+          ? timestampMatch[0].replace('_', ' ').replace(/-/g, ':')
+          : 'Recent';
+        
+        return (
+          <div key={file.public_id}>
+            <button
+              onClick={() => previewFile(file.url, file.originalName)}
+              className="text-blue-600 hover:text-blue-800 text-sm block truncate max-w-xs flex items-center gap-1 group relative"
+              title={`${file.originalName} (Captured: ${displayTime})`}
+            >
+              📎 {file.originalName}
+              <span className="hidden group-hover:inline text-xs text-gray-500 ml-1">
+                ({displayTime})
+              </span>
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <span className="text-slate-400 text-sm">No files</span>
+  )}
+</td>
                             <td className="px-6 py-4 whitespace-nowrap space-x-2">
                               <button
                                 onClick={() => startEdit(entry)}

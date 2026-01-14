@@ -10,6 +10,8 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import IncomingPaymentForm from "./IncomingPaymentForm";
 import ProductCustomerSearch from "../components/ProductCustomerSearch";
+import NotificationBell from "../components/NotificationBell";
+import AttendanceNotification from "../components/AttendanceNotification";
 
 export default function Dashboard() {
  // Helper function to parse roles properly
@@ -65,7 +67,6 @@ const [searchLoading, setSearchLoading] = useState(false);
 const profileButtonRef = useRef(null);
 const profilePanelRef = useRef(null);
 const docNotificationsRef = useRef(null);
-
     // ✅ ADD THIS LINE - Declare userRoles at component level
   const userRoles = user ? parseUserRoles(user) : [];
 
@@ -187,6 +188,11 @@ useEffect(() => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data);
+         // Store user ID in localStorage for notification filtering
+      if (res.data._id) {
+        localStorage.setItem('userId', res.data._id);
+      }
+      
         setLoading(false);
       } catch (err) {
         console.error(
@@ -672,7 +678,12 @@ useEffect(() => {
     </span>
   </motion.button>
 )}
+<NotificationBell />
 </div>
+{userRoles.includes("accounts") &&
+      <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
+ {user?.allowAttendance && <AttendanceNotification />}
+</div>}
 
 {/* Main Dashboard Content */}
 <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8 pt-20">       

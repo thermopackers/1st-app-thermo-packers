@@ -4,6 +4,15 @@ import { useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+const INDIAN_STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry","Punjab"
+];
 
 export default function AddCustomer() {
     const { user } = useUserContext();
@@ -41,11 +50,19 @@ const [gstError, setGstError] = useState("");
 const [categories, setCategories] = useState([]);
 
 useEffect(() => {
-  // Load categories from localStorage
-  const savedCategories = localStorage.getItem('customerCategories');
-  if (savedCategories) {
-    setCategories(JSON.parse(savedCategories));
-  }
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/settings/categories");
+      setCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+      // Fallback to default categories
+      const defaultCategories = ['VIP', 'Regular', 'New', 'Corporate', 'Retail'];
+      setCategories(defaultCategories);
+    }
+  };
+  
+  fetchCategories();
 }, []);
 
   const [formData, setFormData] = useState({
@@ -54,6 +71,10 @@ useEffect(() => {
     phone: "",
     email: "",
     address: "",
+state: "",
+city: "",
+pincode: "",
+inPunjab: false,
       locationLink: "", // ✅ New field
         instructions: "", // ✅ NEW FIELD
           salesCategory: "", // ✅ NEW FIELD
@@ -100,7 +121,11 @@ const handleChange = (e) => {
     }
   }
 
-  setFormData((prev) => ({ ...prev, [name]: value }));
+setFormData((prev) => ({
+  ...prev,
+  [name]: value,
+  ...(name === "state" && { inPunjab: value === "Punjab" }),
+}));
 };
 
 
@@ -297,6 +322,42 @@ const handleSubmit = async (e) => {
                 rows={3}
               />
             </div>
+            <div>
+  <label className="block mb-1 font-medium text-gray-700">STATES & UNION TERRITORIES</label>
+  <select
+    name="state"
+    value={formData.state}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  >
+    <option value="">Select State</option>
+    {INDIAN_STATES.map((s) => (
+      <option key={s} value={s}>{s}</option>
+    ))}
+  </select>
+</div>
+
+<div>
+  <label className="block mb-1 font-medium text-gray-700">NAME OF CITY/VILLAGE/ TOWN</label>
+  <input
+    name="city"
+    value={formData.city}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  />
+</div>
+
+<div>
+  <label className="block mb-1 font-medium text-gray-700">PIN CODE</label>
+  <input
+    name="pincode"
+    value={formData.pincode}
+    onChange={handleChange}
+    maxLength={6}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  />
+</div>
+
             <div>
   <label className="block mb-1 font-medium text-gray-700">
     Google Maps Location Link

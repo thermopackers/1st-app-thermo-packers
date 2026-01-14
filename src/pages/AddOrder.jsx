@@ -555,7 +555,14 @@ if (clientDetails.poCopy.length > 0) {
     }
     
     toast.success("Order submitted!");
-        navigate("/dashboard", { replace: true });
+           // ✅ Navigate to the order in OrdersList with scroll to section
+    navigate("/orders", { 
+      state: { 
+        scrollToOrderId: createdOrder._id,
+        scrollToSection: true 
+      },
+      replace: true 
+    });
 
   } catch (err) {
     console.error("Order submission error:", err);

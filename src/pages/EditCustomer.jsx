@@ -4,6 +4,15 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+const INDIAN_STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry","Punjab"
+];
 
 export default function EditCustomer() {
   const location = useLocation();
@@ -211,7 +220,11 @@ const handleChange = (e) => {
     }
   }
 
-  setCustomer((prev) => ({ ...prev, [name]: value }));
+setCustomer((prev) => ({
+  ...prev,
+  [name]: value,
+  ...(name === "state" && { inPunjab: value === "Punjab" }),
+}));
 };
 
   const handleFileChange = (e) => {
@@ -281,10 +294,16 @@ if (!customer.company || customer.company.trim() === "") {
       await axiosInstance.put(`/customers/${id}`, updatedCustomer);
       toast.success("Customer updated successfully");
       navigate("/customers");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update customer");
-    } finally {
+   } catch (err) {
+  console.error(err);
+
+  const errorMsg =
+    err.response?.data?.error ||
+    err.response?.data?.message ||
+    "Failed to update customer";
+
+  toast.error(errorMsg);
+} finally {
       setSubmitting(false);
     }
   };
@@ -410,6 +429,42 @@ if (!customer.company || customer.company.trim() === "") {
               className="w-full border p-2 rounded"
             />
           </div>
+          <div>
+  <label className="block mb-1 font-medium text-gray-700">"STATES & UNION TERRITORIES</label>
+  <select
+    name="state"
+    value={customer.state}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  >
+    <option value="">Select State</option>
+    {INDIAN_STATES.map((s) => (
+      <option key={s} value={s}>{s}</option>
+    ))}
+  </select>
+</div>
+
+<div>
+  <label className="block mb-1 font-medium text-gray-700">NAME OF CITY/VILLAGE/ TOWN</label>
+  <input
+    name="city"
+    value={customer.city}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  />
+</div>
+
+<div>
+  <label className="block mb-1 font-medium text-gray-700">PIN CODE</label>
+  <input
+    name="pincode"
+    value={customer.pincode}
+    onChange={handleChange}
+    maxLength={6}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+  />
+</div>
+
    {(() => {
   // ✅ Use the same parseUserRoles logic as your dashboard
   const parseUserRoles = (user) => {

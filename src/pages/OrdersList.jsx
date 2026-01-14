@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import * as XLSX from "xlsx";
@@ -10,7 +10,6 @@ import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import SlipFormModal from "../components/SlipFormModal.jsx";
 import { useUserContext } from "../context/UserContext.jsx";
-
 // Import optimized components
 import OrderTable from "../components/OrderTable/OrderTable";
 import OrderFilters from "../components/OrderFilters/OrderFilters";
@@ -20,7 +19,7 @@ import { useOrderActions } from "../components/hooks/useOrderActions";
 import { useOrderData } from "../components/hooks/useOrderData.js";
 import EditModal from "../components/EditModal";
 import ProductImageModal from "../components/ProductImageModal";
-
+import '../index.css'
 // Helper components
 const UploadingOverlay = () => (
   <div className="fixed inset-0 bg-[#000000af] bg-opacity-50 flex items-center justify-center z-50">
@@ -59,7 +58,8 @@ export default function OrdersList() {
   const { shouldRefetchOrders, setShouldRefetchOrders } = useUserContext();
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const tableContainerRef = useRef(null);
+
   const token = localStorage.getItem("token");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -473,6 +473,54 @@ useEffect(() => {
   });
 }, [orders]);
 
+useEffect(() => {
+  const locationState = location.state;
+  
+  if (locationState?.scrollToOrderId && orders.length > 0 && !loading) {
+    console.log(`🎯 Simplified scroll to column 26`);
+    
+    setTimeout(() => {
+      const tableContainer = document.querySelector('.w-full.overflow-x-auto.mt-10');
+      
+      if (tableContainer) {
+        // Since we have 30 columns total and column 26 is near the end
+        // Scroll to show right side of table (section column is near the end)
+        const totalWidth = tableContainer.scrollWidth;
+        const visibleWidth = tableContainer.clientWidth;
+        
+        // Column 26 out of 30 columns = ~87% of the way
+        const scrollPosition = totalWidth * 0.85;
+        
+        console.log(`📏 Total: ${totalWidth}px, Visible: ${visibleWidth}px, Scroll to: ${scrollPosition}px`);
+        
+        tableContainer.scrollTo({
+          left: scrollPosition,
+          behavior: 'smooth'
+        });
+        
+        // Also try to find and highlight the specific section cell
+        setTimeout(() => {
+          const targetRow = document.querySelector(`[data-order-id="${locationState.scrollToOrderId}"]`);
+          if (targetRow) {
+            const cells = targetRow.querySelectorAll('td');
+            if (cells[25]) {
+              cells[25].style.backgroundColor = '#fff3cd';
+              cells[25].style.border = '3px solid #ffc107';
+              
+              setTimeout(() => {
+                cells[25].style.backgroundColor = '';
+                cells[25].style.border = '';
+              }, 3000);
+            }
+          }
+        }, 800);
+      }
+    }, 1000);
+    
+    navigate(location.pathname, { replace: true, state: {} });
+  }
+}, [orders, location.state, navigate, loading]);
+
   // Filter change handler
   const handleFilterChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -780,9 +828,8 @@ useEffect(() => {
     }
   }, [orders, setOrders, swalWithTailwindButtons]);
 
-  
   return (
-    <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+    <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100" ref={tableContainerRef}>
       {uploadingPOCopy && <UploadingOverlay />}
 
       <InternalNavbar />

@@ -17,6 +17,7 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/campaigns",
+    "/thermocast",
     "/campaigns/new",
     "/leave-management",
     "/gate-outward",

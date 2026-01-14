@@ -20,6 +20,9 @@ export default function ProformaInvoiceForm() {
     shipTo: "",
     sameAddress: true,
     inPunjab: true,
+      city: "",
+  state: "",
+  pincode: "",
     transportMode: "",
     destination: "",
     freight: 0,
@@ -198,15 +201,21 @@ useEffect(() => {
       }))}
       onChange={(selectedOption) => {
         const customer = selectedOption.data;
-       setForm(f => ({
+  setForm(f => ({
   ...f,
-  customerName: customer.name || "", // ✅ Add this line
-      customerEmail: customer.email || "", // ✅ silently include email
+  customerName: customer.name || "",
+  customerEmail: customer.email || "",
   contact: customer.phone || "",
   billTo: customer.address || "",
   shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
-  gstin: customer.company || ""
+  gstin: customer.company || "",
+
+  city: customer.city || "",
+  state: customer.state || "",
+  pincode: customer.pincode || "",
+  inPunjab: customer.state === "Punjab",
 }));
+
 
       }}
       isSearchable
@@ -395,10 +404,10 @@ packaging: e.target.value,
 
 
         {/* GST Type */}
-        <label className="flex items-center gap-2 text-sm">
+        {/* <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.inPunjab} onChange={() => setForm(f => ({ ...f, inPunjab: !f.inPunjab }))} />
          Check this if Within Punjab
-        </label>
+        </label> */}
 
         {/* Products Table */}
         <div className="w-full overflow-x-auto">

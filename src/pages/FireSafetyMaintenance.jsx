@@ -1,5 +1,5 @@
 // pages/FireSafetyMaintenance.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
@@ -140,7 +140,20 @@ function WaterHydrantDailyReport() {
   const [editFiles, setEditFiles] = useState({ waterSystem1: [], waterSystem2: [], waterSystem3: [] });
   const [existingFiles, setExistingFiles] = useState({ waterSystem1: [], waterSystem2: [], waterSystem3: [] });
   const [deletingFiles, setDeletingFiles] = useState({ waterSystem1: [], waterSystem2: [], waterSystem3: [] });
-
+ // Camera states for NEW entry
+  const [showCamera, setShowCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [currentSystem, setCurrentSystem] = useState(null); // Track which system we're capturing for
+  const [currentRowId, setCurrentRowId] = useState(null); // Track which row we're capturing for
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  
+  // Camera states for EDIT mode
+  const [showEditCamera, setShowEditCamera] = useState(false);
+  const [capturedEditImage, setCapturedEditImage] = useState(null);
+  const [editCurrentSystem, setEditCurrentSystem] = useState(null);
+  const editVideoRef = useRef(null);
+  const editStreamRef = useRef(null);
   // Fetch logs with pagination
   const fetchLogs = async (pageNum = 1, dateFilter = "") => {
     try {
@@ -222,20 +235,38 @@ function WaterHydrantDailyReport() {
     );
   };
 
-  const handleFileUpload = (id, systemNumber, files) => {
-    setTableData(prev =>
-      prev.map(row => {
-        if (row.id === id) {
-          const updatedSystem = { 
-            ...row[`waterSystem${systemNumber}`], 
-            files: Array.from(files) 
-          };
-          return { ...row, [`waterSystem${systemNumber}`]: updatedSystem };
-        }
-        return row;
-      })
-    );
-  };
+const handleFileUpload = (id, systemNumber, newFiles) => {
+  console.log(`DEBUG: handleFileUpload - id: ${id}, system: ${systemNumber}, newFiles:`, newFiles);
+  
+  setTableData(prev =>
+    prev.map(row => {
+      if (row.id === id) {
+        console.log(`DEBUG: Found row with id ${id}`);
+        
+        // Get current files for this system
+        const currentFiles = row[systemNumber]?.files || [];
+        
+        // Create updated system object
+        const updatedSystem = { 
+          ...row[systemNumber], 
+          files: [...currentFiles, ...newFiles] // Add new files to existing files
+        };
+        
+        console.log(`DEBUG: ${systemNumber} updated - Old files: ${currentFiles.length}, New files: ${newFiles.length}, Total: ${updatedSystem.files.length}`);
+        
+        // Return updated row
+        const updatedRow = { 
+          ...row, 
+          [systemNumber]: updatedSystem 
+        };
+        
+        console.log(`DEBUG: Updated row:`, updatedRow);
+        return updatedRow;
+      }
+      return row;
+    })
+  );
+};
 
   // Function to open file in modal
   const openFileModal = (url) => {
@@ -308,64 +339,126 @@ function WaterHydrantDailyReport() {
     }));
   };
 
-  const submitData = async () => {
-    try {
-      setLoading(true);
+const submitData = async () => {
+  try {
+    setLoading(true);
+    
+    console.log("DEBUG: Starting submitData");
+    
+    for (const row of tableData) {
+      console.log("DEBUG: Processing row for date:", row.date);
       
-      for (const row of tableData) {
-        // Upload files for each system
-        const uploadedFiles = {};
+      // Upload files for each system FIRST
+      const uploadedFiles = {};
+      let hasFiles = false;
+      
+      for (let i = 1; i <= 3; i++) {
+        const systemKey = `waterSystem${i}`;
         
-        for (let i = 1; i <= 3; i++) {
-          const systemKey = `waterSystem${i}`;
-          if (row[systemKey].files && row[systemKey].files.length > 0) {
-            const fd = new FormData();
-            row[systemKey].files.forEach((file) => fd.append("files", file));
+        if (row[systemKey].files && row[systemKey].files.length > 0) {
+          hasFiles = true;
+          console.log(`DEBUG: ${systemKey} has ${row[systemKey].files.length} files to upload`);
+          
+          const fd = new FormData();
+          row[systemKey].files.forEach((file) => {
+            fd.append("files", file);
+          });
+          
+          try {
+            console.log(`DEBUG: Uploading files for ${systemKey}...`);
             const uploadRes = await axiosInstance.post("/fire-safety/upload", fd, {
               headers: { "Content-Type": "multipart/form-data" },
             });
-            uploadedFiles[systemKey] = uploadRes.data.urls;
-          } else {
+            
+            console.log(`DEBUG: Upload response for ${systemKey}:`, uploadRes.data);
+            
+            if (uploadRes.data && uploadRes.data.urls && uploadRes.data.urls.length > 0) {
+              uploadedFiles[systemKey] = uploadRes.data.urls;
+              console.log(`DEBUG: Successfully uploaded ${uploadRes.data.urls.length} files for ${systemKey}`);
+            } else {
+              console.warn(`DEBUG: No URLs returned for ${systemKey}`);
+              uploadedFiles[systemKey] = [];
+            }
+          } catch (uploadError) {
+            console.error(`DEBUG: Upload error for ${systemKey}:`, uploadError);
+            // If upload fails, ask user what to do
+            const shouldContinue = window.confirm(
+              `Failed to upload files for Water System ${i}. Continue saving without files?`
+            );
+            
+            if (!shouldContinue) {
+              setLoading(false);
+              return; // Stop the save process
+            }
+            
             uploadedFiles[systemKey] = [];
           }
+        } else {
+          uploadedFiles[systemKey] = [];
         }
-
-        // Submit data - Date is already in dd/mm/yyyy format
-        await axiosInstance.post("/fire-safety/water-hydrant", {
-          date: row.date,
-          waterSystem1: {
-            status: row.waterSystem1.status,
-            files: uploadedFiles.waterSystem1 || []
-          },
-          waterSystem2: {
-            status: row.waterSystem2.status,
-            files: uploadedFiles.waterSystem2 || []
-          },
-          waterSystem3: {
-            status: row.waterSystem3.status,
-            files: uploadedFiles.waterSystem3 || []
-          },
-          remarks: row.remarks
-        });
       }
-
-      Swal.fire("Success!", "Water hydrant check report saved successfully", "success");
       
-      // Clear table data and refresh logs
-      setTableData([]);
-      fetchLogs(1, filterDate);
-
-    } catch (err) {
-      console.error("Error saving data:", err);
-      if (err.response?.data?.message?.includes("already exists")) {
-        Swal.fire("Error", "A report already exists for this date. Please edit the existing report.", "error");
-      } else {
-        Swal.fire("Error", "Error saving report", "error");
+      // If no files at all, still save the entry
+      if (!hasFiles) {
+        console.log("DEBUG: No files to upload for this entry");
       }
-    } finally {
-      setLoading(false);
+
+      console.log("DEBUG: Final uploaded files:", uploadedFiles);
+      
+      // Submit the main entry data
+      console.log("DEBUG: Saving main entry...");
+      const payload = {
+        date: row.date,
+        waterSystem1: {
+          status: row.waterSystem1.status,
+          files: uploadedFiles.waterSystem1 || []
+        },
+        waterSystem2: {
+          status: row.waterSystem2.status,
+          files: uploadedFiles.waterSystem2 || []
+        },
+        waterSystem3: {
+          status: row.waterSystem3.status,
+          files: uploadedFiles.waterSystem3 || []
+        },
+        remarks: row.remarks
+      };
+      
+      console.log("DEBUG: Payload being sent:", payload);
+      
+      const response = await axiosInstance.post("/fire-safety/water-hydrant", payload);
+      console.log("DEBUG: Save response:", response.data);
+      
+      if (response.data) {
+        console.log("DEBUG: Entry saved successfully with ID:", response.data._id);
+      }
     }
-  };
+
+    Swal.fire({
+      title: "Success!",
+      text: "Water hydrant check report saved successfully",
+      icon: "success",
+      confirmButtonText: "OK"
+    });
+    
+    // Clear table data and refresh logs
+    setTableData([]);
+    fetchLogs(1, filterDate);
+
+  } catch (err) {
+    console.error("DEBUG: Error in submitData:", err);
+    console.error("DEBUG: Error response:", err.response?.data);
+    
+    Swal.fire({
+      title: "Error",
+      text: err.response?.data?.message || "Error saving report",
+      icon: "error",
+      confirmButtonText: "OK"
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Cancel new entry
   const cancelNewEntry = () => {
@@ -430,18 +523,24 @@ function WaterHydrantDailyReport() {
         }
       };
       
-      // Upload new files for each system
-      for (let i = 1; i <= 3; i++) {
-        const systemKey = `waterSystem${i}`;
-        if (editFiles[systemKey] && editFiles[systemKey].length > 0) {
-          const fd = new FormData();
-          editFiles[systemKey].forEach((file) => fd.append("files", file));
-          const uploadRes = await axiosInstance.post("/fire-safety/upload", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          updatedData[systemKey].files = [...updatedData[systemKey].files, ...uploadRes.data.urls];
-        }
-      }
+   // Upload new files for each system
+for (let i = 1; i <= 3; i++) {
+  const systemKey = `waterSystem${i}`;
+  if (editFiles[systemKey] && editFiles[systemKey].length > 0) {
+    const fd = new FormData();
+    editFiles[systemKey].forEach((file) => fd.append("files", file));
+    
+    try {
+      const uploadRes = await axiosInstance.post("/fire-safety/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      updatedData[systemKey].files = [...updatedData[systemKey].files, ...uploadRes.data.urls];
+    } catch (uploadError) {
+      console.error(`Error uploading new files for ${systemKey}:`, uploadError);
+      Swal.fire("Warning", `Failed to upload some new files for ${systemKey}`, "warning");
+    }
+  }
+}
 
       await axiosInstance.put(`/fire-safety/water-hydrant/${id}`, updatedData);
       
@@ -518,8 +617,345 @@ function WaterHydrantDailyReport() {
     handlePageChange(pagination.totalPages);
   };
 
+  // Camera capture functions for NEW entry
+const startCameraCapture = async (systemNumber, rowId) => {
+  try {
+    setCurrentSystem(systemNumber);
+    setCurrentRowId(rowId);
+    
+    // Request camera access
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false 
+    });
+    
+    streamRef.current = stream;
+    setShowCamera(true);
+    
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+    alert('Camera access denied. Please allow camera access to capture photos.');
+  }
+};
+
+const stopCameraCapture = () => {
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  }
+  setShowCamera(false);
+  setCapturedImage(null);
+  setCurrentSystem(null);
+  setCurrentRowId(null);
+  
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+  }
+};
+
+const capturePhoto = () => {
+  if (!videoRef.current) return;
+  
+  const canvas = document.createElement('canvas');
+  const video = videoRef.current;
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Add timestamp overlay
+  addTimestampToImage(ctx, canvas.width, canvas.height);
+  
+  const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  setCapturedImage(imageDataUrl);
+};
+
+// Add timestamp to image
+// Enhanced version - Best readability
+const addTimestampToImage = (ctx, width, height) => {
+  const now = new Date();
+  
+  // Format date and time
+  const dateStr = now.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+  
+  const timeStr = now.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  const timestampText = `${dateStr} ${timeStr}`;
+  
+  // Calculate dynamic font size
+  const fontSize = Math.max(20, Math.min(30, width / 25));
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  
+  // Calculate text dimensions
+  const textMetrics = ctx.measureText(timestampText);
+  const textWidth = textMetrics.width;
+  const textHeight = fontSize * 1.2;
+  
+  // Position (bottom right with padding)
+  const paddingX = 25;
+  const paddingY = 25;
+  const x = width - paddingX;
+  const y = height - paddingY;
+  
+  // Draw background with rounded corners effect
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // 70% opaque black
+  
+  // Draw rounded rectangle manually
+  const borderRadius = 8;
+  const bgX = x - textWidth - 20;
+  const bgY = y - textHeight - 5;
+  const bgWidth = textWidth + 20;
+  const bgHeight = textHeight + 5;
+  
+  // Draw rounded rectangle
+  ctx.beginPath();
+  ctx.moveTo(bgX + borderRadius, bgY);
+  ctx.lineTo(bgX + bgWidth - borderRadius, bgY);
+  ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + borderRadius);
+  ctx.lineTo(bgX + bgWidth, bgY + bgHeight - borderRadius);
+  ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - borderRadius, bgY + bgHeight);
+  ctx.lineTo(bgX + borderRadius, bgY + bgHeight);
+  ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - borderRadius);
+  ctx.lineTo(bgX, bgY + borderRadius);
+  ctx.quadraticCurveTo(bgX, bgY, bgX + borderRadius, bgY);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw text with shadow effect for better readability
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  
+  // Draw white text
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(timestampText, x, y);
+  
+  // Reset shadow
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+};
+
+const saveCapturedPhoto = () => {
+  if (!capturedImage || !currentSystem || !currentRowId) return;
+  
+  console.log("=== DEBUG: saveCapturedPhoto ===");
+  console.log("currentRowId:", currentRowId);
+  console.log("currentSystem:", currentSystem);
+  console.log("Current tableData:", tableData);
+  
+  // Get current row before update
+  const currentRow = tableData.find(row => row.id === currentRowId);
+  if (currentRow) {
+    console.log("Current row found:", currentRow);
+    console.log(`Current ${currentSystem} files:`, currentRow[currentSystem]?.files || []);
+  }
+  
+  // Get current date/time for filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  
+  const systemNumber = currentSystem.replace('waterSystem', '');
+  const filename = `water-hydrant-system-${systemNumber}-${dateStr}_${timeStr}.jpg`;
+  
+  console.log("Creating file with name:", filename);
+  
+  // Convert data URL to Blob
+  fetch(capturedImage)
+    .then(res => res.blob())
+    .then(blob => {
+      console.log("Blob created, size:", blob.size, "type:", blob.type);
+      
+      if (blob.size === 0) {
+        console.error("ERROR: Blob is empty!");
+        alert("Error: Captured image is empty. Please try again.");
+        return;
+      }
+      
+      const file = new File([blob], filename, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      
+      console.log("File created:", {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
+      console.log("Calling handleFileUpload...");
+      
+      // Call handleFileUpload
+      handleFileUpload(currentRowId, currentSystem, [file]);
+      
+      // Check state after update
+      setTimeout(() => {
+        console.log("=== Checking state after update ===");
+        console.log("Updated tableData:", tableData);
+        
+        const updatedRow = tableData.find(row => row.id === currentRowId);
+        if (updatedRow) {
+          console.log(`Updated ${currentSystem} files:`, updatedRow[currentSystem]?.files || []);
+        }
+      }, 100);
+      
+      // Reset camera
+      stopCameraCapture();
+      
+      console.log("=== DEBUG: saveCapturedPhoto completed ===");
+    })
+    .catch(error => {
+      console.error('Error in saveCapturedPhoto:', error);
+      alert('Error saving photo. Please try again.');
+    });
+};
+
+// Camera capture functions for EDIT mode
+const startEditCameraCapture = async (systemNumber) => {
+  try {
+    setEditCurrentSystem(systemNumber);
+    
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false 
+    });
+    
+    editStreamRef.current = stream;
+    setShowEditCamera(true);
+    
+    setTimeout(() => {
+      if (editVideoRef.current) {
+        editVideoRef.current.srcObject = stream;
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Error accessing camera in edit mode:', error);
+    alert('Camera access denied. Please allow camera access to capture photos.');
+  }
+};
+
+const stopEditCameraCapture = () => {
+  if (editStreamRef.current) {
+    editStreamRef.current.getTracks().forEach(track => track.stop());
+    editStreamRef.current = null;
+  }
+  setShowEditCamera(false);
+  setCapturedEditImage(null);
+  setEditCurrentSystem(null);
+  
+  if (editVideoRef.current) {
+    editVideoRef.current.srcObject = null;
+  }
+};
+
+const captureEditPhoto = () => {
+  if (!editVideoRef.current) return;
+  
+  const canvas = document.createElement('canvas');
+  const video = editVideoRef.current;
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // Add timestamp overlay
+  addTimestampToImage(ctx, canvas.width, canvas.height);
+  
+  const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  setCapturedEditImage(imageDataUrl);
+};
+
+const saveEditCapturedPhoto = () => {
+  if (!capturedEditImage || !editCurrentSystem) return;
+  
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  
+  const systemNumber = editCurrentSystem.replace('waterSystem', '');
+  const filename = `water-hydrant-edit-system-${systemNumber}-${dateStr}_${timeStr}.jpg`;
+  
+  fetch(capturedEditImage)
+    .then(res => res.blob())
+    .then(blob => {
+      const file = new File([blob], filename, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      
+      // Add to editFiles for the specific system
+      setEditFiles(prev => ({
+        ...prev,
+        [editCurrentSystem]: [...prev[editCurrentSystem], file]
+      }));
+      
+      // Reset edit camera
+      stopEditCameraCapture();
+    })
+    .catch(error => {
+      console.error('Error saving edit captured photo:', error);
+      alert('Error saving photo. Please try again.');
+    });
+};
+
   return (
     <div>
+        <style>{`
+        .timestamp-badge {
+          position: absolute;
+          bottom: 8px;
+          right: 8px;
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          font-family: monospace;
+          pointer-events: none;
+        }
+        
+        .captured-image-container {
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .captured-image-container img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      `}</style>
       <h2 className="text-2xl font-bold mb-6 text-center text-blue-700">
         Water Fire Hydrant System Daily Check Report
       </h2>
@@ -633,79 +1069,131 @@ function WaterHydrantDailyReport() {
                   <td className="border px-3 py-2 font-semibold">{row.date}</td>
                   
                   {/* Water System 1 */}
-                  <td className="border px-3 py-2">
-                    <span className="text-xs">Water Coming</span>
-                    <select
-                      value={row.waterSystem1.status}
-                      onChange={(e) => handleSystemStatusChange(row.id, 1, e.target.value)}
-                      className="w-full border rounded p-1 mb-2"
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => handleFileUpload(row.id, 1, e.target.files)}
-                      className="w-full text-sm border rounded p-1"
-                      multiple
-                    />
-                    {row.waterSystem1.files && row.waterSystem1.files.length > 0 && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        {row.waterSystem1.files.length} file(s) selected
-                      </div>
-                    )}
-                  </td>
+<td className="border px-3 py-2">
+  <span className="text-xs">Water Coming</span>
+  <select
+    value={row.waterSystem1.status}
+    onChange={(e) => handleSystemStatusChange(row.id, 1, e.target.value)}
+    className="w-full border rounded p-1 mb-2"
+  >
+    <option value="Yes">Yes</option>
+    <option value="No">No</option>
+  </select>
+  
+  {/* REPLACE THIS FILE INPUT WITH CAMERA BUTTON */}
+  <button
+    type="button"
+    onClick={() => startCameraCapture('waterSystem1', row.id)}
+    className="w-full bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm mb-2 flex items-center justify-center gap-2"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture Photo
+  </button>
+  
+  {/* Show captured files preview */}
+  {row.waterSystem1.files && row.waterSystem1.files.length > 0 && (
+    <div className="text-xs text-blue-600 mt-1">
+      {row.waterSystem1.files.length} photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {row.waterSystem1.files.map((file, index) => (
+          <div key={index} className="relative">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</td>
                   
-                  {/* Water System 2 */}
-                  <td className="border px-3 py-2">
-                    <span className="text-xs">Water Coming</span>
-                    <select
-                      value={row.waterSystem2.status}
-                      onChange={(e) => handleSystemStatusChange(row.id, 2, e.target.value)}
-                      className="w-full border rounded p-1 mb-2"
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => handleFileUpload(row.id, 2, e.target.files)}
-                      className="w-full text-sm border rounded p-1"
-                      multiple
-                    />
-                    {row.waterSystem2.files && row.waterSystem2.files.length > 0 && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        {row.waterSystem2.files.length} file(s) selected
-                      </div>
-                    )}
-                  </td>
+                {/* Water System 2 */}
+<td className="border px-3 py-2">
+  <span className="text-xs">Water Coming</span>
+  <select
+    value={row.waterSystem2.status}
+    onChange={(e) => handleSystemStatusChange(row.id, 2, e.target.value)}
+    className="w-full border rounded p-1 mb-2"
+  >
+    <option value="Yes">Yes</option>
+    <option value="No">No</option>
+  </select>
+  
+  <button
+    type="button"
+    onClick={() => startCameraCapture('waterSystem2', row.id)}
+    className="w-full bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm mb-2 flex items-center justify-center gap-2"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture Photo
+  </button>
+  
+  {/* Show captured files preview */}
+  {row.waterSystem2.files && row.waterSystem2.files.length > 0 && (
+    <div className="text-xs text-blue-600 mt-1">
+      {row.waterSystem2.files.length} photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {row.waterSystem2.files.map((file, index) => (
+          <div key={index} className="relative">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</td>
                   
                   {/* Water System 3 */}
-                  <td className="border px-3 py-2">
-                    <span className="text-xs">Water Coming</span>
-                    <select
-                      value={row.waterSystem3.status}
-                      onChange={(e) => handleSystemStatusChange(row.id, 3, e.target.value)}
-                      className="w-full border rounded p-1 mb-2"
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => handleFileUpload(row.id, 3, e.target.files)}
-                      className="w-full text-sm border rounded p-1"
-                      multiple
-                    />
-                    {row.waterSystem3.files && row.waterSystem3.files.length > 0 && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        {row.waterSystem3.files.length} file(s) selected
-                      </div>
-                    )}
-                  </td>
+                 <td className="border px-3 py-2">
+  <span className="text-xs">Water Coming</span>
+  <select
+    value={row.waterSystem3.status}
+    onChange={(e) => handleSystemStatusChange(row.id, 3, e.target.value)}
+    className="w-full border rounded p-1 mb-2"
+  >
+    <option value="Yes">Yes</option>
+    <option value="No">No</option>
+  </select>
+  
+  <button
+    type="button"
+    onClick={() => startCameraCapture('waterSystem3', row.id)}
+    className="w-full bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors text-sm mb-2 flex items-center justify-center gap-2"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture Photo
+  </button>
+  
+  {/* Show captured files preview */}
+  {row.waterSystem3.files && row.waterSystem3.files.length > 0 && (
+    <div className="text-xs text-blue-600 mt-1">
+      {row.waterSystem3.files.length} photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {row.waterSystem3.files.map((file, index) => (
+          <div key={index} className="relative">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</td>
                   
                   <td className="border px-3 py-2">
                     <textarea
@@ -829,44 +1317,47 @@ function WaterHydrantDailyReport() {
                               </div>
                             </div>
                             
-                            {/* Add New Files */}
-                            <div>
-                              <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition inline-block mb-1">
-                                📁 Add New Files
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/*,.pdf"
-                                  onChange={(e) => setEditFiles({
-                                    ...editFiles,
-                                    waterSystem1: Array.from(e.target.files)
-                                  })}
-                                  className="hidden"
-                                />
-                              </label>
-                              {editFiles.waterSystem1 && editFiles.waterSystem1.length > 0 && (
-                                <div className="text-xs text-blue-600">
-                                  {editFiles.waterSystem1.length} new file(s) selected
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {editFiles.waterSystem1.map((file, index) => (
-                                      <div key={`new-1-${index}`} className="relative group">
-                                        <span className="border rounded p-1 text-xs bg-blue-50">
-                                          {file.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeNewFile('waterSystem1', index)}
-                                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                                          title="Remove file"
-                                        >
-                                          ×
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                           <div>
+  <button
+    type="button"
+    onClick={() => startEditCameraCapture('waterSystem1')}
+    className="bg-green-100 text-green-800 hover:bg-green-200 rounded p-2 text-xs transition inline-block mb-1 flex items-center gap-1"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture New Photo
+  </button>
+  
+  {editFiles.waterSystem1 && editFiles.waterSystem1.length > 0 && (
+    <div className="text-xs text-blue-600">
+      {editFiles.waterSystem1.length} new photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {editFiles.waterSystem1.map((file, index) => (
+          <div key={index} className="relative group">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`New capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setEditFiles(prev => ({
+                  ...prev,
+                  waterSystem1: prev.waterSystem1.filter((_, i) => i !== index)
+                }));
+              }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
                           </div>
                         ) : (
                           /* View Mode */
@@ -963,42 +1454,46 @@ function WaterHydrantDailyReport() {
                             </div>
                             
                             <div>
-                              <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition inline-block mb-1">
-                                📁 Add New Files
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/*,.pdf"
-                                  onChange={(e) => setEditFiles({
-                                    ...editFiles,
-                                    waterSystem2: Array.from(e.target.files)
-                                  })}
-                                  className="hidden"
-                                />
-                              </label>
-                              {editFiles.waterSystem2 && editFiles.waterSystem2.length > 0 && (
-                                <div className="text-xs text-blue-600">
-                                  {editFiles.waterSystem2.length} new file(s) selected
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {editFiles.waterSystem2.map((file, index) => (
-                                      <div key={`new-2-${index}`} className="relative group">
-                                        <span className="border rounded p-1 text-xs bg-blue-50">
-                                          {file.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeNewFile('waterSystem2', index)}
-                                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                                          title="Remove file"
-                                        >
-                                          ×
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+  <button
+    type="button"
+    onClick={() => startEditCameraCapture('waterSystem2')}
+    className="bg-green-100 text-green-800 hover:bg-green-200 rounded p-2 text-xs transition inline-block mb-1 flex items-center gap-1"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture New Photo
+  </button>
+  
+  {editFiles.waterSystem2 && editFiles.waterSystem2.length > 0 && (
+    <div className="text-xs text-blue-600">
+      {editFiles.waterSystem2.length} new photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {editFiles.waterSystem2.map((file, index) => (
+          <div key={index} className="relative group">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`New capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setEditFiles(prev => ({
+                  ...prev,
+                  waterSystem2: prev.waterSystem2.filter((_, i) => i !== index)
+                }));
+              }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
                           </div>
                         ) : (
                           <div>
@@ -1093,43 +1588,47 @@ function WaterHydrantDailyReport() {
                               </div>
                             </div>
                             
-                            <div>
-                              <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 rounded p-2 text-xs transition inline-block mb-1">
-                                📁 Add New Files
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/*,.pdf"
-                                  onChange={(e) => setEditFiles({
-                                    ...editFiles,
-                                    waterSystem3: Array.from(e.target.files)
-                                  })}
-                                  className="hidden"
-                                />
-                              </label>
-                              {editFiles.waterSystem3 && editFiles.waterSystem3.length > 0 && (
-                                <div className="text-xs text-blue-600">
-                                  {editFiles.waterSystem3.length} new file(s) selected
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {editFiles.waterSystem3.map((file, index) => (
-                                      <div key={`new-3-${index}`} className="relative group">
-                                        <span className="border rounded p-1 text-xs bg-blue-50">
-                                          {file.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeNewFile('waterSystem3', index)}
-                                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                                          title="Remove file"
-                                        >
-                                          ×
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                           <div>
+  <button
+    type="button"
+    onClick={() => startEditCameraCapture('waterSystem3')}
+    className="bg-green-100 text-green-800 hover:bg-green-200 rounded p-2 text-xs transition inline-block mb-1 flex items-center gap-1"
+  >
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Capture New Photo
+  </button>
+  
+  {editFiles.waterSystem3 && editFiles.waterSystem3.length > 0 && (
+    <div className="text-xs text-blue-600">
+      {editFiles.waterSystem3.length} new photo(s) captured
+      <div className="flex flex-wrap gap-1 mt-1">
+        {editFiles.waterSystem3.map((file, index) => (
+          <div key={index} className="relative group">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`New capture ${index + 1}`}
+              className="w-12 h-12 object-cover rounded border"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setEditFiles(prev => ({
+                  ...prev,
+                  waterSystem3: prev.waterSystem3.filter((_, i) => i !== index)
+                }));
+              }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
                           </div>
                         ) : (
                           <div>
@@ -1261,6 +1760,159 @@ function WaterHydrantDailyReport() {
           </div>
         )}
       </div>
+      {/* Camera Modal for NEW Entry */}
+{showCamera && (
+  <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-lg w-full max-w-2xl">
+      <div className="p-4 border-b flex justify-between items-center">
+<h3 className="text-lg font-semibold">Capture Photo for Water System {currentSystem?.replace('waterSystem', '')}</h3>
+        <button
+          type="button"
+          onClick={stopCameraCapture}
+          className="text-slate-500 hover:text-slate-700"
+        >
+          ✕
+        </button>
+      </div>
+      
+      <div className="p-4">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-64 md:h-96 bg-black rounded-lg"
+        />
+      </div>
+      
+      <div className="p-4 border-t flex justify-center gap-4">
+        <button
+          type="button"
+          onClick={capturePhoto}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+          </svg>
+          Capture Photo
+        </button>
+        
+        <button
+          type="button"
+          onClick={stopCameraCapture}
+          className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+        >
+          Cancel
+        </button>
+      </div>
+      
+      {capturedImage && (
+        <div className="p-4 border-t">
+          <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+          <div className="flex items-center gap-4">
+            <img
+              src={capturedImage}
+              alt="Captured preview"
+              className="w-32 h-32 object-cover rounded-lg border"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveCapturedPhoto}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Save Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => setCapturedImage(null)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+              >
+                Retake
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* Camera Modal for EDIT Mode */}
+{showEditCamera && (
+  <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-lg w-full max-w-2xl">
+      <div className="p-4 border-b flex justify-between items-center">
+<h3 className="text-lg font-semibold">Capture Photo for Edit - Water System {editCurrentSystem?.replace('waterSystem', '')}</h3>
+        <button
+          type="button"
+          onClick={stopEditCameraCapture}
+          className="text-slate-500 hover:text-slate-700"
+        >
+          ✕
+        </button>
+      </div>
+      
+      <div className="p-4">
+        <video
+          ref={editVideoRef}
+          autoPlay
+          playsInline
+          className="w-full h-64 md:h-96 bg-black rounded-lg"
+        />
+      </div>
+      
+      <div className="p-4 border-t flex justify-center gap-4">
+        <button
+          type="button"
+          onClick={captureEditPhoto}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+          </svg>
+          Capture Photo
+        </button>
+        
+        <button
+          type="button"
+          onClick={stopEditCameraCapture}
+          className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+        >
+          Cancel
+        </button>
+      </div>
+      
+      {capturedEditImage && (
+        <div className="p-4 border-t">
+          <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+          <div className="flex items-center gap-4">
+            <img
+              src={capturedEditImage}
+              alt="Captured preview"
+              className="w-32 h-32 object-cover rounded-lg border"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveEditCapturedPhoto}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Save Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => setCapturedEditImage(null)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+              >
+                Retake
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
     </div>
   );
 }

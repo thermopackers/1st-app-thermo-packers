@@ -126,7 +126,7 @@ const OrderRow = ({
   };
 
   return (
-    <tr className={`order-row hover:bg-gray-100 ${getRowClass()}`}>  {/* ✅ Added dynamic row class */}
+    <tr className={`order-row hover:bg-gray-100 ${getRowClass()}`} data-order-id={order._id}>  {/* ✅ Added dynamic row class */}
       <OrderCell>
         {new Date(order.createdAt).toLocaleDateString("en-GB", {
           day: "2-digit",
@@ -418,12 +418,14 @@ const OrderRow = ({
       {!role.includes("production") && !role.includes("dispatch") && !role.includes("admin") && !role.includes("packaging") && (
         <>
           <OrderCell className="whitespace-nowrap">
+      <div id={`section-selection-${order._id}`} style={{ minWidth: '300px' }}>
             <SectionSelection
               order={order}
               sectionsList={sectionsList}
               localSections={localSections}
               handleSectionRadioChange={handleSectionRadioChange}
             />
+            </div>
           </OrderCell>
 
           <OrderCell>

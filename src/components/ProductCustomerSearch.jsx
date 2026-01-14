@@ -67,26 +67,42 @@ const handleUnifiedSearch = async (query) => {
     const salesProducts = salesRes.data.products || [];
     const customers = customersRes.data.customers || []; // ADD THIS LINE
 
-    // Find matching categories for suppliers
+        // Find matching categories for suppliers
     const matchingCategories = categories.filter(cat => 
       cat.name.toLowerCase().includes(query.toLowerCase())
     );
 
     let suppliers = [];
     
-    // If we have matching categories, fetch suppliers for those categories
+    // 1️⃣ First: Search suppliers by name, company, phone, email directly
+    try {
+      const directSupplierRes = await axiosInstance.get(`/suppliers?search=${query}&limit=10`);
+      const directSuppliers = directSupplierRes.data.data || [];
+      suppliers = [...directSuppliers];
+    } catch (err) {
+      console.error("Error searching suppliers directly:", err);
+    }
+    
+    // 2️⃣ Second: Also fetch suppliers by matching categories
     if (matchingCategories.length > 0) {
-      const supplierPromises = matchingCategories.map(category =>
-        axiosInstance.get(`/suppliers?category=${encodeURIComponent(category.name)}&limit=10`)
-      );
-      
-      const supplierResults = await Promise.all(supplierPromises);
-      suppliers = supplierResults.flatMap(res => res.data.data || []);
-      
-      // Remove duplicates based on supplier ID
-      suppliers = suppliers.filter((supplier, index, self) =>
-        index === self.findIndex(s => s._id === supplier._id)
-      );
+      try {
+        const supplierPromises = matchingCategories.map(category =>
+          axiosInstance.get(`/suppliers?category=${encodeURIComponent(category.name)}&limit=10`)
+        );
+        
+        const supplierResults = await Promise.all(supplierPromises);
+        const categorySuppliers = supplierResults.flatMap(res => res.data.data || []);
+        
+        // Merge with existing suppliers
+        suppliers = [...suppliers, ...categorySuppliers];
+        
+        // Remove duplicates based on supplier ID
+        suppliers = suppliers.filter((supplier, index, self) =>
+          index === self.findIndex(s => s._id === supplier._id)
+        );
+      } catch (err) {
+        console.error("Error fetching suppliers by category:", err);
+      }
     }
 
     // Define dashboard pages with their routes and icons

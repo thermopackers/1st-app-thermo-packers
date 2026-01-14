@@ -73,6 +73,7 @@ import FireSafetyMaintenance from "../pages/FireSafetyMaintenance";
 import CampaignsList from "../components/CampaignsList";
 import CampaignForm from "../components/CampaignForm";
 import CampaignDetail from "../components/CampaignDetail";
+import Thermocast from "../pages/Thermocast";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -128,6 +129,7 @@ export default function AppRoutes() {
 
             {/* Public Routes */}
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+            <Route path="/thermocast" element={<PageWrapper><Thermocast /></PageWrapper>} />
             <Route path="/products" element={<PageWrapper><Products /></PageWrapper>} />
             <Route path="/products/:category" element={<PageWrapper><Products /></PageWrapper>} />
             <Route path="/product/:name" element={<PageWrapper><ProductDetail /></PageWrapper>} />
