@@ -773,13 +773,16 @@ useEffect(() => {
                 </DashboardSection>
               )}
           {/* Enhanced Sales Orders Section */}
-       {(userRoles.some((role) =>
+     {/* Enhanced Sales Orders Section */}
+{(userRoles.some((role) =>
   ["sales", "admin", "accounts"].includes(role)
 ) ||
   (userRoles.includes("production") &&
     user.productionSection?.some((s) =>
       ["blockMoulding", "cnc"].includes(s)
-    ))) && (
+    ))) && 
+  // Hide for specific production user
+  !(userRoles.includes("production") && user.email === "production.thermopackers@gmail.com") && (
                 <DashboardSection>
                   <DashboardCard>
                     <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">
