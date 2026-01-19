@@ -1917,7 +1917,7 @@ const saveEditCapturedPhoto = () => {
   );
 }
 
-// Fire Extinguisher Weekly Report Component - WITH IMAGES
+// Fire Extinguisher Weekly Report Component - WITH CAMERA FUNCTIONALITY
 function FireExtinguisherWeeklyReport() {
   const [fireExtinguishers, setFireExtinguishers] = useState(
     Array.from({ length: 21 }, (_, i) => ({
@@ -1928,7 +1928,8 @@ function FireExtinguisherWeeklyReport() {
       pressureGauge: "green",
       exactPressure: "",
       weightKg: "",
-      remarks: ""
+      remarks: "",
+      images: [] // Add images array for each extinguisher
     }))
   );
   
@@ -1944,6 +1945,14 @@ function FireExtinguisherWeeklyReport() {
   
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ date: "", extinguishers: [] });
+  
+  // New state for camera functionality
+  const [cameraActive, setCameraActive] = useState(false);
+  const [currentExtinguisher, setCurrentExtinguisher] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImage, setModalImage] = useState("");
 
   // Fire Extinguisher Images Mapping
   const fireExtinguisherImages = {
@@ -1968,6 +1977,31 @@ function FireExtinguisherWeeklyReport() {
     'FE19': '/images/fe19.jpeg',
     'FE20': '/images/fe20.jpeg',
     'FE21': '/images/fe21.jpeg'
+  };
+
+  // Helper functions
+  const convertToDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const convertToYYYYMMDD = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return '';
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  };
+
+  const getTodayDateInput = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Function to open image in modal
@@ -2030,7 +2064,8 @@ function FireExtinguisherWeeklyReport() {
           pressureGauge: ext.pressureGauge,
           exactPressure: ext.exactPressure || "",
           weightKg: ext.weightKg || "",
-          remarks: ext.remarks || ""
+          remarks: ext.remarks || "",
+          images: ext.images || [] // Load existing images
         })));
         setDate(formattedDate); // Store in dd/mm/yyyy format
       } else {
@@ -2044,7 +2079,8 @@ function FireExtinguisherWeeklyReport() {
             pressureGauge: "green",
             exactPressure: "",
             weightKg: "",
-            remarks: ""
+            remarks: "",
+            images: [] // Initialize empty images array
           }))
         );
         setDate(formattedDate); // Store in dd/mm/yyyy format
@@ -2060,7 +2096,8 @@ function FireExtinguisherWeeklyReport() {
           pressureGauge: "green",
           exactPressure: "",
           weightKg: "",
-          remarks: ""
+          remarks: "",
+          images: [] // Initialize empty images array
         }))
       );
       if (selectedDate) {
@@ -2093,7 +2130,8 @@ function FireExtinguisherWeeklyReport() {
           pressureGauge: "green",
           exactPressure: "",
           weightKg: "",
-          remarks: ""
+          remarks: "",
+          images: []
         }))
       );
     }
@@ -2147,7 +2185,8 @@ function FireExtinguisherWeeklyReport() {
           pressureGauge: ext.pressureGauge,
           exactPressure: ext.exactPressure,
           weightKg: ext.weightKg,
-          remarks: ext.remarks
+          remarks: ext.remarks,
+          images: ext.images || [] // Include images
         }))
       });
 
@@ -2184,7 +2223,8 @@ function FireExtinguisherWeeklyReport() {
       pressureGauge: ext.pressureGauge,
       exactPressure: ext.exactPressure || "",
       weightKg: ext.weightKg || "",
-      remarks: ext.remarks || ""
+      remarks: ext.remarks || "",
+      images: ext.images || [] // Load existing images
     })));
   };
 
@@ -2207,7 +2247,8 @@ function FireExtinguisherWeeklyReport() {
           pressureGauge: ext.pressureGauge,
           exactPressure: ext.exactPressure,
           weightKg: ext.weightKg,
-          remarks: ext.remarks
+          remarks: ext.remarks,
+          images: ext.images || [] // Include images
         }))
       });
 
@@ -2233,6 +2274,11 @@ function FireExtinguisherWeeklyReport() {
     const today = getTodayDateInput();
     setDateInput(today);
     fetchEntryByDate(today);
+    
+    // Clear any temporary camera state
+    setCameraActive(false);
+    setCapturedImage(null);
+    setCurrentExtinguisher(null);
   };
 
   // Pagination handlers
@@ -2247,6 +2293,193 @@ function FireExtinguisherWeeklyReport() {
     if (ext.type === "Water Foam") return `${ext.weight} ltr`;
     return "";
   };
+
+  // Camera Functions
+  const openCamera = (extinguisherCode) => {
+    setCurrentExtinguisher(extinguisherCode);
+    setCameraActive(true);
+    setCapturedImage(null);
+  };
+
+  const closeCamera = () => {
+    setCameraActive(false);
+    setCurrentExtinguisher(null);
+    setCapturedImage(null);
+    
+    // Stop camera stream
+    const video = document.getElementById('camera-preview');
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const captureImage = () => {
+    const video = document.getElementById('camera-preview');
+    const canvas = document.getElementById('capture-canvas');
+    const context = canvas.getContext('2d');
+    
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Add watermark with current date and time
+    context.font = 'bold 24px Arial';
+    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    context.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+    context.lineWidth = 3;
+    context.textAlign = 'left';
+    
+    const now = new Date();
+    const dateStr = date || convertToDDMMYYYY(getTodayDateInput());
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const watermarkText = `${currentExtinguisher} • ${dateStr} • ${timeStr}`;
+    
+    // Calculate position (bottom left with padding)
+    const textX = 20;
+    const textY = canvas.height - 30;
+    
+    // Add text with outline for better visibility
+    context.strokeText(watermarkText, textX, textY);
+    context.fillText(watermarkText, textX, textY);
+    
+    // Convert canvas to data URL
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setCapturedImage(imageDataUrl);
+    
+    // Stop camera stream
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const saveCapturedImage = async () => {
+    if (!capturedImage || !currentExtinguisher || !date) return;
+    
+    try {
+      setUploadingImage(true);
+      
+      // Convert base64 to blob
+      const response = await fetch(capturedImage);
+      const blob = await response.blob();
+      
+      // Create form data
+      const formData = new FormData();
+      const timestamp = new Date().getTime();
+      formData.append('files', blob, `${currentExtinguisher}_${date.replace(/\//g, '-')}_${timestamp}.jpg`);
+      
+      // Upload to server
+      const uploadRes = await axiosInstance.post('/fire-safety/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (uploadRes.data.urls && uploadRes.data.urls.length > 0) {
+        const imageUrl = uploadRes.data.urls[0];
+        
+        // Update the extinguisher with new image
+        setFireExtinguishers(prev => 
+          prev.map(ext => {
+            if (ext.code === currentExtinguisher) {
+              const updatedImages = [...(ext.images || []), {
+                url: imageUrl,
+                timestamp: new Date().toISOString(),
+                date: date,
+                code: currentExtinguisher
+              }];
+              return { ...ext, images: updatedImages };
+            }
+            return ext;
+          })
+        );
+        
+        Swal.fire("Success!", "Image captured and saved successfully", "success");
+        closeCamera();
+      }
+      
+    } catch (err) {
+      console.error("Error saving image:", err);
+      Swal.fire("Error", "Failed to save image", "error");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const openImageInModal = (imageUrl) => {
+    setModalImage(imageUrl);
+    setShowImageModal(true);
+  };
+
+  const deleteImage = async (extinguisherCode, imageIndex) => {
+    try {
+      const extinguisher = fireExtinguishers.find(ext => ext.code === extinguisherCode);
+      if (!extinguisher || !extinguisher.images || !extinguisher.images[imageIndex]) return;
+      
+      const imageUrl = extinguisher.images[imageIndex].url;
+      
+      await axiosInstance.delete('/fire-safety/file', {
+        data: { fileUrl: imageUrl }
+      });
+      
+      // Remove image from local state
+      setFireExtinguishers(prev =>
+        prev.map(ext => {
+          if (ext.code === extinguisherCode) {
+            const updatedImages = [...ext.images];
+            updatedImages.splice(imageIndex, 1);
+            return { ...ext, images: updatedImages };
+          }
+          return ext;
+        })
+      );
+      
+      Swal.fire("Deleted!", "Image removed successfully", "success");
+    } catch (err) {
+      console.error("Error deleting image:", err);
+      Swal.fire("Error", "Failed to delete image", "error");
+    }
+  };
+
+  // Initialize camera when cameraActive becomes true
+  useEffect(() => {
+    if (cameraActive) {
+      const initCamera = async () => {
+        try {
+          const video = document.getElementById('camera-preview');
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } // Use back camera with HD resolution
+          });
+          video.srcObject = stream;
+          
+          // Handle when stream ends
+          video.onloadedmetadata = () => {
+            video.play();
+          };
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          Swal.fire("Camera Error", "Unable to access camera. Please check permissions.", "error");
+          closeCamera();
+        }
+      };
+      
+      initCamera();
+      
+      // Cleanup function
+      return () => {
+        const video = document.getElementById('camera-preview');
+        if (video && video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+      };
+    }
+  }, [cameraActive]);
 
   return (
     <div>
@@ -2350,6 +2583,39 @@ function FireExtinguisherWeeklyReport() {
                       <div>
                         <div className="font-semibold text-gray-800">{ext.code}</div>
                         <div className="text-xs text-gray-500">Fire Extinguisher</div>
+                        
+                        {/* Camera Button */}
+                        <button
+                          onClick={() => openCamera(ext.code)}
+                          disabled={!date}
+                          className="mt-1 bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Take photo with camera"
+                        >
+                          📸 Take Photo
+                        </button>
+                        
+                        {/* Display captured images */}
+                        {ext.images && ext.images.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {ext.images.map((img, idx) => (
+                              <div key={idx} className="relative group">
+                                <img
+                                  src={img.url}
+                                  alt={`${ext.code} captured`}
+                                  className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                                  onClick={() => openImageInModal(img.url)}
+                                />
+                                <button
+                                  onClick={() => deleteImage(ext.code, idx)}
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Delete image"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -2454,6 +2720,106 @@ function FireExtinguisherWeeklyReport() {
         </div>
       </div>
 
+      {/* Camera Modal */}
+      {cameraActive && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-4 max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                Camera: {currentExtinguisher}
+              </h3>
+              <button
+                onClick={closeCamera}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {!capturedImage ? (
+              <>
+                <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+                  <video
+                    id="camera-preview"
+                    autoPlay
+                    playsInline
+                    className="w-full h-64 object-cover"
+                  />
+                  <div className="absolute bottom-4 left-0 right-0 text-center">
+                    <div className="inline-block bg-red-600 text-white px-4 py-1 rounded-full text-sm">
+                      Point camera at {currentExtinguisher}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={captureImage}
+                    className="bg-red-600 text-white px-6 py-3 rounded-full hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <span className="text-2xl">📸</span> Capture Photo
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <img
+                    src={capturedImage}
+                    alt="Captured"
+                    className="w-full rounded-lg border"
+                  />
+                  <p className="text-sm text-gray-600 mt-2 text-center">
+                    Date/Time watermark added automatically
+                  </p>
+                </div>
+                
+                <div className="flex justify-between gap-4">
+                  <button
+                    onClick={() => setCapturedImage(null)}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 flex-1"
+                  >
+                    Retake
+                  </button>
+                  <button
+                    onClick={saveCapturedImage}
+                    disabled={uploadingImage || !date}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex-1 disabled:opacity-50"
+                  >
+                    {uploadingImage ? "Saving..." : "Save Photo"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Hidden canvas for capturing */}
+      <canvas id="capture-canvas" style={{ display: 'none' }} />
+      
+      {/* Image Preview Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-4 max-w-4xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Image Preview</h3>
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={modalImage}
+              alt="Preview"
+              className="w-full h-auto rounded-lg max-h-[80vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Saved Reports Table - SHOW DETAILED DATA */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
@@ -2548,6 +2914,22 @@ function FireExtinguisherWeeklyReport() {
                                 <div>
                                   <div className="font-semibold text-gray-800">{ext.code}</div>
                                   <div className="text-xs text-gray-500">Fire Extinguisher</div>
+                                  
+                                  {/* Display captured images for saved reports */}
+                                  {ext.images && ext.images.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                      {ext.images.map((img, idx) => (
+                                        <div key={idx} className="relative group">
+                                          <img
+                                            src={img.url}
+                                            alt={`${ext.code} captured`}
+                                            className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                                            onClick={() => openImageInModal(img.url)}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
