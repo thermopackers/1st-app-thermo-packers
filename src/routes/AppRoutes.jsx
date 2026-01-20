@@ -74,6 +74,7 @@ import CampaignsList from "../components/CampaignsList";
 import CampaignForm from "../components/CampaignForm";
 import CampaignDetail from "../components/CampaignDetail";
 import Thermocast from "../pages/Thermocast";
+import CustomerGiftsDashboard from "../pages/CustomerGiftsDashboard";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -361,6 +362,15 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+<Route
+              path="/customer-gifts"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "accounts","sales"]}>
+                  <PageWrapper><CustomerGiftsDashboard /></PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/customers/edit/:id"
               element={

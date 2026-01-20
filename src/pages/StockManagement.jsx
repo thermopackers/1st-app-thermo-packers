@@ -30,7 +30,8 @@ export default function StockManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
+// In the useState declarations (around line 17), add:
+const [remarks, setRemarks] = useState({});
   // Responsive detection
   useEffect(() => {
     const handleResize = () => {
@@ -80,8 +81,16 @@ export default function StockManagement() {
     }));
   };
 
+  const handleRemarksChange = (id, value) => {
+  setRemarks((prev) => ({
+    ...prev,
+    [id]: value
+  }));
+};
+
   const handleSave = async (id) => {
     const { add = 0, remove = 0, date } = quantities[id] || {};
+  const remark = remarks[id] || ""; // Get remarks
 
     if (!add && !remove) {
       toast.error("Please enter a quantity to add or remove");
@@ -95,16 +104,17 @@ export default function StockManagement() {
     const product = products.find((p) => p._id === id);
 
     const result = await Swal.fire({
-      title: "Confirm Stock Update",
-      html: `
-        <div style="text-align:left; padding: 1rem;">
-          <p><b>Product:</b> ${product?.name}</p>
-          <p><b>Add:</b> <span style="color:green">+${add || 0}</span></p>
-          <p><b>Remove:</b> <span style="color:red">-${remove || 0}</span></p>
-          <p><b>Net Change:</b> <span style="color:${netChange >= 0 ? 'green' : 'red'}">${netChange >= 0 ? "+" + netChange : netChange}</span></p>
-          <p><b>Date:</b> ${chosenDate.toLocaleDateString()}</p>
-        </div>
-      `,
+        title: "Confirm Stock Update",
+    html: `
+      <div style="text-align:left; padding: 1rem;">
+        <p><b>Product:</b> ${product?.name}</p>
+        <p><b>Add:</b> <span style="color:green">+${add || 0}</span></p>
+        <p><b>Remove:</b> <span style="color:red">-${remove || 0}</span></p>
+        <p><b>Net Change:</b> <span style="color:${netChange >= 0 ? 'green' : 'red'}">${netChange >= 0 ? "+" + netChange : netChange}</span></p>
+        <p><b>Date:</b> ${chosenDate.toLocaleDateString()}</p>
+        ${remark ? `<p><b>Remarks:</b> ${remark}</p>` : ''}
+      </div>
+    `,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "✅ Update Stock",
@@ -124,6 +134,7 @@ export default function StockManagement() {
         add,
         remove,
         date: formattedDate,
+              reason: remark, // Send remarks as reason
       });
 
       toast.success(`Stock updated! Current stock: ${res.data.stock}`);
@@ -135,6 +146,7 @@ export default function StockManagement() {
       );
 
       setQuantities((prev) => ({ ...prev, [id]: { add: 0, remove: 0, date: "" } }));
+          setRemarks((prev) => ({ ...prev, [id]: "" })); // Clear remarks after save
     } catch (err) {
       toast.error("Failed to update stock");
     }
@@ -167,33 +179,35 @@ export default function StockManagement() {
         return `${day}/${month}/${year}`;
       };
 
-      return `
-        <div style="max-height: 400px; overflow-y: auto;">
-          <table style="width:100%; text-align:left; border-collapse: collapse; font-size: 14px;">
-            <thead style="background: #f8fafc; position: sticky; top: 0;">
-              <tr>
-                <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Date</th>
-                <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Added</th>
-                <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Removed</th>
-                <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Stock After</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${history
-                .map(
-                  (h) => `
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                  <td style="padding: 8px 12px;">${formatDate(h.date)}</td>
-                  <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">+${h.added}</td>
-                  <td style="padding: 8px 12px; color: #dc2626; font-weight: 600;">-${h.removed}</td>
-                  <td style="padding: 8px 12px; font-weight: 700;">${h.newStock}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </div>
+  return `
+  <div style="max-height: 400px; overflow-y: auto;">
+    <table style="width:100%; text-align:left; border-collapse: collapse; font-size: 14px;">
+      <thead style="background: #f8fafc; position: sticky; top: 0;">
+        <tr>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Date</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Added</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Removed</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Stock After</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #e5e7eb;">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${history
+          .map(
+            (h) => `
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 8px 12px;">${formatDate(h.date)}</td>
+            <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">+${h.added}</td>
+            <td style="padding: 8px 12px; color: #dc2626; font-weight: 600;">-${h.removed}</td>
+            <td style="padding: 8px 12px; font-weight: 700;">${h.newStock}</td>
+            <td style="padding: 8px 12px; color: #6b7280; font-size: 13px;">${h.reason || '-'}</td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+  </div>
         <div style="margin-top:15px; text-align:center; display: flex; align-items: center; justify-content: center; gap: 10px;">
           <button 
             id="prevBtn" 
@@ -399,6 +413,7 @@ export default function StockManagement() {
                           <Warehouse size={16} className="inline mr-2 text-blue-600" />
                           Current Stock
                         </th>
+                            <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Remarks</th>
                         <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Actions</th>
                       </tr>
                     </thead>
@@ -468,6 +483,17 @@ export default function StockManagement() {
                             </span>
                           </td>
 
+{/* Remarks */}
+<td className="py-4 px-6">
+  <input
+    type="text"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+    value={remarks[prod._id] || ""}
+    onChange={(e) => handleRemarksChange(prod._id, e.target.value)}
+    placeholder="Optional remarks"
+  />
+</td>
+
                           {/* Actions */}
                           <td className="py-4 px-6">
                             <div className="flex flex-col gap-2">
@@ -495,7 +521,7 @@ export default function StockManagement() {
                     {/* Totals Footer */}
                     <tfoot className="bg-gray-50 border-t border-gray-200">
                       <tr>
-                        <td colSpan="5" className="py-4 px-6 text-right font-semibold text-gray-700">
+                        <td colSpan="6" className="py-4 px-6 text-right font-semibold text-gray-700">
                           Total Current Stock:
                         </td>
                         <td className="py-4 px-6 text-center">
@@ -570,6 +596,18 @@ export default function StockManagement() {
                           />
                         </div>
                       </div>
+                      
+                      {/* Remarks - Mobile */}
+<div className="mb-3">
+  <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+  <input
+    type="text"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    value={remarks[prod._id] || ""}
+    onChange={(e) => handleRemarksChange(prod._id, e.target.value)}
+    placeholder="Optional remarks"
+  />
+</div>
 
                       {/* Actions */}
                       <div className="flex gap-2 pt-3 border-t border-gray-200">

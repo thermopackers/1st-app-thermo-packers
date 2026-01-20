@@ -45,6 +45,24 @@ const [giftForm, setGiftForm] = useState({
   const giftsSectionRef = useRef(null);
 const [categories, setCategories] = useState([]);
 
+// Add these new states
+const [showSecurityChequeForm, setShowSecurityChequeForm] = useState(false);
+const [showSamplesForm, setShowSamplesForm] = useState(false);
+const [securityChequeForm, setSecurityChequeForm] = useState({
+  amount: "",
+  chequeFile: null,
+  remarks: "",
+});
+const [samplesForm, setSamplesForm] = useState({
+  sampleName: "",
+  sampleFiles: [],
+  remarks: "",
+});
+const [securityCheques, setSecurityCheques] = useState([]);
+const [samples, setSamples] = useState([]);
+// Add these for editing
+const [editingSecurityChequeId, setEditingSecurityChequeId] = useState(null);
+const [editingSampleId, setEditingSampleId] = useState(null);
 useEffect(() => {
   const fetchCategories = async () => {
     try {
@@ -122,8 +140,10 @@ useEffect(() => {
       setFrequentProducts(ordersRes.data);
     }
     
-    // ✅ Fetch gift history after customer data is loaded
+    // ✅ Fetch all histories
     fetchGiftHistory();
+    fetchSecurityCheques();  // ✅ NEW - Add this
+    fetchSamples();          // ✅ NEW - Add this
     
   } catch (err) {
     if (err.response?.status === 404) {
@@ -227,6 +247,7 @@ setCustomer((prev) => ({
 }));
 };
 
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setNewFiles((prev) => [...prev, ...files]);
@@ -322,6 +343,228 @@ if (!customer.company || customer.company.trim() === "") {
       setDeleting(false);
     }
   };
+
+  // Function to fetch security cheques
+const fetchSecurityCheques = async () => {
+  try {
+    const res = await axiosInstance.get(`/customers/${id}/security-cheques`);
+    if (res.data.success) {
+      setSecurityCheques(res.data.securityCheques || []);
+    }
+  } catch (err) {
+    console.error("Failed to fetch security cheques", err);
+  }
+};
+
+// Function to fetch samples
+const fetchSamples = async () => {
+  try {
+    const res = await axiosInstance.get(`/customers/${id}/samples`);
+    if (res.data.success) {
+      setSamples(res.data.samples || []);
+    }
+  } catch (err) {
+    console.error("Failed to fetch samples", err);
+  }
+};
+
+// Add after handleDelete function
+
+// Security Cheque Handlers - UPDATED WITH BETTER DEBUGGING
+const handleDeleteSecurityCheque = async (chequeId) => {
+  console.log("=== DELETE SECURITY CHEQUE START ===");
+  console.log("Cheque ID to delete:", chequeId);
+  console.log("Cheque ID type:", typeof chequeId);
+  console.log("Customer ID:", id);
+  console.log("User:", user);
+  
+  if (!chequeId) {
+    toast.error("Invalid cheque ID");
+    console.error("No cheque ID provided");
+    return;
+  }
+
+  if (!window.confirm("Are you sure you want to delete this security cheque?")) {
+    console.log("Delete cancelled by user");
+    return;
+  }
+
+  try {
+    console.log("Sending DELETE request to:", `/customers/${id}/security-cheque/${chequeId}`);
+    
+    // Test with a simple GET first to check if route exists
+    console.log("Testing route existence...");
+    try {
+      const testRes = await axiosInstance.get(`/customers/${id}/security-cheques`);
+      console.log("GET security-cheques works:", testRes.status);
+    } catch (testErr) {
+      console.error("GET security-cheques failed:", testErr.response?.status, testErr.message);
+    }
+    
+    // Now try DELETE
+    const response = await axiosInstance.delete(`/customers/${id}/security-cheque/${chequeId}`);
+    console.log("DELETE Response:", response);
+    console.log("Response data:", response.data);
+    console.log("Response status:", response.status);
+    
+    toast.success("Security cheque deleted successfully!");
+    
+    // Refresh the security cheques list
+    fetchSecurityCheques();
+    
+  } catch (err) {
+    console.error("=== DELETE SECURITY CHEQUE ERROR ===");
+    console.error("Full error:", err);
+    console.error("Error response:", err.response);
+    console.error("Error status:", err.response?.status);
+    console.error("Error data:", err.response?.data);
+    console.error("Error message:", err.message);
+    console.error("Error config:", err.config);
+    
+    if (err.response?.status === 404) {
+      toast.error("Security cheque not found or route doesn't exist");
+    } else if (err.response?.status === 401) {
+      toast.error("Authentication failed. Please login again.");
+    } else if (err.response?.status === 500) {
+      toast.error("Server error. Please try again.");
+    } else {
+      toast.error(err.response?.data?.error || "Failed to delete security cheque");
+    }
+  }
+  
+  console.log("=== DELETE SECURITY CHEQUE END ===");
+};
+
+// Samples Handlers - UPDATED WITH BETTER LOGGING
+const handleDeleteSample = async (sampleId) => {
+  console.log("=== FRONTEND: DELETE SAMPLE START ===");
+  console.log("Sample ID to delete:", sampleId);
+  console.log("Sample ID type:", typeof sampleId);
+  console.log("Customer ID from params:", id);
+  console.log("Current samples in state:", samples.length);
+  
+  // Log the specific sample we're trying to delete
+  const sampleToDelete = samples.find(s => s._id?.toString() === sampleId);
+  console.log("Sample to delete from state:", sampleToDelete);
+  
+  if (!sampleId) {
+    toast.error("Invalid sample ID");
+    console.error("No sample ID provided");
+    return;
+  }
+
+  if (!window.confirm("Are you sure you want to delete this sample?")) {
+    console.log("Delete cancelled by user");
+    return;
+  }
+
+  try {
+    console.log(`Sending DELETE to: /customers/${id}/sample/${sampleId}`);
+    
+    // First, verify the sample exists via API
+    console.log("Verifying sample exists via API...");
+    try {
+      const debugRes = await axiosInstance.get(`/customers/${id}/samples-debug`);
+      const sampleExists = debugRes.data.samples?.some(s => s.id === sampleId);
+      console.log("Sample exists according to API?", sampleExists);
+      console.log("All sample IDs from API:", debugRes.data.samples?.map(s => s.id));
+    } catch (debugErr) {
+      console.warn("Debug API failed, continuing anyway:", debugErr.message);
+    }
+    
+    // Now try the delete
+    const response = await axiosInstance.delete(`/customers/${id}/sample/${sampleId}`);
+    console.log("DELETE Response received:");
+    console.log("- Status:", response.status);
+    console.log("- Data:", response.data);
+    console.log("- Success?", response.data.success);
+    
+    if (response.data.success) {
+      toast.success("Sample deleted successfully!");
+      
+      // Refresh the samples list
+      console.log("Refreshing samples list...");
+      fetchSamples();
+    } else {
+      toast.error(response.data.error || "Failed to delete sample");
+    }
+    
+  } catch (err) {
+    console.error("=== FRONTEND: DELETE SAMPLE ERROR ===");
+    console.error("Error object:", err);
+    console.error("Error response:", err.response);
+    console.error("Error status:", err.response?.status);
+    console.error("Error data:", err.response?.data);
+    console.error("Error message:", err.message);
+    console.error("Request URL:", err.config?.url);
+    
+    if (err.response?.status === 404) {
+      toast.error(`Sample not found: ${err.response?.data?.error || 'Sample does not exist'}`);
+    } else if (err.response?.status === 401) {
+      toast.error("Authentication failed. Please login again.");
+    } else if (err.response?.status === 500) {
+      toast.error("Server error: " + (err.response?.data?.error || 'Internal server error'));
+    } else {
+      toast.error(err.response?.data?.error || "Failed to delete sample");
+    }
+  }
+  
+  console.log("=== FRONTEND: DELETE SAMPLE END ===");
+};
+
+const handleEditSecurityCheque = (cheque) => {
+  // Populate the security cheque form with existing data
+  setSecurityChequeForm({
+    amount: cheque.amount,
+    chequeFile: cheque.chequeFile, // This will be a URL string
+    remarks: cheque.remarks || "",
+  });
+  
+  // Show the form and store the cheque ID for update
+  setEditingSecurityChequeId(cheque._id);
+  setShowSecurityChequeForm(true);
+  
+  // Scroll to the form
+  setTimeout(() => {
+    const formSection = document.getElementById('gift-management-section');
+    if (formSection) {
+      formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+};
+
+const handleEditSample = (sample) => {
+  // Populate the samples form with existing data
+  setSamplesForm({
+    sampleName: sample.sampleName,
+    sampleFiles: sample.sampleFiles || [], // These will be URL strings
+    remarks: sample.remarks || "",
+  });
+  
+  // Show the form and store the sample ID for update
+  setEditingSampleId(sample._id);
+  setShowSamplesForm(true);
+  
+  // Scroll to the form
+  setTimeout(() => {
+    const formSection = document.getElementById('gift-management-section');
+    if (formSection) {
+      formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+};
+
+const handleTestDeleteSecurityCheque = async (chequeId) => {
+  try {
+    console.log("Testing delete with simple route...");
+    const response = await axiosInstance.delete(`/customers/${id}/security-cheque-test/${chequeId}`);
+    console.log("Test DELETE response:", response.data);
+    toast.success("Test DELETE works!");
+  } catch (err) {
+    console.error("Test DELETE error:", err);
+    toast.error("Test DELETE failed: " + (err.response?.data?.error || err.message));
+  }
+};
 
   if (loading) return <p>Loading customer...</p>;
   if (!customer) return null;
@@ -637,17 +880,42 @@ if (!customer.company || customer.company.trim() === "") {
             )}
           </div>
 
-          {/* Gift Management Section */}
+       {/* Gift Management Section */}
 <div ref={giftsSectionRef} id="gift-management-section" className="mt-8 border-t pt-8">
 <div className="flex justify-between items-center mb-4">
   <h3 className="text-xl font-bold">🪔 Diwali Gift Distribution</h3>
-  <button
-    type="button"
-    onClick={() => setShowGiftForm(!showGiftForm)}
-    className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
-  >
-    {showGiftForm ? "Cancel" : "➕ Add Diwali Gift"}
-  </button>
+  <div className="flex gap-2">
+    <button
+      type="button"
+      onClick={() => setShowGiftForm(!showGiftForm)}
+      className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+    >
+      {showGiftForm ? "Cancel" : "➕ Add Diwali Gift"}
+    </button>
+   <button
+  type="button"
+  onClick={() => {
+    setShowSecurityChequeForm(!showSecurityChequeForm);
+    setEditingSecurityChequeId(null); // Reset editing state
+    setSecurityChequeForm({ amount: "", chequeFile: null, remarks: "" }); // Reset form
+  }}
+  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+>
+  {showSecurityChequeForm ? "Cancel" : "🏦 Security Cheque"}
+</button>
+
+<button
+  type="button"
+  onClick={() => {
+    setShowSamplesForm(!showSamplesForm);
+    setEditingSampleId(null); // Reset editing state
+    setSamplesForm({ sampleName: "", sampleFiles: [], remarks: "" }); // Reset form
+  }}
+  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+>
+  {showSamplesForm ? "Cancel" : "🧪 Samples"}
+</button>
+  </div>
 </div>
 
 {showGiftForm && (
@@ -747,6 +1015,234 @@ if (!customer.company || customer.company.trim() === "") {
     </button>
   </div>
 )}
+{/* Security Cheque Form */}
+{showSecurityChequeForm && (
+  <div className="bg-blue-50 p-4 rounded-lg mb-6">
+<h4 className="font-semibold mb-3">
+  {editingSecurityChequeId ? "✏️ Edit Security Cheque" : "🏦 Add Security Cheque"}
+</h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block mb-1 font-semibold">Amount *</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={securityChequeForm.amount}
+          onChange={(e) => setSecurityChequeForm(prev => ({ ...prev, amount: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Enter amount"
+          required
+        />
+      </div>
+      
+      <div>
+        <label className="block mb-1 font-semibold">Upload Cheque Image/PDF *</label>
+        <input
+          type="file"
+          accept="image/*,.pdf"
+          onChange={(e) => setSecurityChequeForm(prev => ({ ...prev, chequeFile: e.target.files[0] }))}
+          className="w-full border p-2 rounded"
+          required
+        />
+      </div>
+      
+      <div className="md:col-span-2">
+        <label className="block mb-1 font-semibold">Remarks</label>
+        <textarea
+          value={securityChequeForm.remarks}
+          onChange={(e) => setSecurityChequeForm(prev => ({ ...prev, remarks: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Add remarks about this cheque"
+          rows={2}
+        />
+      </div>
+    </div>
+    
+<button
+  type="button"
+  onClick={async () => {
+    try {
+      if (!securityChequeForm.amount) {
+        toast.error("Please enter amount");
+        return;
+      }
+      
+      let chequeFileUrl = securityChequeForm.chequeFile;
+      
+      // If chequeFile is a File object (new upload), upload it
+      if (securityChequeForm.chequeFile instanceof File) {
+        const uploadedUrl = await uploadToCloudinary([securityChequeForm.chequeFile]);
+        chequeFileUrl = uploadedUrl[0];
+      }
+      
+      if (!chequeFileUrl) {
+        toast.error("Please upload cheque file");
+        return;
+      }
+      
+      const chequeData = {
+        amount: securityChequeForm.amount,
+        chequeFile: chequeFileUrl,
+        remarks: securityChequeForm.remarks
+      };
+      
+      if (editingSecurityChequeId) {
+        // Update existing cheque using PUT
+        await axiosInstance.put(`/customers/${id}/security-cheque/${editingSecurityChequeId}`, chequeData);
+        toast.success("Security cheque updated successfully!");
+        setEditingSecurityChequeId(null);
+      } else {
+        // Add new cheque
+        await axiosInstance.post(`/customers/${id}/security-cheque`, chequeData);
+        toast.success("Security cheque added successfully!");
+      }
+      
+      // Reset form and refresh data
+      setSecurityChequeForm({ amount: "", chequeFile: null, remarks: "" });
+      setShowSecurityChequeForm(false);
+      fetchSecurityCheques();
+      
+    } catch (err) {
+      console.error("Save security cheque error:", err);
+      toast.error(err.response?.data?.error || "Failed to save security cheque");
+    }
+  }}
+  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+>
+  {editingSecurityChequeId ? "💾 Update Security Cheque" : "💾 Save Security Cheque"}
+</button>
+  </div>
+)}
+
+{/* Samples Form */}
+{showSamplesForm && (
+  <div className="bg-purple-50 p-4 rounded-lg mb-6">
+<h4 className="font-semibold mb-3">
+  {editingSampleId ? "✏️ Edit Sample" : "🧪 Add Sample"}
+</h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block mb-1 font-semibold">Sample Name *</label>
+        <input
+          type="text"
+          value={samplesForm.sampleName}
+          onChange={(e) => setSamplesForm(prev => ({ ...prev, sampleName: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Enter sample name"
+          required
+        />
+      </div>
+      
+      <div>
+        <label className="block mb-1 font-semibold">Upload Sample Files *</label>
+        <input
+          type="file"
+          accept="image/*,.pdf,.doc,.docx"
+          multiple
+          onChange={(e) => setSamplesForm(prev => ({ ...prev, sampleFiles: Array.from(e.target.files) }))}
+          className="w-full border p-2 rounded"
+          required
+        />
+      </div>
+      
+      <div className="md:col-span-2">
+        <label className="block mb-1 font-semibold">Remarks</label>
+        <textarea
+          value={samplesForm.remarks}
+          onChange={(e) => setSamplesForm(prev => ({ ...prev, remarks: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Add remarks about this sample"
+          rows={2}
+        />
+      </div>
+      
+      {samplesForm.sampleFiles.length > 0 && (
+        <div className="md:col-span-2">
+          <p className="text-sm font-medium text-gray-600">Files to upload:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {samplesForm.sampleFiles.map((file, index) => (
+              <span key={index} className="px-2 py-1 bg-gray-100 rounded text-sm">
+                {file.name}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newFiles = [...samplesForm.sampleFiles];
+                    newFiles.splice(index, 1);
+                    setSamplesForm(prev => ({ ...prev, sampleFiles: newFiles }));
+                  }}
+                  className="ml-2 text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+    
+ <button
+  type="button"
+  onClick={async () => {
+    try {
+      if (!samplesForm.sampleName) {
+        toast.error("Please enter sample name");
+        return;
+      }
+      
+      let sampleFilesUrls = [];
+      
+      // Check if we have new files to upload
+      const newFiles = samplesForm.sampleFiles.filter(file => file instanceof File);
+      const existingUrls = samplesForm.sampleFiles.filter(file => typeof file === 'string');
+      
+      if (newFiles.length > 0) {
+        // Upload new files
+        const uploadedUrls = await uploadToCloudinary(newFiles);
+        sampleFilesUrls = [...existingUrls, ...uploadedUrls];
+      } else {
+        sampleFilesUrls = existingUrls;
+      }
+      
+      if (sampleFilesUrls.length === 0) {
+        toast.error("Please upload at least one file");
+        return;
+      }
+      
+      const sampleData = {
+        sampleName: samplesForm.sampleName,
+        sampleFiles: sampleFilesUrls,
+        remarks: samplesForm.remarks
+      };
+      
+      if (editingSampleId) {
+        // Update existing sample using PUT
+        await axiosInstance.put(`/customers/${id}/sample/${editingSampleId}`, sampleData);
+        toast.success("Sample updated successfully!");
+        setEditingSampleId(null);
+      } else {
+        // Add new sample
+        await axiosInstance.post(`/customers/${id}/sample`, sampleData);
+        toast.success("Sample added successfully!");
+      }
+      
+      // Reset form and refresh data
+      setSamplesForm({ sampleName: "", sampleFiles: [], remarks: "" });
+      setShowSamplesForm(false);
+      fetchSamples();
+      
+    } catch (err) {
+      console.error("Save sample error:", err);
+      toast.error(err.response?.data?.error || "Failed to save sample");
+    }
+  }}
+  className="mt-4 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+>
+  {editingSampleId ? "💾 Update Sample" : "💾 Save Sample"}
+</button>
+  </div>
+)}
 
 {/* Gift History Table with Pagination */}
 <div className="mt-6">
@@ -840,6 +1336,142 @@ if (!customer.company || customer.company.trim() === "") {
     </div>
   )}
 </div>
+{/* Security Cheques Table */}
+{securityCheques.length > 0 && (
+  <div className="mt-8 border-t pt-6">
+    <h4 className="font-semibold mb-3">🏦 Security Cheques</h4>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border">
+        <thead className="bg-blue-50">
+          <tr>
+            <th className="p-2 border">Date</th>
+            <th className="p-2 border">Amount</th>
+            <th className="p-2 border">Cheque File</th>
+            <th className="p-2 border">Remarks</th>
+            <th className="p-2 border">Added By</th>
+            <th className="p-2 border">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {securityCheques.map((cheque, index) => {
+              console.log("Cheque data:", cheque); // Add this for debugging
+         return (
+            <tr key={cheque._id || index}>
+              <td className="p-2 border">
+                {new Date(cheque.date).toLocaleDateString()}
+              </td>
+              <td className="p-2 border font-semibold">₹{cheque.amount}</td>
+              <td className="p-2 border">
+                {cheque.chequeFile?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                  <a href={cheque.chequeFile} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    <img src={cheque.chequeFile} alt="Cheque" className="w-16 h-16 object-cover rounded" />
+                  </a>
+                ) : (
+                  <a href={cheque.chequeFile} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    📄 View File
+                  </a>
+                )}
+              </td>
+              <td className="p-2 border">{cheque.remarks || "-"}</td>
+              <td className="p-2 border">
+                {cheque.addedBy?.name || cheque.addedBy || "Unknown"}
+              </td>
+              <td className="p-2 border">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditSecurityCheque(cheque)}
+                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-300 rounded hover:bg-blue-50"
+                  >
+                    ✏️ Edit
+                  </button>
+               <button
+  onClick={() => {
+    console.log("Deleting cheque with ID:", cheque._id?.toString());
+    handleDeleteSecurityCheque(cheque._id?.toString());
+  }}
+  className="text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+>
+  🗑️ Delete
+</button>
+
+                </div>
+              </td>
+            </tr>
+          )})}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
+{/* Samples Table */}
+{samples.length > 0 && (
+  <div className="mt-8 border-t pt-6">
+    <h4 className="font-semibold mb-3">🧪 Samples</h4>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border">
+        <thead className="bg-purple-50">
+          <tr>
+            <th className="p-2 border">Date</th>
+            <th className="p-2 border">Sample Name</th>
+            <th className="p-2 border">Files</th>
+            <th className="p-2 border">Remarks</th>
+            <th className="p-2 border">Added By</th>
+            <th className="p-2 border">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {samples.map((sample, index) => (
+            <tr key={sample._id || index}>
+              <td className="p-2 border">
+                {new Date(sample.date).toLocaleDateString()}
+              </td>
+              <td className="p-2 border font-semibold">{sample.sampleName}</td>
+              <td className="p-2 border">
+                <div className="flex flex-wrap gap-2">
+                  {sample.sampleFiles?.map((file, fileIndex) => (
+                    file?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      <a key={fileIndex} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                        <img src={file} alt={`Sample ${fileIndex + 1}`} className="w-12 h-12 object-cover rounded" />
+                      </a>
+                    ) : (
+                      <a key={fileIndex} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+                        📄 File {fileIndex + 1}
+                      </a>
+                    )
+                  ))}
+                </div>
+              </td>
+              <td className="p-2 border">{sample.remarks || "-"}</td>
+              <td className="p-2 border">
+                {sample.addedBy?.name || sample.addedBy || "Unknown"}
+              </td>
+              <td className="p-2 border">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditSample(sample)}
+                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-300 rounded hover:bg-blue-50"
+                  >
+                    ✏️ Edit
+                  </button>
+                <button
+  onClick={() => {
+    console.log("Deleting sample with ID:", sample._id?.toString());
+    handleDeleteSample(sample._id?.toString());
+  }}
+  className="text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+>
+  🗑️ Delete
+</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 </div>
 
           <div className="flex justify-between items-center space-x-4">

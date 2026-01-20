@@ -772,7 +772,6 @@ useEffect(() => {
                   </div>
                 </DashboardSection>
               )}
-          {/* Enhanced Sales Orders Section */}
      {/* Enhanced Sales Orders Section */}
 {(userRoles.some((role) =>
   ["sales", "admin", "accounts"].includes(role)
@@ -811,6 +810,74 @@ useEffect(() => {
                 </DashboardSection>
               )}
 
+<DashboardSection>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"> 
+    {/* Enhanced Quotation Section */}
+              {!userRoles.some((role) =>
+  ["driver",'guard','plantMaintenance'].includes(role)
+) && (
+  userRoles.includes("admin") || 
+  userRoles.includes("accounts") || 
+  userRoles.includes("sales") || 
+  user.allowQuotation // Add this condition
+) && (
+                <DashboardCard>
+                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    QUOTATION / PROFORMA INVOICE / ESTIMATE
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <ActionButton
+                      to="/proforma-invoice"
+                      variant="success"
+                      icon="✨"
+                    >
+                      <div className="text-lg font-semibold mb-2">
+                        Create Quotation
+                      </div>
+                      <div className="text-green-100 text-sm opacity-90">
+                        Make New Quotation / Proforma / Estimate
+                      </div>
+                    </ActionButton>
+
+                    <ActionButton
+                      to="/proforma-dashboard"
+                      variant="primary"
+                      icon="📊"
+                    >
+                      <div className="text-lg font-semibold mb-2">
+                        View Quotations
+                      </div>
+                      <div className="text-blue-100 text-sm opacity-90">
+                        View Old Quotation / Proforma / Estimate
+                      </div>
+                    </ActionButton>
+                  </div>
+
+                  {userRoles.includes("accounts") && (
+                    <div className="border-t border-gray-200 pt-6">
+                      <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
+                        Purchase Product / Suppliers
+                      </h4>
+                      <div className="flex justify-center">
+                        <ActionButton
+                          onClick={() =>
+                            navigate("/purchase-products-suppliers")
+                          }
+                          variant="indigo"
+                          icon="🏪"
+                          className="max-w-md"
+                        >
+                          <div className="text-lg font-semibold">
+                            Purchase Product / Suppliers
+                          </div>
+                        </ActionButton>
+                      </div>
+                    </div>
+                  )}
+                </DashboardCard>
+              )}
+</div>
+</DashboardSection>
 
           {/* Enhanced Production Sections */}
         {userRoles.some((role) =>
@@ -1349,70 +1416,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           {/* Enhanced Quotation & Sales Sections */}
           <DashboardSection>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Enhanced Quotation Section */}
-              {!userRoles.some((role) =>
-  ["driver",'guard','plantMaintenance'].includes(role)
-) && (
-  userRoles.includes("admin") || 
-  userRoles.includes("accounts") || 
-  userRoles.includes("sales") || 
-  user.allowQuotation // Add this condition
-) && (
-                <DashboardCard>
-                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
-                    QUOTATION / PROFORMA INVOICE / ESTIMATE
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <ActionButton
-                      to="/proforma-invoice"
-                      variant="success"
-                      icon="✨"
-                    >
-                      <div className="text-lg font-semibold mb-2">
-                        Create Quotation
-                      </div>
-                      <div className="text-green-100 text-sm opacity-90">
-                        Make New Quotation / Proforma / Estimate
-                      </div>
-                    </ActionButton>
-
-                    <ActionButton
-                      to="/proforma-dashboard"
-                      variant="primary"
-                      icon="📊"
-                    >
-                      <div className="text-lg font-semibold mb-2">
-                        View Quotations
-                      </div>
-                      <div className="text-blue-100 text-sm opacity-90">
-                        View Old Quotation / Proforma / Estimate
-                      </div>
-                    </ActionButton>
-                  </div>
-
-                  {userRoles.includes("accounts") && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
-                        Purchase Product / Suppliers
-                      </h4>
-                      <div className="flex justify-center">
-                        <ActionButton
-                          onClick={() =>
-                            navigate("/purchase-products-suppliers")
-                          }
-                          variant="indigo"
-                          icon="🏪"
-                          className="max-w-md"
-                        >
-                          <div className="text-lg font-semibold">
-                            Purchase Product / Suppliers
-                          </div>
-                        </ActionButton>
-                      </div>
-                    </div>
-                  )}
-                </DashboardCard>
-              )}
+         
            {(userRoles.includes("accounts") ||
   userRoles.includes("sales") ||
   user.allowIncomingPayments) && (
@@ -1464,84 +1468,131 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                   </div>
                 </DashboardCard>
               )}
-              {/* Enhanced Sales & Customers Section */}
-              {userRoles.some((role) =>
-                ["admin", "sales", "accounts"].includes(role)
-              ) && (
-                <div className="space-y-6">
-                  <DashboardCard>
-                    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
-                      <span className="text-2xl">📈</span>
-                      Sales Products
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <ActionButton
-                        to="/add-product"
-                        variant="success"
-                        icon="➕"
-                        className="h-full"
-                      >
-                        <div className="text-sm font-semibold mb-1">
-                          Add new Product
-                        </div>
-                        <div className="text-green-100 text-xs opacity-90">
-                          New sales product
-                        </div>
-                      </ActionButton>
+        {/* Enhanced Sales & Customers Section */}
+{userRoles.some((role) =>
+  ["admin", "sales", "accounts"].includes(role)
+) && (
+  <div className="space-y-6">
+    {/* Campaign Management Section */}
+    <DashboardCard>
+      <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+        <span className="text-2xl">📢</span>
+        Campaign Management
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <ActionButton
+          onClick={() => navigate('/campaigns/new/whatsapp')}
+          variant="success"
+          icon="💬"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Start WhatsApp Campaign
+          </div>
+          <div className="text-green-100 text-xs opacity-90">
+            Send bulk WhatsApp messages to customers
+          </div>
+        </ActionButton>
 
-                      <ActionButton
-                        to="/all-products"
-                        variant="warning"
-                        icon="📋"
-                        className="h-full"
-                      >
-                        <div className="text-sm font-semibold mb-1">
-                          Manage Products
-                        </div>
-                        <div className="text-amber-100 text-xs opacity-90">
-                          View / Edit / Delete Products
-                        </div>
-                      </ActionButton>
-                    </div>
-                  </DashboardCard>
+        <ActionButton
+          onClick={() => navigate('/campaigns/new/email')}
+          variant="primary"
+          icon="✉️"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Start Email Campaign
+          </div>
+          <div className="text-blue-100 text-xs opacity-90">
+            Send bulk emails to customers
+          </div>
+        </ActionButton>
+         <ActionButton
+          onClick={() => navigate('/campaigns')}
+          variant="cyan"
+          icon="📑"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Monitor Old Campaigns
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
 
-                  <DashboardCard>
-                    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
-                      <span className="text-2xl">👥</span>
-                      Customers
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <ActionButton
-                        to="/add-customer"
-                        variant="primary"
-                        icon="➕"
-                        className="h-full"
-                      >
-                        <div className="text-sm font-semibold mb-1">
-                          Add new Customer
-                        </div>
-                        <div className="text-blue-100 text-xs opacity-90">
-                          New customer profile
-                        </div>
-                      </ActionButton>
+    <DashboardCard>
+      <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+        <span className="text-2xl">📈</span>
+        Sales Products
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActionButton
+          to="/add-product"
+          variant="success"
+          icon="➕"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Add new Product
+          </div>
+          <div className="text-green-100 text-xs opacity-90">
+            New sales product
+          </div>
+        </ActionButton>
 
-                      <ActionButton
-                        to="/customers"
-                        variant="purple"
-                        icon="📊"
-                        className="h-full"
-                      >
-                        <div className="text-sm font-semibold mb-1">
-                          Manage Customers
-                        </div>
-                        <div className="text-purple-100 text-xs opacity-90">
-                          View / Edit / Delete Customer
-                        </div>
-                      </ActionButton>
-                    </div>
-                  </DashboardCard>
-                </div>
-              )}
+        <ActionButton
+          to="/all-products"
+          variant="warning"
+          icon="📋"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Manage Products
+          </div>
+          <div className="text-amber-100 text-xs opacity-90">
+            View / Edit / Delete Products
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+
+    <DashboardCard>
+      <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+        <span className="text-2xl">👥</span>
+        Customers
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActionButton
+          to="/add-customer"
+          variant="primary"
+          icon="➕"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Add new Customer
+          </div>
+          <div className="text-blue-100 text-xs opacity-90">
+            New customer profile
+          </div>
+        </ActionButton>
+
+        <ActionButton
+          to="/customers"
+          variant="purple"
+          icon="📊"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Manage Customers
+          </div>
+          <div className="text-purple-100 text-xs opacity-90">
+            View / Edit / Delete Customer
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+  </div>
+)}
             </div>
           </DashboardSection>
 
@@ -1817,6 +1868,51 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
               </DashboardCard>
             </DashboardSection>
           )}
+
+          {/* 🎁 Customer Gifts Section */}
+{userRoles.some(role => ["admin", "accounts", "sales"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">🎁</span>
+        Customer Gifts
+      </h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* Issue Gifts */}
+        <ActionButton
+          to="/customers"
+          variant="orange"
+          icon="🎁"
+        >
+          <div className="text-lg font-semibold mb-2">
+            Issue gifts to a customer
+          </div>
+          <div className="text-orange-100 text-sm opacity-90">
+            Select customer and issue new gifts
+          </div>
+        </ActionButton>
+
+        {/* View Old Gifts */}
+        <ActionButton
+          to="/customer-gifts"
+          variant="purple"
+          icon="📜"
+        >
+          <div className="text-lg font-semibold mb-2">
+            Check old gifts issued
+          </div>
+          <div className="text-purple-100 text-sm opacity-90">
+            View previously issued customer gifts
+          </div>
+        </ActionButton>
+
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
 
           {/* Enhanced Important Numbers */}
           <DashboardSection>

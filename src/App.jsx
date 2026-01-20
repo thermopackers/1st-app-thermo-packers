@@ -18,6 +18,7 @@ export default function App() {
     "/login",
     "/campaigns",
     "/thermocast",
+    "/customer-gifts",
     "/campaigns/new",
     "/leave-management",
     "/gate-outward",
