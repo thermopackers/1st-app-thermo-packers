@@ -216,11 +216,10 @@ const handleFileUpload = async (e) => {
   try {
     const uploadPromises = files.map(async (file) => {
       const formData = new FormData();
-      // Only append the file - backend will handle the upload preset and folder
       formData.append("file", file);
       
-      // Use your backend endpoint instead of direct Cloudinary API
-      const response = await axiosInstance.post("/cloudinary/upload/incoming-payments", formData, {
+      // Use the new backend endpoint
+      const response = await axiosInstance.post("/incoming-payments/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
