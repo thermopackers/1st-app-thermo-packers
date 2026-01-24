@@ -45,8 +45,8 @@ export default function AssignDispatchPlanForm() {
   const [uploadingPlanId, setUploadingPlanId] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const docsRef = useRef(null);
-  const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] =
-    useState(null);
+  const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState(null);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [customerDetails, setCustomerDetails] = useState([]);
   const [recording, setRecording] = useState(false);
@@ -57,7 +57,12 @@ export default function AssignDispatchPlanForm() {
   const [dieselImagesMap, setDieselImagesMap] = useState({});
 const [salesProducts, setSalesProducts] = useState([""]); // ✅ NEW: Sales products state
 const [productsList, setProductsList] = useState([]); // ✅ NEW: Products list state
-
+const [showDriverManager, setShowDriverManager] = useState(false);
+const [newDriver, setNewDriver] = useState({
+  name: "",
+  phone: "",
+  email: "",
+});
 const [formData, setFormData] = useState({
   vehicleNumber: "",
   remarks: "",
@@ -88,6 +93,19 @@ const [formData, setFormData] = useState({
     phone: "",
     gpsLink: "",
   });
+
+  // Fetch drivers
+useEffect(() => {
+  if (!token) return;
+  axiosInstance
+    .get("/drivers/all", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    .then((res) => {
+      setDrivers(res.data);
+    })
+    .catch((err) => console.error("Failed to fetch drivers:", err));
+}, [token]);
 
   // Fetch customer details
   useEffect(() => {
@@ -324,17 +342,17 @@ const handleEditVehicle = async (vehicle) => {
   }
 };
   // Fetch drivers
-  useEffect(() => {
-    if (!token) return;
-    axiosInstance
-      .get("/users/get-all-users", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        setDrivers(res.data.filter((u) => u.role === "driver"));
-      })
-      .catch((err) => console.error("Failed to fetch drivers:", err));
-  }, [token]);
+  // useEffect(() => {
+  //   if (!token) return;
+  //   axiosInstance
+  //     .get("/users/get-all-users", {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     })
+  //     .then((res) => {
+  //       setDrivers(res.data.filter((u) => u.role === "driver"));
+  //     })
+  //     .catch((err) => console.error("Failed to fetch drivers:", err));
+  // }, [token]);
 
   // Fetch plans when dependencies change
   useEffect(() => {
@@ -342,6 +360,45 @@ const handleEditVehicle = async (vehicle) => {
       fetchPlans();
     }
   }, [token, page, searchTerm, filterDate, registeredVehicles]);
+
+// Fetch drivers - UPDATED with proper state management
+useEffect(() => {
+  const fetchDrivers = async () => {
+    if (!token) return;
+    
+    setLoadingDrivers(true);
+    try {
+      console.log("Fetching drivers...");
+      const response = await axiosInstance.get("/drivers/all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      console.log("Drivers data:", response.data);
+      
+      // Ensure we have a valid array
+      if (Array.isArray(response.data)) {
+        setDrivers(response.data);
+        console.log(`${response.data.length} drivers loaded successfully`);
+        
+        // Debug: Log each driver
+        response.data.forEach((driver, index) => {
+          console.log(`Driver ${index + 1}:`, driver.name, driver.phone);
+        });
+      } else {
+        console.error("Expected array but got:", typeof response.data);
+        setDrivers([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch drivers:", err);
+      toast.error("Failed to load drivers list");
+      setDrivers([]);
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
+
+  fetchDrivers();
+}, [token]);
 
   // Fetch products list
 useEffect(() => {
@@ -447,6 +504,24 @@ const handleTableSubmit = async () => {
 
     toast.success("Dispatch plan assigned successfully");
 
+// Send WhatsApp notification to driver (non-blocking)
+const selectedDriver = drivers.find(d => d.name === formData.driverName);
+if (selectedDriver && selectedDriver.phone && selectedDriver.whatsappEnabled) {
+  // Send notification in background without waiting
+  setTimeout(async () => {
+    try {
+      await sendDriverNotification(selectedDriver.phone, {
+        dateOfTrip: formData.dateOfTrip,
+        vehicleNumber: formData.vehicleNumber,
+        location: formData.location,
+        customerNames: customerNames.filter(name => name.trim())
+      });
+    } catch (err) {
+      console.error("Background WhatsApp failed:", err);
+      // Don't show error to user - it's non-critical
+    }
+  }, 1000);
+}
     // Reset form
     setFormData({
       vehicleNumber: "",
@@ -695,8 +770,80 @@ const handleDelete = async (planId) => {
   }
 };
 
+// Create new driver - Updated version
+const handleCreateDriver = async () => {
+  if (!newDriver.name || !newDriver.phone) {
+    toast.error("Driver name and phone are required");
+    return;
+  }
+
+  // Validate phone number length
+  const cleanPhone = newDriver.phone.replace(/\D/g, '');
+  if (cleanPhone.length !== 10) {
+    toast.error("Phone number must be 10 digits");
+    return;
+  }
+
+  try {
+    const response = await axiosInstance.post("/drivers/create", newDriver, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    if (response.data.success) {
+      toast.success("Driver created successfully");
+      setNewDriver({ name: "", phone: "", email: "" });
+      
+      // Refresh drivers list
+      const driversRes = await axiosInstance.get("/drivers/all", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDrivers(driversRes.data);
+    } else {
+      toast.error(response.data.message || "Failed to create driver");
+    }
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || 
+                     err.response?.data?.errors?.join(', ') || 
+                     "Failed to create driver";
+    toast.error(errorMsg);
+  }
+};
+
+// Send WhatsApp notification - Updated version
+const sendDriverNotification = async (driverPhone, planDetails) => {
+  try {
+    // Create a more detailed message
+    const message = `🚚 *New Dispatch Plan Assigned!*\n\n📅 *Date:* ${planDetails.dateOfTrip}\n🚛 *Vehicle:* ${planDetails.vehicleNumber}\n📍 *Location:* ${planDetails.location}\n👥 *Customers:* ${planDetails.customerNames.join(', ')}\n\nPlease check the dispatch portal for complete details.`;
+    
+    console.log("Sending WhatsApp to:", driverPhone);
+    console.log("Message:", message);
+    
+    const response = await axiosInstance.post("/whatsapp/send-whatsapp", {
+      to: driverPhone,
+      message: message
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    console.log("WhatsApp response:", response.data);
+    
+    if (response.data.success) {
+      toast.success("WhatsApp notification sent to driver");
+      return { success: true };
+    } else {
+      toast.error(`WhatsApp failed: ${response.data.error || 'Unknown error'}`);
+      return { success: false, error: response.data.error };
+    }
+  } catch (err) {
+    console.error("WhatsApp notification failed:", err.response?.data || err);
+    const errorMsg = err.response?.data?.error || err.message;
+    toast.error(`WhatsApp failed: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+};
+
 // Enhanced Editable Plan Row Component with Document Uploads
-const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans }) => {
+const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans, drivers }) => {
   const [isEditing, setIsEditing] = useState(false);
 const [editablePlan, setEditablePlan] = useState({
   ...plan,
@@ -993,21 +1140,47 @@ const [editablePlan, setEditablePlan] = useState({
   )}
 </td>
 
-      {/* Driver - Editable */}
-      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editablePlan.driverName || ''}
-            onChange={(e) => setEditablePlan(prev => ({ ...prev, driverName: e.target.value }))}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-          />
-        ) : (
-          <span className="text-sm text-gray-900">
-            {plan.driverName || plan.assignedTo?.name || "-"}
-          </span>
-        )}
-      </td>
+     {/* Driver - Editable with dropdown */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  {isEditing ? (
+    <div className="flex gap-1">
+      <select
+        value={editablePlan.driverName || ''}
+        onChange={(e) => {
+          console.log("Editing driver:", e.target.value);
+          setEditablePlan(prev => ({ ...prev, driverName: e.target.value }));
+        }}
+        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      >
+        <option value="">Select Driver</option>
+        {drivers.map((driver) => (
+          <option key={driver._id} value={driver.name}>
+            {driver.name} ({driver.phone})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => setShowDriverManager(true)}
+        className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+        title="Add New Driver"
+      >
+        +
+      </button>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-gray-900">
+        {plan.driverName || plan.assignedTo?.name || "-"}
+      </span>
+      {plan.driverName && (
+        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+          Driver
+        </span>
+      )}
+    </div>
+  )}
+</td>
 
       {/* Location - Editable */}
       <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
@@ -1714,16 +1887,32 @@ const [editablePlan, setEditablePlan] = useState({
     )}
   </div>
 </td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-            <input
-              type="text"
-              value={formData.driverName}
-              onChange={(e) => setFormData(prev => ({ ...prev, driverName: e.target.value }))}
-              placeholder="Driver name"
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-              required
-            />
-          </td>
+         {/* Driver - Updated to dropdown */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  <div className="flex gap-1">
+    <select
+      value={formData.driverName}
+      onChange={(e) => setFormData(prev => ({ ...prev, driverName: e.target.value }))}
+      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+      required
+    >
+      <option value="">Select Driver</option>
+      {drivers.map((driver) => (
+        <option key={driver._id} value={driver.name}>
+          {driver.name} ({driver.phone})
+        </option>
+      ))}
+    </select>
+    <button
+      type="button"
+      onClick={() => setShowDriverManager(true)}
+      className="px-2 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+      title="Add New Driver"
+    >
+      +
+    </button>
+  </div>
+</td>
           <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
             <input
               type="text"
@@ -2015,6 +2204,7 @@ const [editablePlan, setEditablePlan] = useState({
           productsList={productsList}
           token={token}
           fetchPlans={fetchPlans}
+              drivers={drivers} // ✅ Add this line
         />
       ))}
     </tbody>
@@ -2480,6 +2670,107 @@ const [editablePlan, setEditablePlan] = useState({
           onClose={() => setSelectedMaintenanceVehicle(null)}
         />
       )}
+      {/* Driver Manager Modal */}
+{showDriverManager && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900">Driver Manager</h3>
+        <p className="text-gray-600 mt-1">Add and manage drivers</p>
+      </div>
+      
+      <div className="p-6">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Driver Name *
+            </label>
+            <input
+              type="text"
+              placeholder="Enter driver name"
+              value={newDriver.name}
+              onChange={(e) => setNewDriver(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
+         <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Phone Number *
+  </label>
+  <input
+    type="tel"
+    placeholder="e.g., 9876543210"
+    value={newDriver.phone}
+    onChange={(e) => {
+      // Allow only digits, max 10
+      const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+      setNewDriver(prev => ({ ...prev, phone: value }));
+    }}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Enter 10-digit mobile number (e.g., 9876543210)
+  </p>
+</div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email (Optional)
+            </label>
+            <input
+              type="email"
+              placeholder="driver@example.com"
+              value={newDriver.email}
+              onChange={(e) => setNewDriver(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={handleCreateDriver}
+            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            Add Driver
+          </button>
+          <button
+            onClick={() => setShowDriverManager(false)}
+            className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+        
+        {/* Existing Drivers List */}
+        <div className="mt-6">
+          <h4 className="font-medium text-gray-700 mb-3">Existing Drivers</h4>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+           {drivers.map((driver) => (
+  <div key={driver._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+    <div>
+      <div className="font-medium">{driver.name}</div>
+      <div className="text-sm text-gray-600">
+        {driver.phone}
+        {driver.email && <div className="text-xs">{driver.email}</div>}
+      </div>
+    </div>
+    <div className="text-sm">
+      {driver.whatsappEnabled ? (
+        <span className="text-green-600">✓ WhatsApp Enabled</span>
+      ) : (
+        <span className="text-red-600">✗ WhatsApp Disabled</span>
+      )}
+    </div>
+  </div>
+))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

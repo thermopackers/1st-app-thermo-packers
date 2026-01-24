@@ -48,7 +48,7 @@ const parseUserRoles = (user) => {
   const [gstFiles, setGstFiles] = useState([]); // Accepts images or PDFs
 const [gstError, setGstError] = useState("");
 const [categories, setCategories] = useState([]);
-
+const [allUsers, setAllUsers] = useState([]);
 useEffect(() => {
   const fetchCategories = async () => {
     try {
@@ -65,6 +65,19 @@ useEffect(() => {
   fetchCategories();
 }, []);
 
+useEffect(() => {
+  async function fetchUsers() {
+    try {
+      const res = await axiosInstance.get("/users/all");
+      setAllUsers(res.data);
+    } catch (err) {
+      console.error("Failed to load sales users", err);
+    }
+  }
+
+  fetchUsers();
+}, []);
+
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -78,6 +91,7 @@ inPunjab: false,
       locationLink: "", // ✅ New field
         instructions: "", // ✅ NEW FIELD
           salesCategory: "", // ✅ NEW FIELD
+            createdBy: user?._id || "", // Add this line - pre-fill with current user's ID
   });
 const [submitting, setSubmitting] = useState(false);
 
@@ -133,16 +147,26 @@ const handleSubmit = async (e) => {
   e.preventDefault();
   setSubmitting(true);
   
-  if (formData.company && formData.company !== "URP" && formData.company.length !== 15) {
+  // Create a copy of formData to avoid mutating state
+  const customerData = { ...formData };
+  
+  // Validate GST
+  if (customerData.company && customerData.company !== "URP" && customerData.company.length !== 15) {
     setGstError("GST number must be exactly 15 characters.");
     toast.error("GST number must be exactly 15 characters.");
     setSubmitting(false);
     return;
   }
   
-  // 🔥 Auto-fill URN
-  if (!formData.company || formData.company.trim() === "") {
-    formData.company = "URP";
+  // 🔥 Auto-fill URP if empty
+  if (!customerData.company || customerData.company.trim() === "") {
+    customerData.company = "URP";
+  }
+
+  // ✅ Ensure createdBy is properly set
+  if (!customerData.createdBy || customerData.createdBy.trim() === "") {
+    // Default to current user if not selected
+    customerData.createdBy = user?._id || "";
   }
 
   try {
@@ -154,9 +178,13 @@ const handleSubmit = async (e) => {
     }
 
     const payload = {
-      ...formData,
-      gstDocs: uploadedUrls, // Send this to backend
+      ...customerData,
+      gstDocs: uploadedUrls,
     };
+    
+    // ✅ DEBUG: Log what's being sent
+    console.log("Sending payload:", payload);
+    console.log("createdBy value:", payload.createdBy);
     
     await axiosInstance.post("/customers", payload);
     toast.success("Customer added successfully!");
@@ -384,6 +412,26 @@ const handleSubmit = async (e) => {
     rows={3}
   />
 </div>
+
+{/* Customer Handled/Managed by Field */}
+<div>
+  <label className="block mb-1 font-medium text-gray-700">Customer Handled/Managed by</label>
+  <select
+    name="createdBy"
+    value={formData.createdBy || ""}
+    onChange={handleChange}
+    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+  >
+    <option value="">Select Sales Person</option>
+    {allUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {user.name} ({user.email})
+      </option>
+    ))}
+  </select>
+</div>
+
 {/* ✅ NEW: Sales Category Field */}
 <div>
   <label className="block mb-1 font-medium text-gray-700">

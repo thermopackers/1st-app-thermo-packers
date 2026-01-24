@@ -125,39 +125,40 @@ export default function AttendanceCapture() {
     });
   };
 
-  const getLocation = () => {
-    return new Promise((resolve, reject) => {
-      setLocationStatus("fetching");
-      
-      if (!navigator.geolocation) {
-        setLocationStatus("unsupported");
-        return resolve({ lat: null, lng: null });
-      }
+const getLocation = () => {
+  return new Promise((resolve, reject) => {
+    setLocationStatus("fetching");
+    
+    if (!navigator.geolocation) {
+      setLocationStatus("unsupported");
+      return resolve({ lat: null, lng: null });
+    }
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const location = { 
-            lat: pos.coords.latitude, 
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy
-          };
-          setCurrentLocation(location);
-          setLocationStatus("success");
-          resolve(location);
-        },
-        (err) => {
-          console.warn("Geolocation error:", err);
-          setLocationStatus("failed");
-          resolve({ lat: null, lng: null });
-        },
-        { 
-          enableHighAccuracy: true, 
-          timeout: 10000,
-          maximumAge: 60000 
-        }
-      );
-    });
-  };
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const location = { 
+          lat: pos.coords.latitude, 
+          lng: pos.coords.longitude
+          // Remove accuracy check entirely
+        };
+        setCurrentLocation(location);
+        setLocationStatus("success");
+        resolve(location);
+      },
+      (err) => {
+        console.warn("Geolocation error:", err);
+        setLocationStatus("failed");
+        // Reject instead of resolve so we can catch the error properly
+        reject(err);
+      },
+      { 
+        // Remove enableHighAccuracy to use default settings
+        timeout: 10000,
+        maximumAge: 60000 
+      }
+    );
+  });
+};
 
   const getDescriptor = async () => {
     if (descriptorCache) return descriptorCache;
@@ -166,240 +167,290 @@ export default function AttendanceCapture() {
     return descriptor;
   };
 
-  const saveAttendance = async () => {
-    if (isSaving) return;
+const saveAttendance = async () => {
+  if (isSaving) return;
 
-    if (!modelsLoaded) {
-      Swal.fire({
-        icon: "info",
-        title: "Please Wait",
-        text: "Face recognition models are still loading.",
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
+  if (!modelsLoaded) {
+    Swal.fire({
+      icon: "info",
+      title: "Please Wait",
+      text: "Face recognition models are still loading.",
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
 
-    // 🚫 Block if face is not registered
-    if (!user?.faceUrl) {
+  // 🚫 Block if face is not registered
+  if (!user?.faceUrl) {
+    Swal.fire({
+      icon: "error",
+      title: "Face Not Registered",
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+        </div>
+      `,
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
+
+  // 🔴 NEW: Check and request location permission FIRST
+  let location = null;
+  try {
+    location = await getLocation();
+    
+    if (!location.lat || !location.lng) {
       Swal.fire({
-        icon: "error",
-        title: "Face Not Registered",
+        icon: "warning",
+        title: "Location Required",
         html: `
           <div class="text-center">
-            <div class="text-6xl mb-4">👤</div>
-            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+            <div class="text-6xl mb-4">📍</div>
+            <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
+            <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
+            <p class="text-xs text-gray-400">1. Click the location icon in your browser's address bar<br>
+            2. Select "Allow" for location access<br>
+            3. Try again</p>
           </div>
         `,
         confirmButtonColor: "#B0BC27",
       });
+      setIsSaving(false);
+      return;
+    }
+    
+  } catch (err) {
+    console.warn("Location error:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Location Error",
+      text: "Could not access your location. Please check your device settings and allow location access.",
+      confirmButtonColor: "#B0BC27",
+    });
+    setIsSaving(false);
+    return;
+  }
+
+  // ⏳ Countdown before capture
+  setShowLivenessPrompt(true);
+  for (let i = 3; i > 0; i--) {
+    setLivenessCountdown(i);
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+  setShowLivenessPrompt(false);
+
+  console.time("🕒 Total Attendance Time");
+  setIsSaving(true);
+
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
+
+    // 📸 First frame
+    const image1 = await captureImageWithTimestamp();
+    if (!image1 || image1.length < 1000) {
+      Swal.fire({
+        icon: "error",
+        title: "Camera Error",
+        text: "Camera capture failed. Please try again.",
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
       return;
     }
 
-    // ⏳ Countdown before capture
-    setShowLivenessPrompt(true);
-    for (let i = 3; i > 0; i--) {
-      setLivenessCountdown(i);
-      await new Promise((res) => setTimeout(res, 1000));
-    }
-    setShowLivenessPrompt(false);
+    const img1 = await faceapi.fetchImage(image1);
 
-    console.time("🕒 Total Attendance Time");
-    setIsSaving(true);
+    // Small wait for natural movement
+    await new Promise((res) => setTimeout(res, 500));
 
-    try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
-
-      // 📸 First frame
-      const image1 = await captureImageWithTimestamp();
-      if (!image1 || image1.length < 1000) {
-        Swal.fire({
-          icon: "error",
-          title: "Camera Error",
-          text: "Camera capture failed. Please try again.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      const img1 = await faceapi.fetchImage(image1);
-
-      // Small wait for natural movement
-      await new Promise((res) => setTimeout(res, 500));
-
-      // 📸 Second frame
-      const image2 = await captureImageWithTimestamp();
-      if (!image2 || image2.length < 1000) {
-        Swal.fire({
-          icon: "error",
-          title: "Camera Error",
-          text: "Second camera frame failed.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      const img2 = await faceapi.fetchImage(image2);
-
-      // Face detection
-      const [face1, face2] = await Promise.all([
-        faceapi.detectSingleFace(img1, options).withFaceLandmarks().withFaceDescriptor(),
-        faceapi.detectSingleFace(img2, options).withFaceLandmarks().withFaceDescriptor(),
-      ]);
-
-      if (!face1 || !face2) {
-        Swal.fire({
-          icon: "error",
-          title: "Face Not Detected",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">🔍</div>
-              <p class="text-gray-600 mb-2">Make sure your face is:</p>
-              <ul class="text-sm text-gray-500 text-left max-w-xs mx-auto">
-                <li>• Well-lit and clearly visible</li>
-                <li>• Centered in the frame</li>
-                <li>• Close to the camera</li>
-                <li>• Not wearing sunglasses</li>
-              </ul>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      // Liveness detection
-      const eye1 = Math.abs(face1.landmarks.getLeftEye()[1].y - face1.landmarks.getLeftEye()[5].y);
-      const eye2 = Math.abs(face2.landmarks.getLeftEye()[1].y - face2.landmarks.getLeftEye()[5].y);
-      const blink = eye2 < eye1 * 0.5;
-
-      const noseShift = Math.abs(face1.landmarks.getNose()[3].x - face2.landmarks.getNose()[3].x);
-      const headMoved = noseShift > 5;
-
-      if (!blink && !headMoved) {
-        Swal.fire({
-          icon: "error",
-          title: "Liveness Check Failed",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">👀</div>
-              <p class="text-gray-600">Please blink or move your head slightly during capture.</p>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      // ✅ Face match
-      const descriptor = await getDescriptor();
-      const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.45);
-      const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
-
-      if (bestMatch.label === "unknown") {
-        Swal.fire({
-          icon: "error",
-          title: "Face Not Recognized",
-          text: "Face doesn't match your registered profile.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-          // 🗜️ Compress image
-      const compressedImage = await compressImage(image1, 0.3);
-      const location = await getLocation();
-
-      // 📤 Upload FIRST, then show success
-      const photoPayload = compressedImage.startsWith("data:")
-        ? compressedImage
-        : `data:image/jpeg;base64,${compressedImage}`;
-
-      try {
-        // 1. FIRST: Try to save to database
-        const response = await axiosInstance.post(
-          "/attendance/mark",
-          { type, photo: photoPayload, location },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-       // 2. ONLY if save succeeds, show success
-Swal.fire({
-  icon: "success",
-  title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-  html: `
-    <div class="text-center">
-      <div class="text-6xl mb-4">✅</div>
-      <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-      <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
-      <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
-        View Attendance Logs
-      </a>
-    </div>
-  `,
-  confirmButtonColor: "#B0BC27",
-  showConfirmButton: false,
-});
-
-        setCapturing(false);
-        console.log("✅ Attendance saved successfully to database:", response.data);
-
-      } catch (err) {
-        setCapturing(false);
-        
-        if (err.response?.data?.error?.includes("already marked")) {
-          Swal.fire({
-            icon: "info",
-            title: "Already Marked",
-            text: `You already marked ${type} for today.`,
-            confirmButtonColor: "#B0BC27",
-          });
-          console.log("⚠️ Attendance already marked today");
-        } else {
-          // Show actual error to user
-          Swal.fire({
-            icon: "error",
-            title: "Save Failed",
-            html: `
-              <div class="text-center">
-                <div class="text-6xl mb-4">❌</div>
-                <p class="text-gray-600 mb-2">Attendance could not be saved to the server.</p>
-                <p class="text-sm text-gray-500">Error: ${err.response?.data?.error || err.message || "Unknown error"}</p>
-                <p class="text-xs text-gray-400 mt-4">Please try again or contact support.</p>
-              </div>
-            `,
-            confirmButtonColor: "#B0BC27",
-          });
-          console.error("❌ Attendance save failed:", err.response?.data || err.message);
-          
-          // Store for retry
-          const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
-          failedUploads.push({
-            data: { type, photo: photoPayload, location },
-            timestamp: new Date().toISOString()
-          });
-          localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
-        }
-      }
-
-    } catch (err) {
-      console.error("Error marking attendance:", err);
+    // 📸 Second frame
+    const image2 = await captureImageWithTimestamp();
+    if (!image2 || image2.length < 1000) {
       Swal.fire({
         icon: "error",
-        title: "Attendance Failed",
-        text: "An unexpected error occurred. Please try again.",
+        title: "Camera Error",
+        text: "Second camera frame failed.",
         confirmButtonColor: "#B0BC27",
       });
-    } finally {
       setIsSaving(false);
-      console.timeEnd("🕒 Total Attendance Time");
+      return;
     }
-  };
+
+    const img2 = await faceapi.fetchImage(image2);
+
+    // Face detection
+    const [face1, face2] = await Promise.all([
+      faceapi.detectSingleFace(img1, options).withFaceLandmarks().withFaceDescriptor(),
+      faceapi.detectSingleFace(img2, options).withFaceLandmarks().withFaceDescriptor(),
+    ]);
+
+    if (!face1 || !face2) {
+      Swal.fire({
+        icon: "error",
+        title: "Face Not Detected",
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">🔍</div>
+            <p class="text-gray-600 mb-2">Make sure your face is:</p>
+            <ul class="text-sm text-gray-500 text-left max-w-xs mx-auto">
+              <li>• Well-lit and clearly visible</li>
+              <li>• Centered in the frame</li>
+              <li>• Close to the camera</li>
+              <li>• Not wearing sunglasses</li>
+            </ul>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    // Liveness detection
+    const eye1 = Math.abs(face1.landmarks.getLeftEye()[1].y - face1.landmarks.getLeftEye()[5].y);
+    const eye2 = Math.abs(face2.landmarks.getLeftEye()[1].y - face2.landmarks.getLeftEye()[5].y);
+    const blink = eye2 < eye1 * 0.5;
+
+    const noseShift = Math.abs(face1.landmarks.getNose()[3].x - face2.landmarks.getNose()[3].x);
+    const headMoved = noseShift > 5;
+
+    if (!blink && !headMoved) {
+      Swal.fire({
+        icon: "error",
+        title: "Liveness Check Failed",
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">👀</div>
+            <p class="text-gray-600">Please blink or move your head slightly during capture.</p>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    // ✅ Face match
+    const descriptor = await getDescriptor();
+    const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.45);
+    const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
+
+    if (bestMatch.label === "unknown") {
+      Swal.fire({
+        icon: "error",
+        title: "Face Not Recognized",
+        text: "Face doesn't match your registered profile.",
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    // 🗜️ Compress image
+    const compressedImage = await compressImage(image1, 0.3);
+
+    // 📤 Upload FIRST, then show success
+    const photoPayload = compressedImage.startsWith("data:")
+      ? compressedImage
+      : `data:image/jpeg;base64,${compressedImage}`;
+
+    try {
+      // 1. FIRST: Try to save to database
+      const response = await axiosInstance.post(
+        "/attendance/mark",
+        { type, photo: photoPayload, location },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // 2. ONLY if save succeeds, show success
+      Swal.fire({
+        icon: "success",
+        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">✅</div>
+            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+            <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+            <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
+              View Attendance Logs
+            </a>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+        showConfirmButton: false,
+      });
+
+      setCapturing(false);
+      console.log("✅ Attendance saved successfully to database:", response.data);
+
+    } catch (err) {
+      setCapturing(false);
+      
+      if (err.response?.data?.error?.includes("already marked")) {
+        Swal.fire({
+          icon: "info",
+          title: "Already Marked",
+          text: `You already marked ${type} for today.`,
+          confirmButtonColor: "#B0BC27",
+        });
+        console.log("⚠️ Attendance already marked today");
+      } else if (err.response?.data?.error?.includes("location")) {
+        // Specific error for location issues
+        Swal.fire({
+          icon: "error",
+          title: "Location Error",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">📍</div>
+              <p class="text-gray-600 mb-2">Location is required for attendance.</p>
+              <p class="text-sm text-gray-500">Please enable location services and try again.</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+      } else {
+        // Show actual error to user
+        Swal.fire({
+          icon: "error",
+          title: "Save Failed",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">❌</div>
+              <p class="text-gray-600 mb-2">Attendance could not be saved to the server.</p>
+              <p class="text-sm text-gray-500">Error: ${err.response?.data?.error || err.message || "Unknown error"}</p>
+              <p class="text-xs text-gray-400 mt-4">Please try again or contact support.</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+        console.error("❌ Attendance save failed:", err.response?.data || err.message);
+        
+        // Store for retry
+        const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+        failedUploads.push({
+          data: { type, photo: photoPayload, location },
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
+      }
+    }
+
+  } catch (err) {
+    console.error("Error marking attendance:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Attendance Failed",
+      text: "An unexpected error occurred. Please try again.",
+      confirmButtonColor: "#B0BC27",
+    });
+  } finally {
+    setIsSaving(false);
+    console.timeEnd("🕒 Total Attendance Time");
+  }
+};
 
   const retryFailedUploads = async () => {
     const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');

@@ -22,7 +22,7 @@ const ddmmyyyy = (d) => {
   return `${day}/${month}/${year}`;
 };
 
-export default function MainElectricPanelPage() {
+export default function MainElectricPanelPageUnit3() {
   const { user } = useUserContext();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
@@ -38,7 +38,7 @@ export default function MainElectricPanelPage() {
   const fetchData = async (p = page) => {
     try {
       const res = await axiosInstance.get(
-        `/main-electric-panel?page=${p}&limit=${limit}`
+        `/main-electric-panel-unit3?page=${p}&limit=${limit}`
       );
       setRows(res.data.data || []);
       setPage(res.data.page);
@@ -134,7 +134,7 @@ if (updated[i].netKwh !== undefined && updated[i].netKvah !== undefined && updat
   const handleSave = async (row) => {
     try {
       setSaving(true);
-      await axiosInstance.post("/main-electric-panel", row);
+      await axiosInstance.post("/main-electric-panel-unit3", row);
       await fetchData(page);
     } catch (err) {
       console.error("Error saving:", err);
@@ -224,7 +224,7 @@ const handleDeleteAttachment = async (rowIndex, attachmentIndex, attachment) => 
   try {
     // Only try to delete from Cloudinary if we have a public_id
     if (attachment.public_id) {
-      await axiosInstance.post("/main-electric-panel/delete-cloudinary-file", { 
+      await axiosInstance.post("/main-electric-panel-unit3/delete-cloudinary-file", { 
         public_id: attachment.public_id 
       });
     }
@@ -265,7 +265,7 @@ const handleDeleteRow = async (row) => {
       const deletePromises = row.attachments
         .filter(attachment => attachment.public_id) // Only try to delete files with public_id
         .map(attachment => 
-          axiosInstance.post("/main-electric-panel/delete-cloudinary-file", { 
+          axiosInstance.post("/main-electric-panel-unit3/delete-cloudinary-file", { 
             public_id: attachment.public_id 
           })
         );
@@ -275,7 +275,7 @@ const handleDeleteRow = async (row) => {
     }
     
     // Then delete the row from the database
-    await axiosInstance.delete(`/main-electric-panel/${row._id}`);
+    await axiosInstance.delete(`/main-electric-panel-unit3/${row._id}`);
     
     // Refresh the data
     await fetchData(page);
@@ -367,9 +367,9 @@ const openFilePreview = (file) => {
         <div className="flex gap-2">
           <button
             onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor"}
-            className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
+            className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
           >
-            Unit 1 (Current)
+            Unit 1 
           </button>
           <button
             onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit2"}
@@ -379,9 +379,9 @@ const openFilePreview = (file) => {
           </button>
           <button
             onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit3"}
-            className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
+            className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
           >
-            Unit 3
+            Unit 3 (Current)
           </button>
         </div>
       </div>
@@ -389,11 +389,11 @@ const openFilePreview = (file) => {
   </div>
       <div className="p-2 sm:p-4 relative">
         <h1 className="text-xl font-bold mb-4 text-center sm:text-left">
-          THERMO PACKERS - Unit 1 - Daily Electricity PF (Power Factor Report)
+          THERMO PACKERS - Unit 3 - Daily Electricity PF (Power Factor Report)
         </h1>
 
         <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
-          <h2 className="text-lg font-semibold">Main Electric Panel - Unit 1</h2>
+          <h2 className="text-lg font-semibold">Main Electric Panel- Unit 3</h2>
           <button
             onClick={addNewRow}
             className="bg-green-500 text-white px-3 py-1 rounded w-full sm:w-auto"

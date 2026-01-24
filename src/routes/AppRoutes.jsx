@@ -48,6 +48,8 @@ import RegisteredVehicles from "../pages/RegisteredVehicles";
 import PlantMachineryMaintenance from "../pages/PlantMachineryMaintenance";
 import DGSetLogBookPage from "../pages/DGSetLogBookPage";
 import PowerFactorMaintenance from "../pages/PowerFactorMaintenance";
+import PowerFactorMaintenanceUnit2 from "../pages/PowerFactorMaintenanceUnit2";
+import PowerFactorMaintenanceUnit3 from "../pages/PowerFactorMaintenanceUnit3";
 import ProductsDetails from "../pages/ProductsDetails";
 import TourExpenses from "../pages/TourExpenses";
 import TourExpensesDashboard from "../pages/TourExpensesDashboard";
@@ -636,6 +638,22 @@ path="/maintenance/water-filter"
   element={
     <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
       <PageWrapper><PowerFactorMaintenance /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/plant-machinery-maintenance-power-factor-unit2"
+  element={
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
+      <PageWrapper><PowerFactorMaintenanceUnit2 /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/plant-machinery-maintenance-power-factor-unit3"
+  element={
+    <ProtectedRoute allowedRoles={["admin","accounts", "sales", "production", "dispatch", "packaging","driver","plantMaintenance"]}>
+      <PageWrapper><PowerFactorMaintenanceUnit3 /></PageWrapper>
     </ProtectedRoute>
   }
 />

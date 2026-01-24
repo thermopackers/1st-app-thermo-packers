@@ -448,105 +448,115 @@ useEffect(() => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Actions
-                        </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      <AnimatePresence>
-                        {groupedLogs.map((entry, index) => (
-                          <motion.tr
-                            key={`${entry.user?._id}-${entry.date}`}
-                            custom={index}
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            variants={tableRowVariants}
-                            className="hover:bg-gray-50 transition-colors duration-150"
-                          >
-                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                              {formatDate(entry.date)}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {entry.user?.name || "N/A"}
-                            </td>
-                            {isPrivileged && (
-                              <td className="px-4 py-3 text-sm text-gray-600 capitalize">
-                                {entry.user?.role || "N/A"}
-                              </td>
-                            )}
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              {entry.checkIn ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-green-600" />
-                                    <span>{formatTime(entry.checkIn.time)}</span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              {entry.checkOut ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-red-600" />
-                                    <span>{formatTime(entry.checkOut.time)}</span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-medium">
-                              {calculateWorkingHours(entry.checkIn, entry.checkOut)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                entry.checkIn && entry.checkOut 
-                                  ? "bg-green-100 text-green-800" 
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}>
-                                {entry.checkIn && entry.checkOut ? "Complete" : "Incomplete"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              <div className="flex items-center gap-2">
-                                {entry.checkIn?.photo && (
-                                  <button
-                                    onClick={() => handleViewImage(entry.checkIn, 'check-in')}
-                                    className="text-blue-600 hover:text-blue-800 transition-colors"
-                                    title="View Check-In Photo"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {entry.checkOut?.photo && (
-                                  <button
-                                    onClick={() => handleViewImage(entry.checkOut, 'check-out')}
-                                    className="text-blue-600 hover:text-blue-800 transition-colors"
-                                    title="View Check-Out Photo"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {(entry.checkIn?.location || entry.checkOut?.location) && (
-                                  <button
-                                    onClick={() => handleViewLocation(entry.checkIn?.location || entry.checkOut?.location)}
-                                    className="text-green-600 hover:text-green-800 transition-colors"
-                                    title="View Location"
-                                  >
-                                    <MapPin className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </AnimatePresence>
-                    </tbody>
+                   <tbody className="divide-y divide-gray-200">
+  <AnimatePresence>
+    {groupedLogs.map((entry, index) => (
+      <motion.tr
+        key={`${entry.user?._id}-${entry.date}`}
+        custom={index}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        variants={tableRowVariants}
+        className="hover:bg-gray-50 transition-colors duration-150"
+      >
+        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+          {formatDate(entry.date)}
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-900">
+          {entry.user?.name || "N/A"}
+        </td>
+        {isPrivileged && (
+          <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+            {entry.user?.role || "N/A"}
+          </td>
+        )}
+        <td className="px-4 py-3 text-sm text-gray-600">
+          {entry.checkIn ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-green-600" />
+                <span>{formatTime(entry.checkIn.time)}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                {entry.checkIn.photo && (
+                  <button
+                    onClick={() => handleViewImage(entry.checkIn, 'check-in')}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
+                    title="View Check-In Photo"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Photo</span>
+                  </button>
+                )}
+                {entry.checkIn.location && (
+                  <button
+                    onClick={() => handleViewLocation(entry.checkIn.location)}
+                    className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
+                    title="View Check-In Location"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>Location</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-600">
+          {entry.checkOut ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-red-600" />
+                <span>{formatTime(entry.checkOut.time)}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                {entry.checkOut.photo && (
+                  <button
+                    onClick={() => handleViewImage(entry.checkOut, 'check-out')}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
+                    title="View Check-Out Photo"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Photo</span>
+                  </button>
+                )}
+                {entry.checkOut.location && (
+                  <button
+                    onClick={() => handleViewLocation(entry.checkOut.location)}
+                    className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
+                    title="View Check-Out Location"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>Location</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-sm font-medium">
+          {calculateWorkingHours(entry.checkIn, entry.checkOut)}
+        </td>
+        <td className="px-4 py-3">
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            entry.checkIn && entry.checkOut 
+              ? "bg-green-100 text-green-800" 
+              : "bg-yellow-100 text-yellow-800"
+          }`}>
+            {entry.checkIn && entry.checkOut ? "Complete" : "Incomplete"}
+          </span>
+        </td>
+      </motion.tr>
+    ))}
+  </AnimatePresence>
+</tbody>
                   </table>
                 </div>
 
