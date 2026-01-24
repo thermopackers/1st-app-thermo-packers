@@ -810,17 +810,28 @@ const handleCreateDriver = async () => {
 };
 
 // Send WhatsApp notification - Updated version
+// Send WhatsApp notification - ALWAYS send (with template fallback)
 const sendDriverNotification = async (driverPhone, planDetails) => {
   try {
-    // Create a more detailed message
-    const message = `🚚 *New Dispatch Plan Assigned!*\n\n📅 *Date:* ${planDetails.dateOfTrip}\n🚛 *Vehicle:* ${planDetails.vehicleNumber}\n📍 *Location:* ${planDetails.location}\n👥 *Customers:* ${planDetails.customerNames.join(', ')}\n\nPlease check the dispatch portal for complete details.`;
+    // Create TWO versions of the message:
+    
+    // 1. Regular message (for within 24-hour window)
+    const regularMessage = `🚚 *New Dispatch Plan Assigned!*\n\n📅 *Date:* ${planDetails.dateOfTrip}\n🚛 *Vehicle:* ${planDetails.vehicleNumber}\n📍 *Location:* ${planDetails.location}\n👥 *Customers:* ${planDetails.customerNames.join(', ')}\n\nPlease check the dispatch portal for complete details.`;
+    
+    // 2. Template message parameters (for outside 24-hour window)
+    const templateParams = {
+      date_of_trip: planDetails.dateOfTrip || "Check portal",
+      vehicle_number: planDetails.vehicleNumber || "Check portal",
+      location: planDetails.location || "Check portal",
+      customers: planDetails.customerNames.join(', ') || "Check portal"
+    };
     
     console.log("Sending WhatsApp to:", driverPhone);
-    console.log("Message:", message);
     
     const response = await axiosInstance.post("/whatsapp/send-whatsapp", {
       to: driverPhone,
-      message: message
+      message: regularMessage,
+      planDetails: templateParams // Pass data for template fallback
     }, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -828,8 +839,12 @@ const sendDriverNotification = async (driverPhone, planDetails) => {
     console.log("WhatsApp response:", response.data);
     
     if (response.data.success) {
-      toast.success("WhatsApp notification sent to driver");
-      return { success: true };
+      if (response.data.type === 'template') {
+        toast.success("WhatsApp template message sent to driver (24-hour window expired)");
+      } else {
+        toast.success("WhatsApp notification sent to driver");
+      }
+      return { success: true, type: response.data.type };
     } else {
       toast.error(`WhatsApp failed: ${response.data.error || 'Unknown error'}`);
       return { success: false, error: response.data.error };
