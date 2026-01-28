@@ -522,7 +522,7 @@ const handleRemoveDrawingFile = (index) => {
 </div>
 
 
-      <label className="font-bold text-xl">Density (Kg/m³):</label>
+      {/* <label className="font-bold text-xl">Density (Kg/m³):</label>
       <input
         type="text"
         placeholder="Density"
@@ -531,7 +531,7 @@ const handleRemoveDrawingFile = (index) => {
         disabled
         required
         className="w-full border border-gray-300 rounded-md px-4 py-3 bg-gray-100 text-gray-700"
-      />
+      /> */}
 
       <label className="font-bold text-xl">Quantity:</label>
       <input

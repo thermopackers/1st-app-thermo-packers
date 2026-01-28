@@ -46,6 +46,7 @@ useEffect(() => {
     });
   }
 }, [searchTerm, startDate, endDate]);
+console.log('orders',orders);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -551,7 +552,7 @@ const getFileIcon = (fileName) => {
 </td> 
   <td className="px-4 py-2">{order.size}</td>
   <td className="px-4 py-2">{order.quantity}</td>
-  <td className="px-4 py-2">{order.remarks}</td>
+  <td className="px-4 py-2">{order.cncSlip.remarks || order.remarks}</td>
   <td className="px-4 py-2">
     {order.cncSlip?.url && (
       <a

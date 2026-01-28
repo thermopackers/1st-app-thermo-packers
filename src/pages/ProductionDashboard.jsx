@@ -54,7 +54,6 @@ const typeFilter = searchParams.get("type"); // shape or dana
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
     const [activeProductImage, setActiveProductImage] = useState(null);
-
   const [totalPages, setTotalPages] = useState(1);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -227,6 +226,7 @@ const fetchOrders = async () => {
 
 const currentOrders = orders;
 
+console.log('currentOrders',currentOrders);
 
  
   useEffect(() => {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ProductGallery3D from '../components/ProductGallery3D';
-
+import whiteFoamImage from '../../public/images/pic1.jpg';
+import yellowFoamImage from '../../public/images/pic2.jpeg';
+import blackFoamImage from '../../public/images/pic3.jpg';
 // Import your logos - update these paths to match your actual logo files
 import headerLogo from '../../public/images/logo2.jpeg';
 import footerLogo from '../../public/images/logo2.jpeg';
@@ -56,7 +58,7 @@ const Thermocast = () => {
       title: 'Full Mould Casting',
       description: 'Also known as the cavity-less casting method, full mould casting involves creating a foam pattern that is embedded in sand. When molten metal is poured, the foam vaporizes, leaving behind the metal casting.',
       steps: [
-        'Pattern Creation: A polystyrene foam pattern is created in the shape of the desired part.',
+        'Pattern Creation: A Foam pattern is created from a raw thermocol block and cut into desired shape by use of CNC Router.',
         'Pattern Assembly: Multiple foam patterns may be assembled to form a complete mold.',
         'Sand Molding: The foam pattern is placed in a flask and surrounded by unbonded sand.',
         'Pouring: Molten metal is poured directly onto the foam pattern, which vaporizes upon contact.',
@@ -69,6 +71,7 @@ const Thermocast = () => {
       title: 'Lost Foam Casting',
       description: 'A type of evaporative-pattern casting process that uses a foam pattern embedded in unbonded sand. The pattern vaporizes when molten metal is poured into the mold.',
       steps: [
+        'White EPS/Foam pattern is made using aluminium molds by injection molding process.',
         'Pattern Creation: A foam pattern is coated with a refractory ceramic slurry.',
         'Drying: The coated pattern is dried to form a hard ceramic shell.',
         'Sand Compaction: The pattern is placed in a flask and surrounded with loose, unbonded sand.',
@@ -82,8 +85,8 @@ const Thermocast = () => {
 
   const patterns = {
     'white': {
-      name: 'White Pattern Casting',
-      description: 'Our specialty at ThermoCast. White patterns provide exceptional dimensional accuracy and surface finish, making them ideal for complex and high-precision components.',
+      name: 'White Foam Part Casting',
+      description: 'Our specialty at ThermoCast. White Foam part provide exceptional dimensional accuracy and surface finish, making them ideal for complex and high-precision components.',
       advantages: [
         'Superior surface finish',
         'Excellent dimensional accuracy',
@@ -93,30 +96,6 @@ const Thermocast = () => {
       ],
       colorClass: 'bg-white text-gray-800',
       borderClass: 'border-gray-300'
-    },
-    'yellow': {
-      name: 'Yellow Pattern Casting',
-      description: 'Yellow patterns offer a balance between cost and performance, suitable for medium-complexity castings with good surface finish requirements.',
-      advantages: [
-        'Cost-effective for medium-volume runs',
-        'Good surface finish',
-        'Suitable for moderate complexity designs',
-        'Reliable dimensional stability'
-      ],
-      colorClass: 'bg-yellow-100 text-gray-800',
-      borderClass: 'border-yellow-300'
-    },
-    'black': {
-      name: 'Black Pattern Casting',
-      description: 'Black patterns are typically used for larger, less intricate castings where surface finish is less critical but durability is important.',
-      advantages: [
-        'Economical for large, simple castings',
-        'High durability during handling',
-        'Good for large volume production',
-        'Suitable for thicker cross-sections'
-      ],
-      colorClass: 'bg-gray-800 text-white',
-      borderClass: 'border-gray-600'
     }
   };
 
@@ -164,7 +143,7 @@ const Thermocast = () => {
                 onClick={() => scrollToSection('patterns')}
                 className="text-gray-700 hover:text-blue-600 font-medium"
               >
-                Patterns
+                White Foam Part
               </button>
               <a 
                 href="/contact" 
@@ -190,7 +169,7 @@ const Thermocast = () => {
               Advanced Casting Solutions for Precision Engineering
             </p>
            <p className="text-lg md:text-xl mb-10 max-w-3xl mx-auto">
-  Discover our specialized <span className="font-bold text-blue-300">White Pattern Casting</span> expertise – 
+  Discover our specialized <span className="font-bold text-blue-300">White Foam Part Casting</span> expertise – 
   delivering unparalleled precision and surface finish for complex metal components.
 </p>
             
@@ -211,7 +190,7 @@ const Thermocast = () => {
                 onClick={() => scrollToSection('patterns')}
                 className="px-6 py-3 bg-blue-800 hover:bg-blue-900 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
               >
-                Pattern Specializations
+                Foam Part Specializations
               </button>
             </div>
           </div>
@@ -228,23 +207,7 @@ const Thermocast = () => {
       {/* Rest of your content remains the same... */}
       {/* Process Selection */}
         <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-center mb-12">
-          <div className="bg-white rounded-xl shadow-lg p-6 max-w-5xl mx-auto animate-on-scroll opacity-0">
-            <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Our Casting Processes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Object.keys(processes).map((key) => (
-                <div 
-                  key={key}
-                  className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${activeProcess === key ? 'border-blue-500 bg-blue-50 shadow-lg' : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}`}
-                  onClick={() => setActiveProcess(key)}
-                >
-                  <h3 className="text-2xl font-bold text-gray-800 mb-3">{processes[key].title}</h3>
-                 
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+ 
 
         {/* Full Mould Casting Section */}
         <section ref={sectionRefs['full-mould']} className="mb-20">
@@ -318,85 +281,182 @@ const Thermocast = () => {
           </div>
         </section>
 
-        {/* Lost Foam Casting Section */}
-        <section ref={sectionRefs['lost-foam']} className="mb-20">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-on-scroll opacity-0">
-            <div className="md:flex flex-row-reverse">
-              <div className="md:w-1/2 p-8 md:p-10">
-                <h2 className="text-3xl font-bold text-gray-800 mb-6">Lost Foam Casting</h2>
-                <p className="text-gray-600 mb-8">{processes['lost-foam'].description}</p>
-                
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Process Steps</h3>
-                <ul className="space-y-4 mb-8">
-                  {processes['lost-foam'].steps.map((step, index) => (
-                    <li key={index} className="flex items-start">
-                      <div className="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center mr-3 mt-1">
-                        <span className="text-white font-bold">{index + 1}</span>
-                      </div>
-                      <span className="text-gray-700">{step}</span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="flex flex-wrap gap-4">
-                  <button 
-                    className="px-5 py-2.5 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition-colors duration-300"
-                    onClick={() => toggleVideo('lost-foam')}
-                  >
-                    {isVideoPlaying['lost-foam'] ? 'Pause Video' : 'Play Process Video'}
-                  </button>
-                  <a 
-                    href="/contact" 
-                    className="px-5 py-2.5 border-2 border-gray-800 text-gray-800 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-300"
-                  >
-                    Request a Quote
-                  </a>
-                </div>
-              </div>
-              
-              <div className="md:w-1/2 bg-gray-800 p-6 flex items-center justify-center">
-                <div className="w-full max-w-lg">
-                  <div className="relative overflow-hidden rounded-lg shadow-2xl">
-                    <div className="aspect-w-16 aspect-h-9">
-                      {isVideoPlaying['lost-foam'] ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${processes['lost-foam'].videoId}?autoplay=1`}
-                          title={processes['lost-foam'].videoTitle}
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          className="w-full h-64 md:h-80"
-                        ></iframe>
-                      ) : (
-                        <div 
-                          className="w-full h-64 md:h-80 bg-gray-900 flex flex-col items-center justify-center cursor-pointer"
-                          onClick={() => toggleVideo('lost-foam')}
-                        >
-                          <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4 hover:bg-gray-600 transition-colors duration-300">
-                            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"></path>
-                            </svg>
-                          </div>
-                          <p className="text-white text-lg font-semibold">Play Lost Foam Casting Video</p>
-                          <p className="text-gray-400 mt-2">min</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-gray-300 text-center mt-4">{processes['lost-foam'].videoTitle}</p>
-                </div>
-              </div>
+       {/* Lost Foam Casting Section */}
+<section ref={sectionRefs['lost-foam']} className="mb-20">
+  <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-on-scroll opacity-0">
+    <div className="md:flex flex-row-reverse">
+      <div className="md:w-1/2 p-8 md:p-10">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Lost Foam Casting</h2>
+        <p className="text-gray-600 mb-8">{processes['lost-foam'].description}</p>
+        
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Process Steps</h3>
+        <ul className="space-y-4 mb-8">
+          {/* Step 1 - White Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-gray-800 font-bold">1</span>
+            </div>
+            <span className="text-gray-700">White EPS/Foam pattern is made using aluminium molds by injection molding process.</span>
+          </li>
+          
+          {/* Step 2 - Yellow Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-yellow-100 border-2 border-yellow-300 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-yellow-800 font-bold">2</span>
+            </div>
+            <span className="text-gray-700">Pattern Creation: A foam pattern is coated with a refractory ceramic slurry.</span>
+          </li>
+          
+          {/* Step 3 - Yellow Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-yellow-100 border-2 border-yellow-300 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-yellow-800 font-bold">3</span>
+            </div>
+            <span className="text-gray-700">Drying: The coated pattern is dried to form a hard ceramic shell.</span>
+          </li>
+          
+          {/* Step 4 - Black Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-gray-800 border-2 border-gray-600 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-white font-bold">4</span>
+            </div>
+            <span className="text-gray-700">Sand Compaction: The pattern is placed in a flask and surrounded with loose, unbonded sand.</span>
+          </li>
+          
+          {/* Step 5 - Black Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-gray-800 border-2 border-gray-600 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-white font-bold">5</span>
+            </div>
+            <span className="text-gray-700">Metal Pouring: Molten metal is poured, vaporizing the foam and filling the cavity.</span>
+          </li>
+          
+          {/* Step 6 - Black Foam Part */}
+          <li className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-gray-800 border-2 border-gray-600 rounded-full flex items-center justify-center mr-3 mt-1">
+              <span className="text-white font-bold">6</span>
+            </div>
+            <span className="text-gray-700">Shakeout & Finishing: After cooling, the sand is shaken off and the ceramic coating is removed.</span>
+          </li>
+        </ul>
+        
+        {/* Pattern Color Legend */}
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h4 className="text-lg font-bold text-gray-800 mb-3">Pattern Color Coding:</h4>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-white border-2 border-gray-300 rounded-full mr-2"></div>
+              <span className="text-gray-700">White Foam Part (Step 1)</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-yellow-100 border-2 border-yellow-300 rounded-full mr-2"></div>
+              <span className="text-gray-700">Yellow Foam Parts (Steps 2-3)</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-gray-800 border-2 border-gray-600 rounded-full mr-2"></div>
+              <span className="text-gray-700">Black Foam Parts (Steps 4-6)</span>
             </div>
           </div>
-        </section>
+        </div>
+        
+        {/* Pattern Images Section */}
+        <div className="mb-8">
+          <h4 className="text-lg font-bold text-gray-800 mb-4">Pattern Types in Lost Foam Casting:</h4>
+          <div className="grid grid-cols-3 gap-4">
+            {/* White Foam Image */}
+<div className="text-center">
+  <img 
+    src={whiteFoamImage} 
+    alt="White Foam Pattern" 
+    className="w-full h-32 object-cover rounded-lg border-2 border-gray-300 mb-2"
+  />
+  <p className="text-sm font-medium text-gray-700">White Foam</p>
+  <p className="text-xs text-gray-500">Step 1</p>
+</div>
+
+{/* Yellow Foam Image */}
+<div className="text-center">
+  <img 
+    src={yellowFoamImage} 
+    alt="Yellow Foam Pattern" 
+    className="w-full h-32 object-cover rounded-lg border-2 border-yellow-300 mb-2"
+  />
+  <p className="text-sm font-medium text-gray-700">Yellow Foam</p>
+  <p className="text-xs text-gray-500">Steps 2-3</p>
+</div>
+
+{/* Black Foam Image */}
+<div className="text-center">
+  <img 
+    src={blackFoamImage} 
+    alt="Black Foam Pattern" 
+    className="w-full h-32 object-cover rounded-lg border-2 border-gray-600 mb-2"
+  />
+  <p className="text-sm font-medium text-gray-700">Black Foam</p>
+  <p className="text-xs text-gray-500">Steps 4-6</p>
+</div>
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-4">
+          <button 
+            className="px-5 py-2.5 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition-colors duration-300"
+            onClick={() => toggleVideo('lost-foam')}
+          >
+            {isVideoPlaying['lost-foam'] ? 'Pause Video' : 'Play Process Video'}
+          </button>
+          <a 
+            href="/contact" 
+            className="px-5 py-2.5 border-2 border-gray-800 text-gray-800 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-300"
+          >
+            Request a Quote
+          </a>
+        </div>
+      </div>
+      
+      <div className="md:w-1/2 bg-gray-800 p-6 flex items-center justify-center">
+        <div className="w-full max-w-lg">
+          <div className="relative overflow-hidden rounded-lg shadow-2xl">
+            <div className="aspect-w-16 aspect-h-9">
+              {isVideoPlaying['lost-foam'] ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${processes['lost-foam'].videoId}?autoplay=1`}
+                  title={processes['lost-foam'].videoTitle}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-64 md:h-80"
+                ></iframe>
+              ) : (
+                <div 
+                  className="w-full h-64 md:h-80 bg-gray-900 flex flex-col items-center justify-center cursor-pointer"
+                  onClick={() => toggleVideo('lost-foam')}
+                >
+                  <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4 hover:bg-gray-600 transition-colors duration-300">
+                    <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"></path>
+                    </svg>
+                  </div>
+                  <p className="text-white text-lg font-semibold">Play Lost Foam Casting Video</p>
+                  <p className="text-gray-400 mt-2">min</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="text-gray-300 text-center mt-4">{processes['lost-foam'].videoTitle}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
         {/* Pattern Specializations */}
         <section ref={sectionRefs['patterns']} className="mb-20">
           <div className="animate-on-scroll opacity-0">
-            <h2 className="text-4xl font-bold text-center text-gray-800 mb-4">Pattern Specializations</h2>
+            <h2 className="text-4xl font-bold text-center text-gray-800 mb-4">Why we use EPS Patterns for Metal Casting.</h2>
             <p className="text-gray-600 text-center max-w-3xl mx-auto mb-12">
               At ThermoCast, we offer multiple pattern types to suit different casting requirements. 
-              Our expertise lies in <span className="font-bold text-blue-600">White Pattern Casting</span>, which provides the highest precision and surface finish.
+              Our expertise lies in <span className="font-bold text-blue-600">White Foam Part Casting</span>, which provides the highest precision and surface finish.
             </p>
             
             {/* Pattern Selection */}
@@ -432,7 +492,7 @@ const Thermocast = () => {
       </svg>
       <div>
         <h4 className="font-bold text-xl mb-1">🌟 OUR CORE SPECIALIZATION</h4>
-        <p className="text-blue-100">With decades of expertise, we are industry leaders in White Pattern Casting, delivering superior quality for mission-critical components.</p>
+        <p className="text-blue-100">With decades of expertise, we are industry leaders in White Foam Part Casting, delivering superior quality for mission-critical components.</p>
       </div>
     </div>
   </div>
@@ -471,30 +531,31 @@ const Thermocast = () => {
             </div>
           </div>
         </section>
+
 {/* Why White Pattern Section */}
 <section className="mb-20 animate-on-scroll opacity-0">
   <div className="bg-gradient-to-r from-blue-50 to-white rounded-2xl shadow-xl p-10 border-2 border-blue-200">
     <div className="text-center mb-10">
-      <h2 className="text-4xl font-bold text-gray-800 mb-4">Why Choose Our White Pattern Casting?</h2>
+      <h2 className="text-4xl font-bold text-gray-800 mb-4">Why Choose Our White Foam Part Casting?</h2>
       <p className="text-gray-600 max-w-3xl mx-auto">
-        As specialists in White Pattern Casting, we offer unique advantages that set us apart from the competition.
+        As specialists in White Foam Part Casting, we offer unique advantages that set us apart from the competition.
       </p>
     </div>
     
     <div className="grid md:grid-cols-2 gap-8">
       <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
         <h3 className="text-xl font-bold text-gray-800 mb-3">Industry-Leading Precision</h3>
-        <p className="text-gray-600">Our white pattern technology achieves tolerances of ±0.1mm, making it ideal for aerospace, medical, and automotive applications.</p>
+        <p className="text-gray-600">Our white Foam Part technology achieves tolerances of ±0.1mm, making it ideal for aerospace, medical, and automotive applications.</p>
       </div>
       
       <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
         <h3 className="text-xl font-bold text-gray-800 mb-3">Proven Track Record</h3>
-        <p className="text-gray-600">We've successfully delivered over 10,000 white pattern castings for critical applications across multiple industries.</p>
+        <p className="text-gray-600">We've successfully delivered over 10,000 white foam part castings for critical applications across multiple industries.</p>
       </div>
       
       <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
         <h3 className="text-xl font-bold text-gray-800 mb-3">Technical Expertise</h3>
-        <p className="text-gray-600">Our team includes certified casting engineers with specialized training in white pattern technology.</p>
+        <p className="text-gray-600">Our team includes certified casting engineers with specialized training in white foam part technology.</p>
       </div>
     </div>
   </div>
@@ -504,7 +565,7 @@ const Thermocast = () => {
           <div className="bg-gradient-to-r from-blue-800 to-gray-900 rounded-2xl p-10 text-center text-white shadow-2xl">
             <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Designs?</h2>
            <p className="text-xl mb-8 max-w-3xl mx-auto text-blue-100">
-  Leverage our specialized <span className="font-bold text-yellow-300">White Pattern Casting</span> expertise for your most demanding projects. 
+  Leverage our specialized <span className="font-bold text-yellow-300">White Foam Part Casting</span> expertise for your most demanding projects. 
   Experience the highest standards of precision, quality, and reliability that only industry specialists can provide.
 </p>
             <div className="flex flex-wrap justify-center gap-6">

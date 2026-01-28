@@ -199,7 +199,6 @@ const currentOrders =
         return new Date(b.createdAt) - new Date(a.createdAt); // fallback to date
       });
 
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -448,7 +447,7 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
                             <td className="px-4 py-3">{order.size}</td>
                             <td className="px-4 py-3">{order.quantity}</td>
                            
-                            <td className="px-4 py-3">{order.remarks}</td>
+                            <td className="px-4 py-3">{order.cuttingSlip.remarks || order.remarks}</td>
                             <td className="px-4 py-3">
                               {order.cuttingSlip?.url && (
                                 <a

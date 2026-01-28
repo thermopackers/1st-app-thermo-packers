@@ -239,7 +239,6 @@ setFilteredOrders(ready);
 const currentOrders = filteredOrders;
 
 
-
 const handlePageChange = (page) => {
   if (page >= 1 && page <= totalPages) {
     setSearchParams({ page });
@@ -549,7 +548,7 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
 </td>                         <td className="px-4 py-3">{order.size}</td>
                         <td className="px-4 py-3">{order.quantity}</td>
         
-                        <td className="px-4 py-3">{order.remarks}</td>
+                        <td className="px-4 py-3">{order.packagingSlip.remarks || order.remarks}</td>
                         <td className="px-4 py-3">
                           {order.packagingSlip?.url && (
                             <a

@@ -9,6 +9,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import YouTubeGuide from "../components/YouTubeGuide";
 
 const MySwal = withReactContent(Swal);
 // Set up PDF.js worker
@@ -34,7 +35,27 @@ export default function MainElectricPanelPage() {
 
   // 👇 Ref for last row
   const lastRowRef = useRef(null);
+const [weeklyAverage, setWeeklyAverage] = useState(0);
+const [loadingAverage, setLoadingAverage] = useState(false);
 
+// Add this function to fetch weekly average
+const fetchWeeklyAverage = async () => {
+  try {
+    setLoadingAverage(true);
+    const res = await axiosInstance.get("/main-electric-panel/weekly-average"); // Change endpoint for Unit2/Unit3
+    setWeeklyAverage(res.data.average || 0);
+  } catch (err) {
+    console.error("Error fetching weekly average:", err);
+  } finally {
+    setLoadingAverage(false);
+  }
+};
+
+// Call this in useEffect
+useEffect(() => {
+  fetchData(1);
+  fetchWeeklyAverage(); // Add this
+}, []);
   const fetchData = async (p = page) => {
     try {
       const res = await axiosInstance.get(
@@ -391,7 +412,9 @@ const openFilePreview = (file) => {
         <h1 className="text-xl font-bold mb-4 text-center sm:text-left">
           THERMO PACKERS - Unit 1 - Daily Electricity PF (Power Factor Report)
         </h1>
-
+<h2 className="text-xl bg-red-200 p-1 rounded font-bold mb-4 text-center sm:text-left">
+PSPCL Account No: 3002811256
+        </h2>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
           <h2 className="text-lg font-semibold">Main Electric Panel - Unit 1</h2>
           <button
@@ -401,7 +424,32 @@ const openFilePreview = (file) => {
             + Add New Row
           </button>
         </div>
-
+  <div className="flex flex-col sm:flex-row justify-between items-center">
+    <div>
+      <h3 className="text-sm font-medium text-gray-700">Weekly Power Factor Average (Last 7 Days)</h3>
+      <div className="flex items-center mt-1">
+        <div className={`text-2xl font-bold ${weeklyAverage >= 0.95 ? 'text-green-600' : weeklyAverage >= 0.90 ? 'text-yellow-600' : 'text-red-600'}`}>
+          {loadingAverage ? "Calculating..." : weeklyAverage.toFixed(3)}
+        </div>
+        <div className="ml-2">
+          {weeklyAverage >= 0.95 ? (
+            <span className="text-green-600 text-sm">✓ Good</span>
+          ) : weeklyAverage >= 0.90 ? (
+            <span className="text-yellow-600 text-sm">⚠️ Needs Attention</span>
+          ) : (
+            <span className="text-red-600 text-sm">✗ Poor</span>
+          )}
+        </div>
+      </div>
+    </div>
+    <button
+      onClick={fetchWeeklyAverage}
+      className="mt-2 sm:mt-0 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+      disabled={loadingAverage}
+    >
+      {loadingAverage ? "Refreshing..." : "Refresh Average"}
+    </button>
+  </div>
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-300 text-xs sm:text-sm">
            <thead className="bg-gray-200">
@@ -459,7 +507,7 @@ const openFilePreview = (file) => {
                <input
   type="number"
   step="0.01"
-  value={r.kwh === 0 ? 0 : r.kwh || ""}
+  value={r.kwh || ""}
   onChange={(e) =>
     handleInputChange(i, "kwh", e.target.value)
   }
@@ -622,6 +670,10 @@ className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 t
           </div>
         )}
       </div>
+        <YouTubeGuide 
+             videoId="YOUR_VIDEO_ID_HERE" 
+             title="Learn How to take Power Factor Readings - Unit 1"
+           />
     </>
   );
 }

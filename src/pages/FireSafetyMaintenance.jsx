@@ -1925,7 +1925,7 @@ function FireExtinguisherWeeklyReport() {
       code: `FE${i + 1}`,
       type: "ABC",
       weight: "6",
-      pressureGauge: "green",
+      pressureGauge: "not checked", // or keep "green" if you prefer
       exactPressure: "",
       weightKg: "",
       remarks: "",
@@ -2076,7 +2076,7 @@ function FireExtinguisherWeeklyReport() {
             code: `FE${i + 1}`,
             type: "ABC",
             weight: "6",
-            pressureGauge: "green",
+           pressureGauge: "not checked", // or keep "green" if you prefer
             exactPressure: "",
             weightKg: "",
             remarks: "",
@@ -2093,7 +2093,7 @@ function FireExtinguisherWeeklyReport() {
           code: `FE${i + 1}`,
           type: "ABC",
           weight: "6",
-          pressureGauge: "green",
+         pressureGauge: "not checked", // or keep "green" if you prefer
           exactPressure: "",
           weightKg: "",
           remarks: "",
@@ -2127,7 +2127,7 @@ function FireExtinguisherWeeklyReport() {
           code: `FE${i + 1}`,
           type: "ABC",
           weight: "6",
-          pressureGauge: "green",
+         pressureGauge: "not checked", // or keep "green" if you prefer
           exactPressure: "",
           weightKg: "",
           remarks: "",
@@ -2668,16 +2668,19 @@ function FireExtinguisherWeeklyReport() {
                   </td>
                   
                   <td className="border px-3 py-2">
-                    <select
-                      value={ext.pressureGauge}
-                      onChange={(e) => handleExtinguisherChange(ext.id, 'pressureGauge', e.target.value)}
-                      className={`w-full border rounded p-1 ${
-                        ext.pressureGauge === 'red' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                      }`}
-                    >
-                      <option value="green">Green (Normal)</option>
-                      <option value="red">Red (Needs Refill)</option>
-                    </select>
+                   <select
+  value={ext.pressureGauge}
+  onChange={(e) => handleExtinguisherChange(ext.id, 'pressureGauge', e.target.value)}
+  className={`w-full border rounded p-1 ${
+    ext.pressureGauge === 'red' ? 'bg-red-100 text-red-700' : 
+    ext.pressureGauge === 'green' ? 'bg-green-100 text-green-700' : 
+    'bg-gray-100 text-gray-700'
+  }`}
+>
+  <option value="not checked">Not Checked</option>
+  <option value="green">Green (Normal)</option>
+  <option value="red">Red (Needs Refill)</option>
+</select>
                   </td>
                   
                   <td className="border px-3 py-2">
@@ -2841,9 +2844,10 @@ function FireExtinguisherWeeklyReport() {
           <div className="space-y-6">
             {logs.map((entry) => {
               const isEditing = editingId === entry._id;
-              const redCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'red').length;
-              const greenCount = entry.extinguishers.length - redCount;
-              
+             const redCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'red').length;
+const greenCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'green').length;
+const notCheckedCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'not checked').length;
+
               return (
                 <div key={entry._id} className="border rounded-lg overflow-hidden">
                   {/* Report Header */}
@@ -2857,14 +2861,17 @@ function FireExtinguisherWeeklyReport() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2">
-                            Green: {greenCount}
-                          </span>
-                          <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                            Red: {redCount}
-                          </span>
-                        </div>
+                      <div className="text-sm">
+  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2">
+    Green: {greenCount}
+  </span>
+  <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs mr-2">
+    Red: {redCount}
+  </span>
+  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">
+    Not Checked: {notCheckedCount}
+  </span>
+</div>
                         <button
                           onClick={() => startEditing(entry)}
                           className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition-colors text-sm mt-2"
@@ -2942,11 +2949,15 @@ function FireExtinguisherWeeklyReport() {
                               {ext.type === "Water Foam" && `${ext.weight} ltr`}
                             </td>
                             <td className="border px-3 py-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                ext.pressureGauge === 'red' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                              }`}>
-                                {ext.pressureGauge === 'red' ? 'Red (Needs Refill)' : 'Green (Normal)'}
-                              </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+  ext.pressureGauge === 'red' ? 'bg-red-100 text-red-800' : 
+  ext.pressureGauge === 'green' ? 'bg-green-100 text-green-800' : 
+  'bg-gray-100 text-gray-800'
+}`}>
+  {ext.pressureGauge === 'red' ? 'Red (Needs Refill)' : 
+   ext.pressureGauge === 'green' ? 'Green (Normal)' : 
+   'Not Checked'}
+</span>
                             </td>
                             <td className="border px-3 py-2">
                               {ext.type === "ABC" && ext.exactPressure && (
