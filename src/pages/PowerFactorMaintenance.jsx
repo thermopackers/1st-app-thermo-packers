@@ -671,7 +671,7 @@ className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 t
         )}
       </div>
         <YouTubeGuide 
-             videoId="YOUR_VIDEO_ID_HERE" 
+             videoId="TcpRSScCcXU" 
              title="Learn How to take Power Factor Readings - Unit 1"
            />
     </>

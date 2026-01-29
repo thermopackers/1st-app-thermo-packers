@@ -7,18 +7,67 @@ export default function YouTubeGuide({ videoId, title = "How to Add Data - Guide
   return (
     <>
       {/* Trigger Button */}
-      <div className="fixed bottom-4 right-4 z-40">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="bg-red-600 hover:bg-red-700 text-white rounded-full p-3 shadow-lg flex items-center justify-center transition-all hover:scale-110"
-          title="Watch Tutorial Video"
-        >
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M10 9.333l5.333 2.662-5.333 2.672v-5.334zm14-4.333v14c0 2.761-2.238 5-5 5h-14c-2.761 0-5-2.239-5-5v-14c0-2.761 2.239-5 5-5h14c2.762 0 5 2.239 5 5z" />
+<div className="fixed bottom-4 right-4 z-40">
+  <div className="relative group">
+    {/* Arrow container with unified animation */}
+    <div className="absolute -left-64 top-1/2 transform -translate-y-1/2 animate-bounce-unified">
+      <div className="flex items-center">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[10px] font-medium px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+          <span>How to take power factor readings?</span>
+          <svg 
+            className="w-5 h-5 animate-pulse" 
+            fill="currentColor" 
+            viewBox="0 0 20 20"
+          >
+            <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
-          <span className="ml-2 font-medium sm:inline">Watch Guide</span>
-        </button>
+        </div>
       </div>
+    </div>
+
+    {/* Button with same animation and text */}
+    <div className="animate-bounce-unified">
+      <button
+        onClick={() => setIsOpen(true)}
+        className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center px-4 py-3 group-hover:scale-105"
+        title="Power Factor Reading Guide"
+      >
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M10 9.333l5.333 2.662-5.333 2.672v-5.334zm14-4.333v14c0 2.761-2.238 5-5 5h-14c-2.761 0-5-2.239-5-5v-14c0-2.761 2.239-5 5-5h14c2.762 0 5 2.239 5 5z" />
+        </svg>
+        <span className="ml-1 font-bold text-[10px]">Power Factor Video</span>
+      </button>
+    </div>
+  </div>
+
+  <style jsx>{`
+    @keyframes bounce-unified {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+    
+    .animate-bounce-unified {
+      animation: bounce-unified 2s infinite ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
+    }
+    
+    .animate-pulse {
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+  `}</style>
+</div>
 
       {/* Modal Overlay */}
       {isOpen && (
