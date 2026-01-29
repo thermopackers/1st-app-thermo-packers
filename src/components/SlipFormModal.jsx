@@ -283,6 +283,14 @@ const handleSubmit = async (e) => {
           ? `${danaFormData.densityValue} ${danaFormData.densityType}`
           : "";
 
+            console.log("📤 Sending dana data:", {
+    danaFormData: {
+      ...danaFormData,
+      density: finalDensity,
+      productName: selectedOrder.product || "",
+    },
+  });
+  
       await onSubmit({
         danaFormData: {
           ...danaFormData,

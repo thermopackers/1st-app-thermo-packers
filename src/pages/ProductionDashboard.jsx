@@ -465,6 +465,7 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
                     Product Name
                   </th>
                   <th className="px-6 py-4 text-left font-medium">Quantity</th>
+                                        <th className="px-6 py-4 text-left font-medium">Remarks</th>
                   <th className="px-6 py-4 text-left font-medium">Slip</th>
 
                  
@@ -534,6 +535,21 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
   </div>
 )}             
 <td className="px-6 py-4">{order.quantity}</td>
+<td className="px-6 py-4">
+  <div className="flex flex-col">   
+    {/* Slip-specific remarks */}
+    {order.shapeSlip?.remarks && (
+      <div className="text-sm text-green-600">
+        <span className="font-semibold">Shape:</span> {order.shapeSlip.remarks}
+      </div>
+    )}
+    {order.danaSlip?.remarks && (
+      <div className="text-sm text-purple-600">
+        <span className="font-semibold">Dana:</span> {order.danaSlip.remarks}
+      </div>
+    )}  
+  </div>
+</td>
                    <td className="px-6 py-4 space-y-1">
   {order.shapeSlip?.url && (
     <a

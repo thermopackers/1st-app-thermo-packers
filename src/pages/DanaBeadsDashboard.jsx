@@ -449,7 +449,7 @@ const handleSaveEditedSlip = async (orderId, formData) => {
 
                             <td className="px-4 py-3">{order.density || "-"}</td>
                             <td className="px-4 py-3">{order.quantity || "-"}</td>
-                            <td className="px-4 py-3">{order.remarks || "-"}</td>
+                            <td className="px-4 py-3">{order.danaBeadsSlip.form.remarks || "-"}</td>
 
                             <td className="px-4 py-3">
                               {order.danaBeadsSlip?.url && (
