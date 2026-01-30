@@ -182,10 +182,6 @@ const handleSubmit = async (e) => {
       gstDocs: uploadedUrls,
     };
     
-    // ✅ DEBUG: Log what's being sent
-    console.log("Sending payload:", payload);
-    console.log("createdBy value:", payload.createdBy);
-    
     await axiosInstance.post("/customers", payload);
     toast.success("Customer added successfully!");
     
@@ -210,6 +206,7 @@ const handleSubmit = async (e) => {
     setSubmitting(false);
   }
 };
+    const userRoles = parseUserRoles(user);
 
   return (
     <>
@@ -414,6 +411,7 @@ const handleSubmit = async (e) => {
 </div>
 
 {/* Customer Handled/Managed by Field */}
+{!userRoles.includes("sales") &&
 <div>
   <label className="block mb-1 font-medium text-gray-700">Customer Handled/Managed by</label>
   <select
@@ -431,6 +429,7 @@ const handleSubmit = async (e) => {
     ))}
   </select>
 </div>
+}
 
 {/* ✅ NEW: Sales Category Field */}
 <div>
