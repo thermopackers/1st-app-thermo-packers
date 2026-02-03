@@ -1677,8 +1677,8 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
 )}
 
    {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
+                 <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
           <DashboardSection>
-            <DashboardCard>
               <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                 <span className="text-3xl">📋</span>
                 Leave Management
@@ -1696,13 +1696,11 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                   </div>
                 </ActionButton>
               </div>
-            </DashboardCard>
           </DashboardSection>
 
           {/* Enhanced Attendance Logs */}
           {user.allowAttendance && (
             <DashboardSection>
-              <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                   <span className="text-3xl">📅</span>
                   Attendance Management
@@ -1720,9 +1718,10 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                     View Daily check-ins and attendance records
                   </div>
                 </ActionButton>
-              </DashboardCard>
             </DashboardSection>
           )}
+                        </div>
+
 
           {/* Enhanced Supplier Section */}
           {userRoles.some((role) =>

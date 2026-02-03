@@ -40,15 +40,6 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
         params.ageFilter = sortOrder;
       }
 
-      console.log("🔄 Frontend requesting orders with params:", {
-        page,
-        customerName: filters.customerName,
-        search: searchTerm,
-        status: statusFilter,
-        dispatchStatus: dispatchStatusFilter,
-        requestId: currentRequestId
-      });
-
       const res = await axiosInstance.get("/orders", {
         headers: { Authorization: `Bearer ${token}` },
         params,
@@ -57,14 +48,6 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
 
       // ✅ Only update state if this is the most recent request
       if (currentRequestId === requestIdRef.current) {
-        console.log("📥 Frontend received orders:", {
-          customerName: filters.customerName,
-          ordersCount: res.data.orders?.length,
-          total: res.data.total,
-          page: res.data.page,
-          requestId: currentRequestId,
-          actualOrders: res.data.orders?.map(o => ({ id: o._id, customer: o.customerName, status: o.status }))
-        });
 
         setOrders(res.data.orders || []);
         setTotalPages(res.data.totalPages || 1);
