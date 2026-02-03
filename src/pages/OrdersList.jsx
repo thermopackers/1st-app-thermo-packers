@@ -176,18 +176,7 @@ export default function OrdersList() {
       setShouldRefetchOrders(false);
     }
   }, [shouldRefetchOrders, refetchOrders, setShouldRefetchOrders, currentPage]);
-// Add this useEffect to debug what's triggering API calls
-useEffect(() => {
-  console.log("🔄 OrdersList - Component mounted/updated with:", {
-    currentPage,
-    customerName: filters.customerName,
-    searchTerm,
-    sortOrder,
-    statusFilter,
-    dispatchStatusFilter,
-    ordersCount: orders.length
-  });
-}, [currentPage, filters.customerName, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, orders.length]);
+
   useEffect(() => {
     const initialSections = {};
     orders.forEach((order) => {
@@ -334,11 +323,6 @@ useEffect(() => {
   }
 }, [filters.customerName]);
 
-// Add this useEffect to debug customer filter
-useEffect(() => {
-  console.log("Current filters:", filters);
-  console.log("Current customer filter:", filters.customerName);
-}, [filters]);
   // Export function - Makes separate API call to get all data for export
   const exportToExcel = useCallback(async () => {
     try {
@@ -465,19 +449,10 @@ useEffect(() => {
     setCurrentPage(1);
   }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter]);
 
-  // Add this useEffect to debug orders state changes
-useEffect(() => {
-  console.log("🔄 Orders state changed:", {
-    ordersCount: orders.length,
-    orders: orders.map(o => ({ id: o._id, customer: o.customerName, status: o.status }))
-  });
-}, [orders]);
-
 useEffect(() => {
   const locationState = location.state;
   
   if (locationState?.scrollToOrderId && orders.length > 0 && !loading) {
-    console.log(`🎯 Simplified scroll to column 26`);
     
     setTimeout(() => {
       const tableContainer = document.querySelector('.w-full.overflow-x-auto.mt-10');
@@ -486,13 +461,10 @@ useEffect(() => {
         // Since we have 30 columns total and column 26 is near the end
         // Scroll to show right side of table (section column is near the end)
         const totalWidth = tableContainer.scrollWidth;
-        const visibleWidth = tableContainer.clientWidth;
         
         // Column 26 out of 30 columns = ~87% of the way
         const scrollPosition = totalWidth * 0.85;
-        
-        console.log(`📏 Total: ${totalWidth}px, Visible: ${visibleWidth}px, Scroll to: ${scrollPosition}px`);
-        
+                
         tableContainer.scrollTo({
           left: scrollPosition,
           behavior: 'smooth'

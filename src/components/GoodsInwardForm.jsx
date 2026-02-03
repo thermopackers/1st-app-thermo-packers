@@ -308,6 +308,9 @@ const GoodsInwardForm = () => {
   const [newPhotos, setNewPhotos] = useState([]);
 const [savingProducts, setSavingProducts] = useState(false);
 const [savingPhotos, setSavingPhotos] = useState(false);
+const [editingSupplierCustomer, setEditingSupplierCustomer] = useState(false);
+const [tempSupplierCustomerName, setTempSupplierCustomerName] = useState('');
+const [savingSupplierCustomer, setSavingSupplierCustomer] = useState(false);
   // Items state - array of categories
   const [items, setItems] = useState([
     {
@@ -373,26 +376,25 @@ useEffect(() => {
   }
 }, [user, navigate, userRoles]);
 
-  const fetchGuardEntryDetails = async () => {
-    try {
-      const res = await axiosInstance.get(`/guard-entries?page=1&limit=1000`);
-      const entries = res.data.entries || [];
-      const entry = entries.find(e => e._id === guardEntryId);
-      
-      if (entry) {
-        setGuardEntry(entry);
-      } else {
-        Swal.fire('Error', 'Guard entry not found', 'error');
-        navigate('/guard-entries-view');
-      }
-    } catch (err) {
-      console.error('Failed to fetch guard entry', err);
-      Swal.fire('Error', 'Failed to load guard entry details', 'error');
+ const fetchGuardEntryDetails = async () => {
+  try {
+    // Fetch the specific guard entry directly
+    const res = await axiosInstance.get(`/guard-entries/${guardEntryId}`);
+    
+    if (res.data.entry) {
+      setGuardEntry(res.data.entry);
+    } else {
+      Swal.fire('Error', 'Guard entry not found', 'error');
       navigate('/guard-entries-view');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('Failed to fetch guard entry', err);
+    Swal.fire('Error', 'Failed to load guard entry details', 'error');
+    navigate('/guard-entries-view');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchEpsGrades = async () => {
     try {
@@ -846,6 +848,56 @@ const handleSubmit = async (e) => {
   }
 };
 
+const handleEditSupplierCustomer = () => {
+  const currentName = guardEntry.isRejected 
+    ? (guardEntry.customerName || guardEntry.customer?.name || '')
+    : (guardEntry.supplierName || guardEntry.supplier?.name || '');
+  setTempSupplierCustomerName(currentName);
+  setEditingSupplierCustomer(true);
+};
+
+const handleSaveSupplierCustomer = async () => {
+  if (!tempSupplierCustomerName.trim()) {
+    Swal.fire('Warning', 'Please enter a valid name', 'warning');
+    return;
+  }
+
+  setSavingSupplierCustomer(true);
+  try {
+    // Prepare update data
+    const updateData = guardEntry.isRejected
+  ? { 
+      customerName: tempSupplierCustomerName.trim().toUpperCase(),
+      customer: null // Clear the customer ID when using manual name
+    }
+  : { 
+      supplierName: tempSupplierCustomerName.trim().toUpperCase(),
+      supplier: null // Clear the supplier ID when using manual name
+    };
+
+    const response = await axiosInstance.patch(`/guard-entries/${guardEntryId}`, updateData);
+    
+    // Update local state immediately
+    setGuardEntry(prev => ({
+      ...prev,
+      ...updateData,
+      // Clear the populated object
+      ...(guardEntry.isRejected 
+        ? { customer: null }
+        : { supplier: null }
+      )
+    }));
+    
+    setEditingSupplierCustomer(false);
+    Swal.fire('Success!', 'Name updated successfully', 'success');
+  } catch (error) {
+    console.error('Failed to update name', error);
+    Swal.fire('Error', 'Failed to update name', 'error');
+  } finally {
+    setSavingSupplierCustomer(false);
+  }
+};
+
   if (loading) {
     return (
       <>
@@ -1073,18 +1125,64 @@ const handleSavePhotos = async () => {
     )}
   </div>
   <div>
-    <div className="text-sm text-blue-600 font-medium">
-      {guardEntry.isRejected ? 'Customer' : 'Supplier'}
+    <div className="flex justify-between items-center mb-1">
+      <div className="text-sm text-blue-600 font-medium">
+        {guardEntry.isRejected ? 'Customer' : 'Supplier'}
+      </div>
+      {userRoles.includes('accounts') && !editingSupplierCustomer && (
+        <button
+          type="button"
+          onClick={handleEditSupplierCustomer}
+          className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+        >
+          Edit
+        </button>
+      )}
     </div>
-    <div className="font-bold text-blue-800 flex items-center gap-2">
-      {guardEntry.isRejected 
-        ? (guardEntry.customer?.name || guardEntry.customerName || 'N/A')
-        : (guardEntry.supplier?.name || guardEntry.supplierName || 'N/A')
-      }
-      {(guardEntry.isRejected && guardEntry.customerName) || (!guardEntry.isRejected && guardEntry.supplierName) ? (
-        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
-      ) : null}
-    </div>
+    
+    {!editingSupplierCustomer ? (
+     <div className="font-bold text-blue-800 flex items-center gap-2">
+  {guardEntry.isRejected 
+    ? (guardEntry.customerName || guardEntry.customer?.name || 'N/A')
+    : (guardEntry.supplierName || guardEntry.supplier?.name || 'N/A')
+  }
+  {(guardEntry.isRejected && guardEntry.customerName) || (!guardEntry.isRejected && guardEntry.supplierName) ? (
+    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Manual</span>
+  ) : null}
+</div>
+    ) : (
+      <div className="space-y-2">
+        <input
+          type="text"
+          value={tempSupplierCustomerName}
+          onChange={(e) => setTempSupplierCustomerName(e.target.value)}
+          placeholder={`Enter ${guardEntry.isRejected ? 'customer' : 'supplier'} name`}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleSaveSupplierCustomer}
+            disabled={savingSupplierCustomer}
+            className={`text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 ${
+              savingSupplierCustomer ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {savingSupplierCustomer ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingSupplierCustomer(false);
+              setTempSupplierCustomerName('');
+            }}
+            className="text-xs bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
   </div>
   <div>
     <div className="text-sm text-blue-600 font-medium">Vehicle Number</div>

@@ -29,31 +29,15 @@ const OrderTable = ({
   filters // ✅ This should be passed from OrdersList
 }) => {
   
-  // ✅ ADD DEBUG LOGGING
-  console.log("OrderTable - filters:", filters);
-  console.log("OrderTable - customerName:", filters?.customerName);
-  console.log("OrderTable - total orders:", sortedOrders.length);
-  
 const displayOrders = sortedOrders.filter(order => {
   if (filters?.customerName) {
-    // When customer is filtered, show ALL their orders including completed
-    console.log("Order customer:", order.customerName, "Matches filter:", order.customerName === filters.customerName);
     return order.status !== "cancelled";
   } else {
     // Default behavior: hide completed orders
     return order.status !== "completed" && order.status !== "cancelled";
   }
 });
-
-// Add this debug log
-console.log("All returned orders:", sortedOrders.map(order => ({
-  id: order._id,
-  customer: order.customerName,
-  status: order.status
-})));
   
-  console.log("OrderTable - display orders:", displayOrders.length);
-
   return (
     <div className="w-full overflow-x-auto mt-10 max-h-[80vh]">
       <div className="min-w-full inline-block align-middle">

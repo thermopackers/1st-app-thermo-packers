@@ -196,7 +196,7 @@ const OrderRow = ({
         />
       </OrderCell>
 
-      <OrderCell className="text-blue-600 underline cursor-pointer">
+      <OrderCell className="text-indigo-600 font-bold underline cursor-pointer">
         <button
           onClick={() => {
             const product = products.find((p) => p.name === order.product);

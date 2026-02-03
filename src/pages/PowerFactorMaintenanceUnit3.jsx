@@ -525,8 +525,12 @@ PSPCL Account No: 3009129953
                       className="w-20 sm:w-24 border p-1"
                     />
                   </td>
-                  <td className="border px-2 py-1">{r.netKwh || "-"}</td>
-                  <td className="border px-2 py-1">{r.netKvah || "-"}</td>
+                  <td className="border px-2 py-1">
+  {typeof r.netKwh === 'number' ? r.netKwh.toFixed(2) : "-"}
+</td>
+<td className="border px-2 py-1">
+  {typeof r.netKvah === 'number' ? r.netKvah.toFixed(2) : "-"}
+</td>
                   <td
                  className={`border px-2 py-1 ${
   r.powerFactor >= 0.95 && r.powerFactor <= 1

@@ -30,6 +30,7 @@ export default function StockManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [totalStock, setTotalStock] = useState({ total: 0, unit: "" });
 // In the useState declarations (around line 17), add:
 const [remarks, setRemarks] = useState({});
   // Responsive detection
@@ -40,6 +41,17 @@ const [remarks, setRemarks] = useState({});
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+  fetchCategories();
+}, []);
+
+// Add this effect to reset total when category changes
+useEffect(() => {
+  if (!selectedCategory) {
+    setTotalStock({ total: 0, unit: "" });
+  }
+}, [selectedCategory]);
 
   const handleDateChange = (id, value) => {
     setQuantities((prev) => ({
@@ -57,22 +69,39 @@ const [remarks, setRemarks] = useState({});
     }
   };
 
-  const fetchProducts = async (categoryId, pg = 1) => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get(
-        `/purchase-products?category=${categoryId}&page=${pg}&limit=10`
-      );
-      setProducts(res.data.data);
-      setTotalPages(res.data.totalPages);
-      setPage(res.data.page);
-      setQuantities({});
-    } catch (err) {
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchProducts = async (categoryId, pg = 1) => {
+  setLoading(true);
+  try {
+    const res = await axiosInstance.get(
+      `/purchase-products?category=${categoryId}&page=${pg}&limit=10`
+    );
+    setProducts(res.data.data);
+    setTotalPages(res.data.totalPages);
+    setPage(res.data.page);
+    setQuantities({});
+    setRemarks({}); // Clear remarks too
+    
+    // ✅ Fetch total stock for all products in this category
+    const totalRes = await axiosInstance.get(
+      `/purchase-products?category=${categoryId}&limit=1000000`
+    );
+    
+    let allTotal = 0;
+    let allUnit = "";
+    
+    totalRes.data.data.forEach((p) => {
+      allTotal += p.stock || 0;
+      if (!allUnit && p.unit) allUnit = p.unit;
+    });
+    
+    setTotalStock({ total: allTotal, unit: allUnit });
+    
+  } catch (err) {
+    toast.error("Failed to load products");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleQuantityChange = (id, type, value) => {
     setQuantities((prev) => ({
@@ -258,18 +287,6 @@ const [remarks, setRemarks] = useState({});
           });
       },
     });
-  };
-
-  const getTotalStock = () => {
-    let total = 0;
-    let unit = "";
-
-    products.forEach((p) => {
-      total += p.stock || 0;
-      if (!unit && p.unit) unit = p.unit;
-    });
-
-    return { total, unit };
   };
 
   const showGradeImages = (prod) => {
@@ -524,11 +541,11 @@ const [remarks, setRemarks] = useState({});
                         <td colSpan="6" className="py-4 px-6 text-right font-semibold text-gray-700">
                           Total Current Stock:
                         </td>
-                        <td className="py-4 px-6 text-center">
-                          <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
-                            {getTotalStock().total} {getTotalStock().unit}
-                          </span>
-                        </td>
+                       <td className="py-4 px-6 text-center">
+  <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
+    {totalStock.total} {totalStock.unit}
+  </span>
+</td>
                         <td className="py-4 px-6"></td>
                       </tr>
                     </tfoot>
@@ -634,9 +651,9 @@ const [remarks, setRemarks] = useState({});
                   <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
                     <div className="text-center">
                       <p className="text-sm font-medium text-blue-700">Total Current Stock</p>
-                      <p className="text-2xl font-bold text-blue-800">
-                        {getTotalStock().total} {getTotalStock().unit}
-                      </p>
+                     <p className="text-2xl font-bold text-blue-800">
+  {totalStock.total} {totalStock.unit}
+</p>
                     </div>
                   </div>
                 </div>

@@ -641,7 +641,7 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
 
 
           <div>
-            <label className="block mb-1 font-semibold">Phone</label>
+            <label className="block mb-1 font-semibold">Phone (Add 2 or more numbers separated by Comma Eg. 9878165432,9216562160)</label>
             <input
               type="tel"
               name="phone"

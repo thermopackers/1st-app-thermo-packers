@@ -1932,7 +1932,8 @@ function FireExtinguisherWeeklyReport() {
       images: [] // Add images array for each extinguisher
     }))
   );
-  
+  // Add this with other useState declarations (around line 35-45)
+const editFormRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState("");
   const [dateInput, setDateInput] = useState(""); // For input field
@@ -1945,7 +1946,8 @@ function FireExtinguisherWeeklyReport() {
   
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ date: "", extinguishers: [] });
-  
+  // Add this with other states (around line 35-45)
+const [expandedReports, setExpandedReports] = useState({}); // Track which reports are expanded
   // New state for camera functionality
   const [cameraActive, setCameraActive] = useState(false);
   const [currentExtinguisher, setCurrentExtinguisher] = useState(null);
@@ -1953,7 +1955,20 @@ function FireExtinguisherWeeklyReport() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImage, setModalImage] = useState("");
+  // Add this state
+const [unsavedChanges, setUnsavedChanges] = useState({});
 
+// Add this effect to track changes
+useEffect(() => {
+  const changes = {};
+  fireExtinguishers.forEach(ext => {
+    // Check if any of the main fields have been modified from their initial state
+    // You'll need to track initial state as well
+  });
+  setUnsavedChanges(changes);
+}, [fireExtinguishers]);
+// Add this with other states (around line 35-45)
+const [savingRows, setSavingRows] = useState({}); // Track which rows are being saved
   // Fire Extinguisher Images Mapping
   const fireExtinguisherImages = {
     'FE1': '/images/fe1.jpeg',
@@ -2112,7 +2127,13 @@ function FireExtinguisherWeeklyReport() {
     fetchLogs(1);
     fetchEntryByDate(today); // Load today's data if exists
   }, []);
-
+// Add this function with other helper functions (around line 200-250)
+const toggleReportExpansion = (reportId) => {
+  setExpandedReports(prev => ({
+    ...prev,
+    [reportId]: !prev[reportId]
+  }));
+};
   // Handle date change
   const handleDateChange = (e) => {
     const newDateInput = e.target.value;
@@ -2226,7 +2247,20 @@ function FireExtinguisherWeeklyReport() {
       remarks: ext.remarks || "",
       images: ext.images || [] // Load existing images
     })));
-  };
+   // Scroll to the edit form
+  setTimeout(() => {
+    if (editFormRef.current) {
+      editFormRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    } else {
+      // Fallback: scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, 100); // Small delay to ensure state updates
+};
+
 
   // Save edited entry
   const saveEdit = async (id) => {
@@ -2481,8 +2515,239 @@ function FireExtinguisherWeeklyReport() {
     }
   }, [cameraActive]);
 
+  // Function to save individual extinguisher row data only
+// Function to save individual extinguisher row data only - UPDATED VERSION
+const saveIndividualExtinguisher = async (extinguisher) => {
+  if (!date) {
+    Swal.fire("Error", "Please select a date first", "error");
+    return;
+  }
+
+  try {
+    // Set saving state for this row
+    setSavingRows(prev => ({ ...prev, [extinguisher.code]: true }));
+    
+    // Get the current extinguisher data with images from state
+    const currentExtinguisherData = fireExtinguishers.find(ext => ext.code === extinguisher.code);
+    
+    if (!currentExtinguisherData) {
+      Swal.fire("Error", `Could not find data for ${extinguisher.code}`, "error");
+      return;
+    }
+    
+    // Get existing entry for this date
+    const response = await axiosInstance.get(`/fire-safety/fire-extinguisher/date/${encodeURIComponent(date)}`);
+    const existingEntry = response.data;
+    
+    let updatedExtinguishers = [];
+    
+    if (existingEntry && existingEntry.extinguishers) {
+      // Update only the specific extinguisher's data in the existing array
+      updatedExtinguishers = existingEntry.extinguishers.map(ext => {
+        if (ext.code === extinguisher.code) {
+          return {
+            ...ext, // Keep existing data
+            type: currentExtinguisherData.type,
+            weight: currentExtinguisherData.weight,
+            pressureGauge: currentExtinguisherData.pressureGauge,
+            exactPressure: currentExtinguisherData.exactPressure,
+            weightKg: currentExtinguisherData.weightKg,
+            remarks: currentExtinguisherData.remarks,
+            // IMPORTANT: Use images from current state, not from server
+            images: currentExtinguisherData.images || []
+          };
+        }
+        return ext; // Keep other extinguishers unchanged
+      });
+    } else {
+      // Create new entry with this extinguisher's data and defaults for others
+      updatedExtinguishers = Array.from({ length: 21 }, (_, i) => {
+        const code = `FE${i + 1}`;
+        if (code === extinguisher.code) {
+          return {
+            code: code,
+            type: currentExtinguisherData.type,
+            weight: currentExtinguisherData.weight,
+            pressureGauge: currentExtinguisherData.pressureGauge,
+            exactPressure: currentExtinguisherData.exactPressure,
+            weightKg: currentExtinguisherData.weightKg,
+            remarks: currentExtinguisherData.remarks,
+            images: currentExtinguisherData.images || [] // Use images from current state
+          };
+        } else {
+          // Default values for other extinguishers
+          return {
+            code: code,
+            type: "ABC",
+            weight: "6",
+            pressureGauge: "not checked",
+            exactPressure: "",
+            weightKg: "",
+            remarks: "",
+            images: []
+          };
+        }
+      });
+    }
+    
+    // Save/update the entry with current data including images
+    await axiosInstance.post("/fire-safety/fire-extinguisher", {
+      date: date,
+      extinguishers: updatedExtinguishers
+    });
+    
+    // Show success message for the specific extinguisher
+    Swal.fire({
+      title: "Success!",
+      text: `${extinguisher.code} data and images saved successfully`,
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false
+    });
+    
+    // Refresh the current data to reflect the saved state
+    fetchEntryByDate(dateInput);
+    
+  } catch (err) {
+    console.error("Error saving individual extinguisher:", err);
+    
+    if (err.response && err.response.status === 404) {
+      // No entry exists for this date - create a new one
+      try {
+        const currentExtinguisherData = fireExtinguishers.find(ext => ext.code === extinguisher.code);
+        
+        await axiosInstance.post("/fire-safety/fire-extinguisher", {
+          date: date,
+          extinguishers: Array.from({ length: 21 }, (_, i) => {
+            const code = `FE${i + 1}`;
+            if (code === extinguisher.code && currentExtinguisherData) {
+              return {
+                code: code,
+                type: currentExtinguisherData.type,
+                weight: currentExtinguisherData.weight,
+                pressureGauge: currentExtinguisherData.pressureGauge,
+                exactPressure: currentExtinguisherData.exactPressure,
+                weightKg: currentExtinguisherData.weightKg,
+                remarks: currentExtinguisherData.remarks,
+                images: currentExtinguisherData.images || [] // Use images from current state
+              };
+            } else {
+              return {
+                code: code,
+                type: "ABC",
+                weight: "6",
+                pressureGauge: "not checked",
+                exactPressure: "",
+                weightKg: "",
+                remarks: "",
+                images: []
+              };
+            }
+          })
+        });
+        
+        Swal.fire({
+          title: "Success!",
+          text: `${extinguisher.code} data saved successfully`,
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false
+        });
+        
+        fetchEntryByDate(dateInput);
+      } catch (createErr) {
+        Swal.fire("Error", `Error creating new entry for ${extinguisher.code}`, "error");
+      }
+    } else {
+      Swal.fire("Error", `Error saving ${extinguisher.code} data`, "error");
+    }
+  } finally {
+    // Clear saving state for this row
+    setSavingRows(prev => ({ ...prev, [extinguisher.code]: false }));
+  }
+};
+  // Simplified function to save only the specific columns of a row
+const saveExtinguisherColumns = async (extinguisher) => {
+  if (!date) {
+    Swal.fire("Error", "Please select a date first", "error");
+    return;
+  }
+
+  try {
+    setSavingRows(prev => ({ ...prev, [extinguisher.code]: true }));
+    
+    // Prepare the data to save (only the columns we care about)
+    const extinguisherData = {
+      code: extinguisher.code,
+      type: extinguisher.type,
+      weight: extinguisher.weight,
+      pressureGauge: extinguisher.pressureGauge,
+      exactPressure: extinguisher.exactPressure,
+      weightKg: extinguisher.weightKg,
+      remarks: extinguisher.remarks,
+      // Preserve existing images
+      images: extinguisher.images || []
+    };
+    
+    // Try to update the existing entry
+    const response = await axiosInstance.put(`/fire-safety/fire-extinguisher/row/${encodeURIComponent(date)}/${extinguisher.code}`, extinguisherData);
+    
+    Swal.fire({
+      title: "Success!",
+      text: `${extinguisher.code} data saved`,
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false
+    });
+    
+    // Update local state for this extinguisher
+    setFireExtinguishers(prev => 
+      prev.map(ext => 
+        ext.code === extinguisher.code ? { ...ext, ...extinguisherData } : ext
+      )
+    );
+    
+  } catch (err) {
+    console.error("Error saving extinguisher columns:", err);
+    
+    // If no specific route exists, use the main save function
+    if (err.response && err.response.status === 404) {
+      // Call the original function as fallback
+      await saveIndividualExtinguisher(extinguisher);
+    } else {
+      Swal.fire("Error", `Failed to save ${extinguisher.code}`, "error");
+    }
+  } finally {
+    setSavingRows(prev => ({ ...prev, [extinguisher.code]: false }));
+  }
+};
+
   return (
-    <div>
+    <>
+<style>{`
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .transition-transform {
+    transition: transform 0.3s ease;
+  }
+  
+  /* Spinner animation for save button */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+`}</style>
+       <div>
       <h2 className="text-2xl font-bold mb-6 text-center text-red-700">
         Fire Extinguisher Weekly Check Report
       </h2>
@@ -2541,7 +2806,7 @@ function FireExtinguisherWeeklyReport() {
       </div>
 
       {/* Table for Fire Extinguishers Entry */}
-      <div className="mb-8 border rounded-lg p-4 bg-red-50">
+      <div className="mb-8 border rounded-lg p-4 bg-red-50" ref={editFormRef}>
         <h3 className="text-lg font-semibold mb-4">
           {editingId ? `Editing Report for ${date}` : date ? `Weekly Check Entry for ${date}` : "Select a date to begin"}
         </h3>
@@ -2555,6 +2820,7 @@ function FireExtinguisherWeeklyReport() {
                 <th className="border px-3 py-2">Pressure Gauge (Red/Green)</th>
                 <th className="border px-3 py-2">Exact Pressure (if ABC) / Weight (if Co2)</th>
                 <th className="border px-3 py-2">Remarks</th>
+                                <th className="border px-3 py-2">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -2584,38 +2850,9 @@ function FireExtinguisherWeeklyReport() {
                         <div className="font-semibold text-gray-800">{ext.code}</div>
                         <div className="text-xs text-gray-500">Fire Extinguisher</div>
                         
-                        {/* Camera Button */}
-                        <button
-                          onClick={() => openCamera(ext.code)}
-                          disabled={!date}
-                          className="mt-1 bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Take photo with camera"
-                        >
-                          📸 Take Photo
-                        </button>
+              
                         
-                        {/* Display captured images */}
-                        {ext.images && ext.images.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {ext.images.map((img, idx) => (
-                              <div key={idx} className="relative group">
-                                <img
-                                  src={img.url}
-                                  alt={`${ext.code} captured`}
-                                  className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
-                                  onClick={() => openImageInModal(img.url)}
-                                />
-                                <button
-                                  onClick={() => deleteImage(ext.code, idx)}
-                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                                  title="Delete image"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                     
                       </div>
                     </div>
                   </td>
@@ -2683,29 +2920,139 @@ function FireExtinguisherWeeklyReport() {
 </select>
                   </td>
                   
-                  <td className="border px-3 py-2">
-                    {ext.type === "ABC" && (
-                      <input
-                        type="text"
-                        value={ext.exactPressure}
-                        onChange={(e) => handleExtinguisherChange(ext.id, 'exactPressure', e.target.value)}
-                        className="w-full border rounded p-1"
-                        placeholder="Enter exact pressure..."
-                      />
-                    )}
-                    {ext.type === "Co2" && (
-                      <input
-                        type="text"
-                        value={ext.weightKg}
-                        onChange={(e) => handleExtinguisherChange(ext.id, 'weightKg', e.target.value)}
-                        className="w-full border rounded p-1"
-                        placeholder="Enter weight in kg..."
-                      />
-                    )}
-                    {ext.type === "Water Foam" && (
-                      <div className="text-gray-500 text-center">N/A for Water Foam</div>
-                    )}
-                  </td>
+                <td className="border px-3 py-2">
+  {ext.type === "ABC" && (
+    <div>
+      <input
+        type="text"
+        value={ext.exactPressure}
+        onChange={(e) => handleExtinguisherChange(ext.id, 'exactPressure', e.target.value)}
+        className="w-full border rounded p-1 mb-2"
+        placeholder="Enter exact pressure..."
+      />
+      
+      {/* Camera and Images Section - Moved Here */}
+      <div className="mt-2">
+        {/* Camera Button */}
+        <button
+          onClick={() => openCamera(ext.code)}
+          disabled={!date}
+          className="w-full bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+          title="Take photo with camera"
+        >
+          📸 Take Photo
+        </button>
+        
+        {/* Display captured images */}
+        {ext.images && ext.images.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {ext.images.map((img, idx) => (
+              <div key={idx} className="relative group">
+                <img
+                  src={img.url}
+                  alt={`${ext.code} captured`}
+                  className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                  onClick={() => openImageInModal(img.url)}
+                />
+                <button
+                  onClick={() => deleteImage(ext.code, idx)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+  {ext.type === "Co2" && (
+    <div>
+      <input
+        type="text"
+        value={ext.weightKg}
+        onChange={(e) => handleExtinguisherChange(ext.id, 'weightKg', e.target.value)}
+        className="w-full border rounded p-1 mb-2"
+        placeholder="Enter weight in kg..."
+      />
+      
+      {/* Camera and Images Section - Moved Here */}
+      <div className="mt-2">
+        <button
+          onClick={() => openCamera(ext.code)}
+          disabled={!date}
+          className="w-full bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+          title="Take photo with camera"
+        >
+          📸 Take Photo
+        </button>
+        
+        {ext.images && ext.images.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {ext.images.map((img, idx) => (
+              <div key={idx} className="relative group">
+                <img
+                  src={img.url}
+                  alt={`${ext.code} captured`}
+                  className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                  onClick={() => openImageInModal(img.url)}
+                />
+                <button
+                  onClick={() => deleteImage(ext.code, idx)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+  {ext.type === "Water Foam" && (
+    <div>
+      <div className="text-gray-500 text-center mb-2">N/A for Water Foam</div>
+      
+      {/* Camera and Images Section - Moved Here */}
+      <div className="mt-2">
+        <button
+          onClick={() => openCamera(ext.code)}
+          disabled={!date}
+          className="w-full bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+          title="Take photo with camera"
+        >
+          📸 Take Photo
+        </button>
+        
+        {ext.images && ext.images.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {ext.images.map((img, idx) => (
+              <div key={idx} className="relative group">
+                <img
+                  src={img.url}
+                  alt={`${ext.code} captured`}
+                  className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                  onClick={() => openImageInModal(img.url)}
+                />
+                <button
+                  onClick={() => deleteImage(ext.code, idx)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+</td>
                   
                   <td className="border px-3 py-2">
                     <textarea
@@ -2716,6 +3063,28 @@ function FireExtinguisherWeeklyReport() {
                       placeholder="Remarks..."
                     />
                   </td>
+                  {/* Individual Save Button */}
+                  <td className="border px-3 py-2">
+<button
+  onClick={() => saveIndividualExtinguisher(ext)} // Or use saveExtinguisherColumns(ext)
+  disabled={!date || savingRows[ext.code] || loading}
+  className={`mt-2 text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+    savingRows[ext.code] 
+      ? 'bg-blue-400 text-white cursor-wait' 
+      : 'bg-blue-600 text-white hover:bg-blue-700'
+  } ${!date ? 'opacity-50 cursor-not-allowed' : ''}`}
+  title="Save this extinguisher's data (type, weight, pressure, remarks)"
+>
+  {savingRows[ext.code] ? (
+    <>
+      <div className="w-3 h-3 border-t-2 border-white rounded-full animate-spin"></div>
+      Saving...
+    </>
+  ) : (
+    '💾 Save Row'
+  )}
+</button>
+</td>
                 </tr>
               ))}
             </tbody>
@@ -2823,215 +3192,278 @@ function FireExtinguisherWeeklyReport() {
         </div>
       )}
 
-      {/* Saved Reports Table - SHOW DETAILED DATA */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Saved Weekly Check Reports</h3>
-          <div className="text-sm text-gray-700">
-            Total: {pagination.totalRecords} records
-          </div>
-        </div>
+      {/* Saved Reports Table - COLLAPSIBLE VERSION */}
+<div className="mt-8">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold">Saved Weekly Check Reports</h3>
+    <div className="text-sm text-gray-700">
+      Total: {pagination.totalRecords} records
+    </div>
+  </div>
+  
+  {loading ? (
+    <div className="text-center py-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+    </div>
+  ) : logs.length === 0 ? (
+    <div className="text-center py-8 text-gray-500">
+      No weekly check reports found.
+    </div>
+  ) : (
+    <div className="space-y-4">
+      {logs.map((entry) => {
+        const isEditing = editingId === entry._id;
+        const redCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'red').length;
+        const greenCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'green').length;
+        const notCheckedCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'not checked').length;
+        const isExpanded = expandedReports[entry._id] || false;
         
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No weekly check reports found.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {logs.map((entry) => {
-              const isEditing = editingId === entry._id;
-             const redCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'red').length;
-const greenCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'green').length;
-const notCheckedCount = entry.extinguishers.filter(ext => ext.pressureGauge === 'not checked').length;
-
-              return (
-                <div key={entry._id} className="border rounded-lg overflow-hidden">
-                  {/* Report Header */}
-                  <div className="bg-red-600 text-white p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="text-lg font-semibold">Report Date: {entry.date}</h4>
-                        <div className="text-sm opacity-90">
-                          Created by: {entry.createdBy?.name || 'N/A'} • 
-                          Created on: {new Date(entry.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                      <div className="text-sm">
-  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2">
-    Green: {greenCount}
-  </span>
-  <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs mr-2">
-    Red: {redCount}
-  </span>
-  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">
-    Not Checked: {notCheckedCount}
-  </span>
-</div>
-                        <button
-                          onClick={() => startEditing(entry)}
-                          className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition-colors text-sm mt-2"
-                        >
-                          Edit Report
-                        </button>
-                      </div>
+        return (
+          <div key={entry._id} className="border rounded-lg overflow-hidden bg-white">
+            {/* Report Header - Always Visible */}
+            <div 
+              className="bg-red-600 text-white p-4 cursor-pointer hover:bg-red-700 transition-colors"
+              onClick={() => toggleReportExpansion(entry._id)}
+            >
+              <div className="flex justify-between items-center">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
+                      ▶
                     </div>
+                    <h4 className="text-lg font-semibold">Report Date: {entry.date}</h4>
                   </div>
-                  
-                  {/* Detailed Extinguisher Table */}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-slate-300 text-sm">
-                      <thead className="bg-red-100">
-                        <tr>
-                          <th className="border px-3 py-2">Code</th>
-                          <th className="border px-3 py-2">Type</th>
-                          <th className="border px-3 py-2">Weight/Capacity</th>
-                          <th className="border px-3 py-2">Pressure Gauge</th>
-                          <th className="border px-3 py-2">Exact Pressure/Weight</th>
-                          <th className="border px-3 py-2">Remarks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entry.extinguishers.map((ext, index) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="border px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
-                                  onClick={() => openImageModal(fireExtinguisherImages[ext.code], ext.code)}
-                                  title={`View ${ext.code} image`}
-                                >
-                                  <img 
-                                    src={fireExtinguisherImages[ext.code]}
-                                    alt={`${ext.code} Image`}
-                                    className="w-10 h-10 object-cover rounded border shadow-sm"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                  />
-                                  <div className="hidden w-10 h-10 bg-gradient-to-br from-red-100 to-red-200 rounded items-center justify-center text-red-700 text-xs font-semibold border shadow-sm">
-                                    {ext.code}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-800">{ext.code}</div>
-                                  <div className="text-xs text-gray-500">Fire Extinguisher</div>
-                                  
-                                  {/* Display captured images for saved reports */}
-                                  {ext.images && ext.images.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-1">
-                                      {ext.images.map((img, idx) => (
-                                        <div key={idx} className="relative group">
-                                          <img
-                                            src={img.url}
-                                            alt={`${ext.code} captured`}
-                                            className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
-                                            onClick={() => openImageInModal(img.url)}
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="border px-3 py-2">
-                              {ext.type}
-                            </td>
-                            <td className="border px-3 py-2 text-center">
-                              {ext.type === "ABC" && `${ext.weight} kg`}
-                              {ext.type === "Co2" && "4.5 kg"}
-                              {ext.type === "Water Foam" && `${ext.weight} ltr`}
-                            </td>
-                            <td className="border px-3 py-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-  ext.pressureGauge === 'red' ? 'bg-red-100 text-red-800' : 
-  ext.pressureGauge === 'green' ? 'bg-green-100 text-green-800' : 
-  'bg-gray-100 text-gray-800'
-}`}>
-  {ext.pressureGauge === 'red' ? 'Red (Needs Refill)' : 
-   ext.pressureGauge === 'green' ? 'Green (Normal)' : 
-   'Not Checked'}
-</span>
-                            </td>
-                            <td className="border px-3 py-2">
-                              {ext.type === "ABC" && ext.exactPressure && (
-                                <span className="text-blue-600">{ext.exactPressure}</span>
-                              )}
-                              {ext.type === "Co2" && ext.weightKg && (
-                                <span className="text-blue-600">{ext.weightKg} kg</span>
-                              )}
-                              {(ext.type === "Water Foam" || !ext.exactPressure) && (
-                                <span className="text-gray-400">N/A</span>
-                              )}
-                            </td>
-                            <td className="border px-3 py-2">
-                              {ext.remarks || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="text-sm opacity-90 ml-6">
+                    Created by: {entry.createdBy?.name || 'N/A'} • 
+                    Created on: {new Date(entry.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        {pagination.totalPages > 1 && (
-          <div className="flex justify-between items-center mt-6 px-4 py-3 bg-white border-t border-gray-200 rounded-lg">
-            <div className="text-sm text-gray-700">
-              Showing page {pagination.page} of {pagination.totalPages} 
-              ({pagination.totalRecords} total records)
+                <div className="text-right">
+                  <div className="text-sm mb-2">
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2">
+                      Green: {greenCount}
+                    </span>
+                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs mr-2">
+                      Red: {redCount}
+                    </span>
+                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">
+                      Not Checked: {notCheckedCount}
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the parent click
+                      startEditing(entry);
+                    }}
+                    className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition-colors text-sm"
+                  >
+                    Edit Report
+                  </button>
+                </div>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={pagination.page === 1}
-                className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                First
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              
-              <span className="px-3 py-1 text-sm bg-red-500 text-white rounded">
-                {pagination.page}
-              </span>
-              
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(pagination.totalPages)}
-                disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Last
-              </button>
+            {/* Detailed Extinguisher Table - Collapsible */}
+            {isExpanded && (
+              <div className="overflow-x-auto animate-fadeIn">
+                <table className="min-w-full border border-slate-300 text-sm">
+                  <thead className="bg-red-100">
+                    <tr>
+                      <th className="border px-3 py-2">Code</th>
+                      <th className="border px-3 py-2">Type</th>
+                      <th className="border px-3 py-2">Weight/Capacity</th>
+                      <th className="border px-3 py-2">Pressure Gauge</th>
+                      <th className="border px-3 py-2">Exact Pressure/Weight</th>
+                      <th className="border px-3 py-2">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entry.extinguishers.map((ext, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="cursor-pointer hover:opacity-80 transition-opacity transform hover:scale-110 duration-200"
+                              onClick={() => openImageModal(fireExtinguisherImages[ext.code], ext.code)}
+                              title={`View ${ext.code} image`}
+                            >
+                              <img 
+                                src={fireExtinguisherImages[ext.code]}
+                                alt={`${ext.code} Image`}
+                                className="w-10 h-10 object-cover rounded border shadow-sm"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden w-10 h-10 bg-gradient-to-br from-red-100 to-red-200 rounded items-center justify-center text-red-700 text-xs font-semibold border shadow-sm">
+                                {ext.code}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-800">{ext.code}</div>
+                              <div className="text-xs text-gray-500">Fire Extinguisher</div>
+                              
+                              {/* Display captured images for saved reports */}
+                              {ext.images && ext.images.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {ext.images.map((img, idx) => (
+                                    <div key={idx} className="relative group">
+                                      <img
+                                        src={img.url}
+                                        alt={`${ext.code} captured`}
+                                        className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                                        onClick={() => openImageInModal(img.url)}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="border px-3 py-2">
+                          {ext.type}
+                        </td>
+                        <td className="border px-3 py-2 text-center">
+                          {ext.type === "ABC" && `${ext.weight} kg`}
+                          {ext.type === "Co2" && "4.5 kg"}
+                          {ext.type === "Water Foam" && `${ext.weight} ltr`}
+                        </td>
+                        <td className="border px-3 py-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            ext.pressureGauge === 'red' ? 'bg-red-100 text-red-800' : 
+                            ext.pressureGauge === 'green' ? 'bg-green-100 text-green-800' : 
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {ext.pressureGauge === 'red' ? 'Red (Needs Refill)' : 
+                             ext.pressureGauge === 'green' ? 'Green (Normal)' : 
+                             'Not Checked'}
+                          </span>
+                        </td>
+                        <td className="border px-3 py-2">
+  {ext.type === "ABC" && ext.exactPressure && (
+    <div>
+      <span className="text-blue-600">{ext.exactPressure}</span>
+      {ext.images && ext.images.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {ext.images.map((img, idx) => (
+            <div key={idx} className="relative group">
+              <img
+                src={img.url}
+                alt={`${ext.code} captured`}
+                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                onClick={() => openImageInModal(img.url)}
+              />
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+  {ext.type === "Co2" && ext.weightKg && (
+    <div>
+      <span className="text-blue-600">{ext.weightKg} kg</span>
+      {ext.images && ext.images.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {ext.images.map((img, idx) => (
+            <div key={idx} className="relative group">
+              <img
+                src={img.url}
+                alt={`${ext.code} captured`}
+                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                onClick={() => openImageInModal(img.url)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+  {(ext.type === "Water Foam" || (!ext.exactPressure && !ext.weightKg)) && (
+    <div>
+      <span className="text-gray-400">N/A</span>
+      {ext.images && ext.images.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {ext.images.map((img, idx) => (
+            <div key={idx} className="relative group">
+              <img
+                src={img.url}
+                alt={`${ext.code} captured`}
+                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80"
+                onClick={() => openImageInModal(img.url)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+</td>
+                        <td className="border px-3 py-2">
+                          {ext.remarks || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        );
+      })}
+    </div>
+  )}
+
+  {/* Pagination Controls */}
+  {pagination.totalPages > 1 && (
+    <div className="flex justify-between items-center mt-6 px-4 py-3 bg-white border-t border-gray-200 rounded-lg">
+      <div className="text-sm text-gray-700">
+        Showing page {pagination.page} of {pagination.totalPages} 
+        ({pagination.totalRecords} total records)
+      </div>
+      
+      <div className="flex items-center space-x-1">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={pagination.page === 1}
+          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          First
+        </button>
+        
+        <button
+          onClick={() => handlePageChange(pagination.page - 1)}
+          disabled={pagination.page === 1}
+          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        
+        <span className="px-3 py-1 text-sm bg-red-500 text-white rounded">
+          {pagination.page}
+        </span>
+        
+        <button
+          onClick={() => handlePageChange(pagination.page + 1)}
+          disabled={pagination.page === pagination.totalPages}
+          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+        
+        <button
+          onClick={() => handlePageChange(pagination.totalPages)}
+          disabled={pagination.page === pagination.totalPages}
+          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Last
+        </button>
       </div>
     </div>
+  )}
+</div>
+    </div>
+    </>
   );
 }

@@ -94,13 +94,14 @@ const POCopySection = ({ order, resolvedPOUrls }) => {
           No PO Copy uploaded yet.
         </div>
       )}
-
+{order.status !== 'completed' &&
       <button
         onClick={handleUploadPOCopy}
         className="text-xs sm:text-sm text-gray-600 underline hover:text-red-600"
       >
         📤 Upload PO Copy
       </button>
+}
     </div>
   );
 };
