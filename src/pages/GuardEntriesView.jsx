@@ -19,7 +19,8 @@ const GuardEntriesView = () => {
     hasPrev: false,
     limit: 10
   });
-
+const [searchQuery, setSearchQuery] = useState('');
+const [searchType, setSearchType] = useState('supplierCustomer'); // 'supplierCustomer' or 'products'
   useEffect(() => {
     fetchEntries();
   }, [filterDate, pagination.currentPage]);
@@ -32,12 +33,16 @@ const GuardEntriesView = () => {
   //   return () => clearInterval(interval);
   // }, [filterDate, pagination.currentPage]);
 
-  const fetchEntries = async () => {
+const fetchEntries = async () => {
   try {
     setLoading(true);
     let url = `/guard-entries?page=${pagination.currentPage}&limit=${pagination.limit}`;
     if (filterDate) {
       url += `&date=${filterDate}`;
+    }
+    if (searchQuery.trim()) {
+      url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      url += `&searchType=${searchType}`;
     }
     
     const res = await axiosInstance.get(url);
@@ -195,6 +200,41 @@ const GuardEntriesView = () => {
   const rejectedEntries = entries.filter(e => e.isRejected).length;
   const supplierEntries = entries.filter(e => !e.isRejected).length;
 
+  const handleDeleteEntry = async (entryId) => {
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: "This will permanently delete the vehicle entry!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancel'
+  });
+
+  if (result.isConfirmed) {
+    try {
+      await axiosInstance.delete(`/guard-entries/${entryId}`);
+      
+      Swal.fire(
+        'Deleted!',
+        'Vehicle entry has been deleted.',
+        'success'
+      );
+      
+      // Refresh the entries list
+      fetchEntries();
+    } catch (err) {
+      console.error('Failed to delete entry', err);
+      Swal.fire(
+        'Error!',
+        err.response?.data?.message || 'Failed to delete entry',
+        'error'
+      );
+    }
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -231,39 +271,151 @@ const GuardEntriesView = () => {
                   Add New Entry
                 </button>
                 
-                {/* Filter Controls */}
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Filter by Date
-                    </label>
-                    <input
-                      type="date"
-                      value={filterDate}
-                      onChange={(e) => {
-                        setFilterDate(e.target.value);
-                        setPagination(prev => ({ ...prev, currentPage: 1 }));
-                      }}
-                      className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setFilterDate('');
-                      setPagination(prev => ({ ...prev, currentPage: 1 }));
-                    }}
-                    className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition mt-6 sm:mt-0"
-                  >
-                    Clear Filter
-                  </button>
-                  <button
-                    onClick={fetchEntries}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition mt-2 sm:mt-0 flex items-center gap-2"
-                  >
-                    <span>🔄</span>
-                    Refresh
-                  </button>
-                </div>
+{/* Filter Controls - Improved Layout */}
+<div className="space-y-4">
+  {/* Date Filter Row */}
+  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+    <div className="w-full sm:w-auto">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Filter by Date
+      </label>
+      <input
+        type="date"
+        value={filterDate}
+        onChange={(e) => {
+          setFilterDate(e.target.value);
+          setPagination(prev => ({ ...prev, currentPage: 1 }));
+        }}
+        className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-48"
+      />
+    </div>
+    
+    {/* Quick Action Buttons */}
+    <div className="flex gap-2 mt-2 sm:mt-6">
+      <button
+        onClick={() => {
+          setFilterDate('');
+          setSearchQuery('');
+          setPagination(prev => ({ ...prev, currentPage: 1 }));
+        }}
+        className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition whitespace-nowrap"
+      >
+        Clear All
+      </button>
+      <button
+        onClick={fetchEntries}
+        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2 whitespace-nowrap"
+      >
+        <span>🔄</span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  {/* Search Row */}
+  <div className="w-full">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Search Entries
+    </label>
+    <div className="flex flex-col sm:flex-row gap-3">
+      {/* Search Input Group */}
+      <div className="flex-1 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  setPagination(prev => ({ ...prev, currentPage: 1 }));
+                  fetchEntries();
+                }
+              }}
+              placeholder={`Search by ${searchType === 'supplierCustomer' ? 'supplier/customer name' : 'product name'}`}
+              className="border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full pr-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setPagination(prev => ({ ...prev, currentPage: 1 }));
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <div className="text-xs text-gray-500 mt-1 ml-1">
+              Press Enter to search or click Search button
+            </div>
+          )}
+        </div>
+        
+        {/* Search Type Selector */}
+        <div className="w-full sm:w-48">
+          <select
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+          >
+            <option value="supplierCustomer">Supplier/Customer Name</option>
+            <option value="products">Product Name</option>
+          </select>
+        </div>
+        
+        {/* Search Button */}
+        <div className="w-full sm:w-auto">
+          <button
+            onClick={() => {
+              setPagination(prev => ({ ...prev, currentPage: 1 }));
+              fetchEntries();
+            }}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 w-full"
+          >
+            <span>🔍</span>
+            Search
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    {/* Search Status */}
+    {(searchQuery || filterDate) && (
+      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="text-sm">
+            <span className="font-medium text-blue-700">Active Filters:</span>
+            {searchQuery && (
+              <span className="ml-2">
+                <span className="text-blue-600">"{searchQuery}"</span> in {searchType === 'supplierCustomer' ? 'supplier/customer' : 'products'}
+              </span>
+            )}
+            {searchQuery && filterDate && <span className="mx-2">•</span>}
+            {filterDate && (
+              <span className="text-blue-600">
+                Date: {formatFilterDateForDisplay(filterDate)}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setFilterDate('');
+              setPagination(prev => ({ ...prev, currentPage: 1 }));
+              fetchEntries();
+            }}
+            className="text-sm text-red-600 hover:text-red-800 font-medium whitespace-nowrap"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
               </div>
             </div>
           </div>
@@ -309,33 +461,71 @@ const GuardEntriesView = () => {
 
           {/* Entries Table */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">Vehicle Entries</h3>
-              <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">
-                👆 Click rows for Goods Inward (Accounts only)
-              </span>
-            </div>
-            {entries.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🚗</div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                  No entries found
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  {filterDate 
-                    ? `No entries found for ${formatFilterDateForDisplay(filterDate)}` 
-                    : 'No vehicle entries recorded yet'
-                  }
-                </p>
-                <button
-                  onClick={handleAddEntry}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 mx-auto"
-                >
-                  <span>➕</span>
-                  Add Your First Entry
-                </button>
-              </div>
-            ) : (
+           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+  <div>
+    <h3 className="text-lg font-semibold">Vehicle Entries</h3>
+    {(searchQuery || filterDate) && (
+      <div className="text-sm text-blue-600 mt-1">
+        {searchQuery && `Search: "${searchQuery}"`}
+        {searchQuery && filterDate && ' • '}
+        {filterDate && `Date: ${formatFilterDateForDisplay(filterDate)}`}
+        <button
+          onClick={() => {
+            setSearchQuery('');
+            setFilterDate('');
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+            fetchEntries();
+          }}
+          className="ml-2 text-red-600 hover:text-red-800 text-xs"
+        >
+          (Clear)
+        </button>
+      </div>
+    )}
+  </div>
+  <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">
+    👆 Click rows for Goods Inward (Accounts only)
+  </span>
+</div>
+           {entries.length === 0 ? (
+  <div className="text-center py-12">
+    <div className="text-6xl mb-4">
+      {searchQuery ? '🔍' : '🚗'}
+    </div>
+    <h3 className="text-xl font-semibold text-gray-700 mb-2">
+      {searchQuery ? 'No matching entries found' : 'No entries found'}
+    </h3>
+    <p className="text-gray-500 mb-6">
+      {searchQuery 
+        ? `No entries found matching "${searchQuery}"`
+        : filterDate 
+          ? `No entries found for ${formatFilterDateForDisplay(filterDate)}` 
+          : 'No vehicle entries recorded yet'
+      }
+    </p>
+    {(searchQuery || filterDate) && (
+      <button
+        onClick={() => {
+          setSearchQuery('');
+          setFilterDate('');
+          setPagination(prev => ({ ...prev, currentPage: 1 }));
+          fetchEntries();
+        }}
+        className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2 mx-auto mb-4"
+      >
+        <span>↶</span>
+        Clear Search & Filters
+      </button>
+    )}
+    <button
+      onClick={handleAddEntry}
+      className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 mx-auto"
+    >
+      <span>➕</span>
+      Add New Entry
+    </button>
+  </div>
+) : (
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left text-gray-600">
@@ -351,8 +541,12 @@ const GuardEntriesView = () => {
                         <th className="px-4 py-3">Recorded By</th>
                         <th className="px-4 py-3">Photos</th>
 {!user?.role?.includes('guard') && (
-  <th className="px-4 py-3">Generate Gate Inward Printout</th>
-)}                      </tr>
+  <>
+    <th className="px-4 py-3">Generate Gate Inward Printout</th>
+    <th className="px-4 py-3">Actions</th>
+  </>
+)}
+                     </tr>
                     </thead>
                     <tbody>
                       {entries.map((entry) => (
@@ -460,19 +654,33 @@ const GuardEntriesView = () => {
                               ))}
                             </div>
                           </td>
-                         {!user?.role?.includes('guard') && (
-  <td className="px-4 py-4">
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        navigate(`/gate-inward-printout/${entry._id}`);
-      }}
-      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm"
-    >
-      <span>🖨️</span>
-      Print
-    </button>
-  </td>
+                        {!user?.role?.includes('guard') && (
+  <>
+    <td className="px-4 py-4">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/gate-inward-printout/${entry._id}`);
+        }}
+        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm"
+      >
+        <span>🖨️</span>
+        Print
+      </button>
+    </td>
+    <td className="px-4 py-4">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDeleteEntry(entry._id);
+        }}
+        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2 text-sm"
+      >
+        <span>🗑️</span>
+        Delete
+      </button>
+    </td>
+  </>
 )}
                         </tr>
                       ))}

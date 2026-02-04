@@ -15,12 +15,13 @@ export default function TourExpenses() {
     { date: "", amount: "", remarks: "" },
   ]);
   const [selectedVehicle, setSelectedVehicle] = useState("");
-  const vehicleOptions = [
-    "PB08 DQ 5360",
-    "PB08 DC 2570",
-    "PB08 DQ 8496",
-    "PB08 CS 0496",
-  ];
+const vehicleOptions = [
+  "Personal Vehicle",
+  "PB08 DQ 5360",
+  "PB08 DC 2570",
+  "PB08 DQ 8496",
+  "PB08 CS 0496",
+];
   const [meterReadingStart, setMeterReadingStart] = useState("");
   const [meterReadingEnd, setMeterReadingEnd] = useState("");
   const [oilQuantity, setOilQuantity] = useState("");
@@ -138,12 +139,12 @@ const handleSubmit = async (e) => {
                 ₹${balance >= 0 ? balance : Math.abs(balance)} ${balance >= 0 ? 'Remaining' : 'Over Spent'}
               </span>
             </div>
-            ${selectedVehicle ? `
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #D1D5DB;">
-              <span style="color: #4B5563;">Vehicle:</span>
-              <span style="font-weight: bold; color: #1E40AF; margin-left: 5px;">${selectedVehicle}</span>
-            </div>
-            ` : ''}
+       ${selectedVehicle && selectedVehicle !== "Personal Vehicle" ? `
+<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #D1D5DB;">
+  <span style="color: #4B5563;">Vehicle:</span>
+  <span style="font-weight: bold; color: #1E40AF; margin-left: 5px;">${selectedVehicle}</span>
+</div>
+` : ''}
             ${distance > 0 ? `
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #D1D5DB;">
               <div style="display: flex; justify-content: space-between;">
@@ -328,230 +329,8 @@ const handleSubmit = async (e) => {
               Choose the vehicle used for this tour (optional)
             </p>
           </div>
-
-          {/* Expenses */}
-          <div>
-            <label className="block text-sm font-medium">Expenses</label>
-            {expenses.map((exp, index) => (
-              <div
-                key={index}
-                className="flex gap-2 mt-2 items-center border p-2 rounded-lg"
-              >
-                <input
-                  type="text"
-                  placeholder="Description"
-                  value={exp.description}
-                  onChange={(e) => {
-                    const newExp = [...expenses];
-                    newExp[index].description = e.target.value;
-                    setExpenses(newExp);
-                  }}
-                  className="flex-1 rounded-lg border px-2 py-1"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  value={exp.amount}
-                  onChange={(e) => {
-                    const newExp = [...expenses];
-                    newExp[index].amount = e.target.value;
-                    setExpenses(newExp);
-                  }}
-                  className="w-28 rounded-lg border px-2 py-1"
-                  required
-                />
-                {expenses.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeExpense(index)}
-                    className="text-red-600 text-lg"
-                  >
-                    ✖
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addExpense}
-              className="mt-2 px-3 py-1 rounded-lg bg-indigo-600 text-white"
-            >
-              ➕ Add Expense
-            </button>
-          </div>
-
-          {/* Total */}
-          <div className="font-semibold text-lg">
-            Total: <span className="text-green-600">₹{total}</span>
-          </div>
-
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium">Upload Files</label>
-            <input
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="mt-1 w-full bg-amber-200 p-2 rounded"
-              accept="image/*,.pdf"
-            />
-            {/* Helper text */}
-            <p className="text-xs text-slate-600 mt-1">
-              📸 Upload pictures of <b>Bus Ticket, Hotel Bill, Food Bill</b> and
-              any other expenses done
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3">
-              {files.map((file, index) => (
-                <div
-                  key={index}
-                  className="relative border rounded-lg p-2 bg-slate-50"
-                >
-                  <span className="text-xs block w-28 truncate">
-                    {file.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full px-1"
-                  >
-                    ✖
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Money Taken for Tour Expenses */}
-          <div className="mt-6">
-            <h3 className="font-bold text-lg mb-2">
-              💰 Money Taken for Tour Expenses
-            </h3>
-            <table className="w-full border text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="p-2 border">Date</th>
-                  <th className="p-2 border">Amount</th>
-                  <th className="p-2 border">Remarks</th>
-                  <th className="p-2 border">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {moneyTaken.map((m, index) => (
-                  <tr key={index}>
-                    <td className="p-2 border">
-                      <input
-                        type="date"
-                        value={m.date}
-                        onChange={(e) => {
-                          const newData = [...moneyTaken];
-                          newData[index].date = e.target.value;
-                          setMoneyTaken(newData);
-                        }}
-                        className="w-full border rounded px-2 py-1"
-                        required
-                      />
-                    </td>
-                    <td className="p-2 border">
-                      <input
-                        type="number"
-                        value={m.amount}
-                        onChange={(e) => {
-                          const newData = [...moneyTaken];
-                          newData[index].amount = e.target.value;
-                          setMoneyTaken(newData);
-                        }}
-                        className="w-full border rounded px-2 py-1"
-                        required
-                      />
-                    </td>
-                    <td className="p-2 border">
-                      <input
-                        type="text"
-                        value={m.remarks}
-                        onChange={(e) => {
-                          const newData = [...moneyTaken];
-                          newData[index].remarks = e.target.value;
-                          setMoneyTaken(newData);
-                        }}
-                        className="w-full border rounded px-2 py-1"
-                      />
-                    </td>
-                    <td className="p-2 border text-center">
-                      {moneyTaken.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeMoneyTaken(index)}
-                          className="text-red-600"
-                        >
-                          ✖
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button
-              type="button"
-              onClick={addMoneyTaken}
-              className="mt-2 px-3 py-1 bg-indigo-600 text-white rounded"
-            >
-              ➕ Add Row
-            </button>
-          </div>
-         
-          {/* Tour Expenses Breakup */}
-          <div className="mt-6">
-            <h3 className="font-bold text-lg mb-2">📊 Tour Expenses Breakup</h3>
-            <table className="w-full border text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="p-2 border">Expense Description</th>
-                  <th className="p-2 border">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((exp, index) => (
-                  <tr key={index}>
-                    <td className="p-2 border">{exp.description || "—"}</td>
-                    <td className="p-2 border">₹{exp.amount || 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="font-bold">
-                  <td className="p-2 border">TOTAL</td>
-                  <td className="p-2 border">₹{total}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* Totals Summary */}
-          <div className="mt-6 p-4 bg-slate-100 rounded-lg">
-            <div className="flex justify-between font-semibold text-lg">
-              <span>Total Expenses:</span>
-              <span className="text-red-600">₹{total}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-lg">
-              <span>Total Money Taken:</span>
-              <span className="text-blue-600">₹{moneyTakenTotal}</span>
-            </div>
-            <div
-              className={`flex justify-between font-bold text-lg mt-2 ${
-                balance >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              <span>Balance:</span>
-              <span>
-                {balance >= 0
-                  ? `₹${balance} Remaining`
-                  : `₹${Math.abs(balance)} Over Spent`}
-              </span>
-            </div>
-          </div>
-          {/* Vehicle Trip Log Section */}
+           {/* Vehicle Trip Log Section */}
+          {selectedVehicle && selectedVehicle !== "Personal Vehicle" && (
 <div className="mt-6 border-t pt-6">
   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
     🚗 Selected Vehicle Trip Log
@@ -695,6 +474,233 @@ const handleSubmit = async (e) => {
     </div>
   </div>
 </div>
+          )}
+
+          {/* Expenses */}
+          <div>
+            <label className="block text-lg font-bold">Expenses</label>
+            {expenses.map((exp, index) => (
+              <div
+                key={index}
+                className="flex gap-2 mt-2 items-center border p-2 rounded-lg"
+              >
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={exp.description}
+                  onChange={(e) => {
+                    const newExp = [...expenses];
+                    newExp[index].description = e.target.value;
+                    setExpenses(newExp);
+                  }}
+                  className="flex-1 rounded-lg border px-2 py-1"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  value={exp.amount}
+                  onChange={(e) => {
+                    const newExp = [...expenses];
+                    newExp[index].amount = e.target.value;
+                    setExpenses(newExp);
+                  }}
+                  className="w-28 rounded-lg border px-2 py-1"
+                  required
+                />
+                {expenses.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeExpense(index)}
+                    className="text-red-600 text-lg"
+                  >
+                    ✖
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addExpense}
+              className="mt-2 px-3 py-1 rounded-lg bg-indigo-600 text-white"
+            >
+              ➕ Add Expense
+            </button>
+          </div>
+
+          {/* Total */}
+          <div className="font-semibold text-lg">
+            Total: <span className="text-green-600">₹{total}</span>
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium">Upload Files</label>
+            <input
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              className="mt-1 w-full bg-amber-200 p-2 rounded"
+              accept="image/*,.pdf"
+            />
+            {/* Helper text */}
+            <p className="text-xs text-slate-600 mt-1">
+              📸 Upload pictures of <b>Bus Ticket, Hotel Bill, Food Bill</b> and
+              any other expenses done
+            </p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {files.map((file, index) => (
+                <div
+                  key={index}
+                  className="relative border rounded-lg p-2 bg-slate-50"
+                >
+                  <span className="text-xs block w-28 truncate">
+                    {file.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full px-1"
+                  >
+                    ✖
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Money Taken for Tour Expenses */}
+          <div className="mt-6">
+            <h3 className="font-bold text-lg mb-2">
+              💰 Money Taken from Company for Tour Expenses
+            </h3>
+            <table className="w-full border text-sm">
+              <thead className="bg-slate-100">
+                <tr>
+                  <th className="p-2 border">Date</th>
+                  <th className="p-2 border">Amount</th>
+                  <th className="p-2 border">Remarks</th>
+                  <th className="p-2 border">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moneyTaken.map((m, index) => (
+                  <tr key={index}>
+                    <td className="p-2 border">
+                      <input
+                        type="date"
+                        value={m.date}
+                        onChange={(e) => {
+                          const newData = [...moneyTaken];
+                          newData[index].date = e.target.value;
+                          setMoneyTaken(newData);
+                        }}
+                        className="w-full border rounded px-2 py-1"
+                        required
+                      />
+                    </td>
+                    <td className="p-2 border">
+                      <input
+                        type="number"
+                        value={m.amount}
+                        placeholder="Money paid from Company."
+                        onChange={(e) => {
+                          const newData = [...moneyTaken];
+                          newData[index].amount = e.target.value;
+                          setMoneyTaken(newData);
+                        }}
+                        className="w-full border rounded px-2 py-1"
+                        required
+                      />
+                    </td>
+                    <td className="p-2 border">
+                      <input
+                        type="text"
+                        value={m.remarks}
+                        placeholder="Remarks"
+                        onChange={(e) => {
+                          const newData = [...moneyTaken];
+                          newData[index].remarks = e.target.value;
+                          setMoneyTaken(newData);
+                        }}
+                        className="w-full border rounded px-2 py-1"
+                      />
+                    </td>
+                    <td className="p-2 border text-center">
+                      {moneyTaken.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMoneyTaken(index)}
+                          className="text-red-600"
+                        >
+                          ✖
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button
+              type="button"
+              onClick={addMoneyTaken}
+              className="mt-2 px-3 py-1 bg-indigo-600 text-white rounded"
+            >
+              ➕ Add Row
+            </button>
+          </div>
+         
+          {/* Tour Expenses Breakup */}
+          <div className="mt-6">
+            <h3 className="font-bold text-lg mb-2">📊 Tour Expenses Breakup</h3>
+            <table className="w-full border text-sm">
+              <thead className="bg-slate-100">
+                <tr>
+                  <th className="p-2 border">Expense Description</th>
+                  <th className="p-2 border">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((exp, index) => (
+                  <tr key={index}>
+                    <td className="p-2 border">{exp.description || "—"}</td>
+                    <td className="p-2 border">₹{exp.amount || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-bold">
+                  <td className="p-2 border">TOTAL</td>
+                  <td className="p-2 border">₹{total}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Totals Summary */}
+          <div className="mt-6 p-4 bg-slate-100 rounded-lg">
+            <div className="flex justify-between font-semibold text-lg">
+              <span>Total Expenses:</span>
+              <span className="text-red-600">₹{total}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-lg">
+              <span>Total Money Taken:</span>
+              <span className="text-blue-600">₹{moneyTakenTotal}</span>
+            </div>
+            <div
+              className={`flex justify-between font-bold text-lg mt-2 ${
+                balance >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              <span>Balance:</span>
+              <span>
+                {balance >= 0
+                  ? `₹${balance} Remaining`
+                  : `₹${Math.abs(balance)} Over Spent`}
+              </span>
+            </div>
+          </div>
+         
  {/* Submit */}
           <button
             type="submit"
