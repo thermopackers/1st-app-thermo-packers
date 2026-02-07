@@ -254,110 +254,113 @@ const handleFileDelete = async (fileUrl, field, rowId, fileIndex) => {
     handleFieldChange(rowId, 'date', formattedDate);
   };
 
-  // Save row
-  const handleSaveRow = async (rowId) => {
-    const logToSave = logs.find(log => log._id === rowId);
-    if (!logToSave) return;
+ // Save row - FIXED VERSION
+const handleSaveRow = async (rowId) => {
+  const logToSave = logs.find(log => log._id === rowId);
+  if (!logToSave) return;
 
-    try {
-      setSavingRow(rowId);
+  try {
+    setSavingRow(rowId);
+    
+    if (rowId === 'new') {
+      // Create new entry - remove _id field for new entries
+      const { _id, ...logData } = logToSave;
       
-      if (rowId === 'new') {
-        // Create new entry - remove _id field for new entries
-        const { _id, ...logData } = logToSave;
-        
-        // Ensure proper format for the data
-        const formattedData = {
-          ...logData,
-          date: logData.date || formatDateToDDMMYYYY(new Date()),
-          boreWaterTds: {
-            value: logData.boreWaterTds?.value || "",
-            files: logData.boreWaterTds?.files || []
-          },
-          feedWaterTds: {
-            value: logData.feedWaterTds?.value || "",
-            files: logData.feedWaterTds?.files || []
-          },
-          drainWaterTds: {
-            value: logData.drainWaterTds?.value || "",
-            files: logData.drainWaterTds?.files || []
-          },
-          remarks: logData.remarks || ""
-        };
-                
-        // Refresh logs to get proper pagination
-        fetchLogs();
-        
-        Swal.fire({
-          title: "Success!",
-          text: "New TDS entry added.",
-          icon: "success",
-          timer: 2000
-        });
-        
-        setNewRowId(null);
-      } else {
-        // Update existing entry
-        const formattedData = {
-          ...logToSave,
-          date: logToSave.date,
-          boreWaterTds: {
-            value: logToSave.boreWaterTds?.value || "",
-            files: logToSave.boreWaterTds?.files || []
-          },
-          feedWaterTds: {
-            value: logToSave.feedWaterTds?.value || "",
-            files: logToSave.feedWaterTds?.files || []
-          },
-          drainWaterTds: {
-            value: logToSave.drainWaterTds?.value || "",
-            files: logToSave.drainWaterTds?.files || []
-          },
-          remarks: logToSave.remarks || ""
-        };
-        
-        await axiosInstance.put(`/tds/${rowId}`, formattedData);
-        
-        Swal.fire({
-          title: "Updated!",
-          text: "TDS entry updated.",
-          icon: "success",
-          timer: 2000
-        });
-      }
-    } catch (err) {
-      console.error("Error saving TDS entry:", err);
-      
-      // Show detailed error message
-      let errorMessage = "Failed to save entry.";
-      if (err.response) {
-        console.error("Response data:", err.response.data);
-        console.error("Response status:", err.response.status);
-        
-        if (err.response.data && err.response.data.message) {
-          errorMessage = err.response.data.message;
-          if (err.response.data.errors) {
-            errorMessage += "\n" + err.response.data.errors.join("\n");
-          }
-        }
-      } else if (err.request) {
-        console.error("Request error:", err.request);
-        errorMessage = "Network error - could not reach server.";
-      } else {
-        console.error("Error:", err.message);
-        errorMessage = err.message;
-      }
+      // Ensure proper format for the data
+      const formattedData = {
+        ...logData,
+        date: logData.date || formatDateToDDMMYYYY(new Date()),
+        boreWaterTds: {
+          value: logData.boreWaterTds?.value || "",
+          files: logData.boreWaterTds?.files || []
+        },
+        feedWaterTds: {
+          value: logData.feedWaterTds?.value || "",
+          files: logData.feedWaterTds?.files || []
+        },
+        drainWaterTds: {
+          value: logData.drainWaterTds?.value || "",
+          files: logData.drainWaterTds?.files || []
+        },
+        remarks: logData.remarks || ""
+      };
+            
+      // ✅ ADD THIS LINE: Actually send the data to backend
+      const res = await axiosInstance.post("/tds", formattedData);
+            
+      // Refresh logs to get proper pagination
+      fetchLogs();
       
       Swal.fire({
-        title: "Error",
-        text: errorMessage,
-        icon: "error",
-        confirmButtonText: "OK"
+        title: "Success!",
+        text: res.data.message || "New TDS entry added.",
+        icon: "success",
+        timer: 2000
       });
-    } finally {
-      setSavingRow(null);
+      
+      setNewRowId(null);
+    } else {
+      // Update existing entry
+      const formattedData = {
+        ...logToSave,
+        date: logToSave.date,
+        boreWaterTds: {
+          value: logToSave.boreWaterTds?.value || "",
+          files: logToSave.boreWaterTds?.files || []
+        },
+        feedWaterTds: {
+          value: logToSave.feedWaterTds?.value || "",
+          files: logToSave.feedWaterTds?.files || []
+        },
+        drainWaterTds: {
+          value: logToSave.drainWaterTds?.value || "",
+          files: logToSave.drainWaterTds?.files || []
+        },
+        remarks: logToSave.remarks || ""
+      };
+      
+      const res = await axiosInstance.put(`/tds/${rowId}`, formattedData);
+      
+      Swal.fire({
+        title: "Updated!",
+        text: res.data.message || "TDS entry updated.",
+        icon: "success",
+        timer: 2000
+      });
     }
-  };
+  } catch (err) {
+    console.error("Error saving TDS entry:", err);
+    
+    // Show detailed error message
+    let errorMessage = "Failed to save entry.";
+    if (err.response) {
+      console.error("Response data:", err.response.data);
+      console.error("Response status:", err.response.status);
+      
+      if (err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
+        if (err.response.data.errors) {
+          errorMessage += "\n" + err.response.data.errors.join("\n");
+        }
+      }
+    } else if (err.request) {
+      console.error("Request error:", err.request);
+      errorMessage = "Network error - could not reach server.";
+    } else {
+      console.error("Error:", err.message);
+      errorMessage = err.message;
+    }
+    
+    Swal.fire({
+      title: "Error",
+      text: errorMessage,
+      icon: "error",
+      confirmButtonText: "OK"
+    });
+  } finally {
+    setSavingRow(null);
+  }
+};
 
   // Add new row
   const handleAddRow = () => {
