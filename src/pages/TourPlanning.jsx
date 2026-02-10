@@ -775,10 +775,10 @@ export default function TourPlanning() {
                     <div className="hidden md:grid md:grid-cols-12 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700 text-sm">
                       <div className="md:col-span-3">Customer Information</div>
                       <div className="md:col-span-3">Contact Details</div>
-                                            <div className="md:col-span-3">Contact City</div>
+    <div className="md:col-span-2">📍 City</div> {/* ✅ ADD THIS LINE */}
                       <div className="md:col-span-3">Location</div>
-                      <div className="md:col-span-2">Category & GST</div>
-                      <div className="md:col-span-1 text-center">Actions</div>
+                      {/* <div className="md:col-span-2">Category & GST</div>
+                      <div className="md:col-span-1 text-center">Actions</div> */}
                     </div>
 
                     {/* Table Body */}
@@ -839,6 +839,30 @@ export default function TourPlanning() {
                                 )}
                               </div>
                             </div>
+                            {/* ✅ ADD THIS - City Column */}
+<div className="md:col-span-2">
+  <div className="space-y-2">
+    {customer.city && (
+      <div className="flex items-center gap-2">
+        <span className="text-gray-400 text-sm flex-shrink-0">🏙️</span>
+        <span className="text-sm text-gray-700 font-medium">
+          {customer.city}
+        </span>
+      </div>
+    )}
+    {customer.state && (
+      <div className="flex items-center gap-2">
+        <span className="text-gray-400 text-sm flex-shrink-0">🗺️</span>
+        <span className="text-sm text-gray-500">
+          {customer.state}
+        </span>
+      </div>
+    )}
+    {!customer.city && !customer.state && (
+      <span className="text-sm text-gray-400">—</span>
+    )}
+  </div>
+</div>
 
                             {/* Location */}
                             <div className="md:col-span-3">
@@ -961,7 +985,27 @@ export default function TourPlanning() {
                                   GST: {customer.gst}
                                 </div>
                               )}
+
+                              {/* ✅ ADD THIS - City & State for Mobile */}
+  {(customer.city || customer.state) && (
+    <div className="flex items-center gap-2">
+      <span className="text-gray-400 flex-shrink-0">📍</span>
+      <div className="flex-1">
+        {customer.city && (
+          <span className="text-sm text-gray-700 font-medium mr-2">
+            {customer.city}
+          </span>
+        )}
+        {customer.state && (
+          <span className="text-xs text-gray-500">
+            ({customer.state})
+          </span>
+        )}
+      </div>
+    </div>
+  )}
                             </div>
+                          
 
                             {/* Mobile Actions */}
                             
@@ -1171,7 +1215,26 @@ export default function TourPlanning() {
                               </div>
                             </div>
                           )}
+                            {/* ✅ ADD THIS - City & State for Card View */}
+  {(customer.city || customer.state) && (
+    <div className="flex items-center gap-3">
+      <span className="text-gray-400 text-xs flex-shrink-0">📍</span>
+      <div className="flex-1 min-w-0">
+        {customer.city && (
+          <span className="text-xs text-gray-700 font-medium mr-2">
+            {customer.city}
+          </span>
+        )}
+        {customer.state && (
+          <span className="text-xs text-gray-500">
+            ({customer.state})
+          </span>
+        )}
+      </div>
+    </div>
+  )}
                         </div>
+
 
                         {/* Card Actions */}
                         <div className="border-t border-gray-100 pt-4">
@@ -1268,6 +1331,15 @@ export default function TourPlanning() {
                                 >
                                   📋 Copy Contact
                                 </button>
+                                 <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address || '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                                      >
+                                        <span className="text-xs">🗺️</span>
+                                        <span className="text-xs">Get Directions</span>
+                                      </a>
                               </div>
                             </motion.div>
                           )}
@@ -1398,33 +1470,34 @@ export default function TourPlanning() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => {
-                      const csvData = [
-                        ['Name', 'Phone', 'Email', 'Address', 'City', 'Category', 'GST', 'Instructions'],
-                        ...customers.map(c => [
-                          c.name,
-                          c.phone || '',
-                          c.email || '',
-                          c.address || '',
-                          selectedCity || 'Various',
-                          c.salesCategory || '',
-                          c.gst || '',
-                          c.instructions || ''
-                        ])
-                      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-                      
-                      const blob = new Blob([csvData], { type: 'text/csv' });
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `tour_plan_${selectedCity || 'all_cities'}_page_${page}_${new Date().toISOString().split('T')[0]}.csv`;
-                      a.click();
-                    }}
-                    className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 flex items-center gap-2 font-medium"
-                  >
-                    📥 Export This Page (CSV)
-                  </button>
+                 <button
+  onClick={() => {
+    const csvData = [
+      ['Name', 'Phone', 'Email', 'City', 'State', 'Address', 'Category', 'GST', 'Instructions'],
+      ...customers.map(c => [
+        c.name,
+        c.phone || '',
+        c.email || '',
+        c.city || '', // ✅ ADD CITY
+        c.state || '', // ✅ ADD STATE
+        c.address || '',
+        c.salesCategory || '',
+        c.gst || '',
+        c.instructions || ''
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tour_plan_${selectedCity || 'all_cities'}_page_${page}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  }}
+  className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 flex items-center gap-2 font-medium"
+>
+  📥 Export This Page (CSV)
+</button>
                 </div>
               </div>
             </motion.div>
