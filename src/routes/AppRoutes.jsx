@@ -78,6 +78,8 @@ import CampaignDetail from "../components/CampaignDetail";
 import Thermocast from "../pages/Thermocast";
 import CustomerGiftsDashboard from "../pages/CustomerGiftsDashboard";
 import TdsMonitoring from "../pages/TdsMonitoring";
+import TourPlanning from "../pages/TourPlanning";
+import PhMonitoring from "../pages/PhMonitoring";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -693,6 +695,18 @@ path="/maintenance/water-filter"
     </ProtectedRoute>
   }
 />
+
+<Route
+  path="/maintenance/ph"
+  element={
+    <ProtectedRoute allowedRoles={["admin","accounts","plantMaintenance", "sales", "production", "dispatch", "packaging","driver"]}>
+      <PageWrapper><PhMonitoring /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route path="/tour-planning" element={<TourPlanning />} />
+
 
 <Route
   path="/maintenance/earthing"

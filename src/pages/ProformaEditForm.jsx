@@ -517,26 +517,49 @@ updated[i] = {
 
               </div>
 
-              {selectedImages[i]?.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedImages[i].map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt={`product-${i}-img-${idx}`}
-                      className="w-16 h-16 object-cover border rounded cursor-pointer hover:scale-105 transition"
-                      onClick={() => {
-                        Swal.fire({
-                          imageUrl: url,
-                          imageAlt: 'Product Image',
-                          showConfirmButton: false,
-                          background: '#fff',
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+             {selectedImages[i]?.length > 0 && (
+  <div className="flex flex-wrap gap-2 mt-2">
+    {selectedImages[i].map((url, idx) => (
+      <div key={idx} className="relative group">
+        <img
+          src={url}
+          alt={`product-${i}-img-${idx}`}
+          className="w-16 h-16 object-cover border rounded cursor-pointer hover:scale-105 transition"
+          onClick={() => {
+            Swal.fire({
+              imageUrl: url,
+              imageAlt: 'Product Image',
+              showConfirmButton: false,
+              background: '#fff',
+            });
+          }}
+        />
+        {/* Add delete button */}
+        <button
+          type="button"
+          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent opening the image viewer
+            const updatedImages = [...selectedImages[i]];
+            updatedImages.splice(idx, 1);
+            setSelectedImages(prev => ({
+              ...prev,
+              [i]: updatedImages
+            }));
+            
+            // Also update form.products to sync with backend
+            const updatedProducts = [...form.products];
+            updatedProducts[i].images = updatedImages;
+            setForm(f => ({ ...f, products: updatedProducts }));
+          }}
+          title="Delete image"
+        >
+          ✕
+        </button>
+      </div>
+    ))}
+  </div>
+)}
             </td>
 
             <td>{p.hsn}</td>

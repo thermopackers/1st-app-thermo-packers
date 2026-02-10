@@ -38,6 +38,8 @@ export default function App() {
     "/view-rfqs",
     "/maintenance/boiler",
     "/maintenance/tds",
+    "/maintenance/ph",
+    "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",
     "/register/assistant",

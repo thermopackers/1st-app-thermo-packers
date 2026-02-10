@@ -15,9 +15,9 @@ export default function PlantMachineryMaintenance() {
     { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-blue-600 hover:bg-blue-700" },
     { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-blue-600 hover:bg-blue-700" },
     { 
-      name: "Boiler & TDS", 
-      type: "split-button", // New type for split button
-      color: "bg-gradient-to-r from-blue-600 to-green-600" 
+      name: "Boiler, TDS & PH", 
+      type: "triple-split", // Changed to triple-split
+      color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
     },
     { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
     { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
@@ -131,11 +131,11 @@ export default function PlantMachineryMaintenance() {
               );
             }
             
-            // Handle Boiler & TDS Split Button
-            if (s.type === "split-button") {
+            // Handle Boiler, TDS & PH Triple Split Button
+            if (s.type === "triple-split") {
               return (
                 <div key={idx} className="w-full h-32 rounded-2xl shadow-lg overflow-hidden border-2 border-white">
-                  <div className="h-full grid grid-cols-2 gap-0">
+                  <div className="h-full grid grid-cols-3 gap-0">
                     {/* Boiler Button - Left Side */}
                     <NavLink to="/maintenance/boiler" className="h-full">
                       <div className="h-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
@@ -149,14 +149,15 @@ export default function PlantMachineryMaintenance() {
                         <div className="relative z-10 text-center p-3">
                           <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🔥</div>
                           <div className="font-bold text-lg mb-1">Boiler</div>
-                         </div>
+                          <div className="text-xs opacity-90">Monthly Report</div>
+                        </div>
                         
                         {/* Hover Effect */}
                         <div className="absolute inset-0 bg-gradient-to-t from-blue-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       </div>
                     </NavLink>
                     
-                    {/* TDS Button - Right Side */}
+                    {/* TDS Button - Middle */}
                     <NavLink to="/maintenance/tds" className="h-full">
                       <div className="h-full bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
                         {/* Background Pattern */}
@@ -169,11 +170,32 @@ export default function PlantMachineryMaintenance() {
                         <div className="relative z-10 text-center p-3">
                           <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">💧</div>
                           <div className="font-bold text-lg mb-1">TDS</div>
-                          <div className="text-xs opacity-90">Daily checking of Boiler Water</div>
+                          <div className="text-xs opacity-90">Daily checking</div>
                         </div>
                         
                         {/* Hover Effect */}
                         <div className="absolute inset-0 bg-gradient-to-t from-green-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                    </NavLink>
+                    
+                    {/* PH Button - Right Side */}
+                    <NavLink to="/maintenance/ph" className="h-full">
+                      <div className="h-full bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+                        {/* Background Pattern */}
+                        <div className="absolute inset-0 opacity-10">
+                          <div className="absolute top-1 left-1 text-2xl">🧪</div>
+                          <div className="absolute bottom-1 right-1 text-2xl">📈</div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="relative z-10 text-center p-3">
+                          <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🧪</div>
+                          <div className="font-bold text-lg mb-1">PH</div>
+                          <div className="text-xs opacity-90">Daily checking</div>
+                        </div>
+                        
+                        {/* Hover Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-purple-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       </div>
                     </NavLink>
                   </div>

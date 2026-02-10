@@ -1832,41 +1832,56 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             </DashboardSection>
           )}
 
-          {/* Enhanced Tour Expenses */}
-          {(user.allowTourExpenses ||
-            userRoles.some((role) => ["sales", "accounts"].includes(role))) && (
-            <DashboardSection>
-              <DashboardCard>
-                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
-                  <span className="text-3xl">✈️</span>
-                  Tour Expenses
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ActionButton to="/tour-expenses" variant="primary" icon="➕">
-                    <div className="text-lg font-semibold mb-2">
-                      Add Tour Expenses
-                    </div>
-                    <div className="text-blue-100 text-sm opacity-90">
-                      Submit travel expenses
-                    </div>
-                  </ActionButton>
+         {/* Enhanced Tour Expenses */}
+{(user.allowTourExpenses ||
+  userRoles.some((role) => ["sales", "accounts"].includes(role))) && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">✈️</span>
+        Tour Expenses
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* Changed to 3 columns */}
+       
 
-                  <ActionButton
-                    to="/tour-expenses-dashboard"
-                    variant="purple"
-                    icon="📊"
-                  >
-                    <div className="text-lg font-semibold mb-2">
-                      View Tour Expenses
-                    </div>
-                    <div className="text-purple-100 text-sm opacity-90">
-                      Dashboard & reports
-                    </div>
-                  </ActionButton>
-                </div>
-              </DashboardCard>
-            </DashboardSection>
-          )}
+        <ActionButton to="/tour-expenses" variant="primary" icon="➕">
+          <div className="text-lg font-semibold mb-2">
+            Add Tour Expenses
+          </div>
+          <div className="text-blue-100 text-sm opacity-90">
+            Submit travel expenses
+          </div>
+        </ActionButton>
+
+        <ActionButton
+          to="/tour-expenses-dashboard"
+          variant="purple"
+          icon="📊"
+        >
+          <div className="text-lg font-semibold mb-2">
+            View Tour Expenses
+          </div>
+          <div className="text-purple-100 text-sm opacity-90">
+            Dashboard & reports
+          </div>
+        </ActionButton>
+         {/* Tour Planning Button - NEW */}
+        <ActionButton 
+          to="/tour-planning" 
+          variant="cyan" 
+          icon="🗺️"
+        >
+          <div className="text-lg font-semibold mb-2">
+            Tour Planning
+          </div>
+          <div className="text-cyan-100 text-sm opacity-90">
+            Plan tour by city & filter customers
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
 
           {/* 🎁 Customer Gifts Section */}
 {userRoles.some(role => ["admin", "accounts", "sales"].includes(role)) && (
