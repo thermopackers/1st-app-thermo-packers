@@ -39,6 +39,8 @@ export default function App() {
     "/maintenance/boiler",
     "/maintenance/tds",
     "/maintenance/ph",
+    "/maintenance/hardness",
+    "/maintenance/alkalinity",
     "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",

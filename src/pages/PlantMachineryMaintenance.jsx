@@ -5,27 +5,27 @@ import { useEffect, useState } from "react";
 import axiosInstance from "../axiosInstance";
 
 export default function PlantMachineryMaintenance() {
-  const sections = [
-    { name: "Air Compressors", path: "/maintenance/air-compressors", color: "bg-blue-600 hover:bg-blue-700" },
-    { 
-      name: "Power Factor - Main Electric Panel", 
-      type: "multi",
-      color: "bg-blue-600 hover:bg-blue-700" 
-    },
-    { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-blue-600 hover:bg-blue-700" },
-    { 
-      name: "Boiler, TDS & PH", 
-      type: "triple-split", // Changed to triple-split
-      color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
-    },
-    { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Pre-expander", path: "/maintenance/pre-expander", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Block Moulding Machine", path: "/maintenance/block-moulding", color: "bg-blue-600 hover:bg-blue-700" },
-    { name: "Fire Safety Check", path: "/maintenance/fire-safety", color: "bg-blue-600 hover:bg-blue-700" },
-  ];
+ const sections = [
+  { name: "Air Compressors", path: "/maintenance/air-compressors", color: "bg-blue-600 hover:bg-blue-700" },
+  { 
+    name: "Power Factor - Main Electric Panel", 
+    type: "multi",
+    color: "bg-blue-600 hover:bg-blue-700" 
+  },
+  { name: "DG Set (Diesel Generator) - Main Electric Panel", path: "/dg-set-log-book", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Shape Moulding Machine", path: "/maintenance/shape-moulding", color: "bg-blue-600 hover:bg-blue-700" },
+  { 
+    name: "Water Quality Tests", 
+    type: "water-quality-grid", // Updated type
+    color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
+  },
+  { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Pre-expander", path: "/maintenance/pre-expander", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Block Moulding Machine", path: "/maintenance/block-moulding", color: "bg-blue-600 hover:bg-blue-700" },
+  { name: "Fire Safety Check", path: "/maintenance/fire-safety", color: "bg-blue-600 hover:bg-blue-700" },
+];
 
   const [unitAverages, setUnitAverages] = useState({
     unit1: 0,
@@ -131,82 +131,69 @@ export default function PlantMachineryMaintenance() {
               );
             }
             
-            // Handle Boiler, TDS & PH Triple Split Button
-            if (s.type === "triple-split") {
-              return (
-                <div key={idx} className="w-full h-32 rounded-2xl shadow-lg overflow-hidden border-2 border-white">
-                  <div className="h-full grid grid-cols-3 gap-0">
-                    {/* Boiler Button - Left Side */}
-                    <NavLink to="/maintenance/boiler" className="h-full">
-                      <div className="h-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
-                        {/* Background Pattern */}
-                        <div className="absolute inset-0 opacity-10">
-                          <div className="absolute top-1 left-1 text-2xl">🔥</div>
-                          <div className="absolute bottom-1 right-1 text-2xl">⚙️</div>
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="relative z-10 text-center p-3">
-                          <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🔥</div>
-                          <div className="font-bold text-lg mb-1">Boiler</div>
-                          <div className="text-xs opacity-90">Monthly Report</div>
-                        </div>
-                        
-                        {/* Hover Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-blue-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </div>
-                    </NavLink>
-                    
-                    {/* TDS Button - Middle */}
-                    <NavLink to="/maintenance/tds" className="h-full">
-                      <div className="h-full bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
-                        {/* Background Pattern */}
-                        <div className="absolute inset-0 opacity-10">
-                          <div className="absolute top-1 left-1 text-2xl">💧</div>
-                          <div className="absolute bottom-1 right-1 text-2xl">📊</div>
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="relative z-10 text-center p-3">
-                          <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">💧</div>
-                          <div className="font-bold text-lg mb-1">TDS</div>
-                          <div className="text-xs opacity-90">Daily checking</div>
-                        </div>
-                        
-                        {/* Hover Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-green-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </div>
-                    </NavLink>
-                    
-                    {/* PH Button - Right Side */}
-                    <NavLink to="/maintenance/ph" className="h-full">
-                      <div className="h-full bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
-                        {/* Background Pattern */}
-                        <div className="absolute inset-0 opacity-10">
-                          <div className="absolute top-1 left-1 text-2xl">🧪</div>
-                          <div className="absolute bottom-1 right-1 text-2xl">📈</div>
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="relative z-10 text-center p-3">
-                          <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🧪</div>
-                          <div className="font-bold text-lg mb-1">PH</div>
-                          <div className="text-xs opacity-90">Daily checking</div>
-                        </div>
-                        
-                        {/* Hover Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-purple-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </div>
-                    </NavLink>
-                  </div>
-                  
-                  {/* Container Label */}
-                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                    <span className="text-xs font-bold text-gray-700">Water Quality Monitoring</span>
-                  </div>
-                </div>
-              );
-            }
+        // Handle Boiler, TDS, PH & Hardness in 2×2 Grid
+if (s.type === "water-quality-grid") {
+  return (
+    <div key={idx} className="w-full h-80 rounded-2xl shadow-lg overflow-hidden border-2 border-white">
+      <div className="h-full grid grid-rows-3 grid-cols-2 gap-0">
+        {/* Row 1, Col 1: Boiler */}
+        <NavLink to="/maintenance/boiler" className="h-full">
+          <div className="h-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+            <div className="relative z-10 text-center p-2">
+              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">🔥</div>
+              <div className="font-bold text-sm mb-0.5">Boiler</div>
+              <div className="text-xs opacity-90 leading-tight">Monthly Report</div>
+            </div>
+          </div>
+        </NavLink>
+        
+        {/* Row 1, Col 2: TDS */}
+        <NavLink to="/maintenance/tds" className="h-full">
+          <div className="h-full bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+            <div className="relative z-10 text-center p-2">
+              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💧</div>
+              <div className="font-bold text-sm mb-0.5">TDS</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+            </div>
+          </div>
+        </NavLink>
+        
+        {/* Row 2, Col 1: PH */}
+        <NavLink to="/maintenance/ph" className="h-full">
+          <div className="h-full bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+            <div className="relative z-10 text-center p-2">
+              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">🧪</div>
+              <div className="font-bold text-sm mb-0.5">PH</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+            </div>
+          </div>
+        </NavLink>
+        
+        {/* Row 2, Col 2: Hardness */}
+        <NavLink to="/maintenance/hardness" className="h-full">
+          <div className="h-full bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+            <div className="relative z-10 text-center p-2">
+              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💎</div>
+              <div className="font-bold text-sm mb-0.5">Hardness</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+            </div>
+          </div>
+        </NavLink>
+        
+        {/* Row 3: Alkalinity - Full Width */}
+        <NavLink to="/maintenance/alkalinity" className="h-full col-span-2">
+          <div className="h-full bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
+            <div className="relative z-10 text-center p-4">
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">⚗️</div>
+              <div className="font-bold text-sm mb-1">Alkalinity</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+            </div>
+          </div>
+        </NavLink>
+      </div>
+    </div>
+  );
+}
             
             // Check if other sections are enabled
             const isEnabled = s.name === "Air Compressors" || 
