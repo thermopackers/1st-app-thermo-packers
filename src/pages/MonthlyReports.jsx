@@ -484,11 +484,27 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
   // Add summary at the bottom
 const finalY = doc.lastAutoTable.finalY || 40;
 
-// Calculate Sundays count
-const sundayCount = attendanceRecords.filter(record => {
-  const date = new Date(record.date);
-  return date.getDay() === 0;
-}).length;
+// Calculate Sundays count for the entire month up to today
+const [year, m] = month.split("-");
+const monthNum = parseInt(m);
+const today = new Date();
+const currentYear = today.getFullYear();
+const currentMonth = today.getMonth() + 1; // JavaScript months are 0-indexed
+const currentDay = today.getDate();
+
+// Get last day of the month
+const lastDay = new Date(year, monthNum, 0).getDate();
+
+let sundayCount = 0;
+for (let day = 1; day <= lastDay; day++) {
+  const dateStr = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const date = new Date(dateStr);
+  
+  // Only count Sundays up to today
+  if (date <= today && date.getDay() === 0) {
+    sundayCount++;
+  }
+}
 
 doc.setFontSize(11);
 doc.setFont('helvetica', 'bold');
