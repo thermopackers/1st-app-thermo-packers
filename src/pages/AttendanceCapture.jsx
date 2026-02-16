@@ -23,48 +23,52 @@ export default function AttendanceCapture() {
   const [locationStatus, setLocationStatus] = useState("pending");
   const [currentLocation, setCurrentLocation] = useState(null);
 
-  const captureImageWithTimestamp = () => {
-    return new Promise((resolve, reject) => {
-      const screenshot = webcamRef.current?.getScreenshot();
+const captureImageWithTimestamp = () => {
+  return new Promise((resolve, reject) => {
+    const screenshot = webcamRef.current?.getScreenshot();
 
-      if (!screenshot || screenshot.length < 1000) {
-        console.warn("❌ Screenshot is blank or invalid");
-        return reject("Invalid screenshot");
-      }
+    if (!screenshot || screenshot.length < 1000) {
+      console.warn("❌ Screenshot is blank or invalid");
+      return reject("Invalid screenshot");
+    }
 
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
 
-        const timestamp = new Date().toLocaleString("en-IN", {
-          dateStyle: "medium",
-          timeStyle: "medium",
-        });
+      const timestamp = new Date().toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "medium",
+      });
 
-        // Add timestamp overlay
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(10, canvas.height - 40, 280, 30);
-        
-        ctx.fillStyle = "white";
-        ctx.font = "14px monospace";
-        ctx.fillText(timestamp, 20, canvas.height - 20);
+      // Add timestamp overlay
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(10, canvas.height - 40, 280, 30);
+      
+      ctx.fillStyle = "white";
+      ctx.font = "14px monospace";
+      ctx.fillText(timestamp, 20, canvas.height - 20);
 
-        const finalImage = canvas.toDataURL("image/jpeg", 0.9);
-        resolve(finalImage);
-      };
+      // Add a tiny random pixel to ensure uniqueness (optional)
+      ctx.fillStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+      ctx.fillRect(0, 0, 1, 1);
 
-      img.onerror = () => {
-        console.error("❌ Failed to load captured image");
-        reject("Failed to load captured image");
-      };
+      const finalImage = canvas.toDataURL("image/jpeg", 0.9);
+      resolve(finalImage);
+    };
 
-      img.src = screenshot;
-    });
-  };
+    img.onerror = () => {
+      console.error("❌ Failed to load captured image");
+      reject("Failed to load captured image");
+    };
+
+    img.src = screenshot;
+  });
+};
 
   // ✅ Load face-api models
   useEffect(() => {
@@ -197,7 +201,7 @@ const saveAttendance = async () => {
     return;
   }
 
-  // 🔴 NEW: Check and request location permission FIRST
+  // 🔴 Check and request location permission
   let location = null;
   try {
     location = await getLocation();
@@ -234,21 +238,13 @@ const saveAttendance = async () => {
     return;
   }
 
-  // ⏳ Countdown before capture
-  setShowLivenessPrompt(true);
-  for (let i = 3; i > 0; i--) {
-    setLivenessCountdown(i);
-    await new Promise((res) => setTimeout(res, 1000));
-  }
-  setShowLivenessPrompt(false);
-
   console.time("🕒 Total Attendance Time");
   setIsSaving(true);
 
   try {
     const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
 
-    // 📸 First frame
+    // 📸 Capture single image (removed second frame and liveness check)
     const image1 = await captureImageWithTimestamp();
     if (!image1 || image1.length < 1000) {
       Swal.fire({
@@ -263,31 +259,13 @@ const saveAttendance = async () => {
 
     const img1 = await faceapi.fetchImage(image1);
 
-    // Small wait for natural movement
-    await new Promise((res) => setTimeout(res, 500));
-
-    // 📸 Second frame
-    const image2 = await captureImageWithTimestamp();
-    if (!image2 || image2.length < 1000) {
-      Swal.fire({
-        icon: "error",
-        title: "Camera Error",
-        text: "Second camera frame failed.",
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
-    }
-
-    const img2 = await faceapi.fetchImage(image2);
-
     // Face detection
-    const [face1, face2] = await Promise.all([
-      faceapi.detectSingleFace(img1, options).withFaceLandmarks().withFaceDescriptor(),
-      faceapi.detectSingleFace(img2, options).withFaceLandmarks().withFaceDescriptor(),
-    ]);
+    const face1 = await faceapi
+      .detectSingleFace(img1, options)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-    if (!face1 || !face2) {
+    if (!face1) {
       Swal.fire({
         icon: "error",
         title: "Face Not Detected",
@@ -301,30 +279,6 @@ const saveAttendance = async () => {
               <li>• Close to the camera</li>
               <li>• Not wearing sunglasses</li>
             </ul>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
-    }
-
-    // Liveness detection
-    const eye1 = Math.abs(face1.landmarks.getLeftEye()[1].y - face1.landmarks.getLeftEye()[5].y);
-    const eye2 = Math.abs(face2.landmarks.getLeftEye()[1].y - face2.landmarks.getLeftEye()[5].y);
-    const blink = eye2 < eye1 * 0.5;
-
-    const noseShift = Math.abs(face1.landmarks.getNose()[3].x - face2.landmarks.getNose()[3].x);
-    const headMoved = noseShift > 5;
-
-    if (!blink && !headMoved) {
-      Swal.fire({
-        icon: "error",
-        title: "Liveness Check Failed",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">👀</div>
-            <p class="text-gray-600">Please blink or move your head slightly during capture.</p>
           </div>
         `,
         confirmButtonColor: "#B0BC27",
@@ -352,20 +306,20 @@ const saveAttendance = async () => {
     // 🗜️ Compress image
     const compressedImage = await compressImage(image1, 0.3);
 
-    // 📤 Upload FIRST, then show success
+    // 📤 Upload to server
     const photoPayload = compressedImage.startsWith("data:")
       ? compressedImage
       : `data:image/jpeg;base64,${compressedImage}`;
 
     try {
-      // 1. FIRST: Try to save to database
+      // Save to database
       const response = await axiosInstance.post(
         "/attendance/mark",
         { type, photo: photoPayload, location },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 2. ONLY if save succeeds, show success
+      // Show success
       Swal.fire({
         icon: "success",
         title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
@@ -398,7 +352,6 @@ const saveAttendance = async () => {
         });
         console.log("⚠️ Attendance already marked today");
       } else if (err.response?.data?.error?.includes("location")) {
-        // Specific error for location issues
         Swal.fire({
           icon: "error",
           title: "Location Error",
@@ -412,7 +365,6 @@ const saveAttendance = async () => {
           confirmButtonColor: "#B0BC27",
         });
       } else {
-        // Show actual error to user
         Swal.fire({
           icon: "error",
           title: "Save Failed",
@@ -813,53 +765,48 @@ useEffect(() => {
         )}
       </AnimatePresence>
 
-      {/* Liveness Check Overlay */}
-      <AnimatePresence>
-        {showLivenessPrompt && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 sm:p-10 text-center text-white max-w-md mx-4 shadow-2xl"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="text-6xl mb-6"
-              >
-                👀
-              </motion.div>
-              
-              <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-                Liveness Check
-              </h2>
-              
-              <p className="text-lg text-blue-100 mb-6 leading-relaxed">
-                Please <span className="font-semibold text-white">blink naturally</span> or{" "}
-                <span className="font-semibold text-white">turn your head</span> slightly
-              </p>
+     {/* Face Capture Overlay */}
+<AnimatePresence>
+  {showLivenessPrompt && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50"
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 sm:p-10 text-center text-white max-w-md mx-4 shadow-2xl"
+      >
+        <motion.div
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="text-6xl mb-6"
+        >
+          📸
+        </motion.div>
+        
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+          Capturing Face
+        </h2>
+        
+        <p className="text-lg text-blue-100 mb-6 leading-relaxed">
+          Please look directly at the camera
+        </p>
 
-              <motion.div
-                key={livenessCountdown}
-                initial={{ scale: 1.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-8xl font-bold text-yellow-300 mb-4"
-              >
-                {livenessCountdown}
-              </motion.div>
-
-              <p className="text-sm text-blue-200">
-                Verifying authenticity and preventing spoofing...
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <motion.div
+          key={livenessCountdown}
+          initial={{ scale: 1.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-8xl font-bold text-yellow-300 mb-4"
+        >
+          {livenessCountdown}
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </>
   );
 }

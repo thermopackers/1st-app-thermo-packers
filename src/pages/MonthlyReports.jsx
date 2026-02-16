@@ -58,6 +58,7 @@ const parseUserRoles = (user) => {
   const [selectedMonthName, setSelectedMonthName] = useState("");
   const [expandedUser, setExpandedUser] = useState(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   useEffect(() => {
   const fetchEmployees = async () => {
@@ -184,16 +185,18 @@ const totalStats = report.reduce((acc, curr) => ({
   totalDays: acc.totalDays + curr.totalDays,
   totalWorkingDays: acc.totalWorkingDays + curr.totalWorkingDays,
   presentDays: acc.presentDays + curr.presentDays,
-  leaveDays: acc.leaveDays + (curr.leaveDates ? curr.leaveDates.length : 0), // Add this line
+  leaveDays: acc.leaveDays + (curr.leaveDates ? curr.leaveDates.length : 0),
   lateArrivals: acc.lateArrivals + curr.lateArrivals,
+  halfDays: acc.halfDays + (curr.halfDays || 0),
   earlyDepartures: acc.earlyDepartures + curr.earlyDepartures,
   sundayCount: curr.sundayCount
 }), { 
   totalDays: 0, 
   totalWorkingDays: 0,
   presentDays: 0, 
-  leaveDays: 0, // Add this line
+  leaveDays: 0,
   lateArrivals: 0, 
+  halfDays: 0,
   earlyDepartures: 0,
   sundayCount: 0
 });
@@ -296,41 +299,53 @@ const totalStats = report.reduce((acc, curr) => ({
     setExpandedUser(expandedUser === userId ? null : userId);
   };
 
-  const renderLateDetails = (lateDetails) => {
-    if (!lateDetails || lateDetails.length === 0) return null;
+const renderLateDetails = (lateDetails) => {
+  if (!lateDetails || lateDetails.length === 0) return null;
 
-    return (
-      <motion.div 
-        className="mt-3 bg-orange-50 p-4 rounded-xl border border-orange-200"
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: "auto" }}
-      >
-        <h4 className="font-medium text-orange-800 mb-3 flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          Late Check-In Details
-        </h4>
-        <div className="space-y-2">
-          {lateDetails.map((detail, index) => {
-            const checkInDate = new Date(detail.checkInTime);
-            const expectedTime = new Date(detail.date);
-            expectedTime.setHours(9, 30, 0, 0);
-            
-            const lateByMs = checkInDate - expectedTime;
-            const lateByMinutes = Math.round(lateByMs / 60000);
-            const hours = Math.floor(lateByMinutes / 60);
-            const minutes = lateByMinutes % 60;
+  return (
+    <motion.div 
+      className="mt-3 bg-orange-50 p-4 rounded-xl border border-orange-200"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+    >
+      <h4 className="font-medium text-orange-800 mb-3 flex items-center gap-2">
+        <Clock className="w-4 h-4" />
+        Late Check-In Details
+      </h4>
+      <div className="space-y-2">
+        {lateDetails.map((detail, index) => {
+          const checkInDate = new Date(detail.checkInTime);
+          const expectedTime = new Date(detail.date);
+          expectedTime.setHours(9, 30, 0, 0);
+          
+          const lateByMs = checkInDate - expectedTime;
+          const lateByMinutes = Math.round(lateByMs / 60000);
+          const hours = Math.floor(lateByMinutes / 60);
+          const minutes = lateByMinutes % 60;
+          
+          // Check if this is a half day (check-in after 9:51 AM)
+          const halfDayThreshold = new Date(detail.date);
+          halfDayThreshold.setHours(9, 51, 0, 0);
+          const isHalfDay = checkInDate > halfDayThreshold;
 
-            return (
-              <div key={index} className="text-sm text-orange-700 bg-orange-100 p-2 rounded-lg">
+          return (
+            <div key={index} className="flex justify-between items-center text-sm text-orange-700 bg-orange-100 p-2 rounded-lg">
+              <span>
                 📅 {formatDate(detail.date)}: {formatTime(detail.checkInTime)} 
                 <span className="font-medium ml-2">(Late by {hours}h {minutes}m)</span>
-              </div>
-            );
-          })}
-        </div>
-      </motion.div>
-    );
-  };
+              </span>
+              {isHalfDay && (
+                <span className="bg-amber-500 text-white px-2 py-0.5 rounded text-xs font-medium ml-2">
+                  Half Day
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
 
   const renderEarlyDetails = (earlyDetails) => {
     if (!earlyDetails || earlyDetails.length === 0) return null;
@@ -372,183 +387,463 @@ const totalStats = report.reduce((acc, curr) => ({
     );
   };
 
-const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = []) => {    if (!presentDetails && !absentDates) return null;
-
-    let allDates = [];
-    let firstDayOffset = 0;
+  // Add this new function for PDF download
+// Update the PDF download function to include leaves
+const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
+  setDownloadingPDF(true);
+  try {
+    // Dynamically import jspdf and jspdf-autotable
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     
-    if (month) {
-      const [year, m] = month.split("-");
-      const lastDay = new Date(year, parseInt(m) - 1, 0).getDate();
-      const firstDay = new Date(year, parseInt(m) - 1, 1);
-      firstDayOffset = firstDay.getDay();
-      
-      const currentDate = new Date();
-      const currentDateStr = currentDate.toISOString().split('T')[0];
-      
-      for (let day = 1; day <= lastDay; day++) {
-        const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
-        if (dateStr <= currentDateStr) {
-          allDates.push(dateStr);
-        }
+    const doc = new jsPDF('landscape');
+    
+    // Get user name
+    let userName = "Employee";
+    if (userId && report) {
+      const userReport = report.find(r => r.user._id === userId);
+      if (userReport) {
+        userName = userReport.user.name;
       }
     }
-
-    const presentDateMap = {};
-    if (presentDetails) {
-      presentDetails.forEach(detail => {
-        presentDateMap[detail.date] = detail;
+    
+    // Format month name
+    let monthName = month;
+    if (month) {
+      const [year, m] = month.split("-");
+      monthName = new Date(year, parseInt(m) - 1).toLocaleString('default', { 
+        month: 'long', 
+        year: 'numeric' 
       });
     }
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text(`Attendance Report - ${userName}`, 14, 15);
+    doc.setFontSize(12);
+    doc.text(`Month: ${monthName}`, 14, 25);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 32);
+    
+    // Prepare table data
+    const tableData = attendanceRecords.map(record => {
+      const dayName = new Date(record.date).toLocaleDateString("en-IN", { weekday: "short" });
+      const isSunday = new Date(record.date).getDay() === 0;
+      
+      let attendanceType = "";
+      
+      if (record.type === 'leave') {
+        attendanceType = "On Leave";
+      } else {
+        // Present day
+        if (isSunday) {
+          attendanceType = "Weekly Off";
+        } else {
+          const isHalfDay = (() => {
+            if (!record.checkInTime) return false;
+            const checkInDate = new Date(record.checkInTime);
+            const thresholdTime = new Date(record.date);
+            thresholdTime.setHours(9, 51, 0, 0);
+            return checkInDate > thresholdTime;
+          })();
+          attendanceType = isHalfDay ? "Half Day" : "Full Day";
+        }
+      }
+      
+      const checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
+      const checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
+      const hours = record.workedHours ? formatWorkedHours(record.workedHours) : "—";
+      
+      return [
+        formatDate(record.date),
+        dayName,
+        checkIn,
+        checkOut,
+        hours,
+        attendanceType
+      ];
+    });
+    
+    // Generate table
+    autoTable(doc, {
+      head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Worked Hours', 'Attendance']],
+      body: tableData,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 35 },
+        5: { cellWidth: 35 }
+      }
+    });
+    
+    // Add summary at the bottom
+    const finalY = doc.lastAutoTable.finalY || 40;
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Summary:`, 14, finalY + 15);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Days: ${attendanceRecords.length}`, 14, finalY + 25);
+    doc.text(`Full Days (FD): ${fdCount}`, 14, finalY + 35);
+    doc.text(`Half Days (HD): ${hdCount}`, 14, finalY + 45);
+    doc.text(`Leave Days: ${leaveCount}`, 14, finalY + 55);
+    
+    // Save PDF
+    doc.save(`attendance-${userName}-${month}.pdf`);
+    
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    alert("Failed to generate PDF. Please try again.");
+  } finally {
+    setDownloadingPDF(false);
+  }
+};
 
-    const absentDateMap = {};
-    if (absentDates) {
-      absentDates.forEach(date => {
-        absentDateMap[date] = true;
-      });
+const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [], userId = null) => {
+  if (!presentDetails && !absentDates && !leaveDates) return null;
+
+  let allDates = [];
+  let firstDayOffset = 0;
+  
+  if (month) {
+    const [year, m] = month.split("-");
+    const lastDay = new Date(year, parseInt(m), 0).getDate();
+    const firstDay = new Date(year, parseInt(m) - 1, 1);
+    firstDayOffset = firstDay.getDay();
+    
+    const currentDate = new Date();
+    const currentDateStr = currentDate.toISOString().split('T')[0];
+    
+    for (let day = 1; day <= lastDay; day++) {
+      const dateStr = `${year}-${m}-${String(day).padStart(2, "0")}`;
+      if (dateStr <= currentDateStr) {
+        allDates.push(dateStr);
+      }
     }
+  }
 
-    return (
-      <motion.div 
-        className="mt-4 bg-white p-4 rounded-xl border border-gray-200"
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: "auto" }}
-      >
-        <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+  const presentDateMap = {};
+  if (presentDetails) {
+    presentDetails.forEach(detail => {
+      presentDateMap[detail.date] = detail;
+    });
+  }
+
+  const absentDateMap = {};
+  if (absentDates) {
+    absentDates.forEach(date => {
+      absentDateMap[date] = true;
+    });
+  }
+
+  const leaveDateMap = {};
+  if (leaveDates) {
+    leaveDates.forEach(date => {
+      leaveDateMap[date] = true;
+    });
+  }
+
+  // Calculate FD and HD counts (only from present days)
+  let fdCount = 0;
+  let hdCount = 0;
+  let totalPresentCount = 0;
+  let totalLeaveCount = leaveDates ? leaveDates.length : 0;
+
+  if (presentDetails) {
+    presentDetails.forEach(detail => {
+      if (detail.checkInTime) {
+        const checkInDate = new Date(detail.checkInTime);
+        const dateStr = detail.date;
+        const thresholdTime = new Date(dateStr);
+        thresholdTime.setHours(9, 51, 0, 0);
+        
+        const isSunday = new Date(dateStr).getDay() === 0;
+        
+        // Count as present (even Sundays if checked in)
+        totalPresentCount++;
+        
+        // Check if half day (after 9:51 AM and not Sunday)
+        if (checkInDate > thresholdTime && !isSunday) {
+          hdCount++;
+        } else {
+          fdCount++;
+        }
+      }
+    });
+  }
+
+  // Combine all attendance records for the table (present + leave)
+  const allAttendanceRecords = [];
+  
+  // Add present days
+  if (presentDetails) {
+    presentDetails.forEach(detail => {
+      allAttendanceRecords.push({
+        ...detail,
+        type: 'present'
+      });
+    });
+  }
+  
+  // Add leave days
+  if (leaveDates) {
+    leaveDates.forEach(date => {
+      // Check if this date is already in present details (shouldn't happen, but just in case)
+      const exists = allAttendanceRecords.some(record => record.date === date);
+      if (!exists) {
+        allAttendanceRecords.push({
+          date: date,
+          type: 'leave',
+          checkInTime: null,
+          checkOutTime: null,
+          workedHours: null
+        });
+      }
+    });
+  }
+
+  // Sort by date
+  allAttendanceRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  return (
+    <motion.div 
+      className="mt-4 bg-white p-4 rounded-xl border border-gray-200"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="font-medium text-gray-800 flex items-center gap-2">
           <Calendar className="w-4 h-4" />
           Daily Attendance Calendar
         </h4>
         
-  {/* Status Legend */}
-<div className="flex flex-wrap gap-4 mb-4 text-sm">
-  <div className="flex items-center">
-    <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-    <span>Present</span>
-  </div>
-  <div className="flex items-center">
-    <div className="w-3 h-3 bg-purple-500 rounded mr-2"></div>
-    <span>On Leave</span>
-  </div>
-  <div className="flex items-center">
-    <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
-    <span>Sunday</span>
-  </div>
-  <div className="flex items-center">
-    <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
-    <span>Absent (Weekday)</span>
-  </div>
-</div>
-        
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 mb-6">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
-              {day}
-            </div>
-          ))}
-          
-          {Array.from({ length: firstDayOffset }, (_, i) => (
-            <div key={`empty-${i}`} className="p-2 rounded text-center text-sm bg-gray-50 opacity-50"></div>
-          ))}
-          
-{allDates.map(dateStr => {
-  const dateObj = new Date(dateStr);
-  const dayOfMonth = dateObj.getDate();
-  const isSunday = dateObj.getDay() === 0;
-  const isPresent = presentDateMap[dateStr];
-  const isAbsent = absentDateMap[dateStr] && !isPresent;
-  const isOnLeave = leaveDates && leaveDates.includes(dateStr);
-
-  let bgColor = "bg-gray-100";
-  let textColor = "text-gray-800";
-  let titleText = "";
-  
-  if (isOnLeave) {
-    bgColor = "bg-purple-100";
-    textColor = "text-purple-800";
-    titleText = "On Leave";
-  } else if (isPresent) {
-    bgColor = "bg-green-100";
-    textColor = "text-green-800";
-    titleText = presentDateMap[dateStr] ? 
-      `Check-in: ${formatTime(presentDateMap[dateStr].checkInTime)}\nCheck-out: ${presentDateMap[dateStr].checkOutTime ? formatTime(presentDateMap[dateStr].checkOutTime) : 'N/A'}` : 
-      "Present";
-  } else if (isSunday) {
-    bgColor = "bg-orange-100";
-    textColor = "text-orange-800";
-    titleText = "Sunday";
-  } else if (isAbsent) {
-    bgColor = "bg-red-100";
-    textColor = "text-red-800";
-    titleText = "Absent";
-  }
-  
-  const presentDetail = presentDateMap[dateStr];
-  
-  return (
-    <div 
-      key={dateStr} 
-      className={`p-2 rounded text-center text-sm ${bgColor} ${textColor} relative cursor-help`}
-      title={titleText}
-    >
-      {dayOfMonth}
-      {isOnLeave && (
-        <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></span>
-      )}
-      {isPresent && !isOnLeave && (
-        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
-      )}
-    </div>
-  );
-})}
+        {/* Download PDF Button */}
+        <button
+          onClick={() => downloadAttendanceTable(allAttendanceRecords, month, userId, fdCount, hdCount, totalLeaveCount)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+        >
+          <Download className="w-4 h-4" />
+          Download PDF
+        </button>
+      </div>
+      
+      {/* Status Legend */}
+      <div className="flex flex-wrap gap-4 mb-4 text-sm">
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+          <span>Present (FD)</span>
         </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-amber-500 rounded mr-2"></div>
+          <span>Present (HD)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-purple-500 rounded mr-2"></div>
+          <span>On Leave</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
+          <span>Sunday/Weekly Off</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
+          <span>Absent (Weekday)</span>
+        </div>
+      </div>
+      
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1 mb-6">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+            {day}
+          </div>
+        ))}
         
-        {/* Detailed Table */}
-        {presentDetails && presentDetails.length > 0 && (
-          <>
-            <h4 className="font-medium text-gray-800 mb-3">Present Days Details</h4>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Date</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Day</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-In</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Worked Hours</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {presentDetails.map((detail, index) => {
-                    const dayName = new Date(detail.date).toLocaleDateString("en-IN", { weekday: "short" });
-                    const isSunday = new Date(detail.date).getDay() === 0;
-                    const rowColor = isSunday ? "bg-orange-50" : "bg-green-50";
-                    const textColor = isSunday ? "text-orange-700" : "text-green-700";
+        {Array.from({ length: firstDayOffset }, (_, i) => (
+          <div key={`empty-${i}`} className="p-2 rounded text-center text-sm bg-gray-50 opacity-50"></div>
+        ))}
+        
+        {allDates.map(dateStr => {
+          const dateObj = new Date(dateStr);
+          const dayOfMonth = dateObj.getDate();
+          const isSunday = dateObj.getDay() === 0;
+          const isPresent = presentDateMap[dateStr];
+          const isAbsent = absentDateMap[dateStr] && !isPresent;
+          const isOnLeave = leaveDateMap[dateStr];
 
-                    return (
-                      <tr key={index} className={`hover:opacity-90 ${rowColor}`}>
-                        <td className={`px-3 py-2 text-sm ${textColor}`}>{formatDate(detail.date)}</td>
-                        <td className={`px-3 py-2 text-sm ${textColor}`}>{dayName}</td>
-                        <td className={`px-3 py-2 text-sm ${textColor}`}>
-                          {detail.checkInTime ? formatTime(detail.checkInTime) : "—"}
-                        </td>
-                        <td className={`px-3 py-2 text-sm ${textColor}`}>
-                          {detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}
-                        </td>
-                        <td className={`px-3 py-2 text-sm ${textColor}`}>
-                          {detail.workedHours ? formatWorkedHours(detail.workedHours) : "N/A"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          let bgColor = "bg-gray-100";
+          let textColor = "text-gray-800";
+          let titleText = "";
+          
+          if (isOnLeave) {
+            bgColor = "bg-purple-100";
+            textColor = "text-purple-800";
+            titleText = "On Leave";
+          } else if (isPresent) {
+            // Check if half day
+            const isHalfDay = (() => {
+              const checkInDate = new Date(presentDateMap[dateStr].checkInTime);
+              const thresholdTime = new Date(dateStr);
+              thresholdTime.setHours(9, 51, 0, 0);
+              return checkInDate > thresholdTime && !isSunday;
+            })();
+            
+            bgColor = isHalfDay ? "bg-amber-100" : "bg-green-100";
+            textColor = isHalfDay ? "text-amber-800" : "text-green-800";
+            titleText = isHalfDay ? "Half Day" : "Full Day";
+            
+            if (presentDateMap[dateStr]) {
+              titleText += `\nCheck-in: ${formatTime(presentDateMap[dateStr].checkInTime)}\nCheck-out: ${presentDateMap[dateStr].checkOutTime ? formatTime(presentDateMap[dateStr].checkOutTime) : 'N/A'}`;
+            }
+          } else if (isSunday) {
+            bgColor = "bg-orange-100";
+            textColor = "text-orange-800";
+            titleText = "Weekly Off";
+          } else if (isAbsent) {
+            bgColor = "bg-red-100";
+            textColor = "text-red-800";
+            titleText = "Absent";
+          }
+          
+          return (
+            <div 
+              key={dateStr} 
+              className={`p-2 rounded text-center text-sm ${bgColor} ${textColor} relative cursor-help`}
+              title={titleText}
+            >
+              {dayOfMonth}
+              {isOnLeave && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></span>
+              )}
+              {isPresent && !isOnLeave && (
+                <span className={`absolute -top-1 -right-1 w-2 h-2 ${presentDateMap[dateStr] && new Date(presentDateMap[dateStr].checkInTime) > new Date(dateStr + "T09:51:00") && !isSunday ? 'bg-amber-500' : 'bg-green-500'} rounded-full`}></span>
+              )}
             </div>
-          </>
-        )}
-      </motion.div>
-    );
-  };
+          );
+        })}
+      </div>
+      
+      {/* Detailed Table with FD/HD Column - INCLUDING LEAVES */}
+      {allAttendanceRecords.length > 0 && (
+        <>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-medium text-gray-800">Attendance Details (Including Leaves)</h4>
+            
+            {/* Summary Badges */}
+            <div className="flex gap-2 text-sm">
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                FD: {fdCount}
+              </span>
+              <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
+                HD: {hdCount}
+              </span>
+              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-medium">
+                Leave: {totalLeaveCount}
+              </span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
+                Total Present: {totalPresentCount}
+              </span>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Date</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Day</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-In</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Worked Hours</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Attendance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {allAttendanceRecords.map((record, index) => {
+                  const dayName = new Date(record.date).toLocaleDateString("en-IN", { weekday: "short" });
+                  const isSunday = new Date(record.date).getDay() === 0;
+                  
+                  let rowColor = "";
+                  let textColor = "";
+                  let attendanceType = "";
+                  let attendanceColor = "";
+                  
+                  if (record.type === 'leave') {
+                    rowColor = "bg-purple-50";
+                    textColor = "text-purple-700";
+                    attendanceType = "On Leave";
+                    attendanceColor = "bg-purple-100 text-purple-800";
+                  } else {
+                    // Present day
+                    if (isSunday) {
+                      rowColor = "bg-orange-50";
+                      textColor = "text-orange-700";
+                      attendanceType = "Weekly Off";
+                      attendanceColor = "bg-orange-100 text-orange-800";
+                    } else {
+                      // Check if half day
+                      const isHalfDay = (() => {
+                        if (!record.checkInTime) return false;
+                        const checkInDate = new Date(record.checkInTime);
+                        const thresholdTime = new Date(record.date);
+                        thresholdTime.setHours(9, 51, 0, 0);
+                        return checkInDate > thresholdTime;
+                      })();
+                      
+                      rowColor = isHalfDay ? "bg-amber-50" : "bg-green-50";
+                      textColor = isHalfDay ? "text-amber-700" : "text-green-700";
+                      attendanceType = isHalfDay ? "Half Day" : "Full Day";
+                      attendanceColor = isHalfDay ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
+                    }
+                  }
+
+                  return (
+                    <tr key={index} className={`hover:opacity-90 ${rowColor}`}>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>{formatDate(record.date)}</td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>{dayName}</td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {record.checkInTime ? formatTime(record.checkInTime) : "—"}
+                      </td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {record.checkOutTime ? formatTime(record.checkOutTime) : "—"}
+                      </td>
+                      <td className={`px-3 py-2 text-sm ${textColor}`}>
+                        {record.workedHours ? formatWorkedHours(record.workedHours) : "—"}
+                      </td>
+                      <td className={`px-3 py-2 text-sm`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${attendanceColor}`}>
+                          {attendanceType}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Table Footer with Totals */}
+              <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                <tr>
+                  <td colSpan="5" className="px-3 py-3 text-sm font-semibold text-gray-800 text-right">
+                    Total Days: {allAttendanceRecords.length} | 
+                  </td>
+                  <td className="px-3 py-3 text-sm">
+                    <span className="font-semibold text-gray-800">
+                      FD: {fdCount} | HD: {hdCount} | Leave: {totalLeaveCount}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+};
 
   const renderAbsentDetails = (absentDates) => {
     if (!absentDates || absentDates.length === 0) return null;
@@ -658,6 +953,9 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                   Late
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+  Half Days
+</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Early
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -706,6 +1004,9 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                       <td className="px-4 py-3 text-sm text-orange-600">
                         {r.lateArrivals}
                       </td>
+                      <td className="px-4 py-3 text-sm text-amber-600">
+  {r.halfDays || 0}
+</td>
                       <td className="px-4 py-3 text-sm text-yellow-600">
                         {r.earlyDepartures}
                       </td>
@@ -731,7 +1032,7 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
         <div className="space-y-4">
           {view === "present" && (
             <>
-              {renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates)}
+{renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates, r.user._id)}
               {renderLeaveDetails(r.leaveDates)}
               {renderUpcomingLeaves(r.upcomingLeaves)}
             </>
@@ -759,7 +1060,7 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
           )}
           {view === "attendance" && (
             <>
-              {renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates)}
+{renderPresentDetails(r.presentDetails, r.absentDates, month, r.leaveDates, r.user._id)}
               {renderAbsentDetails(r.absentDates)}
               {renderLateDetails(r.lateDetails)}
               {renderEarlyDetails(r.earlyDetails)}
@@ -883,7 +1184,7 @@ const calculateLeaveDuration = (startDate, endDate) => {
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <p className="text-sm text-blue-700 flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    <strong>Working Hours:</strong> Check-in by 9:30 AM | Check-out after 6:00 PM
+                    <strong>Working Hours:</strong> Check-in by 9:50 AM | Check-out after 6:00 PM
                   </p>
                 </div>
               </div>
