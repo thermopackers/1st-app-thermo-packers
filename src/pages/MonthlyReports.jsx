@@ -481,28 +481,23 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       }
     });
     
-  // Calculate Sundays count from attendance records
+  // Add summary at the bottom
+const finalY = doc.lastAutoTable.finalY || 40;
+
+// Calculate Sundays count
 const sundayCount = attendanceRecords.filter(record => {
   const date = new Date(record.date);
-  return date.getDay() === 0; // Sunday is 0
+  return date.getDay() === 0;
 }).length;
-
-// Calculate total working days (excluding Sundays)
-const totalWorkingDays = attendanceRecords.length - sundayCount;
-
-// Add summary at the bottom
-const finalY = doc.lastAutoTable.finalY || 40;
 
 doc.setFontSize(11);
 doc.setFont('helvetica', 'bold');
 doc.text(`Summary:`, 14, finalY + 15);
 doc.setFont('helvetica', 'normal');
-doc.text(`Total Days: ${attendanceRecords.length}`, 14, finalY + 25);
-doc.text(`Sundays: ${sundayCount}`, 14, finalY + 35);
-doc.text(`Working Days: ${totalWorkingDays}`, 14, finalY + 45);
-doc.text(`Full Days (FD): ${fdCount}`, 14, finalY + 55);
-doc.text(`Half Days (HD): ${hdCount}`, 14, finalY + 65);
-doc.text(`Leave Days: ${leaveCount}`, 14, finalY + 75);
+doc.text(`Total Days: ${attendanceRecords.length} (Sundays: ${sundayCount})`, 14, finalY + 25);
+doc.text(`Full Days (FD): ${fdCount}`, 14, finalY + 35);
+doc.text(`Half Days (HD): ${hdCount}`, 14, finalY + 45);
+doc.text(`Leave Days: ${leaveCount}`, 14, finalY + 55);
 
 // Save PDF
 doc.save(`attendance-${userName}-${month}.pdf`);
