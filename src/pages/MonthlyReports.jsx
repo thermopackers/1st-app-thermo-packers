@@ -316,7 +316,7 @@ const renderLateDetails = (lateDetails) => {
         {lateDetails.map((detail, index) => {
           const checkInDate = new Date(detail.checkInTime);
           const expectedTime = new Date(detail.date);
-          expectedTime.setHours(9, 30, 0, 0);
+          expectedTime.setHours(9, 50, 0, 0);
           
           const lateByMs = checkInDate - expectedTime;
           const lateByMinutes = Math.round(lateByMs / 60000);
