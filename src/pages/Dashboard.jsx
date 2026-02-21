@@ -1028,6 +1028,47 @@ useEffect(() => {
               )}
 
               {userRoles.some(role => ["guard"].includes(role)) && (
+    <DashboardSection>
+      <DashboardCard>
+        <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+          <span className="text-3xl">👥</span>
+          Factory Attendance
+        </h3>
+        <p className="text-gray-600 text-center mb-6">
+          For Operators, Helpers & Drivers - Fast face recognition attendance
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ActionButton 
+            to="/guard-attendance" 
+            variant="primary" 
+            icon="📸"
+          >
+            <div className="text-xl font-semibold mb-2">
+              Mark Attendance
+            </div>
+            <div className="text-blue-100 text-sm opacity-90">
+              Punch attendance with face recognition
+            </div>
+          </ActionButton>
+          
+          <ActionButton 
+            to="/guard-attendance-history" 
+            variant="success" 
+            icon="📊"
+          >
+            <div className="text-xl font-semibold mb-2">
+              View History
+            </div>
+            <div className="text-green-100 text-sm opacity-90">
+              Check today's attendance records
+            </div>
+          </ActionButton>
+        </div>
+      </DashboardCard>
+    </DashboardSection>
+    )}
+
+              {userRoles.some(role => ["guard"].includes(role)) && (
   <DashboardSection>
     <DashboardCard>
       <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">

@@ -7,9 +7,39 @@ import FaceRegistrationModal from '../components/FaceRegistrationModal';
 import FileInput from '../components/FileInput';
 import Swal from "sweetalert2";
 import { useUserContext } from '../context/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterUser = () => {
+   const parseUserRoles = (user) => {
+    // ✅ Add null check
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    let userRoles = [];
+    if (Array.isArray(user.role)) {
+      if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        userRoles = user.role;
+      }
+    } else if (typeof user.role === 'string') {
+      try {
+        userRoles = JSON.parse(user.role);
+      } catch (parseError) {
+        userRoles = [user.role];
+      }
+    } else {
+      userRoles = [user.role];
+    }
+    return userRoles;
+  };
   const { user: currentUser } = useUserContext();
+    const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
 const [totalUsers, setTotalUsers] = useState(0);
@@ -62,7 +92,9 @@ const [role, setRole] = useState([]);
   const [passbookCheque, setPassbookCheque] = useState([]);
   const [esicCopy, setEsicCopy] = useState([]);
   const [epfoCopy, setEpfoCopy] = useState([]);
+    const [loading, setLoading] = useState(true);
   const [personalPhone, setPersonalPhone] = useState('');
+    const [user, setUser] = useState(null);
   const [miscDocuments, setMiscDocuments] = useState([]);
   const [filesToRemove, setFilesToRemove] = useState({
     aadharCard: [],
@@ -74,6 +106,37 @@ const [role, setRole] = useState([]);
     frontFacePicture: false
   });
   const formRef = useRef(null);
+  const userRoles = user ? parseUserRoles(user) : [];
+
+    useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    const fetchUser = async () => {
+      try {
+        const res = await axiosInstance.get("/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser(res.data);
+         // Store user ID in localStorage for notification filtering
+      if (res.data._id) {
+        localStorage.setItem('userId', res.data._id);
+      }
+      
+        setLoading(false);
+      } catch (err) {
+        console.error(
+          "Failed to fetch user",
+          err?.response ? err.response.data : err.message
+        );
+        localStorage.removeItem("token");
+        navigate("/login");
+      }
+    };
+    fetchUser();
+  }, [navigate]);
 
   useEffect(() => {
     if (isEditing) {
@@ -468,9 +531,117 @@ setAllowQuotation(false); // Add this line
     <>
       <InternalNavbar />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-10">
-<div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">          <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
+         {/* Responsive Pre-process Button */}
+         <div className='mb-4'>
+          <span className="text-sm font-bold">Click This button whenever adding/updating faces for worker designations other than 'staff'</span>
+    {userRoles.includes("accounts") && (
+      <button
+        onClick={async () => {
+          const result = await Swal.fire({
+            title: "⚡ Pre-process Faces?",
+            html: `
+              <div class="text-left">
+                <p class="mb-3">This will process all operator/helper/driver faces for faster recognition.</p>
+                <p class="text-sm text-amber-600 font-semibold">⚠️ This may take a few minutes depending on number of employees.</p>
+                <p class="text-xs text-gray-500 mt-2">You only need to do this once. New faces will be processed automatically.</p>
+              </div>
+            `,
+            icon: "info",
+            showCancelButton: true,
+            confirmButtonColor: "#8b5cf6",
+            cancelButtonColor: "#6b7280",
+            confirmButtonText: "Yes, process now!",
+            cancelButtonText: "Later",
+            width: window.innerWidth < 640 ? '90%' : '500px',
+          });
+
+          if (result.isConfirmed) {
+            Swal.fire({
+              title: "Processing...",
+              html: `
+                <div class="text-center">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p class="text-gray-600">Please wait while faces are processed</p>
+                  <p class="text-xs text-gray-400 mt-2">This may take a few minutes</p>
+                </div>
+              `,
+              allowOutsideClick: false,
+              showConfirmButton: false,
+            });
+
+            try {
+              const res = await axiosInstance.post("/users/preprocess-all-faces");
+              
+              // Show detailed results
+              const successRate = Math.round((res.data.processed / res.data.total) * 100);
+              
+              Swal.fire({
+                icon: "success",
+                title: "✅ Processing Complete!",
+                html: `
+                  <div class="text-left space-y-2">
+                    <div class="flex justify-between border-b pb-2">
+                      <span class="font-semibold">Total Employees:</span>
+                      <span>${res.data.total}</span>
+                    </div>
+                    <div class="flex justify-between text-green-600">
+                      <span class="font-semibold">✅ Successfully Processed:</span>
+                      <span>${res.data.processed}</span>
+                    </div>
+                    <div class="flex justify-between text-red-500">
+                      <span class="font-semibold">❌ Failed:</span>
+                      <span>${res.data.failed}</span>
+                    </div>
+                    <div class="flex justify-between text-blue-600">
+                      <span class="font-semibold">📊 Success Rate:</span>
+                      <span>${successRate}%</span>
+                    </div>
+                  </div>
+                `,
+                confirmButtonColor: "#8b5cf6",
+                width: window.innerWidth < 640 ? '90%' : '450px',
+              });
+              
+            } catch (err) {
+              Swal.fire({
+                icon: "error",
+                title: "❌ Processing Failed",
+                text: err.response?.data?.error || "Something went wrong",
+                confirmButtonColor: "#ef4444",
+              });
+            }
+          }
+        }}
+        className={`
+          w-full sm:w-auto
+          bg-gradient-to-r from-purple-600 to-purple-700
+          hover:from-purple-700 hover:to-purple-800
+          text-white 
+          px-4 sm:px-6 
+          py-3 sm:py-2.5 
+          rounded-xl 
+          font-semibold 
+          text-sm sm:text-base
+          shadow-lg 
+          hover:shadow-xl 
+          transform hover:scale-[1.02] active:scale-[0.98]
+          transition-all duration-200
+          flex items-center justify-center gap-2
+          border border-purple-400
+        `}
+      >
+        <span className="text-lg sm:text-base">⚡</span>
+        <span className="sm:flex-none text-center">Pre-process Faces</span>
+        <span className="sm:inline text-purple-200">|</span>
+        <span className="sm:inline text-xs text-purple-200">One-time setup</span>
+      </button>
+    )}
+    </div> 
+<div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">      
+      <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
             Add New Employee/User
           </h2>
+
 
        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
   {isEditing && (
@@ -495,32 +666,41 @@ setAllowQuotation(false); // Add this line
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email (optional)</label>
-        <input
-          type="email"
-          placeholder="example@domain.com"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
-        />
-      </div>
+   
 
       <div>
         <label className="block text-sm">Date of Birth (As per Aadhar Card)</label>
         <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
       </div>
 
-      <div>
-        <label className="block text-sm">Designation</label>
-        <select value={designation} onChange={e => setDesignation(e.target.value)} className="w-full border p-2 rounded">
-          <option value="">Select</option>
-          <option value="operator">Operator</option>
-          <option value="helper">Helper</option>
-          <option value="driver">Driver</option>
-          <option value="staff">Staff</option>
-        </select>
-      </div>
+     <div>
+  <label className="block text-sm">Designation <span className="text-red-500">*</span></label>
+  <select 
+    value={designation} 
+    onChange={e => setDesignation(e.target.value)} 
+    className="w-full border p-2 rounded"
+    required
+  >
+    <option value="">Select</option>
+    <option value="operator">Operator</option>
+    <option value="helper">Helper</option>
+    <option value="driver">Driver</option>
+    <option value="staff">Staff</option>
+  </select>
+</div>
+
+      {designation === 'staff' && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+    <input
+      type="email"
+      placeholder="example@domain.com"
+      value={email}
+      onChange={e => setEmail(e.target.value)}
+      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+    />
+  </div>
+)}
 
       <div>
         <label className="block text-sm">ESIC No</label>
@@ -713,200 +893,202 @@ setAllowQuotation(false); // Add this line
   </div>
 
   {/* Roles and Permissions Section - Full Width */}
-  <div className="border-t pt-6">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Roles Selection */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Roles</label>
-        <div className="grid grid-cols-1 gap-2 border border-gray-300 rounded-lg p-3 bg-white max-h-60 overflow-y-auto">
-          {[
-            { value: "sales", label: "Sales" },
-            { value: "accounts", label: "Accounts" },
-            { value: "dispatch", label: "EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section" },
-            { value: "production", label: "Production" },
-            { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
-            { value: "suppliers", label: "Vendors/Suppliers" },
-            // { value: "driver", label: "Driver" },
-            { value: "guard", label: "Guard" },
-            { value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
-          ].map((roleOption) => (
-            <label key={roleOption.value} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
-              <input
-                type="checkbox"
-                value={roleOption.value}
-                checked={role.includes(roleOption.value)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setRole([...role, roleOption.value]);
-                  } else {
-                    setRole(role.filter(r => r !== roleOption.value));
-                  }
-                }}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700">{roleOption.label}</span>
-            </label>
-          ))}
-        </div>
-        {role.length > 0 && (
-          <div className="mt-2 text-xs text-blue-600">
-            Selected: {role.map(r => 
-              ({
-                sales: 'Sales',
-                accounts: 'Accounts', 
-                dispatch: 'Dispatch',
-                production: 'Production',
-                packaging: 'Packaging',
-                suppliers: 'Suppliers',
-                driver: 'Driver'
-              }[r] || r)
-            ).join(', ')}
-          </div>
-        )}
-      </div>
-
-      {/* Production Sections and Permissions */}
-      <div className="space-y-4">
-        {role.includes('production') && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
-            <div className="flex flex-col gap-2">
-              {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
-                <label key={section} className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    value={section}
-                    checked={productionSection.includes(section)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setProductionSection([...productionSection, section]);
-                      } else {
-                        setProductionSection(productionSection.filter(s => s !== section));
-                      }
-                    }}
-                    className="mr-2"
-                  />
-                  {section}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!role.includes('suppliers') && (
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="attendance"
-                checked={allowAttendance}
-                onChange={() => setAllowAttendance(!allowAttendance)}
-                className="w-4 h-4"
-              />
-              <label htmlFor="attendance" className="text-sm text-gray-700">
-                Allow for Attendance
+  {designation === 'staff' && (
+    <div className="border-t pt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Roles Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Roles</label>
+          <div className="grid grid-cols-1 gap-2 border border-gray-300 rounded-lg p-3 bg-white max-h-60 overflow-y-auto">
+            {[
+              { value: "sales", label: "Sales" },
+              { value: "accounts", label: "Accounts" },
+              { value: "dispatch", label: "EPS/Thermocol Sheet Cutting, Packaging and Dispatch Section" },
+              { value: "production", label: "Production" },
+              { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
+              { value: "suppliers", label: "Vendors/Suppliers" },
+              // { value: "driver", label: "Driver" },
+              { value: "guard", label: "Guard" },
+              { value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
+            ].map((roleOption) => (
+              <label key={roleOption.value} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input
+                  type="checkbox"
+                  value={roleOption.value}
+                  checked={role.includes(roleOption.value)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setRole([...role, roleOption.value]);
+                    } else {
+                      setRole(role.filter(r => r !== roleOption.value));
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">{roleOption.label}</span>
               </label>
-            </div>
-            
-            {(currentUser?.email === "thermopackers@gmail.com" || currentUser?.email === "it.thermopackers@gmail.com") && (
-              <>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="vehiclesManagement"
-                    checked={allowVehiclesManagement}
-                    onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
-                    Allow Vehicles Management
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="hr"
-                    checked={allowHR}
-                    onChange={() => setAllowHR(!allowHR)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="hr" className="text-sm text-gray-700">
-                    Allow HR (Human Resource)
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="plantMaintenance"
-                    checked={allowPlantMaintenance}
-                    onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
-                    Allow Plant & Machinery Maintenance
-                  </label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="tourExpenses"
-                    checked={allowTourExpenses}
-                    onChange={() => setAllowTourExpenses(!allowTourExpenses)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="tourExpenses" className="text-sm text-gray-700">
-                    Allow Tour Expenses
-                  </label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="incomingPayments"
-                    checked={allowIncomingPayments}
-                    onChange={() => setAllowIncomingPayments(!allowIncomingPayments)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="incomingPayments" className="text-sm text-gray-700">
-                    Allow for Incoming Payments
-                  </label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="allowQuotation"
-                    checked={allowQuotation}
-                    onChange={() => setAllowQuotation(!allowQuotation)}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="allowQuotation" className="text-sm text-gray-700">
-                    Allow for Quotation / Proforma Invoice
-                  </label>
-                </div>
-                {/* ✅ Add this after the allowQuotation checkbox */}
-<div className="flex items-center space-x-2">
-  <input
-    type="checkbox"
-    id="allowDanaBeads"
-    checked={allowDanaBeads}
-    onChange={() => setAllowDanaBeads(!allowDanaBeads)}
-    className="w-4 h-4"
-  />
-  <label htmlFor="allowDanaBeads" className="text-sm text-gray-700">
-    Allow for Dana / Beads Production Section
-  </label>
-</div>
-              </>
-            )}
+            ))}
           </div>
-        )}
+          {role.length > 0 && (
+            <div className="mt-2 text-xs text-blue-600">
+              Selected: {role.map(r => 
+                ({
+                  sales: 'Sales',
+                  accounts: 'Accounts', 
+                  dispatch: 'Dispatch',
+                  production: 'Production',
+                  packaging: 'Packaging',
+                  suppliers: 'Suppliers',
+                  driver: 'Driver'
+                }[r] || r)
+              ).join(', ')}
+            </div>
+          )}
+        </div>
+
+        {/* Production Sections and Permissions */}
+        <div className="space-y-4">
+          {role.includes('production') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Production Sections</label>
+              <div className="flex flex-col gap-2">
+                {['blockMoulding', 'shapeMoulding', 'cnc'].map((section) => (
+                  <label key={section} className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      value={section}
+                      checked={productionSection.includes(section)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setProductionSection([...productionSection, section]);
+                        } else {
+                          setProductionSection(productionSection.filter(s => s !== section));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {section}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!role.includes('suppliers') && (
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="attendance"
+                  checked={allowAttendance}
+                  onChange={() => setAllowAttendance(!allowAttendance)}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="attendance" className="text-sm text-gray-700">
+                  Allow for Attendance
+                </label>
+              </div>
+              
+              {(currentUser?.email === "thermopackers@gmail.com" || currentUser?.email === "it.thermopackers@gmail.com") && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="vehiclesManagement"
+                      checked={allowVehiclesManagement}
+                      onChange={() => setAllowVehiclesManagement(!allowVehiclesManagement)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="vehiclesManagement" className="text-sm text-gray-700">
+                      Allow Vehicles Management
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hr"
+                      checked={allowHR}
+                      onChange={() => setAllowHR(!allowHR)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="hr" className="text-sm text-gray-700">
+                      Allow HR (Human Resource)
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="plantMaintenance"
+                      checked={allowPlantMaintenance}
+                      onChange={() => setAllowPlantMaintenance(!allowPlantMaintenance)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="plantMaintenance" className="text-sm text-gray-700">
+                      Allow Plant & Machinery Maintenance
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="tourExpenses"
+                      checked={allowTourExpenses}
+                      onChange={() => setAllowTourExpenses(!allowTourExpenses)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="tourExpenses" className="text-sm text-gray-700">
+                      Allow Tour Expenses
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="incomingPayments"
+                      checked={allowIncomingPayments}
+                      onChange={() => setAllowIncomingPayments(!allowIncomingPayments)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="incomingPayments" className="text-sm text-gray-700">
+                      Allow for Incoming Payments
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="allowQuotation"
+                      checked={allowQuotation}
+                      onChange={() => setAllowQuotation(!allowQuotation)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="allowQuotation" className="text-sm text-gray-700">
+                      Allow for Quotation / Proforma Invoice
+                    </label>
+                  </div>
+                  {/* ✅ Add this after the allowQuotation checkbox */}
+  <div className="flex items-center space-x-2">
+    <input
+      type="checkbox"
+      id="allowDanaBeads"
+      checked={allowDanaBeads}
+      onChange={() => setAllowDanaBeads(!allowDanaBeads)}
+      className="w-4 h-4"
+    />
+    <label htmlFor="allowDanaBeads" className="text-sm text-gray-700">
+      Allow for Dana / Beads Production Section
+    </label>
+  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  </div>
+  )}
 
   {/* Submit Buttons */}
   <div className="border-t pt-6">

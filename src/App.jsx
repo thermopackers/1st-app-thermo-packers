@@ -41,6 +41,8 @@ export default function App() {
     "/maintenance/ph",
     "/maintenance/hardness",
     "/maintenance/alkalinity",
+    "/guard-attendance",
+    "/guard-attendance-history",
     "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",
