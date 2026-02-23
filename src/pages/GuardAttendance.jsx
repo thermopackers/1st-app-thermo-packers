@@ -169,6 +169,57 @@ useEffect(() => {
     initialize();
   }, []);
 
+  // Check camera permissions on mount
+useEffect(() => {
+  const checkCameraPermission = async () => {
+    try {
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.log("MediaDevices not supported");
+        return;
+      }
+
+      // Check if we have camera permission
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasCamera = devices.some(device => device.kind === 'videoinput');
+      
+      if (!hasCamera) {
+        Swal.fire({
+          icon: "warning",
+          title: "No Camera Found",
+          text: "No camera detected on this device. Please connect a camera and try again.",
+          confirmButtonColor: "#2563eb"
+        });
+        return;
+      }
+
+      // Check permission status
+      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+      
+      if (permissionStatus.state === 'denied') {
+        Swal.fire({
+          icon: "error",
+          title: "Camera Access Denied",
+          html: `
+            <div class="text-left">
+              <p class="mb-2">Please allow camera access:</p>
+              <p class="text-sm text-gray-600">1. Click the camera icon in address bar</p>
+              <p class="text-sm text-gray-600">2. Select "Allow" for camera permission</p>
+              <p class="text-sm text-gray-600">3. Refresh the page</p>
+            </div>
+          `,
+          confirmButtonColor: "#2563eb"
+        });
+      }
+      
+    } catch (err) {
+      console.error("Error checking camera permission:", err);
+    }
+  };
+  
+  checkCameraPermission();
+}, []);
+
 // Load employees and create face matcher - ULTRA FAST VERSION
 const loadEmployeesAndCreateMatcher = async () => {
   try {
@@ -253,121 +304,131 @@ const loadEmployeesAndCreateMatcher = async () => {
     }
   };
 
-  // Ultra-fast face capture and match
-  const handleCapture = async () => {
-    if (!modelsLoaded || !faceMatcher) {
+const handleCapture = async () => {
+  if (!modelsLoaded || !faceMatcher) {
+    Swal.fire({
+      icon: "info",
+      title: "Not Ready",
+      text: "System is still loading. Please wait.",
+      timer: 1500,
+      showConfirmButton: false
+    });
+    return;
+  }
+
+  if (isProcessing) return;
+
+  setIsProcessing(true);
+
+  try {
+    // Capture face - smaller resolution for faster processing
+    const screenshot = webcamRef.current?.getScreenshot();
+    if (!screenshot) throw new Error("No screenshot captured");
+
+    // Create image element from screenshot
+    const img = await faceapi.fetchImage(screenshot);
+    
+    // Detect face and get descriptor - OPTIMIZED for speed
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ 
+        inputSize: 160, // Balanced between speed and accuracy
+        scoreThreshold: 0.3 
+      }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!detection) {
       Swal.fire({
-        icon: "info",
-        title: "Not Ready",
-        text: "System is still loading. Please wait.",
+        icon: "error",
+        title: "Face Not Detected",
+        text: "Please ensure face is clearly visible",
         timer: 1500,
         showConfirmButton: false
       });
+      setIsProcessing(false);
       return;
     }
 
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-
-    try {
-      // Capture face - smaller resolution for faster processing
-      const screenshot = webcamRef.current?.getScreenshot();
-      if (!screenshot) throw new Error("No screenshot captured");
-
-      // Create image element from screenshot
-      const img = await faceapi.fetchImage(screenshot);
-      
-      // Detect face and get descriptor - OPTIMIZED for speed
-      const detection = await faceapi
-        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ 
-          inputSize: 160, // Balanced between speed and accuracy
-          scoreThreshold: 0.3 
-        }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (!detection) {
-        Swal.fire({
-          icon: "error",
-          title: "Face Not Detected",
-          text: "Please ensure face is clearly visible",
-          timer: 1500,
-          showConfirmButton: false
-        });
-        setIsProcessing(false);
-        return;
-      }
-
-      // Find best match - instantaneous
-      const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-      
-      if (bestMatch.label === "unknown") {
-        Swal.fire({
-          icon: "error",
-          title: "No Match Found",
-          text: "Employee not found in database",
-          timer: 1500,
-          showConfirmButton: false
-        });
-        setIsProcessing(false);
-        return;
-      }
-
-      // Find the matched employee
-      const matchedEmployee = employees.find(emp => emp._id === bestMatch.label);
-      
-      if (!matchedEmployee) {
-        setIsProcessing(false);
-        return;
-      }
-
-      const confidence = Math.round((1 - bestMatch.distance) * 100);
-
-      // Play success sound immediately
-      playSuccessSound();
-
-      // Ask for check-in/out
-      const result = await Swal.fire({
-        title: `Welcome ${matchedEmployee.name}`,
-        html: `
-          <div class="text-left">
-            <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
-            <p><strong>Match:</strong> ${confidence}%</p>
-          </div>
-        `,
-        icon: "question",
-        showCancelButton: true,
-        showDenyButton: true,
-        confirmButtonText: "✅ Check In",
-        denyButtonText: "👋 Check Out",
-        cancelButtonText: "❌ Cancel",
-        confirmButtonColor: "#22c55e",
-        denyButtonColor: "#ef4444",
-        timer: 10000,
-        timerProgressBar: true,
-      });
-
-      if (result.isConfirmed) {
-        await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-in");
-      } else if (result.isDenied) {
-        await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-out");
-      }
-
-    } catch (err) {
-      console.error("Error during capture:", err);
+    // Find best match - instantaneous
+    const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+    
+    if (bestMatch.label === "unknown") {
       Swal.fire({
         icon: "error",
-        title: "Error",
-        text: "Face detection failed. Please try again.",
+        title: "No Match Found",
+        text: "Employee not found in database",
         timer: 1500,
         showConfirmButton: false
       });
-    } finally {
-      setCapturing(false);
       setIsProcessing(false);
+      return;
     }
-  };
+
+    // Find the matched employee
+    const matchedEmployee = employees.find(emp => emp._id === bestMatch.label);
+    
+    if (!matchedEmployee) {
+      setIsProcessing(false);
+      return;
+    }
+
+    const confidence = Math.round((1 - bestMatch.distance) * 100);
+
+    // 👇 ADD THIS SHIFT CHECK HERE
+    // First check if shift change is needed
+    const shiftChangeHandled = await checkShiftStatus(matchedEmployee._id);
+    
+    if (shiftChangeHandled) {
+      setIsProcessing(false);
+      setCapturing(false);
+      return;
+    }
+    // 👆 END OF SHIFT CHECK
+
+    // Play success sound immediately
+    playSuccessSound();
+
+    // Ask for check-in/out
+    const result = await Swal.fire({
+      title: `Welcome ${matchedEmployee.name}`,
+      html: `
+        <div class="text-left">
+          <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
+          <p><strong>Match:</strong> ${confidence}%</p>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "✅ Check In",
+      denyButtonText: "👋 Check Out",
+      cancelButtonText: "❌ Cancel",
+      confirmButtonColor: "#22c55e",
+      denyButtonColor: "#ef4444",
+      timer: 10000,
+      timerProgressBar: true,
+    });
+
+    if (result.isConfirmed) {
+      await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-in");
+    } else if (result.isDenied) {
+      await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-out");
+    }
+
+  } catch (err) {
+    console.error("Error during capture:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Face detection failed. Please try again.",
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } finally {
+    setCapturing(false);
+    setIsProcessing(false);
+  }
+};
 
 const playSuccessWithVoice = () => {
   // Play beep and voice in parallel for maximum speed
@@ -413,13 +474,15 @@ const playSuccessWithVoice = () => {
 
 
 
-// In your markAttendance function, replace playSuccessSound() with:
-const markAttendance = async (userId, userName, type) => {
+// Also update your markAttendance function to accept shift parameter
+const markAttendance = async (userId, userName, type, shiftParam = null) => {
   try {
+    const shift = shiftParam || currentShift;
+    
     const response = await axiosInstance.post("/factory-attendance/mark", {
       userId,
       type,
-      shift: currentShift
+      shift
     });
 
     // Play combined sound (beep + voice)
@@ -436,6 +499,7 @@ const markAttendance = async (userId, userName, type) => {
         <div class="text-center">
           <p class="text-lg font-semibold text-green-600 mb-2">${userName}</p>
           <p class="text-md mb-1">${type === "check-in" ? "✅ Check In" : "👋 Check Out"} Successful</p>
+          <p class="text-sm text-gray-600">Shift: ${shift === "shift1" ? "8 AM - 8:30 PM" : "8:30 PM onwards"}</p>
           <p class="text-sm text-gray-600">Time: ${new Date().toLocaleTimeString()}</p>
         </div>
       `,
@@ -470,6 +534,94 @@ const markAttendance = async (userId, userName, type) => {
       </>
     );
   }
+
+  const requestCameraPermission = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    // Stop the stream immediately after getting permission
+    stream.getTracks().forEach(track => track.stop());
+    console.log("Camera permission granted");
+    return true;
+  } catch (err) {
+    console.error("Camera permission denied:", err);
+    return false;
+  }
+};
+
+// Update your Start Recognition button click handler
+const handleStartRecognition = async () => {
+  // First check if we have permission
+  const hasPermission = await requestCameraPermission();
+  if (hasPermission) {
+    setCapturing(true);
+  } else {
+    Swal.fire({
+      icon: "error",
+      title: "Camera Access Required",
+      html: `
+        <div class="text-left">
+          <p class="mb-2">Please allow camera access:</p>
+          <p class="text-sm text-gray-600">1. Click the camera icon in address bar</p>
+          <p class="text-sm text-gray-600">2. Select "Allow" for camera permission</p>
+          <p class="text-sm text-gray-600">3. Click "Start Recognition" again</p>
+        </div>
+      `,
+      confirmButtonColor: "#2563eb"
+    });
+  }
+};
+
+// Check if user needs shift change
+// Check if user needs shift change
+const checkShiftStatus = async (userId) => {
+  try {
+    const res = await axiosInstance.get(`/factory-attendance/check-shift-status/${userId}`);
+    
+    if (res.data.needsAction) {
+      const result = await Swal.fire({
+        title: "⚠️ Shift Change Required",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">${res.data.message}</p>
+            <p class="text-sm text-gray-600">Checked in at: ${new Date(res.data.checkInTime).toLocaleTimeString()}</p>
+            <p class="text-sm text-gray-600 mt-2">Click below to complete your shift change:</p>
+          </div>
+        `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Complete Shift Change",
+        cancelButtonText: "Later",
+        confirmButtonColor: "#f59e0b"
+      });
+
+      if (result.isConfirmed) {
+        // Show processing message
+        Swal.fire({
+          title: "Processing Shift Change...",
+          text: "Please wait",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading()
+        });
+
+        // First check out from Shift 1
+        await markAttendance(userId, "check-out", "shift1");
+        
+        // Small delay then check in for Shift 2
+        setTimeout(async () => {
+          await markAttendance(userId, "check-in", "shift2");
+          Swal.close();
+        }, 500);
+      }
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Error checking shift status:", err);
+    return false;
+  }
+};
+
+
 
   return (
     <>
@@ -511,93 +663,119 @@ const markAttendance = async (userId, userName, type) => {
             </div>
           </motion.div>
 
-          {/* Camera Interface */}
-          {!capturing ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-2xl shadow-xl p-8 text-center"
-            >
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Camera className="w-12 h-12 text-blue-600" />
-              </div>
-              
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Ready to Mark Attendance
-              </h2>
-              
-              <p className="text-gray-600 mb-8">
-                Click below and look at the camera - takes less than 2 seconds!
-              </p>
+    {!capturing ? (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="bg-white rounded-2xl shadow-xl p-8 text-center"
+  >
+    <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <Camera className="w-12 h-12 text-blue-600" />
+    </div>
+    
+    <h2 className="text-xl font-semibold text-gray-800 mb-4">
+      Ready to Mark Attendance
+    </h2>
+    
+    <p className="text-gray-600 mb-8">
+      Click below and look at the camera - takes less than 2 seconds!
+    </p>
 
-              <motion.button
-                onClick={() => setCapturing(true)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"
-                disabled={!isReady || loading}
-              >
-                <Zap className="w-5 h-5" />
-                {loading ? "Loading..." : !isReady ? "No Employees" : "Start Recognition"}
-              </motion.button>
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-white rounded-2xl shadow-xl p-6"
-            >
-              <div className="relative">
-                <ReactWebcam
-                  ref={webcamRef}
-                  audio={false}
-                  screenshotFormat="image/jpeg"
-                  className="w-full rounded-xl"
-                  videoConstraints={{
-                    facingMode: "user",
-                    width: 480,
-                    height: 360
-                  }}
-                />
-                
-                {/* Face overlay guide */}
-                <div className="absolute inset-0 border-4 border-blue-400 border-dashed rounded-xl pointer-events-none"></div>
-                <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-lg text-sm">
-                  Position face in center
-                </div>
-              </div>
+ <motion.button
+  onClick={handleStartRecognition}  // Change from setCapturing(true)
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"
+  disabled={!isReady || loading}
+>
+  <Zap className="w-5 h-5" />
+  {loading ? "Loading..." : !isReady ? "No Employees" : "Start Recognition"}
+</motion.button>
+  </motion.div>
+) : (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="bg-white rounded-2xl shadow-xl p-6"
+  >
+    <div className="relative">
+      <ReactWebcam
+        ref={webcamRef}
+        audio={false}
+        screenshotFormat="image/jpeg"
+        className="w-full rounded-xl"
+        videoConstraints={{
+          facingMode: "user",
+          width: { ideal: 480 },
+          height: { ideal: 360 },
+          aspectRatio: { ideal: 4/3 }
+        }}
+        onUserMedia={() => console.log("Camera started successfully")}
+        onUserMediaError={(err) => {
+          console.error("Camera error:", err);
+          setCapturing(false);
+          
+          // Show user-friendly error message
+          let errorMsg = "Could not access camera. ";
+          
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            errorMsg += "Please allow camera access in your browser settings.";
+          } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+            errorMsg += "No camera found on this device.";
+          } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+            errorMsg += "Camera is already in use by another app.";
+          } else {
+            errorMsg += "Please check your camera and try again.";
+          }
+          
+          Swal.fire({
+            icon: "error",
+            title: "Camera Error",
+            text: errorMsg,
+            confirmButtonColor: "#2563eb"
+          });
+        }}
+        mirrored={true}
+      />
+      
+      {/* Face overlay guide */}
+      <div className="absolute inset-0 border-4 border-blue-400 border-dashed rounded-xl pointer-events-none"></div>
+      <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-lg text-sm">
+        Position face in center
+      </div>
+    </div>
 
-              <div className="flex justify-between mt-6">
-                <button
-                  onClick={() => setCapturing(false)}
-                  className="px-6 py-3 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition"
-                  disabled={isProcessing}
-                >
-                  Cancel
-                </button>
-                
-                <motion.button
-                  onClick={handleCapture}
-                  disabled={isProcessing}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-8 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition flex items-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Matching...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      Capture & Match
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
+    <div className="flex justify-between mt-6">
+      <button
+        onClick={() => setCapturing(false)}
+        className="px-6 py-3 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition"
+        disabled={isProcessing}
+      >
+        Cancel
+      </button>
+      
+      <motion.button
+        onClick={handleCapture}
+        disabled={isProcessing}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="px-8 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition flex items-center gap-2"
+      >
+        {isProcessing ? (
+          <>
+            <Loader className="w-4 h-4 animate-spin" />
+            Matching...
+          </>
+        ) : (
+          <>
+            <Zap className="w-4 h-4" />
+            Capture & Match
+          </>
+        )}
+      </motion.button>
+    </div>
+  </motion.div>
+)}
 
           {/* Today's Stats */}
           <motion.div
