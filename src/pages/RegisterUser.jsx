@@ -527,6 +527,204 @@ setAllowQuotation(false); // Add this line
     });
   };
 
+    const handlePreprocessFaces = async () => {
+    // First check current status
+    try {
+      const statusRes = await axiosInstance.get("/users/preprocess-status");
+      const { total, processed, remaining, unprocessed } = statusRes.data;
+      
+      let timeEstimate = "";
+      if (remaining > 0) {
+        const estimatedSeconds = remaining * 3; // 3 seconds per face
+        if (estimatedSeconds < 60) {
+          timeEstimate = `⏱️ Estimated time: ~${estimatedSeconds} seconds`;
+        } else {
+          const minutes = Math.ceil(estimatedSeconds / 60);
+          timeEstimate = `⏱️ Estimated time: ~${minutes} minute${minutes > 1 ? 's' : ''}`;
+        }
+      }
+
+      const result = await Swal.fire({
+        title: "⚡ Pre-process Faces",
+        html: `
+          <div class="text-left">
+            <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p class="font-semibold text-blue-800">Current Status:</p>
+              <div class="flex justify-between mt-2">
+                <span>Total Employees:</span>
+                <span class="font-bold">${total}</span>
+              </div>
+              <div class="flex justify-between text-green-600">
+                <span>✅ Already Processed:</span>
+                <span class="font-bold">${processed}</span>
+              </div>
+              <div class="flex justify-between text-amber-600">
+                <span>⏳ Remaining:</span>
+                <span class="font-bold">${remaining}</span>
+              </div>
+            </div>
+            
+            ${remaining > 0 ? `
+              <p class="mb-3">This will process the remaining ${remaining} employee${remaining > 1 ? 's' : ''}.</p>
+              <p class="text-sm text-amber-600 font-semibold">${timeEstimate}</p>
+              
+              ${unprocessed && unprocessed.length > 0 ? `
+                <div class="mt-3 p-2 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+                  <p class="text-xs font-semibold text-gray-600 mb-1">Pending employees:</p>
+                  ${unprocessed.map(u => `
+                    <div class="text-xs text-gray-600 flex justify-between">
+                      <span>${u.name}</span>
+                      <span class="text-gray-400">${u.designation}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            ` : `
+              <p class="text-green-600 font-semibold">✅ All faces are already processed!</p>
+            `}
+            
+            <p class="text-xs text-gray-500 mt-4">New faces will be processed automatically when registered.</p>
+          </div>
+        `,
+        icon: remaining > 0 ? "info" : "success",
+        showCancelButton: remaining > 0,
+        confirmButtonColor: "#8b5cf6",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: remaining > 0 ? "Yes, process now!" : "OK",
+        cancelButtonText: "Later",
+      });
+
+      if (result.isConfirmed && remaining > 0) {
+        // Show detailed progress modal
+        Swal.fire({
+          title: "Processing Faces...",
+          html: `
+            <div class="text-center">
+              <div class="mb-4">
+                <div class="w-full bg-gray-200 rounded-full h-6">
+                  <div id="progress-bar" class="bg-purple-600 h-6 rounded-full text-xs text-white flex items-center justify-center" style="width: 0%">0%</div>
+                </div>
+              </div>
+              <p id="progress-status" class="text-gray-700 font-semibold mb-2">Initializing...</p>
+              <p id="progress-detail" class="text-sm text-gray-500 mb-2">Please wait</p>
+              <div id="current-file" class="text-xs text-gray-400"></div>
+            </div>
+          `,
+          allowOutsideClick: false,
+          showConfirmButton: false,
+        });
+
+        // Start processing
+        try {
+          const response = await axiosInstance.post("/users/preprocess-all-faces");
+          
+          // Processing started successfully
+          console.log("Processing started:", response.data);
+          
+          // Start polling for status
+          let processingComplete = false;
+          let pollCount = 0;
+          const maxPolls = 60; // 2 minutes max (2 second intervals)
+          
+          const pollInterval = setInterval(async () => {
+            try {
+              pollCount++;
+              const statusRes = await axiosInstance.get("/users/preprocess-status");
+              const { processed, total, remaining, unprocessed } = statusRes.data;
+              
+              // Calculate percentage
+              const percent = Math.round((processed / total) * 100);
+              
+              // Update progress bar
+              const progressBar = document.getElementById('progress-bar');
+              const progressStatus = document.getElementById('progress-status');
+              const progressDetail = document.getElementById('progress-detail');
+              const currentFile = document.getElementById('current-file');
+              
+              if (progressBar) {
+                progressBar.style.width = percent + '%';
+                progressBar.textContent = percent + '%';
+              }
+              
+              if (progressStatus) {
+                progressStatus.textContent = `Processed ${processed} of ${total} faces`;
+              }
+              
+              if (progressDetail) {
+                progressDetail.textContent = `${remaining} remaining`;
+              }
+              
+              if (currentFile && unprocessed && unprocessed.length > 0) {
+                currentFile.textContent = `Currently processing: ${unprocessed[0]?.name || '...'}`;
+              }
+              
+              if (remaining === 0) {
+                processingComplete = true;
+                clearInterval(pollInterval);
+                
+                Swal.fire({
+                  icon: "success",
+                  title: "✅ Processing Complete!",
+                  html: `
+                    <div class="text-left space-y-2">
+                      <div class="flex justify-between border-b pb-2">
+                        <span class="font-semibold">Total Employees:</span>
+                        <span>${total}</span>
+                      </div>
+                      <div class="flex justify-between text-green-600">
+                        <span class="font-semibold">✅ Successfully Processed:</span>
+                        <span>${processed}</span>
+                      </div>
+                      <div class="flex justify-between text-red-500">
+                        <span class="font-semibold">❌ Failed:</span>
+                        <span>0</span>
+                      </div>
+                    </div>
+                  `,
+                  confirmButtonColor: "#8b5cf6",
+                });
+              }
+              
+              // Stop polling after max attempts
+              if (pollCount >= maxPolls && !processingComplete) {
+                clearInterval(pollInterval);
+                Swal.fire({
+                  icon: "warning",
+                  title: "Processing仍在进行中",
+                  html: `
+                    <p>The process is still running in the background.</p>
+                    <p class="text-sm text-gray-500 mt-2">You can check status later by clicking the button again.</p>
+                  `,
+                  confirmButtonColor: "#8b5cf6",
+                });
+              }
+              
+            } catch (pollErr) {
+              console.error("Polling error:", pollErr);
+            }
+          }, 2000); // Poll every 2 seconds
+          
+        } catch (err) {
+          console.error("Processing error:", err);
+          Swal.fire({
+            icon: "error",
+            title: "❌ Processing Failed",
+            text: err.response?.data?.error || "Something went wrong",
+            confirmButtonColor: "#ef4444",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Status check error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to check preprocessing status",
+        confirmButtonColor: "#ef4444",
+      });
+    }
+  };
+
   return (
     <>
       <InternalNavbar />
@@ -534,108 +732,33 @@ setAllowQuotation(false); // Add this line
          {/* Responsive Pre-process Button */}
          <div className='mb-4'>
           <span className="text-sm font-bold">Click This button whenever adding/updating faces for worker designations other than 'staff'</span>
-    {userRoles.includes("accounts") && (
-      <button
-        onClick={async () => {
-          const result = await Swal.fire({
-            title: "⚡ Pre-process Faces?",
-            html: `
-              <div class="text-left">
-                <p class="mb-3">This will process all operator/helper/driver faces for faster recognition.</p>
-                <p class="text-sm text-amber-600 font-semibold">⚠️ This may take a few minutes depending on number of employees.</p>
-                <p class="text-xs text-gray-500 mt-2">You only need to do this once. New faces will be processed automatically.</p>
-              </div>
-            `,
-            icon: "info",
-            showCancelButton: true,
-            confirmButtonColor: "#8b5cf6",
-            cancelButtonColor: "#6b7280",
-            confirmButtonText: "Yes, process now!",
-            cancelButtonText: "Later",
-            width: window.innerWidth < 640 ? '90%' : '500px',
-          });
-
-          if (result.isConfirmed) {
-            Swal.fire({
-              title: "Processing...",
-              html: `
-                <div class="text-center">
-                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p class="text-gray-600">Please wait while faces are processed</p>
-                  <p class="text-xs text-gray-400 mt-2">This may take a few minutes</p>
-                </div>
-              `,
-              allowOutsideClick: false,
-              showConfirmButton: false,
-            });
-
-            try {
-              const res = await axiosInstance.post("/users/preprocess-all-faces");
-              
-              // Show detailed results
-              const successRate = Math.round((res.data.processed / res.data.total) * 100);
-              
-              Swal.fire({
-                icon: "success",
-                title: "✅ Processing Complete!",
-                html: `
-                  <div class="text-left space-y-2">
-                    <div class="flex justify-between border-b pb-2">
-                      <span class="font-semibold">Total Employees:</span>
-                      <span>${res.data.total}</span>
-                    </div>
-                    <div class="flex justify-between text-green-600">
-                      <span class="font-semibold">✅ Successfully Processed:</span>
-                      <span>${res.data.processed}</span>
-                    </div>
-                    <div class="flex justify-between text-red-500">
-                      <span class="font-semibold">❌ Failed:</span>
-                      <span>${res.data.failed}</span>
-                    </div>
-                    <div class="flex justify-between text-blue-600">
-                      <span class="font-semibold">📊 Success Rate:</span>
-                      <span>${successRate}%</span>
-                    </div>
-                  </div>
-                `,
-                confirmButtonColor: "#8b5cf6",
-                width: window.innerWidth < 640 ? '90%' : '450px',
-              });
-              
-            } catch (err) {
-              Swal.fire({
-                icon: "error",
-                title: "❌ Processing Failed",
-                text: err.response?.data?.error || "Something went wrong",
-                confirmButtonColor: "#ef4444",
-              });
-            }
-          }
-        }}
-        className={`
-          w-full sm:w-auto
-          bg-gradient-to-r from-purple-600 to-purple-700
-          hover:from-purple-700 hover:to-purple-800
-          text-white 
-          px-4 sm:px-6 
-          py-3 sm:py-2.5 
-          rounded-xl 
-          font-semibold 
-          text-sm sm:text-base
-          shadow-lg 
-          hover:shadow-xl 
-          transform hover:scale-[1.02] active:scale-[0.98]
-          transition-all duration-200
-          flex items-center justify-center gap-2
-          border border-purple-400
-        `}
-      >
-        <span className="text-lg sm:text-base">⚡</span>
-        <span className="sm:flex-none text-center">Pre-process Faces</span>
-        <span className="sm:inline text-purple-200">|</span>
-        <span className="sm:inline text-xs text-purple-200">One-time setup</span>
-      </button>
-    )}
+   {userRoles.includes("accounts") && (
+  <button
+    onClick={handlePreprocessFaces}  // 👈 Change this from the inline function
+    className={`
+      w-full sm:w-auto
+      bg-gradient-to-r from-purple-600 to-purple-700
+      hover:from-purple-700 hover:to-purple-800
+      text-white 
+      px-4 sm:px-6 
+      py-3 sm:py-2.5 
+      rounded-xl 
+      font-semibold 
+      text-sm sm:text-base
+      shadow-lg 
+      hover:shadow-xl 
+      transform hover:scale-[1.02] active:scale-[0.98]
+      transition-all duration-200
+      flex items-center justify-center gap-2
+      border border-purple-400
+    `}
+  >
+    <span className="text-lg sm:text-base">⚡</span>
+    <span className="sm:flex-none text-center">Pre-process Faces</span>
+    <span className="sm:inline text-purple-200">|</span>
+    <span className="sm:inline text-xs text-purple-200">One-time setup</span>
+  </button>
+)}
     </div> 
 <div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">      
       <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
