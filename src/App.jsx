@@ -43,6 +43,7 @@ export default function App() {
     "/maintenance/alkalinity",
     "/guard-attendance",
     "/guard-attendance-history",
+    "/password-manager",
     "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",

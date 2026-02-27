@@ -84,6 +84,7 @@ import HardnessMonitoring from "../pages/HardnessMonitoring";
 import AlkalinityMonitoring from "../pages/AlkalinityMonitoring";
 import GuardAttendance from "../pages/GuardAttendance";
 import GuardAttendanceHistory from "../pages/GuardAttendanceHistory";
+import PasswordManager from "../pages/PasswordManager";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -631,6 +632,7 @@ export default function AppRoutes() {
 <Route path="/maintenance/fire-safety" element={<FireSafetyMaintenance />} />
 <Route path="/guard-attendance" element={<GuardAttendance />} />
 <Route path="/guard-attendance-history" element={<GuardAttendanceHistory />} />
+<Route path="/password-manager" element={<PasswordManager />} />
 
 <Route
 path="/maintenance/water-filter"

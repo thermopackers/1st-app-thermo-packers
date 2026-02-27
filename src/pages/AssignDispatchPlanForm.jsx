@@ -93,6 +93,23 @@ const [formData, setFormData] = useState({
     phone: "",
     gpsLink: "",
   });
+const [dieselEntries, setDieselEntries] = useState([]);
+const [loadingDieselEntries, setLoadingDieselEntries] = useState(false);
+
+// Fetch diesel entries
+const fetchDieselEntries = async () => {
+  setLoadingDieselEntries(true);
+  try {
+    const res = await axiosInstance.get("/diesel/entries", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setDieselEntries(res.data);
+  } catch (err) {
+    console.error("Failed to fetch diesel entries:", err);
+  } finally {
+    setLoadingDieselEntries(false);
+  }
+};
 
   // Fetch drivers
 useEffect(() => {
@@ -358,6 +375,7 @@ const handleEditVehicle = async (vehicle) => {
   useEffect(() => {
     if (token && registeredVehicles.length > 0) {
       fetchPlans();
+          fetchDieselEntries(); // Add this line
     }
   }, [token, page, searchTerm, filterDate, registeredVehicles]);
 
@@ -411,6 +429,12 @@ useEffect(() => {
       .catch((err) => console.error("Error fetching products:", err));
   }
 }, [token]);
+
+// Helper function to get diesel entry for a specific plan
+const getDieselEntryForPlan = (planId) => {
+  if (!planId) return null;
+  return dieselEntries.find(entry => entry.planId === planId);
+};
 
 // Form submission for table format
 const handleTableSubmit = async () => {
@@ -1593,7 +1617,62 @@ const [editablePlan, setEditablePlan] = useState({
           </div>
         )}
       </td>
-
+{/* Image Uploaded by Drivers - New Column */}
+<td className="px-4 py-4 border border-gray-200">
+  {(() => {
+    const dieselEntry = getDieselEntryForPlan(plan._id);
+    
+    if (!dieselEntry) {
+      return (
+        <span className="text-xs text-gray-400">No images uploaded</span>
+      );
+    }
+    
+    return (
+      <div className="space-y-2">
+        {/* KMS Reading */}
+        {dieselEntry.kmsReading && (
+          <div className="text-xs bg-gray-50 p-1 rounded">
+            <span className="font-medium">KMS:</span> {dieselEntry.kmsReading}
+          </div>
+        )}
+        
+        {/* Diesel Liters */}
+        {dieselEntry.dieselLiters && (
+          <div className="text-xs bg-gray-50 p-1 rounded">
+            <span className="font-medium">Diesel:</span> {dieselEntry.dieselLiters} L
+          </div>
+        )}
+        
+        {/* Images */}
+        {dieselEntry.imageUrls && dieselEntry.imageUrls.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {dieselEntry.imageUrls.map((url, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  Swal.fire({
+                    imageUrl: url,
+                    imageAlt: `Diesel Image ${idx + 1}`,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: "90%",
+                    background: "#f9fafb",
+                    customClass: { popup: "rounded-xl" },
+                  });
+                }}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:opacity-80 transition-colors duration-200"
+                title="View Image"
+              >
+                🖼️ Image {idx + 1}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  })()}
+</td>
       {/* Actions */}
       <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
         <div className="flex flex-col gap-2">
@@ -1775,7 +1854,7 @@ const [editablePlan, setEditablePlan] = useState({
           Date
         </th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
-          Vehicle
+          Vehicle & 🛰️ GPS Tracking
         </th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Driver
@@ -1804,6 +1883,9 @@ const [editablePlan, setEditablePlan] = useState({
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Documents
         </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+  📸 Image Uploaded by Drivers
+</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Actions
         </th>
@@ -2181,7 +2263,7 @@ const [editablePlan, setEditablePlan] = useState({
               </div>
             </div>
           </td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+          <td colSpan={2} className="px-11 py-4 whitespace-nowrap border border-gray-200">
             <button
               onClick={handleTableSubmit}
               disabled={submitting}

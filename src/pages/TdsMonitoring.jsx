@@ -9,7 +9,8 @@ export default function TdsMonitoring() {
   const [deletingFile, setDeletingFile] = useState(null);
   const [newRowId, setNewRowId] = useState(null);
   const newRowRef = useRef(null);
-  
+  const [isVideoExpanded, setIsVideoExpanded] = useState(true); // Add this line - true means expanded by default
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -574,6 +575,74 @@ const handleSaveRow = async (rowId) => {
             </p>
           </div>
         </div>
+
+        {/* YouTube Instruction Video - Collapsible Section */}
+<div className="bg-white shadow-lg rounded-lg mb-6 overflow-hidden">
+  {/* Header - Always visible, click to toggle */}
+  <button
+    onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+  >
+    <div className="flex items-center gap-3">
+      <div className="bg-red-100 p-2 rounded-lg">
+        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+      </div>
+      <div className="text-left">
+        <h3 className="text-xs font-semibold text-gray-900">
+          📺 How to Use TDS Monitoring - Instruction Video
+        </h3>
+        <p className="text-xs text-gray-600">
+          {isVideoExpanded ? 'Click to collapse' : 'Click to expand and watch the tutorial'}
+        </p>
+      </div>
+    </div>
+    
+    {/* Expand/Collapse Icon */}
+    <div className="ml-4">
+      <svg 
+        className={`w-5 h-5 text-gray-500 transform transition-transform duration-300 ${isVideoExpanded ? 'rotate-180' : ''}`}
+        fill="none" 
+        stroke="currentColor" 
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </button>
+
+  {/* Collapsible Content */}
+  <div 
+    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+      isVideoExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+    }`}
+  >
+    <div className="p-4 border-t border-gray-200">
+      <div className="flex items-start gap-4">
+        <div className="flex-1">
+          <p className="text-sm text-gray-600 mb-3">
+            Watch this video to learn how to add, edit, and manage TDS entries effectively.
+          </p>
+          <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg border border-gray-200">
+            <iframe
+              className="absolute top-0 left-0 w-full h-full"
+              src="https://www.youtube.com/embed/1ytoQ6rKSf4?si=l0cZjbhzVHGCg5q4"
+              title="TDS Monitoring Instruction Video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
+          </div>
+          <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">💡 Tip</span>
+            <span>You can pause the video anytime and follow along with the instructions</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* Filters Section */}
         <div className="bg-white shadow-lg rounded-lg p-6 mb-6">

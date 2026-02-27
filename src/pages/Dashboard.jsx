@@ -12,6 +12,7 @@ import IncomingPaymentForm from "./IncomingPaymentForm";
 import ProductCustomerSearch from "../components/ProductCustomerSearch";
 import NotificationBell from "../components/NotificationBell";
 import AttendanceNotification from "../components/AttendanceNotification";
+import DailyTodoList from "../components/DailyTodoList";
 
 export default function Dashboard() {
  // Helper function to parse roles properly
@@ -685,6 +686,11 @@ useEffect(() => {
  {user?.allowAttendance && <AttendanceNotification />}
 </div>}
 
+{/* Collapsible Daily Todo List */}
+<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+  <DailyTodoList userId={user?._id} />
+</div>
+
 {/* Main Dashboard Content */}
 <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8 pt-20">       
    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1255,6 +1261,30 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                   )}
                 </div>
               </DashboardCard>
+
+              {/* Password Manager Button */}
+  <DashboardSection>
+    <DashboardCard className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+      <div className="text-center">
+        <div className="text-4xl mb-4">🔐</div>
+        <h3 className="text-2xl font-bold text-purple-900 mb-3">
+          Password Manager
+        </h3>
+        <p className="text-purple-700 mb-6">
+          Securely store and manage all passwords. Accounts team has full control.
+        </p>
+        <ActionButton
+          to="/password-manager"
+          variant="purple"
+          icon="🔐"
+          className="max-w-md mx-auto"
+        >
+          <div className="text-xl font-semibold">Manage Passwords</div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+
 
               {/* Enhanced Vehicles Management */}
             {(user.allowVehiclesManagement ||
