@@ -374,7 +374,7 @@ export default function DailyTodoList({ userId }) {
                           
                           <motion.button
                             onClick={() => deleteTask(task._id, index)}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-2 opacity-0 group-hover:opacity-100"
+                            className="text-gray-400 hover:text-red-500 transition-colors p-2"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                           >

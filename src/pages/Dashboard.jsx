@@ -1266,13 +1266,10 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
   <DashboardSection>
     <DashboardCard className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
       <div className="text-center">
-        <div className="text-4xl mb-4">🔐</div>
         <h3 className="text-2xl font-bold text-purple-900 mb-3">
-          Password Manager
+          🔐 Password Manager
         </h3>
-        <p className="text-purple-700 mb-6">
-          Securely store and manage all passwords. Accounts team has full control.
-        </p>
+      
         <ActionButton
           to="/password-manager"
           variant="purple"
