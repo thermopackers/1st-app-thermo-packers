@@ -136,13 +136,13 @@ if (s.type === "water-quality-grid") {
   return (
     <div key={idx} className="w-full h-80 rounded-2xl shadow-lg overflow-hidden border-2 border-white">
       <div className="h-full grid grid-rows-3 grid-cols-2 gap-0">
-        {/* Row 1, Col 1: Boiler */}
-        <NavLink to="/maintenance/boiler" className="h-full">
+        {/* Row 3: Alkalinity - Full Width */}
+        <NavLink to="/maintenance/alkalinity" className="h-full">
           <div className="h-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
             <div className="relative z-10 text-center p-2">
-              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">🔥</div>
-              <div className="font-bold text-sm mb-0.5">Boiler</div>
-              <div className="text-xs opacity-90 leading-tight">Monthly Report</div>
+              <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">⚗️</div>
+              <div className="font-bold text-sm mb-0.5">Alkalinity</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -153,7 +153,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💧</div>
               <div className="font-bold text-sm mb-0.5">TDS</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -164,7 +164,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">🧪</div>
               <div className="font-bold text-sm mb-0.5">PH</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -175,21 +175,23 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💎</div>
               <div className="font-bold text-sm mb-0.5">Hardness</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
             </div>
           </div>
         </NavLink>
         
-        {/* Row 3: Alkalinity - Full Width */}
-        <NavLink to="/maintenance/alkalinity" className="h-full col-span-2">
+        {/* Row 1, Col 1: Boiler */}
+        <NavLink to="/maintenance/boiler" className="h-full col-span-2">
           <div className="h-full bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white flex flex-col items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 relative overflow-hidden group">
             <div className="relative z-10 text-center p-4">
-              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">⚗️</div>
-              <div className="font-bold text-sm mb-1">Alkalinity</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check</div>
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🔥</div>
+              <div className="font-bold text-sm mb-1">Boiler</div>
+              <div className="text-xs opacity-90 leading-tight">Monthly Report</div>
             </div>
           </div>
         </NavLink>
+          
+         
       </div>
     </div>
   );
