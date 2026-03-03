@@ -812,7 +812,7 @@ setAllowQuotation(false); // Add this line
   </select>
 </div>
 
-      {designation === 'staff' && (
+      {(designation === 'staff' || designation === 'driver') && (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
     <input
