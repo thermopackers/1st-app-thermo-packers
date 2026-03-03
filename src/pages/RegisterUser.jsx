@@ -1016,7 +1016,7 @@ setAllowQuotation(false); // Add this line
   </div>
 
   {/* Roles and Permissions Section - Full Width */}
-  {designation === 'staff' && (
+  {(designation === 'staff' || designation === 'driver') && (
     <div className="border-t pt-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Roles Selection */}
@@ -1030,7 +1030,7 @@ setAllowQuotation(false); // Add this line
               { value: "production", label: "Production" },
               { value: "packaging", label: "EPS/Thermocol Shape Molding, Packaging and Dispatch Section" },
               { value: "suppliers", label: "Vendors/Suppliers" },
-              // { value: "driver", label: "Driver" },
+              { value: "driver", label: "Driver" },
               { value: "guard", label: "Guard" },
               { value: "plantMaintenance", label: "Plant & Machinery Maintenance" }
             ].map((roleOption) => (

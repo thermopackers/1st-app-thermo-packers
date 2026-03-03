@@ -164,12 +164,73 @@ const getLocation = () => {
   });
 };
 
-  const getDescriptor = async () => {
-    if (descriptorCache) return descriptorCache;
-    const descriptor = await loadLabeledDescriptorForUser(user.name);
-    setDescriptorCache(descriptor);
-    return descriptor;
-  };
+const getDescriptor = async () => {
+  // Clear cache if user changes
+  if (descriptorCache && descriptorCache.userId !== user?._id) {
+    console.log("🔄 User changed, clearing descriptor cache");
+    setDescriptorCache(null);
+    return null;
+  }
+  
+  if (descriptorCache) {
+    console.log("✅ Using cached descriptor for user:", user?.name);
+    return descriptorCache.descriptor;
+  }
+  
+  try {
+    console.log("🔍 Loading descriptor for user:", user?.name, "ID:", user?._id);
+    const labeledDescriptor = await loadLabeledDescriptorForUser(user.name);
+    
+    if (labeledDescriptor) {
+      console.log("✅ Descriptor loaded successfully, type:", labeledDescriptor.constructor.name);
+      
+      // Extract the actual descriptor array from LabeledFaceDescriptors
+      // LabeledFaceDescriptors has a property 'descriptors' which is an array of descriptors
+      // Usually it's the first (and only) descriptor
+      let descriptorArray = null;
+      
+      if (labeledDescriptor.descriptors && labeledDescriptor.descriptors.length > 0) {
+        // Get the first descriptor from the descriptors array
+        descriptorArray = labeledDescriptor.descriptors[0];
+        console.log("📊 Extracted descriptor from LabeledFaceDescriptors, length:", descriptorArray.length);
+      } else if (labeledDescriptor.descriptor) {
+        // Some versions might have a direct descriptor property
+        descriptorArray = labeledDescriptor.descriptor;
+        console.log("📊 Extracted descriptor from property, length:", descriptorArray.length);
+      } else {
+        console.error("❌ Could not extract descriptor from LabeledFaceDescriptors:", labeledDescriptor);
+        return null;
+      }
+      
+      // Ensure it's a Float32Array
+      let finalDescriptor;
+      if (descriptorArray instanceof Float32Array) {
+        finalDescriptor = descriptorArray;
+      } else if (Array.isArray(descriptorArray)) {
+        console.log("🔄 Converting array to Float32Array");
+        finalDescriptor = new Float32Array(descriptorArray);
+      } else {
+        console.error("❌ Unknown descriptor format:", typeof descriptorArray);
+        return null;
+      }
+      
+      console.log("✅ Final descriptor ready, type:", finalDescriptor.constructor.name, "length:", finalDescriptor.length);
+      
+      // Store with user ID to handle user switching
+      setDescriptorCache({
+        userId: user?._id,
+        descriptor: finalDescriptor
+      });
+      return finalDescriptor;
+    } else {
+      console.error("❌ No descriptor found for user:", user?.name);
+      return null;
+    }
+  } catch (err) {
+    console.error("❌ Error loading descriptor:", err);
+    return null;
+  }
+};
 
 const saveAttendance = async () => {
   if (isSaving) return;
@@ -244,7 +305,7 @@ const saveAttendance = async () => {
   try {
     const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
 
-    // 📸 Capture single image (removed second frame and liveness check)
+    // 📸 Capture single image
     const image1 = await captureImageWithTimestamp();
     if (!image1 || image1.length < 1000) {
       Swal.fire({
@@ -287,20 +348,124 @@ const saveAttendance = async () => {
       return;
     }
 
-    // ✅ Face match
-    const descriptor = await getDescriptor();
-    const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.45);
-    const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
+    console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
 
+    // ✅ Face match - with FIXED descriptor loading
+    console.log("🔍 Getting descriptor for user:", user?.name, "ID:", user?._id);
+    const descriptorData = await getDescriptor();
+    
+    // DEBUG: Log what we got
+    console.log("📊 Loaded descriptor data:", descriptorData ? {
+      type: descriptorData.constructor.name,
+      length: descriptorData.length,
+      isArray: Array.isArray(descriptorData),
+      isFloat32Array: descriptorData instanceof Float32Array,
+      sample: Array.isArray(descriptorData) ? descriptorData.slice(0, 3) : 'not an array'
+    } : "NULL");
+    
+    // FIX: Convert to Float32Array if needed
+    let descriptor;
+    if (!descriptorData) {
+      console.error("❌ No descriptor found in cache/DB");
+      
+      // Try to fetch directly from API as fallback
+      try {
+        console.log("🔄 Attempting to fetch descriptor directly from API...");
+        const response = await axiosInstance.get("/users/preprocessed-descriptors");
+        const descriptors = response.data;
+        console.log(`📊 API returned ${descriptors.length} descriptors`);
+        
+        // Find this user's descriptor
+        const userDescriptor = descriptors.find(d => d._id === user._id);
+        if (userDescriptor && userDescriptor.descriptor) {
+          console.log("✅ Found descriptor in API response");
+          
+          // Convert regular array to Float32Array for face-api
+          const descriptorArray = new Float32Array(userDescriptor.descriptor);
+          
+          // Cache it
+          setDescriptorCache({
+            userId: user._id,
+            descriptor: descriptorArray
+          });
+          
+          descriptor = descriptorArray;
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Face Data Missing",
+            html: `
+              <div class="text-center">
+                <p class="text-gray-600 mb-2">Your face descriptor data is missing.</p>
+                <p class="text-sm text-gray-500">Please click the "Pre-process Faces" button again.</p>
+              </div>
+            `,
+            confirmButtonColor: "#B0BC27",
+          });
+          setIsSaving(false);
+          return;
+        }
+      } catch (fetchErr) {
+        console.error("❌ Failed to fetch descriptors:", fetchErr);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to load face recognition data.",
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+    } else {
+      // FIX: Ensure descriptor is Float32Array
+      if (descriptorData instanceof Float32Array) {
+        descriptor = descriptorData;
+      } else if (Array.isArray(descriptorData)) {
+        // Convert regular array to Float32Array
+        console.log("🔄 Converting regular array to Float32Array");
+        descriptor = new Float32Array(descriptorData);
+      } else {
+        console.error("❌ Descriptor is in unknown format:", typeof descriptorData);
+        Swal.fire({
+          icon: "error",
+          title: "Format Error",
+          text: "Face descriptor is in wrong format. Please reprocess faces.",
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    // Now use the properly formatted descriptor
+    const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.7);
+    const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
+    console.log("🔍 Match result:", {
+      label: bestMatch.label,
+      distance: bestMatch.distance,
+      isUnknown: bestMatch.label === "unknown"
+    });
+    
     if (bestMatch.label === "unknown") {
-      Swal.fire({
-        icon: "error",
-        title: "Face Not Recognized",
-        text: "Face doesn't match your registered profile.",
-        confirmButtonColor: "#B0BC27",
+      // Try with a lower threshold
+      console.log("🔄 Retrying with lower threshold (0.6)...");
+      const faceMatcherLower = new faceapi.FaceMatcher([descriptor], 0.6);
+      const retryMatch = faceMatcherLower.findBestMatch(face1.descriptor);
+      console.log("🔍 Retry match result:", {
+        label: retryMatch.label,
+        distance: retryMatch.distance
       });
-      setIsSaving(false);
-      return;
+      
+      if (retryMatch.label === "unknown") {
+        Swal.fire({
+          icon: "error",
+          title: "Face Not Recognized",
+          text: "Face doesn't match your registered profile.",
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
     }
 
     // 🗜️ Compress image
@@ -379,14 +544,6 @@ const saveAttendance = async () => {
           confirmButtonColor: "#B0BC27",
         });
         console.error("❌ Attendance save failed:", err.response?.data || err.message);
-        
-        // Store for retry
-        const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
-        failedUploads.push({
-          data: { type, photo: photoPayload, location },
-          timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
       }
     }
 
