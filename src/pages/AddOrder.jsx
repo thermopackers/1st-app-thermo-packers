@@ -865,7 +865,6 @@ if (loadingProducts || loadingCustomers) {
 
             <select
               name="deliveryRange"
-              required
               value={clientDetails.deliveryRange}
               onChange={handleClientChange}
               className="p-2 border border-gray-400 rounded"
