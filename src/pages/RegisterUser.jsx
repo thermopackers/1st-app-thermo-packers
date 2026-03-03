@@ -690,7 +690,7 @@ setAllowQuotation(false); // Add this line
                 clearInterval(pollInterval);
                 Swal.fire({
                   icon: "warning",
-                  title: "Processing仍在进行中",
+                  title: "Processing",
                   html: `
                     <p>The process is still running in the background.</p>
                     <p class="text-sm text-gray-500 mt-2">You can check status later by clicking the button again.</p>
