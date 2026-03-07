@@ -572,13 +572,14 @@ const calculateFreight = () => {
   return (
     <>
       <InternalNavbar />
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Outward Freight Calculator</h1>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 max-w-4xl">
+        {/* Header with Reset Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Outward Freight Calculator</h1>
           {(multipleDestinations.length > 0 || calculation) && (
             <button
               onClick={resetAll}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition text-sm sm:text-base"
             >
               Reset All
             </button>
@@ -586,19 +587,20 @@ const calculateFreight = () => {
         </div>
 
         {/* Starting Location Display */}
-        <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
-          <h2 className="font-semibold text-blue-800 mb-2 flex items-center">
+        <div className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 border border-blue-200">
+          <h2 className="font-semibold text-blue-800 mb-2 flex items-center text-sm sm:text-base">
             <span className="mr-2">🚚</span> Starting Location:
           </h2>
-          <p className="text-blue-700">{STARTING_LOCATION.address}</p>
-          <p className="text-sm text-blue-600 mt-1">Pincode: {STARTING_LOCATION.pincode}</p>
+          <p className="text-blue-700 text-xs sm:text-sm">{STARTING_LOCATION.address}</p>
+          <p className="text-xs sm:text-sm text-blue-600 mt-1">Pincode: {STARTING_LOCATION.pincode}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+          {/* Customer Selection and Pincode Input */}
+          <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
             {/* Customer Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="w-full">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Select Customer (Optional)
               </label>
               <Select
@@ -607,38 +609,39 @@ const calculateFreight = () => {
                 placeholder="Search customer..."
                 isClearable
                 isDisabled={calculatingDistance}
-                className="text-sm"
+                className="text-xs sm:text-sm"
                 noOptionsMessage={() => "No customers found"}
               />
             </div>
 
             {/* Or Enter Pincode */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="w-full">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Or Enter Destination Pincode
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={destinationPincode}
                   onChange={(e) => setDestinationPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Enter 6-digit pincode"
-                  className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   maxLength="6"
                   disabled={calculatingDistance}
                 />
                 <button
                   onClick={handlePincodeSearch}
                   disabled={loading || calculatingDistance || !destinationPincode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 text-sm"
                 >
                   {calculatingDistance ? (
-                    <span className="flex items-center">
+                    <span className="flex items-center justify-center">
                       <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Calculating...
+                      <span className="hidden sm:inline">Calculating...</span>
+                      <span className="sm:hidden">...</span>
                     </span>
                   ) : 'Search'}
                 </button>
@@ -648,20 +651,36 @@ const calculateFreight = () => {
 
           {/* Pincode Details */}
           {pincodeDetails && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <h3 className="font-semibold mb-2 flex items-center">
+            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4">
+              <h3 className="font-semibold mb-2 flex items-center text-sm sm:text-base">
                 <span className="mr-2">📍</span> Destination Details:
               </h3>
-              <p><span className="font-medium">Area:</span> {pincodeDetails.area || 'N/A'}</p>
-              <p><span className="font-medium">City:</span> {pincodeDetails.city || 'N/A'}</p>
-              <p><span className="font-medium">State:</span> {pincodeDetails.state || 'N/A'}</p>
-              <p><span className="font-medium">Pincode:</span> {pincodeDetails.pincode}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
+                <div>
+                  <span className="font-medium block sm:inline">Area:</span> 
+                  <span className="block sm:inline sm:ml-1">{pincodeDetails.area || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="font-medium block sm:inline">City:</span> 
+                  <span className="block sm:inline sm:ml-1">{pincodeDetails.city || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="font-medium block sm:inline">State:</span> 
+                  <span className="block sm:inline sm:ml-1">{pincodeDetails.state || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="font-medium block sm:inline">Pincode:</span> 
+                  <span className="block sm:inline sm:ml-1">{pincodeDetails.pincode}</span>
+                </div>
+              </div>
               {pincodeDetails.customer && (
-                <p><span className="font-medium">Customer:</span> {pincodeDetails.customer.name}</p>
+                <p className="text-xs sm:text-sm mt-2">
+                  <span className="font-medium">Customer:</span> {pincodeDetails.customer.name}
+                </p>
               )}
               {distance > 0 && (
                 <div className="mt-3 p-3 bg-green-50 rounded-lg">
-                  <p className="text-green-700 font-semibold">
+                  <p className="text-green-700 font-semibold text-sm sm:text-base">
                     📏 Approximate Distance: {distance} km
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
@@ -672,7 +691,7 @@ const calculateFreight = () => {
               <button
                 onClick={addDestination}
                 disabled={distance === 0}
-                className="mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-300 transition"
+                className="mt-3 w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-300 transition text-sm"
               >
                 + Add to List
               </button>
@@ -681,25 +700,27 @@ const calculateFreight = () => {
 
           {/* Multiple Destinations List */}
           {multipleDestinations.length > 0 && (
-            <div className="mt-6">
-              <h3 className="font-semibold mb-3 flex items-center">
+            <div className="mt-4 sm:mt-6">
+              <h3 className="font-semibold mb-3 flex items-center text-sm sm:text-base">
                 <span className="mr-2">📋</span> Destinations Added:
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                 {multipleDestinations.map((dest) => (
-                  <div key={dest.id} className="flex items-center justify-between bg-gray-50 p-3 rounded border border-gray-200">
-                    <div>
-                      <span className="font-medium">{dest.city}</span>
-                      {dest.area && <span className="text-sm text-gray-600 ml-1">({dest.area})</span>}
-                      <span className="text-sm text-gray-600 ml-2">{dest.pincode}</span>
-                      {dest.customer && (
-                        <span className="text-sm text-blue-600 ml-2">- {dest.customer.name}</span>
-                      )}
-                      <span className="text-sm font-semibold text-green-600 ml-2">{dest.distance} km</span>
+                  <div key={dest.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-50 p-3 rounded border border-gray-200 gap-2">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                        <span className="font-medium text-sm">{dest.city}</span>
+                        {dest.area && <span className="text-xs text-gray-600">({dest.area})</span>}
+                        <span className="text-xs text-gray-600">{dest.pincode}</span>
+                        {dest.customer && (
+                          <span className="text-xs text-blue-600">- {dest.customer.name}</span>
+                        )}
+                        <span className="text-xs sm:text-sm font-semibold text-green-600 ml-auto sm:ml-2">{dest.distance} km</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => removeDestination(dest.id)}
-                      className="text-red-600 hover:text-red-800 text-xl"
+                      className="text-red-600 hover:text-red-800 text-xl self-end sm:self-auto"
                       title="Remove"
                     >
                       ×
@@ -710,7 +731,7 @@ const calculateFreight = () => {
               
               {/* Total Distance Summary */}
               <div className="bg-blue-50 p-3 rounded-lg mt-3">
-                <p className="font-semibold flex justify-between">
+                <p className="font-semibold flex justify-between text-sm">
                   <span>Total Distance:</span>
                   <span>{multipleDestinations.reduce((sum, dest) => sum + dest.distance, 0)} km</span>
                 </p>
@@ -719,11 +740,11 @@ const calculateFreight = () => {
           )}
 
           {/* Vehicle Type */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="mt-4 sm:mt-6">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Vehicle Type
             </label>
-            <div className="flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
               <label className="flex items-center cursor-pointer">
                 <input
                   type="radio"
@@ -732,10 +753,10 @@ const calculateFreight = () => {
                   onChange={(e) => setVehicleType(e.target.value)}
                   className="mr-2"
                 />
-                <div>
-                  <span className="font-medium">Tempo</span>
-                  <span className="text-sm text-gray-600 ml-2">₹{RATES.tempo}/km</span>
-                  <span className="text-sm text-yellow-600 ml-2">Kharcha: ₹{KHARCHA.tempo}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <span className="font-medium text-sm">Tempo</span>
+                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{RATES.tempo}/km</span>
+                  <span className="text-xs text-yellow-600 sm:ml-2">Kharcha: ₹{KHARCHA.tempo}</span>
                 </div>
               </label>
               <label className="flex items-center cursor-pointer">
@@ -746,10 +767,10 @@ const calculateFreight = () => {
                   onChange={(e) => setVehicleType(e.target.value)}
                   className="mr-2"
                 />
-                <div>
-                  <span className="font-medium">Truck</span>
-                  <span className="text-sm text-gray-600 ml-2">₹{RATES.truck}/km</span>
-                  <span className="text-sm text-yellow-600 ml-2">Kharcha: ₹{KHARCHA.truck}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <span className="font-medium text-sm">Truck</span>
+                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{RATES.truck}/km</span>
+                  <span className="text-xs text-yellow-600 sm:ml-2">Kharcha: ₹{KHARCHA.truck}</span>
                 </div>
               </label>
             </div>
@@ -759,7 +780,7 @@ const calculateFreight = () => {
           {multipleDestinations.length > 0 && (
             <button
               onClick={calculateFreight}
-              className="mt-6 w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"
+              className="mt-4 sm:mt-6 w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition text-sm sm:text-base"
             >
               Calculate Freight
             </button>
@@ -767,97 +788,99 @@ const calculateFreight = () => {
         </div>
 
         {/* Calculation Results */}
-       {calculation && (
-  <div className="bg-green-50 rounded-lg shadow-md p-6 border border-green-200">
-    <h2 className="text-xl font-bold mb-4 text-green-800 flex items-center">
-      <span className="mr-2">📊</span> Calculation Result
-    </h2>
-    
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">Starting Point</p>
-        <p className="font-semibold">{STARTING_LOCATION.city}</p>
-        <p className="text-xs text-gray-500">{STARTING_LOCATION.pincode}</p>
-      </div>
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">Vehicle</p>
-        <p className="font-semibold capitalize">{calculation.vehicleType}</p>
-      </div>
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">Rate/km</p>
-        <p className="font-semibold">₹{calculation.ratePerKm}</p>
-      </div>
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">One-Way</p>
-        <p className="font-semibold">{calculation.oneWayDistance} km</p>
-      </div>
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">Round Trip</p>
-        <p className="font-semibold text-blue-600">{calculation.roundTripDistance} km</p>
-      </div>
-      <div className="bg-white p-3 rounded-lg">
-        <p className="text-gray-600 text-sm">Mileage</p>
-        <p className="font-semibold">{calculation.mileage} km/L</p>
-      </div>
-    </div>
+        {calculation && (
+          <div className="bg-green-50 rounded-lg shadow-md p-4 sm:p-6 border border-green-200">
+            <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-green-800 flex items-center">
+              <span className="mr-2">📊</span> Calculation Result
+            </h2>
+            
+            {/* Results Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 mb-3 sm:mb-4">
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">Starting Point</p>
+                <p className="font-semibold text-sm">{STARTING_LOCATION.city}</p>
+                <p className="text-xs text-gray-500">{STARTING_LOCATION.pincode}</p>
+              </div>
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">Vehicle</p>
+                <p className="font-semibold text-sm capitalize">{calculation.vehicleType}</p>
+              </div>
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">Rate/km</p>
+                <p className="font-semibold text-sm">₹{calculation.ratePerKm}</p>
+              </div>
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">One-Way</p>
+                <p className="font-semibold text-sm">{calculation.oneWayDistance} km</p>
+              </div>
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">Round Trip</p>
+                <p className="font-semibold text-sm text-blue-600">{calculation.roundTripDistance} km</p>
+              </div>
+              <div className="bg-white p-2 sm:p-3 rounded-lg">
+                <p className="text-gray-600 text-xs">Mileage</p>
+                <p className="font-semibold text-sm">{calculation.mileage} km/L</p>
+              </div>
+            </div>
 
-    <div className="border-t border-green-200 pt-4 mt-2">
-      <h3 className="font-bold text-lg mb-3">⛽ Diesel & Kharcha (Round Trip):</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-lg">
-          <p className="text-gray-600 text-sm">Base Diesel (Round Trip):</p>
-          <p className="text-2xl font-bold">{(calculation.roundTripDistance / calculation.mileage).toFixed(2)} L</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg">
-          <p className="text-gray-600 text-sm">+ 10% Extra:</p>
-          <p className="text-2xl font-bold text-blue-600">{((calculation.roundTripDistance / calculation.mileage) * 0.1).toFixed(2)} L</p>
-        </div>
-      </div>
+            {/* Diesel & Kharcha Section */}
+            <div className="border-t border-green-200 pt-3 sm:pt-4 mt-2">
+              <h3 className="font-bold text-base sm:text-lg mb-2 sm:mb-3">⛽ Diesel & Kharcha (Round Trip):</h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-white p-3 sm:p-4 rounded-lg">
+                  <p className="text-gray-600 text-xs sm:text-sm">Base Diesel (Round Trip):</p>
+                  <p className="text-lg sm:text-2xl font-bold">{(calculation.roundTripDistance / calculation.mileage).toFixed(2)} L</p>
+                </div>
+                <div className="bg-white p-3 sm:p-4 rounded-lg">
+                  <p className="text-gray-600 text-xs sm:text-sm">+ 10% Extra:</p>
+                  <p className="text-lg sm:text-2xl font-bold text-blue-600">{((calculation.roundTripDistance / calculation.mileage) * 0.1).toFixed(2)} L</p>
+                </div>
+              </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg mt-4">
-        <p className="text-gray-600 text-sm">Total Diesel Required (Round Trip):</p>
-        <p className="text-3xl font-bold text-blue-700">{calculation.totalDiesel} Liters</p>
-      </div>
+              <div className="bg-blue-50 p-3 sm:p-4 rounded-lg mt-3 sm:mt-4">
+                <p className="text-gray-600 text-xs sm:text-sm">Total Diesel Required (Round Trip):</p>
+                <p className="text-2xl sm:text-3xl font-bold text-blue-700">{calculation.totalDiesel} Liters</p>
+              </div>
 
-      <div className="bg-yellow-50 p-4 rounded-lg mt-4">
-        <p className="text-gray-600 text-sm">Kharcha (Fixed - One Time):</p>
-        <p className="text-3xl font-bold text-yellow-700">₹{calculation.kharcha}</p>
-      </div>
-    </div>
+              <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg mt-3 sm:mt-4">
+                <p className="text-gray-600 text-xs sm:text-sm">Kharcha (Fixed - One Time):</p>
+                <p className="text-2xl sm:text-3xl font-bold text-yellow-700">₹{calculation.kharcha}</p>
+              </div>
+            </div>
 
-    {/* Route Summary */}
-    <div className="mt-6 bg-white p-4 rounded-lg">
-      <p className="font-semibold mb-2 flex items-center">
-        <span className="mr-2">🛣️</span> Route Summary (One-Way):
-      </p>
-      <div className="ml-2">
-        <div className="flex items-start mb-2 text-blue-700">
-          <span className="mr-2">🚚</span>
-          <span className="text-sm">{STARTING_LOCATION.address}</span>
-        </div>
-        {calculation.destinations.map((dest, idx) => (
-          <div key={dest.id} className="flex items-start mb-2 ml-4">
-            <span className="mr-2 text-green-600">↓</span>
-            <div className="text-sm">
-              <span className="font-medium">📍 {dest.city}</span>
-              {dest.area && <span className="text-gray-600"> ({dest.area})</span>}
-              <span className="text-gray-600 ml-2">{dest.pincode}</span>
-              <span className="text-green-600 ml-2">{dest.distance} km</span>
-              {dest.customer && (
-                <span className="text-blue-600 ml-2">- {dest.customer.name}</span>
-              )}
+            {/* Route Summary */}
+            <div className="mt-4 sm:mt-6 bg-white p-3 sm:p-4 rounded-lg">
+              <p className="font-semibold mb-2 flex items-center text-sm sm:text-base">
+                <span className="mr-2">🛣️</span> Route Summary (One-Way):
+              </p>
+              <div className="ml-2">
+                <div className="flex items-start mb-2 text-blue-700 text-xs sm:text-sm">
+                  <span className="mr-2">🚚</span>
+                  <span className="break-words">{STARTING_LOCATION.address}</span>
+                </div>
+                {calculation.destinations.map((dest, idx) => (
+                  <div key={dest.id} className="flex items-start mb-2 ml-4">
+                    <span className="mr-2 text-green-600">↓</span>
+                    <div className="text-xs sm:text-sm">
+                      <span className="font-medium">📍 {dest.city}</span>
+                      {dest.area && <span className="text-gray-600"> ({dest.area})</span>}
+                      <span className="text-gray-600 ml-1 sm:ml-2">{dest.pincode}</span>
+                      <span className="text-green-600 ml-1 sm:ml-2">{dest.distance} km</span>
+                      {dest.customer && (
+                        <span className="text-blue-600 ml-1 sm:ml-2 block sm:inline">- {dest.customer.name}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-start mt-2 ml-4 text-purple-600">
+                  <span className="mr-2">↩️</span>
+                  <span className="text-xs sm:text-sm">Return trip back to {STARTING_LOCATION.city} (+{calculation.oneWayDistance} km)</span>
+                </div>
+              </div>
             </div>
           </div>
-        ))}
-        <div className="flex items-start mt-2 ml-4 text-purple-600">
-          <span className="mr-2">↩️</span>
-          <span className="text-sm">Return trip back to {STARTING_LOCATION.city} (+{calculation.oneWayDistance} km)</span>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+        )}
       </div>
     </>
   );
