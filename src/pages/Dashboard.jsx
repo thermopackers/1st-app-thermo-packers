@@ -859,27 +859,37 @@ useEffect(() => {
                     </ActionButton>
                   </div>
 
-                  {userRoles.includes("accounts") && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
-                        Purchase Product / Suppliers
-                      </h4>
-                      <div className="flex justify-center">
-                        <ActionButton
-                          onClick={() =>
-                            navigate("/purchase-products-suppliers")
-                          }
-                          variant="indigo"
-                          icon="🏪"
-                          className="max-w-md"
-                        >
-                          <div className="text-lg font-semibold">
-                            Purchase Product / Suppliers
-                          </div>
-                        </ActionButton>
-                      </div>
-                    </div>
-                  )}
+                {userRoles.includes("accounts") && (
+  <div className="border-t border-gray-200 pt-6">
+    <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
+      Purchase Product / Suppliers & Outward Freight Calculator
+    </h4>
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <ActionButton
+        onClick={() => navigate("/purchase-products-suppliers")}
+        variant="indigo"
+        icon="🏪"
+        className="w-full sm:w-auto sm:flex-1 max-w-md"
+      >
+        <div className="text-lg font-semibold">
+          Purchase Product / Suppliers
+        </div>
+      </ActionButton>
+      
+      {/* New Outward Freight Calculator Button */}
+      <ActionButton
+        to="/freight-calculator"
+        variant="teal"
+        icon="🚚"
+        className="w-full sm:w-auto sm:flex-1 max-w-md"
+      >
+        <div className="text-lg font-semibold">
+          Outward Freight Calculator
+        </div>
+      </ActionButton>
+    </div>
+  </div>
+)}
                 </DashboardCard>
               )}
 </div>

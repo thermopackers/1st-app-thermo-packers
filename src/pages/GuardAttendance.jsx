@@ -388,26 +388,24 @@ const handleCapture = async () => {
     // Play success sound immediately
     playSuccessSound();
 
-    // Ask for check-in/out
-    const result = await Swal.fire({
-      title: `Welcome ${matchedEmployee.name}`,
-      html: `
-        <div class="text-left">
-          <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
-          <p><strong>Match:</strong> ${confidence}%</p>
-        </div>
-      `,
-      icon: "question",
-      showCancelButton: true,
-      showDenyButton: true,
-      confirmButtonText: "✅ Check In",
-      denyButtonText: "👋 Check Out",
-      cancelButtonText: "❌ Cancel",
-      confirmButtonColor: "#22c55e",
-      denyButtonColor: "#ef4444",
-      timer: 10000,
-      timerProgressBar: true,
-    });
+  // Ask for check-in/out
+const result = await Swal.fire({
+  title: `Welcome ${matchedEmployee.name}`,
+  html: `
+    <div class="text-left">
+      <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
+      <p><strong>Match:</strong> ${confidence}%</p>
+    </div>
+  `,
+  icon: "question",
+  showCancelButton: true,
+  showDenyButton: true,
+  confirmButtonText: "✅ Check In",
+  denyButtonText: "👋 Check Out",
+  cancelButtonText: "❌ Cancel",
+  confirmButtonColor: "#22c55e",
+  denyButtonColor: "#ef4444",
+});
 
     if (result.isConfirmed) {
       await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-in");
@@ -575,7 +573,9 @@ const handleStartRecognition = async () => {
 // Check if user needs shift change
 const checkShiftStatus = async (userId) => {
   try {
+    console.log("Checking shift status for user:", userId);
     const res = await axiosInstance.get(`/factory-attendance/check-shift-status/${userId}`);
+    console.log("Shift status response:", res.data);
     
     if (res.data.needsAction) {
       const result = await Swal.fire({

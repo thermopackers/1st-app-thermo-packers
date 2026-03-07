@@ -30,6 +30,8 @@ export default function GuardAttendanceHistory() {
   const [employees, setEmployees] = useState([]);
   const [filteredAttendance, setFilteredAttendance] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1); // 👈 ADD THIS LINE
+
   const [itemsPerPage] = useState(20);
   const [dateRange, setDateRange] = useState({
     startDate: "",
@@ -70,7 +72,7 @@ export default function GuardAttendanceHistory() {
     if (selectedMonth && selectedYear) {
       fetchAttendance();
     }
-  }, [selectedMonth, selectedYear, selectedEmployee]);
+  }, [selectedMonth, selectedYear, selectedEmployee, currentPage]);
 
   // Load employees eligible for factory attendance
   const loadEmployees = async () => {
@@ -82,37 +84,57 @@ export default function GuardAttendanceHistory() {
     }
   };
 
-  // Fetch attendance history
-  const fetchAttendance = async () => {
-    setLoading(true);
-    try {
-      // Calculate date range from selected month/year
-      const startDate = `${selectedYear}-${selectedMonth}-01`;
-      const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
-      const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
+// Fetch attendance history
+const fetchAttendance = async () => {
+  setLoading(true);
+  try {
+    // Calculate date range from selected month/year
+    const startDate = `${selectedYear}-${selectedMonth}-01`;
+    const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
+    const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
 
-      let url = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}`;
-      if (selectedEmployee) {
-        url += `&userId=${selectedEmployee}`;
-      }
-
-      const res = await axiosInstance.get(url);
-      setAttendance(res.data);
-      
-      // Calculate stats
-      calculateStats(res.data, startDate, endDate);
-      
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to fetch attendance history",
-      });
-    } finally {
-      setLoading(false);
+    let url = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}`;
+    if (selectedEmployee) {
+      url += `&userId=${selectedEmployee}`;
     }
-  };
+    // Add pagination parameters
+    url += `&page=${currentPage}&limit=${itemsPerPage}`;
+
+    const res = await axiosInstance.get(url);
+    
+    // Handle both old and new response formats
+    let attendanceData;
+    let totalItems;
+    
+    if (res.data.data) {
+      // New format with pagination
+      attendanceData = res.data.data;
+      totalItems = res.data.pagination.total;
+      setTotalPages(res.data.pagination.totalPages);
+    } else {
+      // Old format (array)
+      attendanceData = res.data;
+      totalItems = res.data.length;
+      setTotalPages(Math.ceil(totalItems / itemsPerPage));
+    }
+    
+    setAttendance(attendanceData);
+    setFilteredAttendance(attendanceData); // Update filtered data too
+    
+    // Calculate stats using the full dataset (you might need a separate endpoint for stats)
+    calculateStats(attendanceData, startDate, endDate);
+    
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to fetch attendance history",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Calculate statistics
   const calculateStats = (data, startDate, endDate) => {
@@ -161,39 +183,52 @@ export default function GuardAttendanceHistory() {
     setCurrentPage(1);
   };
 
-  // Handle date range search
-  const handleDateRangeSearch = async () => {
-    if (!dateRange.startDate || !dateRange.endDate) {
-      Swal.fire({
-        icon: "warning",
-        title: "Incomplete Dates",
-        text: "Please select both start and end dates",
-      });
-      return;
-    }
+// Handle date range search
+const handleDateRangeSearch = async () => {
+  if (!dateRange.startDate || !dateRange.endDate) {
+    Swal.fire({
+      icon: "warning",
+      title: "Incomplete Dates",
+      text: "Please select both start and end dates",
+    });
+    return;
+  }
 
-    setLoading(true);
-    try {
-      let url = `/factory-attendance/history?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
-      if (selectedEmployee) {
-        url += `&userId=${selectedEmployee}`;
-      }
-
-      const res = await axiosInstance.get(url);
-      setAttendance(res.data);
-      calculateStats(res.data, dateRange.startDate, dateRange.endDate);
-      
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to fetch attendance history",
-      });
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  setCurrentPage(1); // Reset to first page
+  try {
+    let url = `/factory-attendance/history?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+    if (selectedEmployee) {
+      url += `&userId=${selectedEmployee}`;
     }
-  };
+    url += `&page=1&limit=${itemsPerPage}`;
+
+    const res = await axiosInstance.get(url);
+    
+    let attendanceData;
+    if (res.data.data) {
+      attendanceData = res.data.data;
+      setTotalPages(res.data.pagination.totalPages);
+    } else {
+      attendanceData = res.data;
+      setTotalPages(Math.ceil(res.data.length / itemsPerPage));
+    }
+    
+    setAttendance(attendanceData);
+    setFilteredAttendance(attendanceData);
+    calculateStats(attendanceData, dateRange.startDate, dateRange.endDate);
+    
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to fetch attendance history",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Export to CSV
   const exportToCSV = () => {
@@ -241,7 +276,7 @@ export default function GuardAttendanceHistory() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const calculatedTotalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   // If not guard, show access denied
   if (!userRoles.includes("guard")) {
@@ -568,7 +603,7 @@ export default function GuardAttendanceHistory() {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {calculatedTotalPages > 1 && (
                   <div className="flex items-center justify-between px-6 py-4 border-t">
                     <div className="text-sm text-gray-600">
                       Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} entries
@@ -585,12 +620,12 @@ export default function GuardAttendanceHistory() {
                       
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
-                        if (totalPages <= 5) {
+                        if (calculatedTotalPages <= 5) {
                           pageNum = i + 1;
                         } else if (currentPage <= 3) {
                           pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
+                        } else if (currentPage >= calculatedTotalPages - 2) {
+                          pageNum = calculatedTotalPages - 4 + i;
                         } else {
                           pageNum = currentPage - 2 + i;
                         }
@@ -611,8 +646,8 @@ export default function GuardAttendanceHistory() {
                       })}
                       
                       <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, calculatedTotalPages))}
+                        disabled={currentPage === calculatedTotalPages}
                         className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronRight className="w-4 h-4" />

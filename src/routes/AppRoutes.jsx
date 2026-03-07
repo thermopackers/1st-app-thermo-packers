@@ -85,6 +85,9 @@ import AlkalinityMonitoring from "../pages/AlkalinityMonitoring";
 import GuardAttendance from "../pages/GuardAttendance";
 import GuardAttendanceHistory from "../pages/GuardAttendanceHistory";
 import PasswordManager from "../pages/PasswordManager";
+import FreightCalculator from "../pages/FreightCalculator";
+import FactoryAttendanceLogs from "../components/FactoryAttendanceLogs";
+import FactoryMonthlyReports from "../components/FactoryMonthlyReports";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -291,6 +294,9 @@ export default function AppRoutes() {
   }
 />
 
+<Route path="/freight-calculator" element={<FreightCalculator />} />
+<Route path="/factory-attendance-logs" element={<FactoryAttendanceLogs />} />
+<Route path="/factory-monthly-reports" element={<FactoryMonthlyReports />} />
 
             <Route
               path="/asset-management"

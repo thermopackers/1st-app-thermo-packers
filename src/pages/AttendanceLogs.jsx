@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader,
-  FileText
+  FileText,
+  Users
 } from "lucide-react";
 
 const AttendanceLogs = () => {
@@ -251,6 +252,18 @@ useEffect(() => {
       <span className="hidden sm:inline">Monthly Reports</span>
     </motion.div>
   </NavLink>
+  {isPrivileged && (
+  <NavLink to="/factory-attendance-logs">
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
+    >
+      <Users className="w-4 h-4" />
+      <span className="hidden sm:inline">Workers Attendance</span>
+    </motion.div>
+  </NavLink>
+)}
 </div>
           </motion.div>
 
