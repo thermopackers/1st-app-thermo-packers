@@ -29,11 +29,9 @@ const FreightCalculator = () => {
   const [multipleDestinations, setMultipleDestinations] = useState([]);
   const [calculatingDistance, setCalculatingDistance] = useState(false);
 
-  // Rate per km
-  const RATES = {
-    tempo: 15,
-    truck: 50
-  };
+  // Rate per km - Load from database
+  const [rates, setRates] = useState({ tempo: 15, truck: 50 });
+  const [loadingRates, setLoadingRates] = useState(true);
 
   // Kharcha (fixed cost)
   const KHARCHA = {
@@ -54,6 +52,7 @@ const FreightCalculator = () => {
 
   useEffect(() => {
     fetchCustomers();
+    fetchRates();
   }, []);
 
   const fetchCustomers = async () => {
@@ -66,6 +65,50 @@ const FreightCalculator = () => {
       console.error('Error fetching customers:', err);
       toast.error('Failed to load customers');
       setCustomers([]);
+    }
+  };
+
+  // Load rates from database
+  const fetchRates = async () => {
+    try {
+      setLoadingRates(true);
+      const res = await axiosInstance.get('/settings/freight-rates', {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      setRates(res.data);
+    } catch (err) {
+      console.error('Error fetching rates:', err);
+      toast.error('Failed to load freight rates');
+      // Fallback to defaults
+      setRates({ tempo: 15, truck: 50 });
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const updateRate = async (vehicle, newRate) => {
+    const value = parseFloat(newRate);
+    if (isNaN(value) || value <= 0) {
+      toast.error('Please enter a valid rate');
+      return;
+    }
+    
+    const updatedRates = { ...rates, [vehicle]: value };
+    
+    try {
+      // Optimistic update
+      setRates(updatedRates);
+      
+      await axiosInstance.post('/settings/freight-rates', updatedRates, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      toast.success(`${vehicle} rate updated to ₹${value}/km (Saved to database)`);
+    } catch (err) {
+      console.error('Error saving rate:', err);
+      toast.error('Failed to save rate to database');
+      // Revert on error
+      fetchRates();
     }
   };
 
@@ -514,42 +557,40 @@ const FreightCalculator = () => {
     setMultipleDestinations(multipleDestinations.filter(dest => dest.id !== id));
   };
 
- // In the calculateFreight function, update this part:
+  const calculateFreight = () => {
+    if (multipleDestinations.length === 0) {
+      toast.error('Please add at least one destination');
+      return;
+    }
 
-const calculateFreight = () => {
-  if (multipleDestinations.length === 0) {
-    toast.error('Please add at least one destination');
-    return;
-  }
+    // Calculate one-way total distance
+    const oneWayDistance = multipleDestinations.reduce((sum, dest) => sum + dest.distance, 0);
+    
+    // Round trip distance (to & fro)
+    const roundTripDistance = oneWayDistance * 2;
+    
+    // Calculate running cost (based on round trip) - USING rates STATE
+    const runningCost = roundTripDistance * rates[vehicleType];
+    
+    // Calculate diesel consumption for round trip (with 10% extra)
+    const baseDiesel = roundTripDistance / MILEAGE[vehicleType];
+    const totalDiesel = baseDiesel * 1.1; // Adding 10%
+    
+    // Get kharcha (fixed cost - only one time, not doubled)
+    const kharcha = KHARCHA[vehicleType];
 
-  // Calculate one-way total distance
-  const oneWayDistance = multipleDestinations.reduce((sum, dest) => sum + dest.distance, 0);
-  
-  // Round trip distance (to & fro)
-  const roundTripDistance = oneWayDistance * 2;
-  
-  // Calculate running cost (based on round trip)
-  const runningCost = roundTripDistance * RATES[vehicleType];
-  
-  // Calculate diesel consumption for round trip (with 10% extra)
-  const baseDiesel = roundTripDistance / MILEAGE[vehicleType];
-  const totalDiesel = baseDiesel * 1.1; // Adding 10%
-  
-  // Get kharcha (fixed cost - only one time, not doubled)
-  const kharcha = KHARCHA[vehicleType];
-
-  setCalculation({
-    oneWayDistance,
-    roundTripDistance,
-    runningCost,
-    totalDiesel: totalDiesel.toFixed(2),
-    kharcha,
-    destinations: multipleDestinations,
-    vehicleType,
-    ratePerKm: RATES[vehicleType],
-    mileage: MILEAGE[vehicleType]
-  });
-};
+    setCalculation({
+      oneWayDistance,
+      roundTripDistance,
+      runningCost,
+      totalDiesel: totalDiesel.toFixed(2),
+      kharcha,
+      destinations: multipleDestinations,
+      vehicleType,
+      ratePerKm: rates[vehicleType], // USING rates STATE
+      mileage: MILEAGE[vehicleType]
+    });
+  };
 
   const resetAll = () => {
     setMultipleDestinations([]);
@@ -755,7 +796,7 @@ const calculateFreight = () => {
                 />
                 <div className="flex flex-col sm:flex-row sm:items-center">
                   <span className="font-medium text-sm">Tempo</span>
-                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{RATES.tempo}/km</span>
+                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{rates.tempo}/km</span>
                   <span className="text-xs text-yellow-600 sm:ml-2">Kharcha: ₹{KHARCHA.tempo}</span>
                 </div>
               </label>
@@ -769,12 +810,74 @@ const calculateFreight = () => {
                 />
                 <div className="flex flex-col sm:flex-row sm:items-center">
                   <span className="font-medium text-sm">Truck</span>
-                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{RATES.truck}/km</span>
+                  <span className="text-xs sm:text-sm text-gray-600 sm:ml-2">₹{rates.truck}/km</span>
                   <span className="text-xs text-yellow-600 sm:ml-2">Kharcha: ₹{KHARCHA.truck}</span>
                 </div>
               </label>
             </div>
           </div>
+
+          {/* Rate Configuration - Only visible to accounts */}
+          {user?.role?.includes('accounts') && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="font-semibold text-sm mb-3 flex items-center">
+                <span className="mr-2">⚙️</span> Configure Freight Rates
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Tempo Rate (₹/km)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={rates.tempo}
+                      onChange={(e) => {
+                        const newRates = { ...rates, tempo: parseFloat(e.target.value) || 0 };
+                        setRates(newRates);
+                      }}
+                      onBlur={() => updateRate('tempo', rates.tempo)}
+                      className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      min="1"
+                      step="1"
+                      disabled={loadingRates}
+                    />
+                    <button
+                      onClick={() => updateRate('tempo', rates.tempo)}
+                      className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-blue-300"
+                      disabled={loadingRates}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Truck Rate (₹/km)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={rates.truck}
+                      onChange={(e) => {
+                        const newRates = { ...rates, truck: parseFloat(e.target.value) || 0 };
+                        setRates(newRates);
+                      }}
+                      onBlur={() => updateRate('truck', rates.truck)}
+                      className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                      min="1"
+                      step="1"
+                      disabled={loadingRates}
+                    />
+                    <button
+                      onClick={() => updateRate('truck', rates.truck)}
+                      className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-blue-300"
+                      disabled={loadingRates}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+             
+            </div>
+          )}
 
           {/* Calculate Button */}
           {multipleDestinations.length > 0 && (
@@ -846,6 +949,29 @@ const calculateFreight = () => {
               <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg mt-3 sm:mt-4">
                 <p className="text-gray-600 text-xs sm:text-sm">Kharcha (Fixed - One Time):</p>
                 <p className="text-2xl sm:text-3xl font-bold text-yellow-700">₹{calculation.kharcha}</p>
+              </div>
+            </div>
+
+            {/* Total Freight Amount */}
+            <div className="mt-6 bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6 rounded-lg shadow-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-center">
+                <div>
+                  <p className="text-blue-100 text-sm sm:text-base mb-1">Total Freight Amount (Round Trip + Kharcha)</p>
+                  <p className="text-white text-2xl sm:text-3xl font-bold">
+                    ₹{(calculation.roundTripDistance * calculation.ratePerKm + calculation.kharcha).toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-2 sm:mt-0 bg-white px-4 py-2 rounded-lg">
+                  <p className="text-blue-700 font-semibold text-sm">Rate: ₹{calculation.ratePerKm}/km</p>
+                  <p className="text-blue-600 text-xs">Kharcha: ₹{calculation.kharcha}</p>
+                </div>
+              </div>
+              
+              {/* Breakdown */}
+              <div className="mt-3 pt-3 border-t border-blue-400 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-blue-100">
+                <div>Running Cost: <span className="font-semibold">₹{(calculation.roundTripDistance * calculation.ratePerKm).toLocaleString()}</span></div>
+                <div>Kharcha: <span className="font-semibold">₹{calculation.kharcha}</span></div>
+                <div className="col-span-2 sm:col-span-1">Round Trip: <span className="font-semibold">{calculation.roundTripDistance} km</span></div>
               </div>
             </div>
 

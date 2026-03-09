@@ -388,7 +388,7 @@ const renderLateDetails = (lateDetails) => {
   };
 
   // Add this new function for PDF download
-// Update the PDF download function to include leaves
+// Update the PDF download function to include leaves and present/absent counts
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -424,6 +424,71 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     doc.text(`Month: ${monthName}`, 14, 25);
     doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 32);
     
+    // Calculate Sundays and working days properly
+    const [year, m] = month.split("-");
+    const monthNum = parseInt(m);
+    const today = new Date();
+    
+    // Get last day of the month
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    
+    // Generate all dates in the month up to today
+    const allDatesInMonth = [];
+    const sundays = [];
+    
+    for (let day = 1; day <= lastDay; day++) {
+      const dateStr = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const date = new Date(dateStr);
+      
+      // Only include dates up to today
+      if (date <= today) {
+        allDatesInMonth.push(dateStr);
+        if (date.getDay() === 0) {
+          sundays.push(dateStr);
+        }
+      }
+    }
+    
+    // Get present days from attendance records
+    const presentDates = attendanceRecords
+      .filter(record => record.type === 'present')
+      .map(record => record.date);
+    
+    // Get leave days
+    const leaveDates = attendanceRecords
+      .filter(record => record.type === 'leave')
+      .map(record => record.date);
+    
+    // Calculate working days (all days except Sundays that were NOT worked)
+    const workingDays = allDatesInMonth.filter(date => {
+      const dateObj = new Date(date);
+      const isSunday = dateObj.getDay() === 0;
+      const isPresent = presentDates.includes(date);
+      
+      // If it's Sunday and they worked, it's a working day
+      // If it's Sunday and they didn't work, it's NOT a working day
+      if (isSunday) {
+        return isPresent; // Only count if they worked
+      }
+      return true; // All weekdays are working days
+    });
+    
+    // Calculate absent days (weekdays not present and not on leave)
+    const absentDays = workingDays.filter(date => {
+      const isPresent = presentDates.includes(date);
+      const isOnLeave = leaveDates.includes(date);
+      return !isPresent && !isOnLeave;
+    });
+    
+    // Calculate present count (excluding Sundays unless worked)
+    const presentCount = presentDates.length;
+    
+    // Calculate Sundays worked
+    const sundaysWorked = presentDates.filter(date => {
+      const dateObj = new Date(date);
+      return dateObj.getDay() === 0;
+    }).length;
+    
     // Prepare table data
     const tableData = attendanceRecords.map(record => {
       const dayName = new Date(record.date).toLocaleDateString("en-IN", { weekday: "short" });
@@ -436,7 +501,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       } else {
         // Present day
         if (isSunday) {
-          attendanceType = "Weekly Off";
+          attendanceType = "Sunday (Worked)";
         } else {
           const isHalfDay = (() => {
             if (!record.checkInTime) return false;
@@ -477,46 +542,35 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         2: { cellWidth: 35 },
         3: { cellWidth: 35 },
         4: { cellWidth: 35 },
-        5: { cellWidth: 35 }
+        5: { cellWidth: 40 }
       }
     });
     
-  // Add summary at the bottom
-const finalY = doc.lastAutoTable.finalY || 40;
+    // Add summary at the bottom
+    const finalY = doc.lastAutoTable.finalY || 40;
 
-// Calculate Sundays count for the entire month up to today
-const [year, m] = month.split("-");
-const monthNum = parseInt(m);
-const today = new Date();
-const currentYear = today.getFullYear();
-const currentMonth = today.getMonth() + 1; // JavaScript months are 0-indexed
-const currentDay = today.getDate();
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Summary:`, 14, finalY + 15);
+    doc.setFont('helvetica', 'normal');
+    
+    // Line 1: Total Days in Month (up to today)
+    doc.text(`Total Days in Month: ${allDatesInMonth.length}`, 14, finalY + 25);
+    
+    // Line 2: Sundays (Total vs Worked)
+    doc.text(`Sundays: ${sundays.length} total (${sundaysWorked} worked, ${sundays.length - sundaysWorked} off)`, 14, finalY + 35);
+    
+    // Line 3: Working Days (weekdays + Sundays worked)
+    doc.text(`Working Days: ${workingDays.length}`, 14, finalY + 45);
+    
+    // Line 4: Present and Absent (from working days only)
+    doc.text(`Present: ${presentCount} | Absent: ${absentDays.length}`, 14, finalY + 55);
+    
+    // Line 5: FD, HD, and Leave
+    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount} | Leave: ${leaveCount}`, 14, finalY + 65);
 
-// Get last day of the month
-const lastDay = new Date(year, monthNum, 0).getDate();
-
-let sundayCount = 0;
-for (let day = 1; day <= lastDay; day++) {
-  const dateStr = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  const date = new Date(dateStr);
-  
-  // Only count Sundays up to today
-  if (date <= today && date.getDay() === 0) {
-    sundayCount++;
-  }
-}
-
-doc.setFontSize(11);
-doc.setFont('helvetica', 'bold');
-doc.text(`Summary:`, 14, finalY + 15);
-doc.setFont('helvetica', 'normal');
-doc.text(`Total Days: ${attendanceRecords.length} (Sundays: ${sundayCount})`, 14, finalY + 25);
-doc.text(`Full Days (FD): ${fdCount}`, 14, finalY + 35);
-doc.text(`Half Days (HD): ${hdCount}`, 14, finalY + 45);
-doc.text(`Leave Days: ${leaveCount}`, 14, finalY + 55);
-
-// Save PDF
-doc.save(`attendance-${userName}-${month}.pdf`);
+    // Save PDF
+    doc.save(`attendance-${userName}-${month}.pdf`);
 
   } catch (error) {
     console.error("Error generating PDF:", error);
