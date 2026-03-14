@@ -92,69 +92,85 @@ const parseUserRoles = (user) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      const form = new FormData();
-form.append(
-  "issuedTo",
-  typeof editAsset.issuedTo === "object" ? editAsset.issuedTo._id : ""
-);
-form.append(
-  "manualUser",
-  typeof editAsset.issuedTo === "string" ? editAsset.issuedTo : ""
-);
+  try {
+    const form = new FormData();
+    form.append(
+      "issuedTo",
+      typeof editAsset.issuedTo === "object" ? editAsset.issuedTo._id : ""
+    );
+    form.append(
+      "manualUser",
+      typeof editAsset.issuedTo === "string" ? editAsset.issuedTo : ""
+    );
 
-      const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => a);
-      form.append("assets", JSON.stringify(cleanedAssets));
-
-      formData.assets.forEach((a, i) => {
-        if (a.newFiles) {
-          a.newFiles.forEach((f) => {
-            form.append("assetImages", f, `${i}_${f.name}`);
-          });
-        }
-      });
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
-        },
+    // Clean assets but preserve addedAt dates
+    const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => {
+      // If this is an existing asset, keep its addedAt date
+      // If it's a new asset, don't send addedAt (will be set on server)
+      return {
+        assetName: a.assetName,
+        assetDescription: a.assetDescription,
+        images: a.images || [],
+        addedAt: a.addedAt // Preserve existing addedAt date
       };
-
-      await axiosInstance.put(`/assets/update-asset/${editAsset._id}`, form, config);
-      toast.success("Asset updated!");
-
-      // Reset form
-      setIsEdit(false);
-      setEditAsset(null);
-      setFormData({
-        issuedTo: "",
-        assets: [{ assetName: "", assetDescription: "", images: [] }],
-      });
-
-      const updated = await axiosInstance.get("/assets/all-assets", config);
-      setAssets(updated.data);
-    } catch (err) {
-      console.error("Error updating asset:", err);
-      toast.error("Failed to update asset.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEdit = (asset) => {
-    setIsEdit(true);
-    setEditAsset(asset);
-    setFormData({
-      issuedTo: asset.issuedTo,
-      assets: asset.assets || [],
-      images: [],
     });
-  };
+    
+    form.append("assets", JSON.stringify(cleanedAssets));
+
+    formData.assets.forEach((a, i) => {
+      if (a.newFiles) {
+        a.newFiles.forEach((f) => {
+          form.append("assetImages", f, `${i}_${f.name}`);
+        });
+      }
+    });
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        "Content-Type": "multipart/form-data",
+      },
+    };
+
+    await axiosInstance.put(`/assets/update-asset/${editAsset._id}`, form, config);
+    toast.success("Asset updated!");
+
+    // Reset form
+    setIsEdit(false);
+    setEditAsset(null);
+    setFormData({
+      issuedTo: "",
+      assets: [{ assetName: "", assetDescription: "", images: [] }],
+    });
+
+    const updated = await axiosInstance.get("/assets/all-assets", config);
+    setAssets(updated.data);
+  } catch (err) {
+    console.error("Error updating asset:", err);
+    toast.error("Failed to update asset.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const handleEdit = (asset) => {
+  setIsEdit(true);
+  setEditAsset(asset);
+  setFormData({
+    issuedTo: asset.issuedTo,
+    assets: asset.assets.map(a => ({
+      ...a,
+      images: a.images || [],
+      addedAt: a.addedAt // Preserve the addedAt date
+    })),
+    images: [],
+  });
+};
+
 useEffect(()=>{
       window.scrollTo({ top: 0, behavior: "smooth" });
 
