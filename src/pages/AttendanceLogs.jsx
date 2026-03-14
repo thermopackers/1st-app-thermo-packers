@@ -260,7 +260,7 @@ useEffect(() => {
       className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
     >
       <Users className="w-4 h-4" />
-      <span className="hidden sm:inline">Workers Attendance</span>
+      <span className="hidden sm:inline">Drivers & Workers Attendance</span>
     </motion.div>
   </NavLink>
 )}
@@ -300,7 +300,7 @@ useEffect(() => {
                         <option value="production">Production</option>
                         <option value="dispatch">Dispatch</option>
                         <option value="accounts">Accounts</option>
-                        <option value="driver">Driver</option>
+                        {/* <option value="driver">Driver</option> */}
                       </select>
                     </div>
 
@@ -372,7 +372,7 @@ useEffect(() => {
                           <option value="production">Production</option>
                           <option value="dispatch">Dispatch</option>
                           <option value="accounts">Accounts</option>
-                          <option value="driver">Driver</option>
+                          {/* <option value="driver">Driver</option> */}
                         </select>
                       </div>
 

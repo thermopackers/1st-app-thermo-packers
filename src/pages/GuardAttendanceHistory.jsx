@@ -564,9 +564,13 @@ const handleDateRangeSearch = async () => {
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               record.shift === "shift1" 
                                 ? "bg-blue-100 text-blue-700" 
-                                : "bg-purple-100 text-purple-700"
+                                 : record.shift === "shift2"
+                                 ? "bg-purple-100 text-purple-700"
+                                : "bg-green-100 text-green-700"
                             }`}>
-                              {record.shift === "shift1" ? "Shift 1" : "Shift 2"}
+                              {record.shift === "shift1" ? "Shift 1" : 
+     record.shift === "shift2" ? "Shift 2" : 
+     "Driver"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm">

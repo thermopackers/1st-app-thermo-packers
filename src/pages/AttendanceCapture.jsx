@@ -10,6 +10,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, UserCheck, MapPin, Clock, Loader, X, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AttendanceCapture() {
+   const parseUserRoles = (user) => {
+    // ✅ Add null check
+    if (!user || !user.role) {
+      return [];
+    }
+    
+    let userRoles = [];
+    if (Array.isArray(user.role)) {
+      if (user.role.length > 0 && typeof user.role[0] === 'string' && user.role[0].startsWith('[')) {
+        try {
+          userRoles = JSON.parse(user.role[0]);
+        } catch (parseError) {
+          userRoles = user.role;
+        }
+      } else {
+        userRoles = user.role;
+      }
+    } else if (typeof user.role === 'string') {
+      try {
+        userRoles = JSON.parse(user.role);
+      } catch (parseError) {
+        userRoles = [user.role];
+      }
+    } else {
+      userRoles = [user.role];
+    }
+    return userRoles;
+  };
   const { user, token } = useUserContext();
   const webcamRef = useRef(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -22,6 +50,7 @@ export default function AttendanceCapture() {
   const [isSaving, setIsSaving] = useState(false);
   const [locationStatus, setLocationStatus] = useState("pending");
   const [currentLocation, setCurrentLocation] = useState(null);
+  const userRoles = user ? parseUserRoles(user) : [];
 
 const captureImageWithTimestamp = () => {
   return new Promise((resolve, reject) => {
@@ -477,30 +506,83 @@ const saveAttendance = async () => {
       : `data:image/jpeg;base64,${compressedImage}`;
 
     try {
-      // Save to database
-      const response = await axiosInstance.post(
-        "/attendance/mark",
-        { type, photo: photoPayload, location },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Determine current shift based on time (for workers)
+      const now = new Date();
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
 
-      // Show success
-      Swal.fire({
-        icon: "success",
-        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">✅</div>
-            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-            <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
-            <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
-              View Attendance Logs
-            </a>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-        showConfirmButton: false,
-      });
+      // 👇 NEW LOGIC: Check user designation to decide which API to use
+      const workerDesignations = ["operator", "helper", "driver"];
+      const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
+
+      let response;
+      
+      if (isWorker) {
+        // Worker (Operator, Helper, Driver) - Use factory attendance
+        console.log("👷 Worker detected, using factory attendance system");
+        response = await axiosInstance.post(
+          "/factory-attendance/mark",
+          { 
+            type, 
+            photo: photoPayload, 
+            location,
+            userId: user._id,
+            shift: currentShift,
+            source: 'portal' // Marked via driver portal
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } else {
+        // Staff (Accounts, Sales, etc.) - Use regular attendance
+        console.log("👔 Staff detected, using regular attendance system");
+        response = await axiosInstance.post(
+          "/attendance/mark",
+          { type, photo: photoPayload, location },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+
+      // Show success message based on user type
+      if (isWorker) {
+        Swal.fire({
+          icon: "success",
+          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">✅</div>
+              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+              <p class="text-sm text-gray-500 mb-1">Time: ${new Date().toLocaleTimeString()}</p>
+            <a 
+  href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}"  
+  class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium mt-4"
+>
+
+  View Attendance Logs
+</a>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">✅</div>
+              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+              <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+              <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
+                View Attendance Logs
+              </a>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+          showConfirmButton: false,
+        });
+      }
 
       setCapturing(false);
       console.log("✅ Attendance saved successfully to database:", response.data);
@@ -530,15 +612,14 @@ const saveAttendance = async () => {
           confirmButtonColor: "#B0BC27",
         });
       } else {
+         const errorMessage = err.response?.data?.error || err.message || "Failed to save attendance";
+
         Swal.fire({
           icon: "error",
           title: "Save Failed",
           html: `
             <div class="text-center">
-              <div class="text-6xl mb-4">❌</div>
-              <p class="text-gray-600 mb-2">Attendance could not be saved to the server.</p>
-              <p class="text-sm text-gray-500">Error: ${err.response?.data?.error || err.message || "Unknown error"}</p>
-              <p class="text-xs text-gray-400 mt-4">Please try again or contact support.</p>
+              <p class="text-gray-600 mb-2">${errorMessage}</p>
             </div>
           `,
           confirmButtonColor: "#B0BC27",

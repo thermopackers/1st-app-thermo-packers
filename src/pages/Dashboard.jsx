@@ -1784,7 +1784,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                   Attendance Management
                 </h3>
                 <ActionButton
-                  to="/attendance-logs"
+                  to={userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}
                   variant="success"
                   icon="📊"
                   className="max-w-2xl mx-auto"

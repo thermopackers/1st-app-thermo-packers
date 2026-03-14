@@ -632,23 +632,48 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
 
   if (presentDetails) {
     presentDetails.forEach(detail => {
+      // Count as present
+      totalPresentCount++;
+      
+      const dateStr = detail.date;
+      const isSunday = new Date(dateStr).getDay() === 0;
+      
+      // Skip Sunday for half-day calculations (they're weekly off)
+      if (isSunday) {
+        return;
+      }
+      
+      // Check if it's an incomplete day (only check-in, no check-out)
+      const isIncomplete = detail.checkInTime && !detail.checkOutTime;
+      
+      // Check if it's a half day due to late check-in (after 9:51 AM)
+      let isLateHalfDay = false;
       if (detail.checkInTime) {
         const checkInDate = new Date(detail.checkInTime);
-        const dateStr = detail.date;
         const thresholdTime = new Date(dateStr);
         thresholdTime.setHours(9, 51, 0, 0);
-        
-        const isSunday = new Date(dateStr).getDay() === 0;
-        
-        // Count as present (even Sundays if checked in)
-        totalPresentCount++;
-        
-        // Check if half day (after 9:51 AM and not Sunday)
-        if (checkInDate > thresholdTime && !isSunday) {
-          hdCount++;
-        } else {
-          fdCount++;
-        }
+        isLateHalfDay = checkInDate > thresholdTime;
+      }
+      
+      // Check if it's a half day due to early checkout (before 6:00 PM)
+      let isEarlyHalfDay = false;
+      if (detail.checkOutTime) {
+        const checkOutDate = new Date(detail.checkOutTime);
+        const expectedTime = new Date(dateStr);
+        expectedTime.setHours(18, 0, 0, 0); // 6:00 PM
+        isEarlyHalfDay = checkOutDate < expectedTime;
+      }
+      
+      // It's a half day if ANY of these conditions are true:
+      // 1. Incomplete (only check-in, no check-out)
+      // 2. Late check-in (after 9:51 AM)
+      // 3. Early checkout (before 6:00 PM)
+      const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
+      
+      if (isHalfDay) {
+        hdCount++;
+      } else {
+        fdCount++;
       }
     });
   }
@@ -761,20 +786,47 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
             textColor = "text-purple-800";
             titleText = "On Leave";
           } else if (isPresent) {
-            // Check if half day
-            const isHalfDay = (() => {
-              const checkInDate = new Date(presentDateMap[dateStr].checkInTime);
-              const thresholdTime = new Date(dateStr);
-              thresholdTime.setHours(9, 51, 0, 0);
-              return checkInDate > thresholdTime && !isSunday;
-            })();
-            
-            bgColor = isHalfDay ? "bg-amber-100" : "bg-green-100";
-            textColor = isHalfDay ? "text-amber-800" : "text-green-800";
-            titleText = isHalfDay ? "Half Day" : "Full Day";
+            // Skip half-day calculations for Sundays (they're weekly off)
+            if (isSunday) {
+              bgColor = "bg-orange-100";
+              textColor = "text-orange-800";
+              titleText = "Weekly Off (Worked)";
+            } else {
+              // Check if incomplete (only check-in)
+              const isIncomplete = presentDateMap[dateStr].checkInTime && !presentDateMap[dateStr].checkOutTime;
+              
+              // Check if half day due to late check-in
+              const isLateHalfDay = (() => {
+                const checkInDate = new Date(presentDateMap[dateStr].checkInTime);
+                const thresholdTime = new Date(dateStr);
+                thresholdTime.setHours(9, 51, 0, 0);
+                return checkInDate > thresholdTime;
+              })();
+              
+              // Check if half day due to early checkout
+              const isEarlyHalfDay = (() => {
+                if (!presentDateMap[dateStr].checkOutTime) return false;
+                const checkOutDate = new Date(presentDateMap[dateStr].checkOutTime);
+                const expectedTime = new Date(dateStr);
+                expectedTime.setHours(18, 0, 0, 0);
+                return checkOutDate < expectedTime;
+              })();
+              
+              const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
+              
+              bgColor = isHalfDay ? "bg-amber-100" : "bg-green-100";
+              textColor = isHalfDay ? "text-amber-800" : "text-green-800";
+              
+              let reasons = [];
+              if (isIncomplete) reasons.push("Incomplete");
+              if (isLateHalfDay) reasons.push("Late Check-in");
+              if (isEarlyHalfDay) reasons.push("Early Check-out");
+              
+              titleText = isHalfDay ? `Half Day${reasons.length ? ' (' + reasons.join(', ') + ')' : ''}` : "Full Day";
+            }
             
             if (presentDateMap[dateStr]) {
-              titleText += `\nCheck-in: ${formatTime(presentDateMap[dateStr].checkInTime)}\nCheck-out: ${presentDateMap[dateStr].checkOutTime ? formatTime(presentDateMap[dateStr].checkOutTime) : 'N/A'}`;
+              titleText += `\nCheck-in: ${formatTime(presentDateMap[dateStr].checkInTime)}\nCheck-out: ${presentDateMap[dateStr].checkOutTime ? formatTime(presentDateMap[dateStr].checkOutTime) : 'Not checked out'}`;
             }
           } else if (isSunday) {
             bgColor = "bg-orange-100";
@@ -796,8 +848,17 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
               {isOnLeave && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></span>
               )}
-              {isPresent && !isOnLeave && (
-                <span className={`absolute -top-1 -right-1 w-2 h-2 ${presentDateMap[dateStr] && new Date(presentDateMap[dateStr].checkInTime) > new Date(dateStr + "T09:51:00") && !isSunday ? 'bg-amber-500' : 'bg-green-500'} rounded-full`}></span>
+              {isPresent && !isOnLeave && !isSunday && (
+                <span className={`absolute -top-1 -right-1 w-2 h-2 ${
+                  (presentDateMap[dateStr] && !presentDateMap[dateStr].checkOutTime) || 
+                  (presentDateMap[dateStr] && new Date(presentDateMap[dateStr].checkInTime) > new Date(dateStr + "T09:51:00")) ||
+                  (presentDateMap[dateStr] && presentDateMap[dateStr].checkOutTime && new Date(presentDateMap[dateStr].checkOutTime) < new Date(dateStr + "T18:00:00"))
+                    ? 'bg-amber-500' 
+                    : 'bg-green-500'
+                } rounded-full`}></span>
+              )}
+              {isPresent && isSunday && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"></span>
               )}
             </div>
           );
@@ -862,8 +923,11 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                       attendanceType = "Weekly Off";
                       attendanceColor = "bg-orange-100 text-orange-800";
                     } else {
-                      // Check if half day
-                      const isHalfDay = (() => {
+                      // Check if incomplete (only check-in)
+                      const isIncomplete = record.checkInTime && !record.checkOutTime;
+                      
+                      // Check if half day due to late check-in
+                      const isLateHalfDay = (() => {
                         if (!record.checkInTime) return false;
                         const checkInDate = new Date(record.checkInTime);
                         const thresholdTime = new Date(record.date);
@@ -871,9 +935,26 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                         return checkInDate > thresholdTime;
                       })();
                       
+                      // Check if half day due to early checkout
+                      const isEarlyHalfDay = (() => {
+                        if (!record.checkOutTime) return false;
+                        const checkOutDate = new Date(record.checkOutTime);
+                        const expectedTime = new Date(record.date);
+                        expectedTime.setHours(18, 0, 0, 0);
+                        return checkOutDate < expectedTime;
+                      })();
+                      
+                      const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
+                      
                       rowColor = isHalfDay ? "bg-amber-50" : "bg-green-50";
                       textColor = isHalfDay ? "text-amber-700" : "text-green-700";
-                      attendanceType = isHalfDay ? "Half Day" : "Full Day";
+                      
+                      let reasons = [];
+                      if (isIncomplete) reasons.push("Incomplete");
+                      if (isLateHalfDay) reasons.push("Late");
+                      if (isEarlyHalfDay) reasons.push("Early");
+                      
+                      attendanceType = isHalfDay ? `Half Day${reasons.length ? ' (' + reasons.join(', ') + ')' : ''}` : "Full Day";
                       attendanceColor = isHalfDay ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
                     }
                   }

@@ -472,15 +472,25 @@ const playSuccessWithVoice = () => {
 
 
 
-// Also update your markAttendance function to accept shift parameter
+// In the markAttendance function
 const markAttendance = async (userId, userName, type, shiftParam = null) => {
   try {
-    const shift = shiftParam || currentShift;
+    // Get user details to check if driver
+    const userDetails = employees.find(emp => emp._id === userId);
+    const isDriver = userDetails?.designation?.toLowerCase() === "driver";
+    
+    let shift;
+    if (isDriver) {
+      shift = "driver"; // Drivers don't use shifts
+    } else {
+      shift = shiftParam || currentShift;
+    }
     
     const response = await axiosInstance.post("/factory-attendance/mark", {
       userId,
       type,
-      shift
+      shift,
+      source: 'guard'
     });
 
     // Play combined sound (beep + voice)
@@ -497,7 +507,7 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
         <div class="text-center">
           <p class="text-lg font-semibold text-green-600 mb-2">${userName}</p>
           <p class="text-md mb-1">${type === "check-in" ? "✅ Check In" : "👋 Check Out"} Successful</p>
-          <p class="text-sm text-gray-600">Shift: ${shift === "shift1" ? "8 AM - 8:30 PM" : "8:30 PM onwards"}</p>
+          <p class="text-sm text-gray-600">${isDriver ? 'Driver Attendance' : `Shift: ${shift === "shift1" ? "8 AM - 8:30 PM" : "8:30 PM onwards"}`}</p>
           <p class="text-sm text-gray-600">Time: ${new Date().toLocaleTimeString()}</p>
         </div>
       `,
@@ -569,7 +579,6 @@ const handleStartRecognition = async () => {
   }
 };
 
-// Check if user needs shift change
 // Check if user needs shift change
 const checkShiftStatus = async (userId) => {
   try {

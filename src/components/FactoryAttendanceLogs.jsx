@@ -45,7 +45,8 @@ const FactoryAttendanceLogs = () => {
   };
 
   const userRoles = user ? parseUserRoles(user) : [];
-  const isPrivileged = userRoles.some(role => ["admin", "accounts", "guard"].includes(role));
+  const isPrivileged = userRoles.some(role => ["admin", "accounts", "guard", "driver"].includes(role));
+  const isDriver = userRoles.includes("driver"); // Add this line
 
   useEffect(() => {
     fetchEmployees();
@@ -65,19 +66,30 @@ const FactoryAttendanceLogs = () => {
     }
   };
 
- const fetchLogs = async () => {
+const fetchLogs = async () => {
   setLoading(true);
   try {
     let params = new URLSearchParams();
     params.append('page', page);
     params.append('limit', limit);
     
+    // If user is a driver, always filter by their own ID
+    const userRoles = parseUserRoles(user);
+    const isDriver = userRoles.includes("driver");
+    
+    if (isDriver) {
+      // Drivers can only see their own logs
+      params.append('userId', user._id);
+      // Disable employee filter for drivers
+      setEmployeeFilter(user._id);
+    } else if (employeeFilter) {
+      // For other privileged users, respect the filter
+      params.append('userId', employeeFilter);
+    }
+    
     if (dateFilter) {
       params.append('startDate', dateFilter);
       params.append('endDate', dateFilter);
-    }
-    if (employeeFilter) {
-      params.append('userId', employeeFilter);
     }
     if (shiftFilter) {
       params.append('shift', shiftFilter);
@@ -101,14 +113,15 @@ const FactoryAttendanceLogs = () => {
   } finally {
     setLoading(false);
   }
-};
+}; // ✅ Properly closed fetchLogs function
 
-  const clearFilters = () => {
-    setDateFilter("");
-    setEmployeeFilter("");
-    setShiftFilter("");
-    setPage(1);
-  };
+// ✅ clearFilters is now properly defined OUTSIDE fetchLogs
+const clearFilters = () => {
+  setDateFilter("");
+  setEmployeeFilter("");
+  setShiftFilter("");
+  setPage(1);
+};
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -167,7 +180,7 @@ const FactoryAttendanceLogs = () => {
           <div className="bg-red-50 p-8 rounded-2xl text-center">
             <Users className="w-16 h-16 text-red-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h2>
-            <p className="text-red-600">Only admins, accounts, and guards can view factory attendance logs</p>
+            <p className="text-red-600">Only admins, accounts, drivers and guards can view factory attendance logs</p>
           </div>
         </div>
       </>
@@ -216,7 +229,7 @@ const FactoryAttendanceLogs = () => {
                 <NavLink to="/factory-monthly-reports">
                   <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium shadow-lg">
                     <FileText className="w-4 h-4" />
-                    Monthly Reports
+                   Drivers & Workers Monthly Reports
                   </button>
                 </NavLink>
               </div>
@@ -234,21 +247,34 @@ const FactoryAttendanceLogs = () => {
                 />
               </div>
 
-              <div className="relative">
-                <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <select
-                  value={employeeFilter}
-                  onChange={(e) => setEmployeeFilter(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
-                >
-                  <option value="">All Employees</option>
-                  {employees.map(emp => (
-                    <option key={emp._id} value={emp._id}>
-                      {emp.name} ({emp.designation})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="relative">
+  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+  <select
+    value={employeeFilter}
+    onChange={(e) => setEmployeeFilter(e.target.value)}
+    disabled={isDriver} // Disable for drivers
+    className={`pl-10 pr-4 py-2 w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 appearance-none bg-white ${
+      isDriver ? 'bg-gray-100 cursor-not-allowed' : ''
+    }`}
+  >
+    {isDriver ? (
+      // Show only the driver's name
+      <option value={user._id}>
+        {user.name} (Driver)
+      </option>
+    ) : (
+      // Show all employees for other privileged users
+      <>
+        <option value="">All Employees</option>
+        {employees.map(emp => (
+          <option key={emp._id} value={emp._id}>
+            {emp.name} ({emp.designation})
+          </option>
+        ))}
+      </>
+    )}
+  </select>
+</div>
 
               <div className="relative">
                 <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -312,15 +338,19 @@ const FactoryAttendanceLogs = () => {
                           <td className="px-4 py-3 text-sm">{formatDate(entry.date)}</td>
                           <td className="px-4 py-3 text-sm font-medium">{entry.user?.name || "N/A"}</td>
                           <td className="px-4 py-3 text-sm capitalize">{entry.user?.designation || "N/A"}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              entry.shift === "shift1" 
-                                ? "bg-blue-100 text-blue-700" 
-                                : "bg-purple-100 text-purple-700"
-                            }`}>
-                              {entry.shift === "shift1" ? "Shift 1" : "Shift 2"}
-                            </span>
-                          </td>
+                         <td className="px-4 py-3">
+  <span className={`px-2 py-1 rounded-full text-xs ${
+    entry.shift === "shift1" 
+      ? "bg-blue-100 text-blue-700" 
+      : entry.shift === "shift2"
+      ? "bg-purple-100 text-purple-700"
+      : "bg-green-100 text-green-700"
+  }`}>
+    {entry.shift === "shift1" ? "Shift 1" : 
+     entry.shift === "shift2" ? "Shift 2" : 
+     "Driver"}
+  </span>
+</td>
                           <td className="px-4 py-3 text-sm">{entry.checkInTime ? formatTime(entry.checkInTime) : "—"}</td>
                           <td className="px-4 py-3 text-sm">{entry.checkOutTime ? formatTime(entry.checkOutTime) : "—"}</td>
                           <td className="px-4 py-3 text-sm">{entry.totalWorkingHours?.toFixed(1) || "—"}</td>

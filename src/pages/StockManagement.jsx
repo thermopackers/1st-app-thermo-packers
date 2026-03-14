@@ -391,6 +391,20 @@ const fetchProducts = async (categoryId, pg = 1) => {
           {/* Products Table/Cards */}
           {selectedCategory && (
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+               {/* Totals Footer */}
+                    <tfoot className="bg-gray-50 border-t border-gray-200">
+                      <tr>
+                        <td colSpan="6" className="py-4 px-6 text-right font-semibold text-gray-700">
+                          Total Current Stock:
+                        </td>
+                       <td className="py-4 px-6 text-center">
+  <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
+    {totalStock.total} {totalStock.unit}
+  </span>
+</td>
+                        <td className="py-4 px-6"></td>
+                      </tr>
+                    </tfoot>
               {/* Header */}
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-3">
@@ -489,16 +503,23 @@ const fetchProducts = async (categoryId, pg = 1) => {
                           </td>
 
                           {/* Current Stock */}
-                          <td className="py-4 px-6 text-center">
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${
-                              prod.stock < 10 
-                                ? "bg-red-100 text-red-700" 
-                                : "bg-green-100 text-green-700"
-                            }`}>
-                              {prod.stock < 10 && <TrendingDown size={14} />}
-                              {prod.stock || 0}
-                            </span>
-                          </td>
+                        <td className="py-3 px-3 sm:py-4 sm:px-6">
+  <div className="flex flex-col items-center sm:block text-center">
+    <span className="text-xs font-black text-gray-500 mb-1">
+      Current Stock in Hand
+    </span>
+    <div className="flex items-center justify-center sm:justify-start">
+      <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
+        prod.stock < 10 
+          ? "bg-red-100 text-red-700" 
+          : "bg-green-100 text-green-700"
+      }`}>
+        {prod.stock < 10 && <TrendingDown size={14} className="flex-shrink-0" />}
+        <span>{prod.stock || 0}</span>
+      </span>
+    </div>
+  </div>
+</td>
 
 {/* Remarks */}
 <td className="py-4 px-6">
@@ -535,20 +556,7 @@ const fetchProducts = async (categoryId, pg = 1) => {
                       ))}
                     </tbody>
 
-                    {/* Totals Footer */}
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
-                      <tr>
-                        <td colSpan="6" className="py-4 px-6 text-right font-semibold text-gray-700">
-                          Total Current Stock:
-                        </td>
-                       <td className="py-4 px-6 text-center">
-  <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
-    {totalStock.total} {totalStock.unit}
-  </span>
-</td>
-                        <td className="py-4 px-6"></td>
-                      </tr>
-                    </tfoot>
+                   
                   </table>
                 </div>
               )}
@@ -559,22 +567,27 @@ const fetchProducts = async (categoryId, pg = 1) => {
                   {products.map((prod) => (
                     <div key={prod._id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
                       {/* Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div 
-                          className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 font-medium flex items-center gap-2"
-                          onClick={() => showGradeImages(prod)}
-                        >
-                          <Eye size={16} />
-                          {prod.name}
-                        </div>
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                          prod.stock < 10 
-                            ? "bg-red-100 text-red-700" 
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {prod.stock || 0} {prod.unit}
-                        </span>
-                      </div>
+                     <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-2">
+  <div 
+    className="text-blue-600 hover:text-blue-700 cursor-pointer transition-colors duration-200 font-medium flex items-center gap-2 order-2 sm:order-1"
+    onClick={() => showGradeImages(prod)}
+  >
+    <Eye size={16} className="flex-shrink-0" />
+    <span className="text-sm sm:text-base break-words">{prod.name}</span>
+  </div>
+  
+  <div className="flex items-center justify-between sm:justify-end gap-2 order-1 sm:order-2">
+    <span className="text-xs font-black">Current Stock in Hand:
+    <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap ${
+      prod.stock < 10 
+        ? "bg-red-100 text-red-700" 
+        : "bg-green-100 text-green-700"
+    }`}>
+      <span>{prod.stock || 0}</span>
+      <span className="text-xs opacity-75">{prod.unit}</span>
+    </span></span>
+  </div>
+</div>
 
                       {/* Date */}
                       <div className="mb-3">
@@ -647,15 +660,7 @@ const fetchProducts = async (categoryId, pg = 1) => {
                     </div>
                   ))}
 
-                  {/* Mobile Total */}
-                  <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-blue-700">Total Current Stock</p>
-                     <p className="text-2xl font-bold text-blue-800">
-  {totalStock.total} {totalStock.unit}
-</p>
-                    </div>
-                  </div>
+                  
                 </div>
               )}
 
