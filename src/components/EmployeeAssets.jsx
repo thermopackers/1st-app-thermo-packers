@@ -236,14 +236,19 @@ const EmployeeAssets = () => {
                             </h4>
                             {asset.assets.map((item, itemIndex) => (
                               <div key={itemIndex} className="bg-gray-50 rounded-xl p-3">
-                                <div className="mb-2">
-                                  <h5 className="font-semibold text-gray-800 capitalize">
-                                    {item.assetName}
-                                  </h5>
-                                  <p className="text-sm text-gray-600">
-                                    {item.assetDescription}
-                                  </p>
-                                </div>
+    <div className="mb-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h5 className="font-semibold text-gray-800 capitalize">
+          {item.assetName}
+        </h5>
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+          Added: {item.addedAt ? new Date(item.addedAt).toLocaleDateString() : new Date(asset.createdAt).toLocaleDateString()}
+        </span>
+      </div>
+      <p className="text-sm text-gray-600">
+        {item.assetDescription}
+      </p>
+    </div>
 
                                 {/* Images */}
                                 {item.images && item.images.length > 0 && (
@@ -318,14 +323,19 @@ const EmployeeAssets = () => {
                             <div className="space-y-3">
                               {asset.assets.map((item, itemIndex) => (
                                 <div key={itemIndex} className="bg-gray-50 rounded-lg p-3">
-                                  <div className="mb-2">
-                                    <h5 className="font-semibold text-gray-800 capitalize text-sm">
-                                      {item.assetName}
-                                    </h5>
-                                    <p className="text-xs text-gray-600">
-                                      {item.assetDescription}
-                                    </p>
-                                  </div>
+    <div className="mb-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h5 className="font-semibold text-gray-800 capitalize text-sm">
+          {item.assetName}
+        </h5>
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+          {item.addedAt ? new Date(item.addedAt).toLocaleDateString() : new Date(asset.createdAt).toLocaleDateString()}
+        </span>
+      </div>
+      <p className="text-xs text-gray-600">
+        {item.assetDescription}
+      </p>
+    </div>
 
                                   {/* Images */}
                                   {item.images && item.images.length > 0 && (
