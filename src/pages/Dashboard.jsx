@@ -862,7 +862,7 @@ useEffect(() => {
                 {userRoles.includes("accounts") && (
   <div className="border-t border-gray-200 pt-6">
     <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
-      Purchase Product / Suppliers & Outward Freight Calculator
+      Purchase Product / Suppliers
     </h4>
     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
       <ActionButton
@@ -876,17 +876,7 @@ useEffect(() => {
         </div>
       </ActionButton>
       
-      {/* New Outward Freight Calculator Button */}
-      <ActionButton
-        to="/freight-calculator"
-        variant="teal"
-        icon="🚚"
-        className="w-full sm:w-auto sm:flex-1 max-w-md"
-      >
-        <div className="text-lg font-semibold">
-          Outward Freight Calculator
-        </div>
-      </ActionButton>
+     
     </div>
   </div>
 )}
@@ -1301,7 +1291,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 <DashboardCard>
                   <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     <span className="text-3xl">🚗</span>
-                    Vehicles Management
+                    Vehicles Management & Outward Diesel, Freight & Kharcha Calculator
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ActionButton
@@ -1349,6 +1339,17 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                         </div>
                       </ActionButton>
                     )}
+                     {/* New Outward Freight Calculator Button */}
+      <ActionButton
+        to="/freight-calculator"
+        variant="teal"
+        icon="🚚"
+        className="md:col-span-2"
+      >
+        <div className="text-lg font-semibold">
+          Outward Freight Calculator
+        </div>
+      </ActionButton>
                   </div>
                 </DashboardCard>
               )}

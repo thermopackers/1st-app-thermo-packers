@@ -557,40 +557,58 @@ const FreightCalculator = () => {
     setMultipleDestinations(multipleDestinations.filter(dest => dest.id !== id));
   };
 
-  const calculateFreight = () => {
-    if (multipleDestinations.length === 0) {
-      toast.error('Please add at least one destination');
-      return;
+const calculateFreight = () => {
+  if (multipleDestinations.length === 0) {
+    toast.error('Please add at least one destination');
+    return;
+  }
+
+  // Calculate one-way total distance (Jalandhar → Customer1 → Customer2 → ...)
+  const oneWayDistance = multipleDestinations.reduce((sum, dest) => sum + dest.distance, 0);
+  
+  // Get the last destination to calculate return distance
+  const lastDestination = multipleDestinations[multipleDestinations.length - 1];
+  
+  // Return distance from last customer back to Jalandhar
+  const returnDistance = lastDestination.distance;
+  
+  // Total round trip distance = one-way total + return from last customer
+  const roundTripDistance = oneWayDistance + returnDistance;
+  
+  // Calculate running cost (based on round trip)
+  const runningCost = roundTripDistance * rates[vehicleType];
+  
+  // Calculate diesel consumption for round trip (with 10% extra)
+  const baseDiesel = roundTripDistance / MILEAGE[vehicleType];
+  const totalDiesel = baseDiesel * 1.1; // Adding 10%
+  
+  // Base kharcha
+  let kharcha = KHARCHA[vehicleType];
+  
+  // Add extra kharcha for each additional customer beyond the first
+  const extraCustomers = multipleDestinations.length - 1;
+  if (extraCustomers > 0) {
+    if (vehicleType === 'tempo') {
+      kharcha += extraCustomers * 50; // Add ₹50 per extra customer for tempo
+    } else if (vehicleType === 'truck') {
+      kharcha += extraCustomers * 100; // Add ₹100 per extra customer for truck
     }
+  }
 
-    // Calculate one-way total distance
-    const oneWayDistance = multipleDestinations.reduce((sum, dest) => sum + dest.distance, 0);
-    
-    // Round trip distance (to & fro)
-    const roundTripDistance = oneWayDistance * 2;
-    
-    // Calculate running cost (based on round trip) - USING rates STATE
-    const runningCost = roundTripDistance * rates[vehicleType];
-    
-    // Calculate diesel consumption for round trip (with 10% extra)
-    const baseDiesel = roundTripDistance / MILEAGE[vehicleType];
-    const totalDiesel = baseDiesel * 1.1; // Adding 10%
-    
-    // Get kharcha (fixed cost - only one time, not doubled)
-    const kharcha = KHARCHA[vehicleType];
-
-    setCalculation({
-      oneWayDistance,
-      roundTripDistance,
-      runningCost,
-      totalDiesel: totalDiesel.toFixed(2),
-      kharcha,
-      destinations: multipleDestinations,
-      vehicleType,
-      ratePerKm: rates[vehicleType], // USING rates STATE
-      mileage: MILEAGE[vehicleType]
-    });
-  };
+  setCalculation({
+    oneWayDistance,
+    returnDistance,
+    roundTripDistance,
+    runningCost,
+    totalDiesel: totalDiesel.toFixed(2),
+    kharcha,
+    destinations: multipleDestinations,
+    vehicleType,
+    ratePerKm: rates[vehicleType],
+    mileage: MILEAGE[vehicleType],
+    extraCustomers
+  });
+};
 
   const resetAll = () => {
     setMultipleDestinations([]);
@@ -975,36 +993,62 @@ const FreightCalculator = () => {
               </div>
             </div>
 
-            {/* Route Summary */}
-            <div className="mt-4 sm:mt-6 bg-white p-3 sm:p-4 rounded-lg">
-              <p className="font-semibold mb-2 flex items-center text-sm sm:text-base">
-                <span className="mr-2">🛣️</span> Route Summary (One-Way):
-              </p>
-              <div className="ml-2">
-                <div className="flex items-start mb-2 text-blue-700 text-xs sm:text-sm">
-                  <span className="mr-2">🚚</span>
-                  <span className="break-words">{STARTING_LOCATION.address}</span>
-                </div>
-                {calculation.destinations.map((dest, idx) => (
-                  <div key={dest.id} className="flex items-start mb-2 ml-4">
-                    <span className="mr-2 text-green-600">↓</span>
-                    <div className="text-xs sm:text-sm">
-                      <span className="font-medium">📍 {dest.city}</span>
-                      {dest.area && <span className="text-gray-600"> ({dest.area})</span>}
-                      <span className="text-gray-600 ml-1 sm:ml-2">{dest.pincode}</span>
-                      <span className="text-green-600 ml-1 sm:ml-2">{dest.distance} km</span>
-                      {dest.customer && (
-                        <span className="text-blue-600 ml-1 sm:ml-2 block sm:inline">- {dest.customer.name}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-start mt-2 ml-4 text-purple-600">
-                  <span className="mr-2">↩️</span>
-                  <span className="text-xs sm:text-sm">Return trip back to {STARTING_LOCATION.city} (+{calculation.oneWayDistance} km)</span>
-                </div>
-              </div>
-            </div>
+           {/* Route Summary with correct return logic */}
+<div className="mt-4 sm:mt-6 bg-white p-3 sm:p-4 rounded-lg">
+  <p className="font-semibold mb-2 flex items-center text-sm sm:text-base">
+    <span className="mr-2">🛣️</span> Route Summary:
+  </p>
+  <div className="ml-2">
+    {/* Outward journey */}
+    <div className="flex items-start mb-2 text-blue-700 text-xs sm:text-sm">
+      <span className="mr-2">🚚</span>
+      <span className="break-words">Start: {STARTING_LOCATION.address}</span>
+    </div>
+    
+    {/* All destinations in sequence */}
+    {calculation.destinations.map((dest, idx) => (
+      <div key={dest.id} className="flex items-start mb-2 ml-4">
+        <span className="mr-2 text-green-600">↓</span>
+        <div className="text-xs sm:text-sm">
+          <span className="font-medium">📍 Customer {idx + 1}: {dest.city}</span>
+          {dest.area && <span className="text-gray-600"> ({dest.area})</span>}
+          <span className="text-gray-600 ml-1 sm:ml-2">{dest.pincode}</span>
+          <span className="text-green-600 ml-1 sm:ml-2">+{dest.distance} km</span>
+          {dest.customer && (
+            <span className="text-blue-600 ml-1 sm:ml-2 block sm:inline">- {dest.customer.name}</span>
+          )}
+        </div>
+      </div>
+    ))}
+    
+    {/* Return journey from last customer */}
+    <div className="flex items-start mt-2 ml-4 text-purple-600">
+      <span className="mr-2">↩️</span>
+      <span className="text-xs sm:text-sm">
+        Return from {calculation.destinations[calculation.destinations.length - 1].city} to {STARTING_LOCATION.city} (+{calculation.returnDistance} km)
+      </span>
+    </div>
+    
+    {/* Distance summary */}
+    <div className="mt-3 p-2 bg-gray-50 rounded-lg text-xs">
+      <p><span className="font-medium">Outward journey:</span> {calculation.oneWayDistance} km</p>
+      <p><span className="font-medium">Return journey:</span> {calculation.returnDistance} km</p>
+      <p><span className="font-medium">Total round trip:</span> {calculation.roundTripDistance} km</p>
+    </div>
+  </div>
+</div>
+
+{/* Extra Kharcha Breakdown */}
+{calculation.extraCustomers > 0 && (
+  <div className="mt-3 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+    <p className="text-xs sm:text-sm font-semibold text-yellow-800 mb-1">Kharcha Breakdown:</p>
+    <p className="text-xs text-yellow-700">Base Kharcha: ₹{KHARCHA[calculation.vehicleType]}</p>
+    <p className="text-xs text-yellow-700">Extra for {calculation.extraCustomers} additional customer{calculation.extraCustomers > 1 ? 's' : ''}: 
+      +₹{calculation.vehicleType === 'tempo' ? calculation.extraCustomers * 50 : calculation.extraCustomers * 100}
+    </p>
+    <p className="text-xs font-bold text-yellow-800 mt-1">Total Kharcha: ₹{calculation.kharcha}</p>
+  </div>
+)}
           </div>
         )}
       </div>
