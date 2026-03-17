@@ -15,6 +15,7 @@ export default function AddProduct() {
     hsnCode: "",
     gstPercent: "",
       description: "", // 🆕 Add this line
+        weight: "", // 🆕 NEW FIELD - Add this
   });
 
   const [images, setImages] = useState([]); // product images
@@ -141,6 +142,18 @@ const handleSubmit = async (e) => {
   <div>
     <label className="block text-gray-700 font-semibold mb-2">GST Percentage</label>
     <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+  </div>
+
+    {/* 🆕 NEW FIELD - Product Weight */}
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Product Weight</label>
+    <input 
+      name="weight" 
+      placeholder="e.g., 1kg, 500g, 2.5kg" 
+      value={formData.weight} 
+      onChange={handleChange} 
+      className="w-full p-3 border border-gray-300 rounded-lg"
+    />
   </div>
 
   {/* 🆕 Description Field */}

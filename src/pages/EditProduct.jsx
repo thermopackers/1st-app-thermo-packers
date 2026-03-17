@@ -19,6 +19,7 @@ export default function EditProduct() {
     hsnCode: "",
     gstPercent: "",
       description: "", // 🆕 Add this line
+        weight: "", // 🆕 NEW FIELD - Add this
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +49,7 @@ export default function EditProduct() {
           hsnCode: res.data.hsnCode || "",
           gstPercent: res.data.gstPercent || "",
             description: res.data.description || "", // 🆕 Add this line
+              weight: res.data.weight || "", // 🆕 NEW FIELD - Add this
         });
 
         // Existing product images
@@ -179,6 +181,7 @@ const handleSubmit = async (e) => {
     data.append("hsnCode", formData.hsnCode);
     data.append("gstPercent", formData.gstPercent);
     data.append("description", formData.description || ""); // 🆕 Make sure this line is included
+data.append("weight", formData.weight || ""); // 🆕 NEW FIELD - Add this
 
     // Images
     images.forEach((imgFile) => data.append("images", imgFile));
@@ -243,6 +246,19 @@ const handleSubmit = async (e) => {
   <div>
     <label className="block text-gray-700 font-semibold mb-2">GST Percentage</label>
     <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
+  </div>
+
+    {/* 🆕 NEW FIELD - Product Weight */}
+  <div>
+    <label className="block text-gray-700 font-semibold mb-2">Product Weight</label>
+    <input 
+      type="text" 
+      name="weight" 
+      value={formData.weight} 
+      onChange={handleChange} 
+      placeholder="e.g., 1kg, 500g, 2.5kg" 
+      className="w-full border p-2 rounded"
+    />
   </div>
 
   {/* 🆕 Description Field */}

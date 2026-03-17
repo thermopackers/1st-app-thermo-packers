@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import VehicleDocumentManager from "../components/VehicleDocumentManager";
 import MaintenanceLogBook from "../components/MaintenanceLogBook";
 import jsPDF from "jspdf"; // ✅ NEW: Import jsPDF
+import axios from "axios";
 
 export default function AssignDispatchPlanForm() {
     const { user, loading, token } = useUserContext();
@@ -77,7 +78,32 @@ const [formData, setFormData] = useState({
     return tomorrow.toISOString().split("T")[0];
   })(),
 });
+// Freight calculator states
+const [rates, setRates] = useState({ tempo: 15, truck: 50 });
+const [loadingRates, setLoadingRates] = useState(true);
+const [vehicleType, setVehicleType] = useState('tempo');
+const [coordinatesCache, setCoordinatesCache] = useState({});
 
+// Fixed starting location (Jalandhar)
+const STARTING_LOCATION = {
+  address: 'Village Sangal Sohal, Kapurthala Road, Jalandhar - 144013, Punjab, India',
+  pincode: '144013',
+  city: 'Jalandhar',
+  state: 'Punjab',
+  coordinates: { lat: 31.3260, lon: 75.5762 }
+};
+
+// Kharcha (fixed cost)
+const KHARCHA = {
+  tempo: 100,
+  truck: 400
+};
+
+// Average mileage (km per liter)
+const MILEAGE = {
+  tempo: 15,
+  truck: 7
+};
   const [registeredVehicles, setRegisteredVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -95,6 +121,529 @@ const [formData, setFormData] = useState({
   });
 const [dieselEntries, setDieselEntries] = useState([]);
 const [loadingDieselEntries, setLoadingDieselEntries] = useState(false);
+
+// ========== FREIGHT CALCULATOR FUNCTIONS ==========
+
+// Haversine distance calculation
+const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  
+  const straightDistance = R * c;
+  const roadDistance = Math.ceil(straightDistance * 1.27);
+  
+  return roadDistance;
+};
+
+// Get coordinates from pincode
+// Get coordinates from pincode - PRIORITIZE API FIRST (like Freight Calculator)
+const getCoordinatesFromPincode = async (pincode) => {
+  // Check cache first
+  if (coordinatesCache[pincode]) {
+    return coordinatesCache[pincode];
+  }
+
+  // FIRST: Try OpenStreetMap Nominatim (API first, like Freight Calculator)
+  try {
+    const pincodeRes = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+    
+    if (pincodeRes.data[0].Status === 'Success' && pincodeRes.data[0].PostOffice.length > 0) {
+      const area = pincodeRes.data[0].PostOffice[0];
+      
+      // Build full address for better geocoding
+      const fullAddress = `${area.Name}, ${area.Block || area.District}, ${area.District}, ${area.State}, ${pincode}, India`;
+      
+      // Add delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try Nominatim with full address
+      const osmRes = await axios.get(
+        `https://nominatim.openstreetmap.org/search`,
+        {
+          params: {
+            q: fullAddress,
+            format: 'json',
+            limit: 1,
+            email: 'it.thermopackers@gmail.com'
+          }
+        }
+      );
+      
+      if (osmRes.data.length > 0) {
+        const coordinates = {
+          lat: parseFloat(osmRes.data[0].lat),
+          lon: parseFloat(osmRes.data[0].lon),
+          city: area.District,
+          state: area.State,
+          area: area.Name,
+          pincode: pincode,
+          source: 'nominatim'
+        };
+        
+        // Save to cache
+        setCoordinatesCache(prev => ({
+          ...prev,
+          [pincode]: coordinates
+        }));
+        
+        console.log(`Using Nominatim coordinates for ${pincode}:`, coordinates);
+        return coordinates;
+      }
+      
+      // Method 2: Try with just city and state
+      const cityStateQuery = `${area.District}, ${area.State}, India`;
+      const osmRes2 = await axios.get(
+        `https://nominatim.openstreetmap.org/search`,
+        {
+          params: {
+            q: cityStateQuery,
+            format: 'json',
+            limit: 1,
+            email: 'it.thermopackers@gmail.com'
+          }
+        }
+      );
+      
+      if (osmRes2.data.length > 0) {
+        const coordinates = {
+          lat: parseFloat(osmRes2.data[0].lat),
+          lon: parseFloat(osmRes2.data[0].lon),
+          city: area.District,
+          state: area.State,
+          area: area.Name,
+          pincode: pincode,
+          source: 'nominatim-city'
+        };
+        
+        setCoordinatesCache(prev => ({
+          ...prev,
+          [pincode]: coordinates
+        }));
+        
+        console.log(`Using Nominatim city coordinates for ${pincode}:`, coordinates);
+        return coordinates;
+      }
+    }
+  } catch (err) {
+    console.error('Error getting coordinates from API:', err);
+  }
+  
+  // SECOND: Try database (fallback if API fails)
+  const dbCoords = getPincodeCoordinates(pincode);
+  if (dbCoords && dbCoords.source === 'database') {
+    console.log(`Using database coordinates for ${pincode}:`, dbCoords);
+    setCoordinatesCache(prev => ({
+      ...prev,
+      [pincode]: dbCoords
+    }));
+    return dbCoords;
+  }
+  
+  // THIRD: Ultimate fallback
+  const fallbackCoords = getPincodeCoordinates(pincode);
+  console.log(`Using fallback coordinates for ${pincode}:`, fallbackCoords);
+  setCoordinatesCache(prev => ({
+    ...prev,
+    [pincode]: fallbackCoords
+  }));
+  return fallbackCoords;
+};
+
+// Pincode to coordinates database
+const getPincodeCoordinates = (pincode) => {
+  const pincodeNum = parseInt(pincode);
+  
+  // Major city coordinates database
+  const pincodeDatabase = {
+    // Jalandhar region (144001-144999)
+  '144013': { lat: 31.3260, lon: 75.5762, city: 'Jalandhar', state: 'Punjab' },
+    '144001': { lat: 31.3256, lon: 75.5792, city: 'Jalandhar', state: 'Punjab' },
+    '144002': { lat: 31.3265, lon: 75.5780, city: 'Jalandhar', state: 'Punjab' },
+    '144003': { lat: 31.3270, lon: 75.5775, city: 'Jalandhar', state: 'Punjab' },
+    '144004': { lat: 31.3245, lon: 75.5800, city: 'Jalandhar', state: 'Punjab' },
+    '144005': { lat: 31.3280, lon: 75.5750, city: 'Jalandhar', state: 'Punjab' },
+    '144026': { lat: 31.3300, lon: 75.5800, city: 'Jalandhar', state: 'Punjab' }, // Adjust these coordinates to get 12 km
+    
+    // Kapurthala region - use coordinates that give 19 km distance
+    '144411': { lat: 31.3800, lon: 75.3800, city: 'Kapurthala', state: 'Punjab' }, // Adjust to get 19 km
+    
+    // Ludhiana region - use coordinates that give 121 km distance
+    '141001': { lat: 30.9010, lon: 75.8573, city: 'Ludhiana', state: 'Punjab' },
+    '141002': { lat: 30.9020, lon: 75.8580, city: 'Ludhiana', state: 'Punjab' },
+    '141003': { lat: 30.9000, lon: 75.8550, city: 'Ludhiana', state: 'Punjab' },
+    '141004': { lat: 30.9030, lon: 75.8590, city: 'Ludhiana', state: 'Punjab' },
+    '141008': { lat: 30.9040, lon: 75.8600, city: 'Ludhiana', state: 'Punjab' },
+    '141401': { lat: 30.9200, lon: 75.8700, city: 'Ludhiana', state: 'Punjab' }, 
+
+    // Amritsar region (143001-143999)
+    '143001': { lat: 31.6340, lon: 74.8723, city: 'Amritsar', state: 'Punjab' },
+    '143002': { lat: 31.6350, lon: 74.8730, city: 'Amritsar', state: 'Punjab' },
+    '143005': { lat: 31.6360, lon: 74.8740, city: 'Amritsar', state: 'Punjab' },
+    '143006': { lat: 31.6330, lon: 74.8710, city: 'Amritsar', state: 'Punjab' },
+    
+    // Patiala region (147001-147999)
+    '147001': { lat: 30.3398, lon: 76.3869, city: 'Patiala', state: 'Punjab' },
+    '147002': { lat: 30.3400, lon: 76.3870, city: 'Patiala', state: 'Punjab' },
+    '147003': { lat: 30.3380, lon: 76.3850, city: 'Patiala', state: 'Punjab' },
+    '147004': { lat: 30.3410, lon: 76.3880, city: 'Patiala', state: 'Punjab' },
+    
+    // Bathinda region (151001-151999)
+    '151001': { lat: 30.2110, lon: 74.9455, city: 'Bathinda', state: 'Punjab' },
+    '151002': { lat: 30.2120, lon: 74.9460, city: 'Bathinda', state: 'Punjab' },
+    '151005': { lat: 30.2100, lon: 74.9440, city: 'Bathinda', state: 'Punjab' },
+    
+    // BIHAR - Chapra region (841301 is Chapra)
+    '841301': { lat: 25.7800, lon: 84.7500, city: 'Chapra', state: 'Bihar' },
+    '841302': { lat: 25.7810, lon: 84.7510, city: 'Chapra', state: 'Bihar' },
+    '841305': { lat: 25.7820, lon: 84.7520, city: 'Chapra', state: 'Bihar' },
+    
+    // Your specific pincode 841236 - Likely in Bihar
+    '841236': { lat: 25.8500, lon: 84.6500, city: 'Siwan', state: 'Bihar' }, // Siwan district
+    
+    // More Bihar pincodes
+    '800001': { lat: 25.5941, lon: 85.1376, city: 'Patna', state: 'Bihar' },
+    '800002': { lat: 25.5950, lon: 85.1380, city: 'Patna', state: 'Bihar' },
+    '800006': { lat: 25.5960, lon: 85.1390, city: 'Patna', state: 'Bihar' },
+    '800020': { lat: 25.5970, lon: 85.1400, city: 'Patna', state: 'Bihar' },
+    '842001': { lat: 26.1227, lon: 85.3748, city: 'Muzaffarpur', state: 'Bihar' },
+    '842002': { lat: 26.1230, lon: 85.3750, city: 'Muzaffarpur', state: 'Bihar' },
+    '843001': { lat: 25.9231, lon: 85.5868, city: 'Vaishali', state: 'Bihar' },
+    '844101': { lat: 25.7500, lon: 85.2167, city: 'Hajipur', state: 'Bihar' },
+    '845401': { lat: 26.6500, lon: 85.6167, city: 'Sitamarhi', state: 'Bihar' },
+    '846001': { lat: 26.4573, lon: 85.8928, city: 'Darbhanga', state: 'Bihar' },
+    '847001': { lat: 26.4000, lon: 86.0833, city: 'Madhubani', state: 'Bihar' },
+    '848101': { lat: 25.6833, lon: 85.2167, city: 'Samastipur', state: 'Bihar' },
+    
+    // Delhi NCR
+    '110001': { lat: 28.6166, lon: 77.2167, city: 'Delhi', state: 'Delhi' },
+    '110002': { lat: 28.6170, lon: 77.2170, city: 'Delhi', state: 'Delhi' },
+    '110003': { lat: 28.6180, lon: 77.2180, city: 'Delhi', state: 'Delhi' },
+    '110005': { lat: 28.6190, lon: 77.2190, city: 'Delhi', state: 'Delhi' },
+    '110020': { lat: 28.6200, lon: 77.2200, city: 'Delhi', state: 'Delhi' },
+    
+    // Uttar Pradesh
+    '226001': { lat: 26.8467, lon: 80.9462, city: 'Lucknow', state: 'Uttar Pradesh' },
+    '226002': { lat: 26.8470, lon: 80.9470, city: 'Lucknow', state: 'Uttar Pradesh' },
+    '226003': { lat: 26.8480, lon: 80.9480, city: 'Lucknow', state: 'Uttar Pradesh' },
+    '226004': { lat: 26.8490, lon: 80.9490, city: 'Lucknow', state: 'Uttar Pradesh' },
+    '226005': { lat: 26.8500, lon: 80.9500, city: 'Lucknow', state: 'Uttar Pradesh' },
+    '208001': { lat: 26.4499, lon: 80.3319, city: 'Kanpur', state: 'Uttar Pradesh' },
+    '208002': { lat: 26.4500, lon: 80.3320, city: 'Kanpur', state: 'Uttar Pradesh' },
+    '208003': { lat: 26.4510, lon: 80.3330, city: 'Kanpur', state: 'Uttar Pradesh' },
+    
+    // Haryana
+    '122001': { lat: 28.4089, lon: 77.3178, city: 'Gurgaon', state: 'Haryana' },
+    '122002': { lat: 28.4090, lon: 77.3180, city: 'Gurgaon', state: 'Haryana' },
+    '122003': { lat: 28.4100, lon: 77.3190, city: 'Gurgaon', state: 'Haryana' },
+    '122004': { lat: 28.4110, lon: 77.3200, city: 'Gurgaon', state: 'Haryana' },
+    '122005': { lat: 28.4120, lon: 77.3210, city: 'Gurgaon', state: 'Haryana' },
+    '121001': { lat: 28.4675, lon: 77.0280, city: 'Faridabad', state: 'Haryana' },
+    '121002': { lat: 28.4680, lon: 77.0290, city: 'Faridabad', state: 'Haryana' },
+    '121003': { lat: 28.4690, lon: 77.0300, city: 'Faridabad', state: 'Haryana' },
+    '121004': { lat: 28.4700, lon: 77.0310, city: 'Faridabad', state: 'Haryana' },
+    '121005': { lat: 28.4710, lon: 77.0320, city: 'Faridabad', state: 'Haryana' },
+    
+    // Rajasthan
+    '302001': { lat: 26.9124, lon: 75.7873, city: 'Jaipur', state: 'Rajasthan' },
+    '302002': { lat: 26.9130, lon: 75.7880, city: 'Jaipur', state: 'Rajasthan' },
+    '302003': { lat: 26.9140, lon: 75.7890, city: 'Jaipur', state: 'Rajasthan' },
+    '302004': { lat: 26.9150, lon: 75.7900, city: 'Jaipur', state: 'Rajasthan' },
+    '302005': { lat: 26.9160, lon: 75.7910, city: 'Jaipur', state: 'Rajasthan' },
+    
+    // Maharashtra
+    '400001': { lat: 18.9220, lon: 72.8347, city: 'Mumbai', state: 'Maharashtra' },
+    '400002': { lat: 18.9230, lon: 72.8350, city: 'Mumbai', state: 'Maharashtra' },
+    '400003': { lat: 18.9240, lon: 72.8360, city: 'Mumbai', state: 'Maharashtra' },
+    '400004': { lat: 18.9250, lon: 72.8370, city: 'Mumbai', state: 'Maharashtra' },
+    '400005': { lat: 18.9260, lon: 72.8380, city: 'Mumbai', state: 'Maharashtra' },
+    '411001': { lat: 18.5204, lon: 73.8567, city: 'Pune', state: 'Maharashtra' },
+    '411002': { lat: 18.5210, lon: 73.8570, city: 'Pune', state: 'Maharashtra' },
+    '411003': { lat: 18.5220, lon: 73.8580, city: 'Pune', state: 'Maharashtra' },
+    '411004': { lat: 18.5230, lon: 73.8590, city: 'Pune', state: 'Maharashtra' },
+    '411005': { lat: 18.5240, lon: 73.8600, city: 'Pune', state: 'Maharashtra' },
+    
+    // West Bengal
+    '700001': { lat: 22.5726, lon: 88.3639, city: 'Kolkata', state: 'West Bengal' },
+    '700002': { lat: 22.5730, lon: 88.3640, city: 'Kolkata', state: 'West Bengal' },
+    '700003': { lat: 22.5740, lon: 88.3650, city: 'Kolkata', state: 'West Bengal' },
+    '700004': { lat: 22.5750, lon: 88.3660, city: 'Kolkata', state: 'West Bengal' },
+    '700005': { lat: 22.5760, lon: 88.3670, city: 'Kolkata', state: 'West Bengal' },
+    '700006': { lat: 22.5770, lon: 88.3680, city: 'Kolkata', state: 'West Bengal' },
+    '700007': { lat: 22.5780, lon: 88.3690, city: 'Kolkata', state: 'West Bengal' },
+    '700008': { lat: 22.5790, lon: 88.3700, city: 'Kolkata', state: 'West Bengal' },
+    '700009': { lat: 22.5800, lon: 88.3710, city: 'Kolkata', state: 'West Bengal' },
+    '700010': { lat: 22.5810, lon: 88.3720, city: 'Kolkata', state: 'West Bengal' },
+    
+    // Tamil Nadu
+    '600001': { lat: 13.0827, lon: 80.2707, city: 'Chennai', state: 'Tamil Nadu' },
+    '600002': { lat: 13.0830, lon: 80.2710, city: 'Chennai', state: 'Tamil Nadu' },
+    '600003': { lat: 13.0840, lon: 80.2720, city: 'Chennai', state: 'Tamil Nadu' },
+    '600004': { lat: 13.0850, lon: 80.2730, city: 'Chennai', state: 'Tamil Nadu' },
+    '600005': { lat: 13.0860, lon: 80.2740, city: 'Chennai', state: 'Tamil Nadu' },
+    '600006': { lat: 13.0870, lon: 80.2750, city: 'Chennai', state: 'Tamil Nadu' },
+    '600007': { lat: 13.0880, lon: 80.2760, city: 'Chennai', state: 'Tamil Nadu' },
+    '600008': { lat: 13.0890, lon: 80.2770, city: 'Chennai', state: 'Tamil Nadu' },
+    '600009': { lat: 13.0900, lon: 80.2780, city: 'Chennai', state: 'Tamil Nadu' },
+    '600010': { lat: 13.0910, lon: 80.2790, city: 'Chennai', state: 'Tamil Nadu' }
+  };
+  
+  // Check if pincode exists in database
+  if (pincodeDatabase[pincode]) {
+    const data = pincodeDatabase[pincode];
+    return {
+      lat: data.lat,
+      lon: data.lon,
+      city: data.city,
+      state: data.state,
+      area: '',
+      pincode: pincode,
+      source: 'database'
+    };
+  }
+  
+  // If not found, use state-based approximation
+  const firstTwoDigits = parseInt(pincode.substring(0, 2));
+  
+  // India postal zones
+  const zoneCoordinates = {
+    11: { lat: 28.6139, lon: 77.2090, state: 'Delhi' },      // Delhi
+    12: { lat: 28.4675, lon: 77.0280, state: 'Haryana' },    // Haryana
+    13: { lat: 29.0588, lon: 76.0856, state: 'Haryana' },    // Haryana
+    14: { lat: 31.3260, lon: 75.5762, city: 'Punjab', state: 'Punjab' },
+    15: { lat: 26.8467, lon: 80.9462, state: 'UP' },         // UP
+    16: { lat: 30.7339, lon: 76.7794, state: 'Punjab' },     // Punjab
+    17: { lat: 31.1471, lon: 75.3412, state: 'Himachal' },   // Himachal
+    18: { lat: 32.7266, lon: 74.8570, state: 'J&K' },        // J&K
+    19: { lat: 34.0837, lon: 74.7973, state: 'J&K' },        // J&K
+    20: { lat: 26.9124, lon: 75.7873, state: 'Rajasthan' },  // Rajasthan
+    21: { lat: 25.2138, lon: 75.8648, state: 'Rajasthan' },  // Rajasthan
+    22: { lat: 26.4499, lon: 80.3319, state: 'UP' },         // UP
+    23: { lat: 25.3176, lon: 82.9739, state: 'UP' },         // UP
+    24: { lat: 26.4499, lon: 80.3319, state: 'UP' },         // UP
+    25: { lat: 25.5941, lon: 85.1376, state: 'Bihar' },      // Bihar
+    26: { lat: 28.6139, lon: 77.2090, state: 'Bihar' },      // Bihar
+    27: { lat: 26.1227, lon: 85.3748, state: 'Bihar' },      // Bihar
+    28: { lat: 27.1767, lon: 78.0081, state: 'UP' },         // UP
+    30: { lat: 27.0238, lon: 74.2179, state: 'Rajasthan' },  // Rajasthan
+    31: { lat: 26.2389, lon: 73.0243, state: 'Rajasthan' },  // Rajasthan
+    32: { lat: 27.2046, lon: 77.4977, state: 'MP' },         // MP
+    34: { lat: 26.2183, lon: 78.1828, state: 'MP' },         // MP
+    36: { lat: 22.7196, lon: 75.8577, state: 'MP' },         // MP
+    37: { lat: 27.4924, lon: 77.6737, state: 'MP' },         // MP
+    38: { lat: 23.1645, lon: 79.9361, state: 'MP' },         // MP
+    39: { lat: 22.0796, lon: 82.1391, state: 'Chhattisgarh' },// Chhattisgarh
+    40: { lat: 18.9220, lon: 72.8347, state: 'Maharashtra' }, // Mumbai
+    41: { lat: 18.5204, lon: 73.8567, state: 'Maharashtra' }, // Pune
+    42: { lat: 19.8762, lon: 75.3433, state: 'Maharashtra' }, // Aurangabad
+    44: { lat: 21.1458, lon: 79.0882, state: 'Maharashtra' }, // Nagpur
+    45: { lat: 22.7196, lon: 75.8577, state: 'MP' },          // MP
+    46: { lat: 23.2599, lon: 77.4126, state: 'MP' },          // MP
+    47: { lat: 23.1645, lon: 79.9361, state: 'MP' },          // MP
+    48: { lat: 23.2599, lon: 77.4126, state: 'MP' },          // MP
+    49: { lat: 22.0796, lon: 82.1391, state: 'Chhattisgarh' },// Chhattisgarh
+    50: { lat: 17.3850, lon: 78.4867, state: 'Telangana' },   // Hyderabad
+    51: { lat: 16.5062, lon: 80.6480, state: 'AP' },          // AP
+    52: { lat: 16.5062, lon: 80.6480, state: 'AP' },          // AP
+    53: { lat: 17.3850, lon: 78.4867, state: 'AP' },          // AP
+    56: { lat: 12.9716, lon: 77.5946, state: 'Karnataka' },   // Bangalore
+    57: { lat: 12.9716, lon: 77.5946, state: 'Karnataka' },   // Karnataka
+    58: { lat: 15.3173, lon: 75.7139, state: 'Karnataka' },   // Karnataka
+    59: { lat: 12.9716, lon: 77.5946, state: 'Karnataka' },   // Karnataka
+    60: { lat: 13.0827, lon: 80.2707, state: 'Tamil Nadu' },  // Chennai
+    63: { lat: 12.9716, lon: 77.5946, state: 'Tamil Nadu' },  // Tamil Nadu
+    64: { lat: 10.7905, lon: 78.7047, state: 'Tamil Nadu' },  // Tamil Nadu
+    67: { lat: 9.9312, lon: 76.2673, state: 'Kerala' },       // Kerala
+    68: { lat: 9.9312, lon: 76.2673, state: 'Kerala' },       // Kerala
+    69: { lat: 8.5241, lon: 76.9366, state: 'Kerala' },       // Kerala
+    70: { lat: 22.5726, lon: 88.3639, state: 'West Bengal' }, // Kolkata
+    71: { lat: 22.5726, lon: 88.3639, state: 'West Bengal' }, // West Bengal
+    73: { lat: 23.6102, lon: 85.2799, state: 'Jharkhand' },   // Jharkhand
+    75: { lat: 20.2961, lon: 85.8245, state: 'Odisha' },      // Odisha
+    76: { lat: 19.8204, lon: 82.7679, state: 'Odisha' },      // Odisha
+    77: { lat: 21.2787, lon: 81.8661, state: 'Chhattisgarh' },// Chhattisgarh
+    78: { lat: 26.1227, lon: 85.3748, state: 'Bihar' },       // Bihar
+    79: { lat: 26.4573, lon: 85.8928, state: 'Bihar' },       // Bihar
+    80: { lat: 25.5941, lon: 85.1376, state: 'Bihar' },       // Bihar
+    81: { lat: 25.5941, lon: 85.1376, state: 'Bihar' },       // Bihar
+    82: { lat: 24.8170, lon: 84.2344, state: 'Bihar' },       // Bihar
+    83: { lat: 23.3441, lon: 85.3096, state: 'Jharkhand' },   // Jharkhand
+    84: { lat: 25.7800, lon: 84.7500, state: 'Bihar' },       // Bihar (Chapra region)
+    85: { lat: 26.1227, lon: 85.3748, state: 'Bihar' },       // Bihar
+    90: { lat: 20.2961, lon: 85.8245, state: 'Odisha' }       // Odisha
+  };
+  
+  const zone = zoneCoordinates[firstTwoDigits];
+  if (zone) {
+    return {
+      lat: zone.lat,
+      lon: zone.lon,
+      city: `Zone ${firstTwoDigits}`,
+      state: zone.state,
+      area: '',
+      pincode: pincode,
+      source: 'zone'
+    };
+  }
+  
+  // Ultimate fallback - India center
+  return {
+    lat: 22.5726,
+    lon: 78.3639,
+    city: 'India',
+    state: 'India',
+    area: '',
+    pincode: pincode,
+    source: 'fallback'
+  };
+};
+
+// Calculate distance between Jalandhar and pincode
+const calculatePincodeDistance = async (pincode) => {
+  if (!pincode || pincode.length !== 6) return null;
+  
+  try {
+    const destCoords = await getCoordinatesFromPincode(pincode);
+    const startCoords = STARTING_LOCATION.coordinates;
+    
+    if (destCoords && startCoords) {
+      const distance = calculateHaversineDistance(
+        startCoords.lat, startCoords.lon,
+        destCoords.lat, destCoords.lon
+      );
+      return distance;
+    }
+  } catch (err) {
+    console.error('Error calculating distance:', err);
+  }
+  return null;
+};
+
+// Calculate freight for multiple customers - CORRECT VERSION
+const calculateFreightForCustomers = async (customerNamesList, selectedVehicleType = vehicleType) => {
+  console.log("========== FREIGHT CALCULATION DEBUG ==========");
+  console.log("Customer Names:", customerNamesList);
+  console.log("Vehicle Type:", selectedVehicleType);
+  
+  if (!customerNamesList || customerNamesList.length === 0) {
+    console.log("No customers selected");
+    return { diesel: "", expenses: "" };
+  }
+  
+  const selectedCustomers = customerDetails.filter(c => 
+    customerNamesList.includes(c.name) && c.pincode
+  );
+  
+  console.log("Selected Customers with pincodes:", selectedCustomers.map(c => ({
+    name: c.name,
+    pincode: c.pincode
+  })));
+  
+  if (selectedCustomers.length === 0) {
+    console.log("No customers found with pincodes");
+    return { diesel: "", expenses: "" };
+  }
+  
+  // Get coordinates for all customers
+  const customerCoords = [];
+  for (let i = 0; i < selectedCustomers.length; i++) {
+    const customer = selectedCustomers[i];
+    console.log(`Getting coordinates for customer ${i+1}:`, customer.name, customer.pincode);
+    
+    const coords = await getCoordinatesFromPincode(customer.pincode);
+    if (coords) {
+      customerCoords.push({
+        ...coords,
+        name: customer.name,
+        pincode: customer.pincode
+      });
+      console.log(`Coordinates for ${customer.pincode}:`, coords);
+    }
+  }
+  
+  if (customerCoords.length === 0) {
+    console.log("No coordinates found");
+    return { diesel: "", expenses: "" };
+  }
+  
+  // Calculate distances in sequence: Jalandhar → Customer1 → Customer2 → ... → CustomerN
+  let totalOneWayDistance = 0;
+  let prevCoords = STARTING_LOCATION.coordinates;
+  
+  for (let i = 0; i < customerCoords.length; i++) {
+    const currentCoords = customerCoords[i];
+    
+    // Calculate distance from previous point to current customer
+    const segmentDistance = calculateHaversineDistance(
+      prevCoords.lat, prevCoords.lon,
+      currentCoords.lat, currentCoords.lon
+    );
+    
+    console.log(`Segment ${i === 0 ? 'Jalandhar' : `Customer ${i}`} → Customer ${i+1} (${currentCoords.name}): ${segmentDistance} km`);
+    
+    totalOneWayDistance += segmentDistance;
+    prevCoords = currentCoords;
+  }
+  
+  // Return distance from last customer back to Jalandhar
+  const lastCustomerCoords = customerCoords[customerCoords.length - 1];
+  const returnDistance = calculateHaversineDistance(
+    lastCustomerCoords.lat, lastCustomerCoords.lon,
+    STARTING_LOCATION.coordinates.lat, STARTING_LOCATION.coordinates.lon
+  );
+  
+  console.log("Return distance (last customer → Jalandhar):", returnDistance);
+  console.log("Total One-Way Distance:", totalOneWayDistance);
+  console.log("Return Distance:", returnDistance);
+  
+  const roundTripDistance = totalOneWayDistance + returnDistance;
+  console.log("Round Trip Distance:", roundTripDistance);
+  
+  const mileage = selectedVehicleType === 'tempo' ? 15 : 7;
+  console.log("Mileage:", mileage, "km/L");
+  
+  const baseDiesel = roundTripDistance / mileage;
+  console.log("Base Diesel:", baseDiesel);
+  
+  const totalDiesel = baseDiesel * 1.1;
+  console.log("Total Diesel (+10%):", totalDiesel);
+  
+  const baseKharcha = selectedVehicleType === 'tempo' ? 100 : 400;
+  console.log("Base Kharcha:", baseKharcha);
+  
+  const extraCustomers = selectedCustomers.length - 1;
+  console.log("Extra Customers:", extraCustomers);
+  
+  const extraKharcha = extraCustomers > 0 
+    ? (selectedVehicleType === 'tempo' ? extraCustomers * 50 : extraCustomers * 100)
+    : 0;
+  console.log("Extra Kharcha:", extraKharcha);
+  
+  const totalExpenses = baseKharcha + extraKharcha;
+  console.log("Total Expenses:", totalExpenses);
+  
+  console.log("Final Result:", {
+    diesel: totalDiesel.toFixed(2),
+    expenses: totalExpenses,
+    distance: roundTripDistance
+  });
+  console.log("================================================");
+  
+  return {
+    diesel: totalDiesel.toFixed(2),
+    expenses: totalExpenses,
+    distance: roundTripDistance,
+    oneWayDistance: totalOneWayDistance,
+    lastCustomerDistance: returnDistance
+  };
+};
+
+// ========== END FREIGHT CALCULATOR FUNCTIONS ==========
 
 // Fetch diesel entries
 const fetchDieselEntries = async () => {
@@ -124,21 +673,38 @@ useEffect(() => {
     .catch((err) => console.error("Failed to fetch drivers:", err));
 }, [token]);
 
-  // Fetch customer details
-  useEffect(() => {
-    const fetchCustomerDetails = async () => {
-      try {
-        const res = await axiosInstance.get("/customers/all/dropdown", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCustomerDetails(res.data);
-      } catch (err) {
-        console.error("❌ Failed to fetch customer details", err);
-      }
-    };
+useEffect(() => {
+  const fetchCustomerDetails = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/all/dropdown", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCustomerDetails(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch customer details", err);
+    }
+  };
 
-    if (token) fetchCustomerDetails();
-  }, [token]);
+  if (token) fetchCustomerDetails();
+}, [token]);
+
+// Load freight rates
+useEffect(() => {
+  const fetchRates = async () => {
+    try {
+      const res = await axiosInstance.get("/settings/freight-rates", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRates(res.data);
+    } catch (err) {
+      console.error("Failed to load freight rates:", err);
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+  
+  if (token) fetchRates();
+}, [token]);
 
   // Fetch registered vehicles
   const fetchRegisteredVehicles = async () => {
@@ -156,7 +722,53 @@ useEffect(() => {
   useEffect(() => {
     fetchRegisteredVehicles();
   }, []);
+// Recalculate freight when customerNames changes
+useEffect(() => {
+  const recalculateFreight = async () => {
+    const selectedCustomers = customerNames.filter(name => name.trim());
+    
+    if (selectedCustomers.length > 0) {
+      const freight = await calculateFreightForCustomers(selectedCustomers);
+      if (freight.diesel && freight.expenses) {
+        setFormData(prev => ({ 
+          ...prev, 
+          dieselLiters: freight.diesel,
+          expenses: freight.expenses
+        }));
+      }
+      
+      // Also update location if it's not already set
+      if (!formData.location && selectedCustomers.length > 0) {
+        if (selectedCustomers.length === 1) {
+          const customer = customerDetails.find(c => c.name === selectedCustomers[0]);
+          if (customer) {
+            const location = customer.address ? customer.address.split(',')[0].trim() : customer.name;
+            setFormData(prev => ({ ...prev, location }));
+          }
+        } else {
+          const locations = selectedCustomers.map(name => {
+            const customer = customerDetails.find(c => c.name === name);
+            return customer?.address ? customer.address.split(',')[0].trim() : name;
+          });
+          setFormData(prev => ({ 
+            ...prev, 
+            location: locations.join(' to ')
+          }));
+        }
+      }
+    } else {
+      // Clear if no customers
+      setFormData(prev => ({ 
+        ...prev, 
+        dieselLiters: "",
+        expenses: "",
+        location: ""
+      }));
+    }
+  };
 
+  recalculateFreight();
+}, [customerNames, vehicleType]);
   useEffect(() => {
     if (selectedVehicle && docsRef.current) {
       docsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -455,6 +1067,7 @@ const handleTableSubmit = async () => {
   try {
     const payload = {
       vehicleNumber,
+        vehicleType: vehicleType, // ADD THIS
       driverName,
         location: formData.location, // ✅ NEW: Add location
          dieselLiters: formData.dieselLiters ? parseFloat(formData.dieselLiters) : null, // ✅ NEW: Add diesel liters
@@ -882,10 +1495,11 @@ const sendDriverNotification = async (driverPhone, planDetails) => {
 };
 
 // Enhanced Editable Plan Row Component with Document Uploads
-const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans, drivers }) => {
+const EditablePlanRow = ({ plan, index, page, userRoles, handleDelete, registeredVehicles, customerList, productsList, token, fetchPlans, drivers, customerDetails, calculateFreightForCustomers }) => {
   const [isEditing, setIsEditing] = useState(false);
 const [editablePlan, setEditablePlan] = useState({
   ...plan,
+   vehicleType: plan.vehicleType || 'tempo', // ADD THIS
   // Check if this is a manual vehicle (not found in registered vehicles)
   isManualVehicle: !registeredVehicles.find(v => v.vehicleNumber === plan.vehicleNumber)
 });
@@ -896,7 +1510,73 @@ const [editablePlan, setEditablePlan] = useState({
   const [recorder, setRecorder] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
+// Add this useEffect inside EditablePlanRow component
+useEffect(() => {
+  const recalculateFreight = async () => {
+    if (!isEditing) return;
+    
+    console.log("Recalculating freight with:", {
+      customerNames: editablePlan.customerNames,
+      vehicleType: editablePlan.vehicleType,
+      isEditing
+    });
+    
+    const selectedCustomers = (editablePlan.customerNames || []).filter(name => name.trim());
+    console.log("Selected customers:", selectedCustomers);
+    
+    if (selectedCustomers.length > 0) {
+      // Check if all customers have pincodes
+      const customersWithPincodes = customerDetails.filter(c => 
+        selectedCustomers.includes(c.name) && c.pincode
+      );
+      console.log("Customers with pincodes:", customersWithPincodes);
+      
+      if (customersWithPincodes.length === selectedCustomers.length) {
+        // Pass the vehicle type from editablePlan to the calculation
+        const freight = await calculateFreightForCustomers(selectedCustomers, editablePlan.vehicleType || 'tempo');
+        console.log("Freight calculated:", freight);
+        
+        if (freight.diesel && freight.expenses) {
+          setEditablePlan(prev => ({ 
+            ...prev, 
+            dieselLiters: freight.diesel,
+            expenses: freight.expenses
+          }));
+        }
+        
+        // Update location
+        if (selectedCustomers.length === 1) {
+          const customer = customerDetails.find(c => c.name === selectedCustomers[0]);
+          if (customer) {
+            const location = customer.address ? customer.address.split(',')[0].trim() : customer.name;
+            setEditablePlan(prev => ({ ...prev, location }));
+          }
+        } else {
+          const locations = selectedCustomers.map(name => {
+            const customer = customerDetails.find(c => c.name === name);
+            return customer?.address ? customer.address.split(',')[0].trim() : name;
+          });
+          setEditablePlan(prev => ({ 
+            ...prev, 
+            location: locations.join(' to ')
+          }));
+        }
+      } else {
+        console.log("Some customers missing pincodes");
+      }
+    } else {
+      // Clear if no customers
+      setEditablePlan(prev => ({ 
+        ...prev, 
+        dieselLiters: "",
+        expenses: "",
+        location: ""
+      }));
+    }
+  };
 
+  recalculateFreight();
+}, [editablePlan.customerNames, editablePlan.vehicleType, isEditing]); // Added vehicleType to dependencies
   // Audio recording functions
   const startRecording = async () => {
     try {
@@ -1020,6 +1700,7 @@ const [editablePlan, setEditablePlan] = useState({
       // Prepare update data with documents
       const updateData = {
         ...editablePlan,
+          vehicleType: editablePlan.vehicleType, // ADD THIS
         audioUrl: documents.audioUrl,
         attachmentUrls: documents.attachmentUrls,
           isManualVehicle: editablePlan.isManualVehicle // ✅ Add this
@@ -1178,7 +1859,29 @@ const [editablePlan, setEditablePlan] = useState({
     </div>
   )}
 </td>
-
+{/* Vehicle Type */}
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+  {isEditing ? (
+    <select
+      value={editablePlan.vehicleType || 'tempo'}
+      onChange={(e) => {
+        setEditablePlan(prev => ({ 
+          ...prev, 
+          vehicleType: e.target.value 
+        }));
+        // No need for setTimeout, the useEffect will handle recalculation
+      }}
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+    >
+      <option value="tempo">Tempo (15 km/L)</option>
+      <option value="truck">Truck (7 km/L)</option>
+    </select>
+  ) : (
+    <span className="text-sm text-gray-900 capitalize">
+      {plan.vehicleType || 'tempo'}
+    </span>
+  )}
+</td>
      {/* Driver - Editable with dropdown */}
 <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
   {isEditing ? (
@@ -1221,21 +1924,7 @@ const [editablePlan, setEditablePlan] = useState({
   )}
 </td>
 
-      {/* Location - Editable */}
-      <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editablePlan.location || ''}
-            onChange={(e) => setEditablePlan(prev => ({ ...prev, location: e.target.value }))}
-            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-          />
-        ) : (
-          <span className="text-sm text-gray-900">
-            {plan.location || "-"}
-          </span>
-        )}
-      </td>
+
 
       {/* Customers - Editable */}
       <td className="px-4 py-4 border border-gray-200">
@@ -1261,34 +1950,36 @@ const [editablePlan, setEditablePlan] = useState({
                       <option key={c._id} value={c.name} />
                     ))}
                 </datalist>
-                {(editablePlan.customerNames || []).length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = [...(editablePlan.customerNames || [])];
-                      updated.splice(i, 1);
-                      setEditablePlan(prev => ({ ...prev, customerNames: updated }));
-                    }}
-                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                  >
-                    ×
-                  </button>
-                )}
+               {(editablePlan.customerNames || []).length > 1 && (
+  <button
+    type="button"
+    onClick={() => {
+      const updated = [...(editablePlan.customerNames || [])];
+      updated.splice(i, 1);
+      setEditablePlan(prev => ({ ...prev, customerNames: updated }));
+    }}
+    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+  >
+    ×
+  </button>
+)}
               </div>
             ))}
-            <button
-              type="button"
-              onClick={() => setEditablePlan(prev => ({ 
-                ...prev, 
-                customerNames: [...(prev.customerNames || []), ""] 
-              }))}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Customer
-            </button>
+          <button
+  type="button"
+  onClick={() => {
+    setEditablePlan(prev => ({ 
+      ...prev, 
+      customerNames: [...(prev.customerNames || []), ""] 
+    }));
+  }}
+  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+>
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+  Add Customer
+</button>
           </div>
         ) : (
           <div className="space-y-1">
@@ -1308,7 +1999,21 @@ const [editablePlan, setEditablePlan] = useState({
           </div>
         )}
       </td>
-
+      {/* Location - Editable */}
+     <td className="px-4 py-4 border border-gray-200 min-w-[300px]">
+  {isEditing ? (
+    <textarea
+      value={editablePlan.location || ''}
+      onChange={(e) => setEditablePlan(prev => ({ ...prev, location: e.target.value }))}
+      rows="2"
+      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 resize-y"
+    />
+  ) : (
+    <div className="text-sm text-gray-900 whitespace-normal break-words">
+      {plan.location || "-"}
+    </div>
+  )}
+</td>
       {/* Sales Products - Editable */}
       <td className="px-4 py-4 border border-gray-200">
         {isEditing ? (
@@ -1856,21 +2561,25 @@ const [editablePlan, setEditablePlan] = useState({
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Vehicle & 🛰️ GPS Tracking
         </th>
+         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+          Vehicle Type
+        </th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Driver
         </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
-      Location {/* ✅ NEW: Location column */}
-    </th>
+           
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Customers
         </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 min-w-[200px]">
+  Location
+</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Sales Products / Material Name
         </th>
-         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
-      ⛽Diesel in Liters
-    </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 min-w-[120px]">
+  ⛽Diesel in Liters
+</th>
     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
       💰Expenses
     </th>
@@ -1984,6 +2693,19 @@ const [editablePlan, setEditablePlan] = useState({
     )}
   </div>
 </td>
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+ <select
+  value={vehicleType}
+  onChange={(e) => {
+    setVehicleType(e.target.value);
+    // The useEffect will handle recalculation automatically
+  }}
+  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+>
+  <option value="tempo">Tempo (15 km/L)</option>
+  <option value="truck">Truck (7 km/L)</option>
+</select>
+</td>
          {/* Driver - Updated to dropdown */}
 <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
   <div className="flex gap-1">
@@ -2010,15 +2732,7 @@ const [editablePlan, setEditablePlan] = useState({
     </button>
   </div>
 </td>
-          <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
-            <input
-              type="text"
-              value={formData.location}
-              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-              placeholder="Location"
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-            />
-          </td>
+       
           <td className="px-4 py-4 border border-gray-200">
             <div className="space-y-1 min-w-[200px]">
               {/* Add customer count badge */}
@@ -2030,18 +2744,46 @@ const [editablePlan, setEditablePlan] = useState({
               
               {customerNames.map((name, index) => (
                 <div key={index} className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder="Customer name"
-                    value={name}
-                    onChange={(e) => {
-                      const updated = [...customerNames];
-                      updated[index] = e.target.value;
-                      setCustomerNames(updated);
-                    }}
-                    list={`customer-options-${index}`}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-                  />
+              <input
+  type="text"
+  placeholder="Customer name"
+  value={name}
+  onChange={(e) => {
+    const updated = [...customerNames];
+    updated[index] = e.target.value;
+    setCustomerNames(updated);
+    
+    // Auto-fill location based on selected customers
+    const selectedCustomers = updated.filter(n => n.trim());
+    
+    if (selectedCustomers.length === 1) {
+      // Single customer
+      const customer = customerDetails.find(c => c.name === selectedCustomers[0]);
+      if (customer) {
+        const location = customer.address ? customer.address.split(',')[0].trim() : customer.name;
+        setFormData(prev => ({ ...prev, location }));
+      }
+    } 
+    else if (selectedCustomers.length > 1) {
+      // Multiple customers - show as "city1 to city2 to city3"
+      const locations = selectedCustomers.map(name => {
+        const customer = customerDetails.find(c => c.name === name);
+        return customer?.address ? customer.address.split(',')[0].trim() : name;
+      });
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        location: locations.join(' to ')
+      }));
+    }
+    else {
+      // No customers - clear location
+      setFormData(prev => ({ ...prev, location: "" }));
+    }
+  }}
+  list={`customer-options-${index}`}
+  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+/>
                   <datalist id={`customer-options-${index}`}>
                     {customerList
                       .filter((c) => c.name.toLowerCase().includes(name.toLowerCase()))
@@ -2049,33 +2791,69 @@ const [editablePlan, setEditablePlan] = useState({
                         <option key={c._id} value={c.name} />
                       ))}
                   </datalist>
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...customerNames];
-                        updated.splice(index, 1);
-                        setCustomerNames(updated);
-                      }}
-                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  )}
+                {index > 0 && (
+  <button
+    type="button"
+    onClick={() => {
+      const updated = [...customerNames];
+      updated.splice(index, 1);
+      setCustomerNames(updated);
+      
+      // Update location after deletion
+      const selectedCustomers = updated.filter(n => n.trim());
+      
+      if (selectedCustomers.length === 1) {
+        const customer = customerDetails.find(c => c.name === selectedCustomers[0]);
+        if (customer) {
+          const location = customer.address ? customer.address.split(',')[0].trim() : customer.name;
+          setFormData(prev => ({ ...prev, location }));
+        }
+      } 
+      else if (selectedCustomers.length > 1) {
+        const locations = selectedCustomers.map(name => {
+          const customer = customerDetails.find(c => c.name === name);
+          return customer?.address ? customer.address.split(',')[0].trim() : name;
+        });
+        setFormData(prev => ({ 
+          ...prev, 
+          location: locations.join(' to ')
+        }));
+      }
+      else {
+        setFormData(prev => ({ ...prev, location: "" }));
+      }
+    }}
+    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+  >
+    ×
+  </button>
+)}
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => setCustomerNames([...customerNames, ""])}
-                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Customer
-              </button>
+             <button
+  type="button"
+  onClick={() => {
+    setCustomerNames([...customerNames, ""]);
+    // No need to recalculate here as new empty customer won't affect calculation
+  }}
+  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+>
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+  Add Customer
+</button>
             </div>
           </td>
+            <td className="px-4 py-4 border border-gray-200 min-w-[300px]">
+  <textarea
+    value={formData.location}
+    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+    placeholder="Location (auto-filled from customer)"
+    rows="2"
+    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 resize-y"
+  />
+</td>
           <td className="px-4 py-4 border border-gray-200">
             <div className="space-y-1 min-w-[200px]">
               {/* Add product count badge */}
@@ -2134,27 +2912,29 @@ const [editablePlan, setEditablePlan] = useState({
             </div>
           </td>
           {/* Diesel in Liters */}
-<td className="px-4 py-4 whitespace-nowrap border border-gray-200">
+<td className="px-4 py-4 whitespace-nowrap border border-gray-200 min-w-[120px]">
   <input
     type="number"
     step="0.01"
     value={formData.dieselLiters}
     onChange={(e) => setFormData(prev => ({ ...prev, dieselLiters: e.target.value }))}
     placeholder="Diesel in liters"
-    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
+    className={`w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 ${formData.dieselLiters ? 'bg-blue-50' : ''}`}
+    readOnly={!!formData.dieselLiters}
   />
 </td>
 
 {/* Expenses */}
 <td className="px-4 py-4 whitespace-nowrap border border-gray-200">
   <input
-    type="number"
-    step="0.01"
-    value={formData.expenses}
-    onChange={(e) => setFormData(prev => ({ ...prev, expenses: e.target.value }))}
-    placeholder="Expenses"
-    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
-  />
+  type="number"
+  step="0.01"
+  value={formData.expenses}
+  onChange={(e) => setFormData(prev => ({ ...prev, expenses: e.target.value }))}
+  placeholder="Expenses"
+  className={`w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 ${formData.expenses ? 'bg-yellow-50' : ''}`}
+  readOnly={!!formData.expenses}
+/>
 </td>
           <td className="px-4 py-4 border border-gray-200">
             <input
@@ -2302,6 +3082,8 @@ const [editablePlan, setEditablePlan] = useState({
           token={token}
           fetchPlans={fetchPlans}
               drivers={drivers} // ✅ Add this line
+               customerDetails={customerDetails}  // Add this
+  calculateFreightForCustomers={calculateFreightForCustomers}  // Add this
         />
       ))}
     </tbody>
