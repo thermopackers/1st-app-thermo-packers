@@ -1000,6 +1000,50 @@ const handleRemoveDrawingFile = (index) => {
   <ShowInternalImagesButton product={product} />
 </div>
 
+{/* Narration Images Section - ADD THIS BLOCK */}
+{selectedOrder?.narrationImages && selectedOrder.narrationImages.length > 0 && (
+  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <label className="font-bold text-xl mb-3 block text-indigo-700">
+      📸 Order Narration Images:
+    </label>
+    <div className="flex flex-wrap gap-4">
+      {selectedOrder.narrationImages.map((imageUrl, index) => (
+        <div
+          key={index}
+          className="relative group cursor-pointer border-2 border-gray-300 rounded-lg p-2 bg-white hover:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+          onClick={() => {
+            // Reuse the existing handleFilePreview function
+            const fileName = `Narration Image ${index + 1}`;
+            handleFilePreview(imageUrl, fileName);
+          }}
+        >
+          <div className="w-24 h-24 flex items-center justify-center bg-gray-100 rounded-md overflow-hidden">
+            <img
+              src={imageUrl}
+              alt={`Narration ${index + 1}`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/broken-image.png";
+              }}
+            />
+          </div>
+          <div className="mt-2 text-xs text-gray-600 text-center">
+            Image {index + 1}
+          </div>
+          
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-indigo-500 bg-opacity-10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+              View
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
     <label className="font-bold text-xl">Size:</label>
   <input
   type="text"
