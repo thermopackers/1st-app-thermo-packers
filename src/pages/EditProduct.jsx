@@ -249,7 +249,7 @@ data.append("weight", formData.weight || ""); // 🆕 NEW FIELD - Add this
   </div>
 
     {/* 🆕 NEW FIELD - Product Weight */}
-  <div>
+  {/* <div>
     <label className="block text-gray-700 font-semibold mb-2">Product Weight</label>
     <input 
       type="text" 
@@ -259,7 +259,7 @@ data.append("weight", formData.weight || ""); // 🆕 NEW FIELD - Add this
       placeholder="e.g., 1kg, 500g, 2.5kg" 
       className="w-full border p-2 rounded"
     />
-  </div>
+  </div> */}
 
   {/* 🆕 Description Field */}
   <div>

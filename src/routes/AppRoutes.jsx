@@ -88,6 +88,7 @@ import PasswordManager from "../pages/PasswordManager";
 import FreightCalculator from "../pages/FreightCalculator";
 import FactoryAttendanceLogs from "../components/FactoryAttendanceLogs";
 import FactoryMonthlyReports from "../components/FactoryMonthlyReports";
+import RMRate from "../pages/RMRate";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -362,6 +363,8 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+<Route path="/rm-rate" element={<RMRate />} />
+
             <Route
               path="/add-customer"
               element={

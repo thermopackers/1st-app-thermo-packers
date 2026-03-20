@@ -47,6 +47,7 @@ export default function App() {
     "/freight-calculator",
     "/factory-attendance-logs",
     "/factory-monthly-reports",
+    "/rm-rate",
     "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",

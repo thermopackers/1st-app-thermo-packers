@@ -4,6 +4,7 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import CostingSheet from "../components/CostingSheet";
 const INDIAN_STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
   "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
@@ -597,9 +598,10 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   return (
     <>
       <InternalNavbar />
+         <CostingSheet customerId={id} />
+
 <div className="flex justify-between items-center max-w-7xl mx-auto p-6 pb-0">
-  <h2 className="text-2xl font-bold">Edit Customer</h2>
-  
+  <h2 className="text-2xl font-bold">Edit Customer</h2>  
   {/* WhatsApp Share Button */}
   {customer && (
     <button

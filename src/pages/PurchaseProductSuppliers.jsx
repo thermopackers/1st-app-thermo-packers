@@ -3,6 +3,7 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
+import { DollarSign } from "lucide-react";
 
 // Helper function to parse roles properly
 const parseUserRoles = (user) => {
@@ -94,6 +95,11 @@ export default function PurchaseProductSuppliers() {
               <NavLink to="/stock-management" className="w-full">
                 <button className="w-full bg-purple-500 hover:bg-purple-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
                   📊 Stock Management
+                </button>
+              </NavLink>
+       <NavLink to="/rm-rate" className="w-full">
+                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
+                  💵 RM Rate
                 </button>
               </NavLink>
             </div>

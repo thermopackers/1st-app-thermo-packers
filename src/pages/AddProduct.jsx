@@ -145,7 +145,7 @@ const handleSubmit = async (e) => {
   </div>
 
     {/* 🆕 NEW FIELD - Product Weight */}
-  <div>
+  {/* <div>
     <label className="block text-gray-700 font-semibold mb-2">Product Weight</label>
     <input 
       name="weight" 
@@ -154,7 +154,7 @@ const handleSubmit = async (e) => {
       onChange={handleChange} 
       className="w-full p-3 border border-gray-300 rounded-lg"
     />
-  </div>
+  </div> */}
 
   {/* 🆕 Description Field */}
   <div>

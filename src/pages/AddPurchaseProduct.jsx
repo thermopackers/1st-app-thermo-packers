@@ -13,6 +13,7 @@ export default function AddPurchaseProduct() {
   const [form, setForm] = useState({
     name: "",
     unit: "",
+        weight: "", // 🆕 Add this
     hsnCode: "",
     gstPercent: "",
     price: "",
@@ -41,17 +42,28 @@ export default function AddPurchaseProduct() {
     });
   }, []);
 
-  // Fetch product if editing
-  useEffect(() => {
-    if (isEdit) {
-      axiosInstance.get(`/purchase-products/${id}`).then((res) => {
-        setForm(res.data);
-        setExistingFiles(res.data.files || []);
-        setExistingInternalFiles(res.data.internalImages || []);
-      });
-    }
-  }, [id]);
-
+// Fetch product if editing
+useEffect(() => {
+  if (isEdit) {
+    axiosInstance.get(`/purchase-products/${id}`).then((res) => {
+      const productData = res.data;
+      
+      // Fix: Extract category ID if category is an object
+      if (productData.category && typeof productData.category === 'object') {
+        productData.category = productData.category._id;
+      }
+      
+      // 🆕 Convert weight from kg (stored) to grams for display
+      if (productData.weight) {
+        productData.weight = (productData.weight * 1000).toString();
+      }
+      
+      setForm(productData);
+      setExistingFiles(productData.files || []);
+      setExistingInternalFiles(productData.internalImages || []);
+    });
+  }
+}, [id]);
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -206,6 +218,11 @@ const handleSubmit = async (e) => {
       internalImages: allInternal,
     };
     
+    // 🆕 Convert weight from grams to kilograms for storage
+    if (submitData.weight) {
+      submitData.weight = parseFloat(submitData.weight) / 1000;
+    }
+    
     // For Diwali gift items
     if (form.isGiftItem) {
       // Remove category field if empty for gifts
@@ -333,6 +350,27 @@ const handleSubmit = async (e) => {
           )}
         </div>
       ))}
+
+    {/* 🆕 Weight Field - Now in grams */}
+<div>
+  <label className="block font-semibold mb-1" htmlFor="weight">
+    Weight (grams)
+  </label>
+  <input
+    id="weight"
+    name="weight"
+    type="number"
+    step="1"
+    min="0"
+    value={form.weight}
+    onChange={handleChange}
+    placeholder="e.g., 1500, 2750, 500"
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">
+    Enter weight in grams (used for costing calculations)
+  </p>
+</div>
 
       {/* Category Field - Required for regular products */}
       <div>

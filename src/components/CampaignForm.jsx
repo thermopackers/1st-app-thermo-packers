@@ -555,6 +555,176 @@ export default function CampaignForm() {
     }
   };
 
+  // WhatsApp Preview Component
+const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessageWithMedia, uploadedMedia, previewUrl }) => {
+  const hasMedia = mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
+  
+  // Format the message as it would appear on WhatsApp
+  const getPreviewMessage = () => {
+    if (!message && !hasMedia) return "No message content";
+    
+    if (hasMedia && !longMessageWithMedia) {
+      // Media campaign with short message
+      const displayName = customerName || "Customer";
+      const messageText = message || "";
+      return `${displayName}: ${messageText}`;
+    } else if (hasMedia && longMessageWithMedia) {
+      // Long message with media - show both
+      return message || "Long message will be sent after media";
+    } else {
+      // Text only
+      return message || "No message";
+    }
+  };
+
+  const previewMessage = getPreviewMessage();
+  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="mt-6 border rounded-lg overflow-hidden bg-gray-100">
+      <div className="bg-green-600 text-white px-4 py-2 flex items-center gap-2">
+        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+          <span className="text-green-600 text-xs">✓</span>
+        </div>
+        <span className="font-medium">WhatsApp Preview</span>
+        <span className="text-xs ml-auto">How recipients will see it</span>
+      </div>
+      
+      <div className="p-4 bg-[#e5ded8]">
+        {/* Phone Frame */}
+        <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border-8 border-gray-900">
+          {/* Phone Header */}
+          <div className="bg-[#075e54] text-white px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#128C7E] rounded-full flex items-center justify-center">
+              <span className="text-xs">📱</span>
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-sm">WhatsApp</div>
+              <div className="text-xs opacity-80">Online</div>
+            </div>
+            <div className="flex gap-2">
+              <span>📞</span>
+              <span>⋯</span>
+            </div>
+          </div>
+          
+          {/* Chat Area */}
+          <div className="bg-[#e5ded8] p-3 min-h-[300px]">
+            <div className="flex justify-start mb-2">
+              <div className="bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] shadow">
+                {/* Media Preview */}
+                {hasMedia && (
+                  <div className="mb-2">
+                    {uploadedMedia && uploadedMedia.length > 0 ? (
+                      // Multiple media preview
+                      <div className="space-y-2">
+                        {uploadedMedia.slice(0, 2).map((media, idx) => (
+                          <div key={idx} className="border rounded overflow-hidden">
+                            {media.type === 'image' ? (
+                              <img 
+                                src={URL.createObjectURL(media.file)} 
+                                alt={`Preview ${idx + 1}`}
+                                className="w-full h-32 object-cover"
+                              />
+                            ) : (
+                              <div className="bg-gray-100 p-2 text-center text-sm">
+                                {media.type === 'video' ? '🎬 Video File' : 
+                                 media.type === 'pdf' ? '📕 PDF Document' : '📄 Document'}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {uploadedMedia.length > 2 && (
+                          <div className="text-xs text-gray-500">
+                            +{uploadedMedia.length - 2} more files
+                          </div>
+                        )}
+                      </div>
+                    ) : mediaUrl && (
+                      // Single media preview
+                      <div className="border rounded overflow-hidden">
+                        {mediaType === 'image' ? (
+                          <img 
+                            src={previewUrl || mediaUrl} 
+                            alt="Media preview"
+                            className="w-full h-40 object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/300x200?text=Image+Preview';
+                            }}
+                          />
+                        ) : (
+                          <div className="bg-gray-100 p-4 text-center">
+                            <span className="text-4xl">
+                              {mediaType === 'video' ? '🎬' : 
+                               mediaType === 'pdf' ? '📕' : '📄'}
+                            </span>
+                            <p className="text-sm mt-2">
+                              {mediaType === 'video' ? 'Video File' : 
+                               mediaType === 'pdf' ? 'PDF Document' : 'Document'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Message Text */}
+                {previewMessage && (
+                  <div className="text-gray-800 text-sm whitespace-pre-wrap break-words">
+                    {previewMessage}
+                  </div>
+                )}
+                
+                {/* Time and Status */}
+                <div className="flex justify-end items-center gap-1 mt-1">
+                  <span className="text-[10px] text-gray-500">{currentTime}</span>
+                  <span className="text-[10px] text-blue-500">✓✓</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Typing indicator (just for show) */}
+            <div className="flex justify-start opacity-50">
+              <div className="bg-white rounded-full px-3 py-2 text-xs text-gray-500">
+                <span className="animate-pulse">⋯</span> Typing
+              </div>
+            </div>
+          </div>
+          
+          {/* Input Bar */}
+          <div className="bg-[#f0f0f0] px-3 py-2 flex items-center gap-2">
+            <span className="text-gray-600">😊</span>
+            <span className="text-gray-600">📎</span>
+            <div className="flex-1 bg-white rounded-full px-4 py-1 text-sm text-gray-400">
+              Type a message
+            </div>
+            <span className="text-gray-600">🎤</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Message Info */}
+      <div className="bg-gray-50 px-4 py-2 text-xs text-gray-600 border-t">
+        <div className="flex justify-between">
+          <span>Character count: {message?.length || 0}</span>
+          {hasMedia && !longMessageWithMedia && (
+            <span className="text-yellow-600">
+              Media campaign: Name + message = {(customerName?.length || 8) + 2 + (message?.length || 0)} chars
+            </span>
+          )}
+          {longMessageWithMedia && (
+            <span className="text-purple-600">
+              Long message mode: Media + {message?.length || 0} chars text
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
   const getTypeIcon = () => {
     switch(type) {
       case 'whatsapp': return '💬';
@@ -840,6 +1010,21 @@ export default function CampaignForm() {
                       (Media sent first, then full message as separate text)
                     </span>
                   </label>
+                </div>
+              )}
+
+                   {/* WhatsApp Preview - Only show for WhatsApp campaigns */}
+              {type === 'whatsapp' && (
+                <div className="md:col-span-2">
+                  <WhatsAppPreview 
+                    message={formData.message}
+                    mediaUrl={formData.mediaUrl}
+                    mediaType={formData.mediaType}
+                    customerName={getDisplayCustomerName()}
+                    longMessageWithMedia={formData.longMessageWithMedia}
+                    uploadedMedia={uploadedMedia}
+                    previewUrl={previewUrl}
+                  />
                 </div>
               )}
               
