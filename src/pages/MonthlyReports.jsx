@@ -388,7 +388,6 @@ const renderLateDetails = (lateDetails) => {
   };
 
   // Add this new function for PDF download
-// Update the PDF download function to include leaves and present/absent counts
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -424,7 +423,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     doc.text(`Month: ${monthName}`, 14, 25);
     doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 32);
     
-    // Calculate Sundays and working days properly
+    // Calculate all dates in the month up to today
     const [year, m] = month.split("-");
     const monthNum = parseInt(m);
     const today = new Date();
@@ -449,15 +448,99 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       }
     }
     
-    // Get present days from attendance records
-    const presentDates = attendanceRecords
-      .filter(record => record.type === 'present')
-      .map(record => record.date);
+    // Create a map of attendance records by date for quick lookup
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      attendanceMap[record.date] = record;
+    });
     
-    // Get leave days
-    const leaveDates = attendanceRecords
-      .filter(record => record.type === 'leave')
-      .map(record => record.date);
+    // Prepare table data for ALL dates in the month
+    const tableData = allDatesInMonth.map(dateStr => {
+      const record = attendanceMap[dateStr];
+      const dateObj = new Date(dateStr);
+      const dayName = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
+      const isSunday = dateObj.getDay() === 0;
+      
+      let checkIn = "—";
+      let checkOut = "—";
+      let hours = "—";
+      let attendanceType = "";
+      let isPresent = false;
+      
+      if (record) {
+        if (record.type === 'leave') {
+          attendanceType = "On Leave";
+        } else if (record.type === 'present') {
+          isPresent = true;
+          checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
+          checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
+          
+          // Calculate worked hours
+          if (record.checkInTime && record.checkOutTime) {
+            const checkInDate = new Date(record.checkInTime);
+            const checkOutDate = new Date(record.checkOutTime);
+            const diffMs = checkOutDate - checkInDate;
+            const totalMinutes = Math.round(diffMs / (1000 * 60));
+            const hrs = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            const formattedMins = mins < 10 ? `0${mins}` : mins;
+            hours = `${hrs}h ${formattedMins}m`;
+          }
+        }
+      }
+      
+      // Determine attendance type if not already set
+      if (!attendanceType) {
+        if (isSunday) {
+          attendanceType = "Weekly Off";
+        } else if (record && record.type === 'present') {
+          // Present day (non-Sunday)
+          const isIncomplete = record.checkInTime && !record.checkOutTime;
+          
+          const isLateHalfDay = (() => {
+            if (!record.checkInTime) return false;
+            const checkInDate = new Date(record.checkInTime);
+            const thresholdTime = new Date(dateStr);
+            thresholdTime.setHours(9, 51, 0, 0);
+            return checkInDate > thresholdTime;
+          })();
+          
+          const isEarlyHalfDay = (() => {
+            if (!record.checkOutTime) return false;
+            const checkOutDate = new Date(record.checkOutTime);
+            const expectedTime = new Date(dateStr);
+            expectedTime.setHours(18, 0, 0, 0);
+            return checkOutDate < expectedTime;
+          })();
+          
+          const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
+          
+          let reasons = [];
+          if (isIncomplete) reasons.push("Incomplete");
+          if (isLateHalfDay) reasons.push("Late");
+          if (isEarlyHalfDay) reasons.push("Early");
+          
+          attendanceType = isHalfDay ? `Half Day${reasons.length ? ' (' + reasons.join(', ') + ')' : ''}` : "Full Day";
+        } else {
+          attendanceType = "Absent";
+        }
+      }
+      
+      return [
+        formatDate(dateStr),
+        dayName,
+        checkIn,
+        checkOut,
+        hours,
+        attendanceType
+      ];
+    });
+    
+    // Calculate statistics
+    const presentRecords = attendanceRecords.filter(r => r.type === 'present');
+    const leaveRecords = attendanceRecords.filter(r => r.type === 'leave');
+    const presentDates = presentRecords.map(r => r.date);
+    const leaveDates = leaveRecords.map(r => r.date);
     
     // Calculate working days (all days except Sundays that were NOT worked)
     const workingDays = allDatesInMonth.filter(date => {
@@ -465,8 +548,6 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       const isSunday = dateObj.getDay() === 0;
       const isPresent = presentDates.includes(date);
       
-      // If it's Sunday and they worked, it's a working day
-      // If it's Sunday and they didn't work, it's NOT a working day
       if (isSunday) {
         return isPresent; // Only count if they worked
       }
@@ -488,45 +569,6 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       const dateObj = new Date(date);
       return dateObj.getDay() === 0;
     }).length;
-    
-    // Prepare table data
-    const tableData = attendanceRecords.map(record => {
-      const dayName = new Date(record.date).toLocaleDateString("en-IN", { weekday: "short" });
-      const isSunday = new Date(record.date).getDay() === 0;
-      
-      let attendanceType = "";
-      
-      if (record.type === 'leave') {
-        attendanceType = "On Leave";
-      } else {
-        // Present day
-        if (isSunday) {
-          attendanceType = "Sunday (Worked)";
-        } else {
-          const isHalfDay = (() => {
-            if (!record.checkInTime) return false;
-            const checkInDate = new Date(record.checkInTime);
-            const thresholdTime = new Date(record.date);
-            thresholdTime.setHours(9, 51, 0, 0);
-            return checkInDate > thresholdTime;
-          })();
-          attendanceType = isHalfDay ? "Half Day" : "Full Day";
-        }
-      }
-      
-      const checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
-      const checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
-      const hours = record.workedHours ? formatWorkedHours(record.workedHours) : "—";
-      
-      return [
-        formatDate(record.date),
-        dayName,
-        checkIn,
-        checkOut,
-        hours,
-        attendanceType
-      ];
-    });
     
     // Generate table
     autoTable(doc, {
@@ -678,35 +720,42 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
     });
   }
 
-  // Combine all attendance records for the table (present + leave)
+  // Combine all attendance records for the table (present + leave + Sundays)
   const allAttendanceRecords = [];
   
-  // Add present days
-  if (presentDetails) {
-    presentDetails.forEach(detail => {
+  // First, add all dates in the month
+  allDates.forEach(dateStr => {
+    const isPresent = presentDateMap[dateStr];
+    const isOnLeave = leaveDateMap[dateStr];
+    const isSunday = new Date(dateStr).getDay() === 0;
+    
+    if (isPresent) {
+      // Add present day record
       allAttendanceRecords.push({
-        ...detail,
+        ...presentDateMap[dateStr],
         type: 'present'
       });
-    });
-  }
-  
-  // Add leave days
-  if (leaveDates) {
-    leaveDates.forEach(date => {
-      // Check if this date is already in present details (shouldn't happen, but just in case)
-      const exists = allAttendanceRecords.some(record => record.date === date);
-      if (!exists) {
-        allAttendanceRecords.push({
-          date: date,
-          type: 'leave',
-          checkInTime: null,
-          checkOutTime: null,
-          workedHours: null
-        });
-      }
-    });
-  }
+    } else if (isOnLeave) {
+      // Add leave day record
+      allAttendanceRecords.push({
+        date: dateStr,
+        type: 'leave',
+        checkInTime: null,
+        checkOutTime: null,
+        workedHours: null
+      });
+    } else if (isSunday) {
+      // Add Sunday as Weekly Off (only if no attendance and not on leave)
+      allAttendanceRecords.push({
+        date: dateStr,
+        type: 'sunday',
+        checkInTime: null,
+        checkOutTime: null,
+        workedHours: null
+      });
+    }
+    // Absent weekdays will be handled by the absentDates section elsewhere
+  });
 
   // Sort by date
   allAttendanceRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -786,11 +835,11 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
             textColor = "text-purple-800";
             titleText = "On Leave";
           } else if (isPresent) {
-            // Skip half-day calculations for Sundays (they're weekly off)
+            // Check if worked on Sunday
             if (isSunday) {
               bgColor = "bg-orange-100";
               textColor = "text-orange-800";
-              titleText = "Weekly Off (Worked)";
+              titleText = "Sunday (Worked)";
             } else {
               // Check if incomplete (only check-in)
               const isIncomplete = presentDateMap[dateStr].checkInTime && !presentDateMap[dateStr].checkOutTime;
@@ -865,7 +914,7 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
         })}
       </div>
       
-      {/* Detailed Table with FD/HD Column - INCLUDING LEAVES */}
+      {/* Detailed Table with FD/HD Column - INCLUDING LEAVES AND SUNDAYS */}
       {allAttendanceRecords.length > 0 && (
         <>
           <div className="flex justify-between items-center mb-3">
@@ -898,7 +947,7 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Worked Hours</th>
                   <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Attendance</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {allAttendanceRecords.map((record, index) => {
@@ -915,13 +964,18 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                     textColor = "text-purple-700";
                     attendanceType = "On Leave";
                     attendanceColor = "bg-purple-100 text-purple-800";
+                  } else if (record.type === 'sunday') {
+                    rowColor = "bg-orange-50";
+                    textColor = "text-orange-700";
+                    attendanceType = "Weekly Off";
+                    attendanceColor = "bg-orange-100 text-orange-800";
                   } else {
                     // Present day
                     if (isSunday) {
-                      rowColor = "bg-orange-50";
-                      textColor = "text-orange-700";
-                      attendanceType = "Weekly Off";
-                      attendanceColor = "bg-orange-100 text-orange-800";
+                      rowColor = "bg-orange-100";
+                      textColor = "text-orange-800";
+                      attendanceType = "Sunday (Worked)";
+                      attendanceColor = "bg-orange-200 text-orange-800";
                     } else {
                       // Check if incomplete (only check-in)
                       const isIncomplete = record.checkInTime && !record.checkOutTime;
@@ -959,6 +1013,19 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                     }
                   }
 
+                  // Calculate worked hours if present
+                  const workedHoursDisplay = (() => {
+                    if (!record.checkInTime || !record.checkOutTime) return "—";
+                    const checkIn = new Date(record.checkInTime);
+                    const checkOut = new Date(record.checkOutTime);
+                    const diffMs = checkOut - checkIn;
+                    const totalMinutes = Math.round(diffMs / (1000 * 60));
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+                    return `${hours}h ${formattedMinutes}m`;
+                  })();
+
                   return (
                     <tr key={index} className={`hover:opacity-90 ${rowColor}`}>
                       <td className={`px-3 py-2 text-sm ${textColor}`}>{formatDate(record.date)}</td>
@@ -970,7 +1037,7 @@ const renderPresentDetails = (presentDetails, absentDates, month, leaveDates = [
                         {record.checkOutTime ? formatTime(record.checkOutTime) : "—"}
                       </td>
                       <td className={`px-3 py-2 text-sm ${textColor}`}>
-                        {record.workedHours ? formatWorkedHours(record.workedHours) : "—"}
+                        {workedHoursDisplay}
                       </td>
                       <td className={`px-3 py-2 text-sm`}>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${attendanceColor}`}>
