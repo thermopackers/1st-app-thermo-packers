@@ -387,7 +387,7 @@ const renderLateDetails = (lateDetails) => {
     );
   };
 
-  // Add this new function for PDF download
+// Update the PDF download function to include monthly off
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -570,6 +570,15 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       return dateObj.getDay() === 0;
     }).length;
     
+    // ========== NEW: Monthly Off Logic ==========
+    // There is exactly 1 monthly off per month
+    const monthlyOff = 1;
+    
+    // Calculate net leaves (leave days minus monthly off)
+    // If there are no leaves, show monthly off as 1
+    const netLeaves = leaveCount > 0 ? leaveCount - monthlyOff : 0;
+    const monthlyOffDisplay = leaveCount > 0 ? monthlyOff : 1;
+    
     // Generate table
     autoTable(doc, {
       head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Worked Hours', 'Attendance']],
@@ -608,8 +617,15 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     // Line 4: Present and Absent (from working days only)
     doc.text(`Present: ${presentCount} | Absent: ${absentDays.length}`, 14, finalY + 55);
     
-    // Line 5: FD, HD, and Leave
-    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount} | Leave: ${leaveCount}`, 14, finalY + 65);
+    // Line 5: FD, HD
+    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, finalY + 65);
+    
+    // Line 6: Leaves with Monthly Off adjustment
+    if (leaveCount > 0) {
+      doc.text(`Leaves: ${leaveCount} total | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, finalY + 75);
+    } else {
+      doc.text(`Monthly Off: ${monthlyOffDisplay}`, 14, finalY + 75);
+    }
 
     // Save PDF
     doc.save(`attendance-${userName}-${month}.pdf`);
