@@ -479,10 +479,10 @@ packaging: e.target.value,
                 />
               </div>
 
-            {selectedImages[i]?.length > 0 && (
+           {selectedImages[i]?.length > 0 && (
   <div className="flex flex-wrap gap-2 mt-2">
     {selectedImages[i].map((url, idx) => (
-      <div key={idx} className="relative group">
+      <div key={idx} className="relative">
         <img
           src={url}
           alt={`product-${i}-img-${idx}`}
@@ -496,23 +496,26 @@ packaging: e.target.value,
             });
           }}
         />
-        {/* Add delete button */}
+        {/* Delete button - always visible on mobile */}
         <button
           type="button"
-          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600"
+          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center shadow-md hover:bg-red-600 active:bg-red-700 touch-manipulation"
           onClick={(e) => {
-            e.stopPropagation(); // Prevent opening the image viewer
-            const updatedImages = [...selectedImages[i]];
-            updatedImages.splice(idx, 1);
-            setSelectedImages(prev => ({
-              ...prev,
-              [i]: updatedImages
-            }));
-            
-            // Also update form.products to sync with backend
-            const updatedProducts = [...form.products];
-            updatedProducts[i].images = updatedImages;
-            setForm(f => ({ ...f, products: updatedProducts }));
+            e.stopPropagation();
+            // Add confirmation for better UX
+            if (window.confirm('Remove this image?')) {
+              const updatedImages = [...selectedImages[i]];
+              updatedImages.splice(idx, 1);
+              setSelectedImages(prev => ({
+                ...prev,
+                [i]: updatedImages
+              }));
+              
+              // Also update form.products to sync with backend
+              const updatedProducts = [...form.products];
+              updatedProducts[i].images = updatedImages;
+              setForm(f => ({ ...f, products: updatedProducts }));
+            }
           }}
           title="Delete image"
         >
