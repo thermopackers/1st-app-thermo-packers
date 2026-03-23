@@ -456,23 +456,36 @@ const getPincodeCoordinates = (pincode) => {
   };
 };
 
-  // Calculate distance using Haversine formula
-  const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    
-    // Add 15% buffer for road distance
-    const straightDistance = R * c;
-    const roadDistance = Math.ceil(straightDistance * 1.27);
-    
-    return roadDistance;
-  };
+// Calculate distance using Haversine formula with dynamic road factor
+const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  
+  const straightDistance = R * c;
+  
+  // Dynamic road factor based on distance
+  // If distance is <= 20 km (close range), use higher factor (1.90)
+  // If distance is > 20 km (far range), use lower factor (1.27)
+  let roadFactor;
+  if (straightDistance <= 20) {
+    roadFactor = 4.00; // Higher factor for short distances (city roads, multiple turns)
+  } else {
+    roadFactor = 1.27; // Lower factor for long distances (highways, straight roads)
+  }
+  
+  const roadDistance = Math.ceil(straightDistance * roadFactor);
+  
+  // Debug log
+  console.log(`Straight distance: ${straightDistance.toFixed(2)} km, Factor: ${roadFactor}, Road distance: ${roadDistance} km`);
+  
+  return roadDistance;
+};
 
   const handleCustomerSelect = async (customer) => {
     setSelectedCustomer(customer);
