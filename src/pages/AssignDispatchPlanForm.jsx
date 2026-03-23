@@ -269,7 +269,8 @@ const getPincodeCoordinates = (pincode) => {
     '144004': { lat: 31.3245, lon: 75.5800, city: 'Jalandhar', state: 'Punjab' },
     '144005': { lat: 31.3280, lon: 75.5750, city: 'Jalandhar', state: 'Punjab' },
     '144026': { lat: 31.3300, lon: 75.5800, city: 'Jalandhar', state: 'Punjab' }, // Adjust these coordinates to get 12 km
-    
+        '144022': { lat: 31.3380, lon: 75.5650, city: 'Jalandhar', state: 'Punjab' },
+
     // Kapurthala region - use coordinates that give 19 km distance
     '144411': { lat: 31.3800, lon: 75.3800, city: 'Kapurthala', state: 'Punjab' }, // Adjust to get 19 km
     
