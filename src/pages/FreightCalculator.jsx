@@ -489,7 +489,7 @@ const getPincodeCoordinates = (pincode) => {
     
     // Add 15% buffer for road distance
     const straightDistance = R * c;
-    const roadDistance = Math.ceil(straightDistance * 1.4);
+    const roadDistance = Math.ceil(straightDistance * 1.27);
     
     return roadDistance;
   };

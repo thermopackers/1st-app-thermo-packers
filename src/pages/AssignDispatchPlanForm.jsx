@@ -136,7 +136,7 @@ const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   
   const straightDistance = R * c;
-  const roadDistance = Math.ceil(straightDistance * 1.4);
+  const roadDistance = Math.ceil(straightDistance * 1.27);
   
   return roadDistance;
 };
