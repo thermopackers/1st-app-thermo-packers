@@ -159,13 +159,17 @@ useEffect(() => {
       setCustomer(customerData);
       
       // ✅ Fetch frequently bought products here
-      if (customerData.name) {
-        const ordersRes = await axiosInstance.get(
-          `/orders/customer-summary/${encodeURIComponent(customerData.name)}`
-        );
-        setFrequentProducts(ordersRes.data);
-        console.log("Frequent products loaded:", ordersRes.data); // Debug log
-      }
+     if (customerData.name) {
+  const ordersRes = await axiosInstance.get(
+    `/orders/customer-summary/${encodeURIComponent(customerData.name)}`
+  );
+  console.log("Frequent products response:", ordersRes.data);
+  console.log("Frequent products with IDs:", ordersRes.data.map(p => ({ 
+    product: p.product, 
+    productId: p.productId 
+  })));
+  setFrequentProducts(ordersRes.data);
+}
       
       // Fetch all histories
       fetchGiftHistory();

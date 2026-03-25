@@ -49,68 +49,115 @@ export default function CostingSheet({ customerId, frequentProducts = [] }) {
     }
   }, [isOpen, frequentProducts]);
 
-  const fetchProductsFromFrequentList = async () => {
-    if (frequentProducts.length === 0) {
+const fetchProductsFromFrequentList = async () => {
+  if (frequentProducts.length === 0) {
+    setRawMaterials([]);
+    return;
+  }
+  
+  setLoading(true);
+  try {
+    console.log("Frequent products data:", frequentProducts);
+    
+    // Filter out products without valid productId
+    const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
+    console.log("Valid products with IDs:", validProducts);
+    
+    if (validProducts.length === 0) {
+      console.warn("No valid product IDs found in frequent products");
+      toast.warning("Products don't have valid IDs. Please check product data.");
       setRawMaterials([]);
+      setLoading(false);
       return;
     }
     
-    setLoading(true);
+    const productIds = validProducts.map(p => p.productId);
+    console.log("Product IDs to fetch:", productIds);
+    
+    // Try batch endpoint first
+    let products = [];
     try {
-      const productIds = frequentProducts.map(p => p.productId);
-      const productPromises = productIds.map(id => 
-        axiosInstance.get(`/products-multer/${id}`)
-      );
+      console.log("Trying batch endpoint...");
+      const batchRes = await axiosInstance.post("/products-multer/batch", { productIds });
+      products = batchRes.data;
+      console.log("Batch fetch successful, got", products.length, "products");
+    } catch (batchError) {
+      console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
+      
+      // Fallback to individual fetches with error handling
+      const productPromises = productIds.map(async (id) => {
+        try {
+          const res = await axiosInstance.get(`/products-multer/${id}`);
+          return res.data;
+        } catch (err) {
+          console.error(`Failed to fetch product ${id}:`, err.message);
+          return null;
+        }
+      });
+      
       const responses = await Promise.all(productPromises);
-      const products = responses.map(res => res.data);
-      setRawMaterials(products);
-      
-      // Initialize states
-      const initialRates = {};
-      const initialFreight = {};
-      const initialInPcs = {};
-      
-      products.forEach(product => {
-        // Check if there's a saved sheet for this product
-        const savedSheet = getLatestSheetForProduct(product._id);
-        
-        if (savedSheet) {
-          // Load saved values
-          initialRates[product._id] = savedSheet.conversionRate || 0;
-          initialFreight[product._id] = savedSheet.freight || 0;
-          initialInPcs[product._id] = savedSheet.isInPcs || false;
-        } else {
-          // Default values
-          initialRates[product._id] = 0;
-          initialFreight[product._id] = 0;
-          initialInPcs[product._id] = false;
-        }
-      });
-      
-      setConversionRates(initialRates);
-      setFreightOutward(initialFreight);
-      setInPcsMode(initialInPcs);
-      
-      // Recalculate prices for all products with saved values
-      products.forEach(product => {
-        if (initialRates[product._id] > 0) {
-          calculateProductPrice(
-            product._id, 
-            initialRates[product._id], 
-            rmRate, 
-            initialInPcs[product._id], 
-            initialFreight[product._id]
-          );
-        }
-      });
-      
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
+      products = responses.filter(p => p !== null);
     }
-  };
+    
+    console.log("Loaded products:", products);
+    
+    if (products.length === 0) {
+      toast.error("No products found. Please check product IDs.");
+      setRawMaterials([]);
+      setLoading(false);
+      return;
+    }
+    
+    setRawMaterials(products);
+    
+    // Initialize states
+    const initialRates = {};
+    const initialFreight = {};
+    const initialInPcs = {};
+    
+    products.forEach(product => {
+      // Check if there's a saved sheet for this product
+      const savedSheet = getLatestSheetForProduct(product._id);
+      
+      if (savedSheet) {
+        // Load saved values
+        initialRates[product._id] = savedSheet.conversionRate || 0;
+        initialFreight[product._id] = savedSheet.freight || 0;
+        initialInPcs[product._id] = savedSheet.isInPcs || false;
+      } else {
+        // Default values
+        initialRates[product._id] = 0;
+        initialFreight[product._id] = 0;
+        initialInPcs[product._id] = false;
+      }
+    });
+    
+    setConversionRates(initialRates);
+    setFreightOutward(initialFreight);
+    setInPcsMode(initialInPcs);
+    
+    // Recalculate prices for all products with saved values
+    products.forEach(product => {
+      if (initialRates[product._id] > 0) {
+        calculateProductPrice(
+          product._id, 
+          initialRates[product._id], 
+          rmRate, 
+          initialInPcs[product._id], 
+          initialFreight[product._id]
+        );
+      }
+    });
+    
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    console.error("Error details:", err.response?.data);
+    toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
+    setRawMaterials([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchSavedCostingSheets = async () => {
     try {
