@@ -145,43 +145,44 @@ useEffect(() => {
 
 useEffect(() => {
   async function fetchCustomer() {
-  try {
-    const res = await axiosInstance.get(`/customers/${id}`);
-    
-    // ✅ Ensure createdBy is either an object or an ID string
-    const customerData = res.data;
-    
-    // If createdBy is an object (populated by backend), extract just the ID
-    if (customerData.createdBy && typeof customerData.createdBy === 'object' && customerData.createdBy._id) {
-      customerData.createdBy = customerData.createdBy._id;
+    try {
+      const res = await axiosInstance.get(`/customers/${id}`);
+      
+      // Ensure createdBy is either an object or an ID string
+      const customerData = res.data;
+      
+      // If createdBy is an object (populated by backend), extract just the ID
+      if (customerData.createdBy && typeof customerData.createdBy === 'object' && customerData.createdBy._id) {
+        customerData.createdBy = customerData.createdBy._id;
+      }
+      
+      setCustomer(customerData);
+      
+      // ✅ Fetch frequently bought products here
+      if (customerData.name) {
+        const ordersRes = await axiosInstance.get(
+          `/orders/customer-summary/${encodeURIComponent(customerData.name)}`
+        );
+        setFrequentProducts(ordersRes.data);
+        console.log("Frequent products loaded:", ordersRes.data); // Debug log
+      }
+      
+      // Fetch all histories
+      fetchGiftHistory();
+      fetchSecurityCheques();
+      fetchSamples();
+      
+    } catch (err) {
+      if (err.response?.status === 404) {
+        toast.error("Customer not found or deleted");
+        navigate("/customers");
+      } else {
+        toast.error("Failed to load customer");
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setCustomer(customerData);
-    
-    // ✅ Fetch frequently bought products here
-    if (customerData.name) {
-      const ordersRes = await axiosInstance.get(
-        `/orders/customer-summary/${encodeURIComponent(customerData.name)}`
-      );
-      setFrequentProducts(ordersRes.data);
-    }
-    
-    // ✅ Fetch all histories
-    fetchGiftHistory();
-    fetchSecurityCheques();  // ✅ NEW - Add this
-    fetchSamples();          // ✅ NEW - Add this
-    
-  } catch (err) {
-    if (err.response?.status === 404) {
-      toast.error("Customer not found or deleted");
-      navigate("/customers");
-    } else {
-      toast.error("Failed to load customer");
-    }
-  } finally {
-    setLoading(false);
   }
-}
 
   fetchCustomer();
 }, [id, navigate]);
@@ -598,7 +599,7 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   return (
     <>
       <InternalNavbar />
-         <CostingSheet customerId={id} />
+<CostingSheet customerId={id} frequentProducts={frequentProducts} />
 
 <div className="flex justify-between items-center max-w-7xl mx-auto p-6 pb-0">
   <h2 className="text-2xl font-bold">Edit Customer</h2>  

@@ -533,15 +533,97 @@ const saveAttendance = async () => {
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-      } else {
-        // Staff (Accounts, Sales, etc.) - Use regular attendance
-        console.log("👔 Staff detected, using regular attendance system");
-        response = await axiosInstance.post(
-          "/attendance/mark",
-          { type, photo: photoPayload, location },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+} else {
+  // Staff (Accounts, Sales, etc.) - Use regular attendance
+  console.log("👔 Staff detected, using regular attendance system");
+  
+  // ✅ NEW: For staff, first check if they have checked in before allowing check-out
+  if (type === "check-out") {
+    try {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      console.log("📅 Checking for check-in on:", today);
+      
+      // Fetch today's attendance records
+      const attendanceResponse = await axiosInstance.get("/attendance", {
+        params: {
+          date: today
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log("📊 Attendance response:", attendanceResponse.data);
+      
+      // Get the logs array (could be nested in logs or directly)
+      let attendanceData = [];
+      if (attendanceResponse.data.logs) {
+        attendanceData = attendanceResponse.data.logs;
+      } else if (Array.isArray(attendanceResponse.data)) {
+        attendanceData = attendanceResponse.data;
       }
+      
+      console.log("📋 Attendance data length:", attendanceData.length);
+      
+      // Check if user has a check-in record for today
+      const hasCheckIn = attendanceData.some(record => {
+        // Check if this record belongs to the current user
+        const recordUserId = record.user?._id || record.user;
+        if (recordUserId !== user._id) return false;
+        
+        // Check if this is a check-in record
+        const isCheckIn = record.type === "check-in" || 
+                          (record.checkIn && record.checkIn.time) ||
+                          (record.checkInTime);
+        
+        // Get the record date
+        const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
+        
+        console.log(`📝 Record: user=${recordUserId}, type=${record.type}, date=${recordDate}, isCheckIn=${isCheckIn}`);
+        
+        return recordDate === today && isCheckIn;
+      });
+      
+      console.log("✅ Has check-in today:", hasCheckIn);
+      
+      if (!hasCheckIn) {
+        Swal.fire({
+          icon: "error",
+          title: "Cannot Check Out",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">⚠️</div>
+              <p class="text-gray-600 mb-2">You haven't checked in today.</p>
+              <p class="text-sm text-gray-500">Please check in first before checking out.</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+    } catch (checkErr) {
+      console.error("❌ Error checking attendance:", checkErr);
+      console.error("Error details:", checkErr.response?.data || checkErr.message);
+      
+      // Show error but don't block check-out? Better to show error
+      Swal.fire({
+        icon: "error",
+        title: "Verification Failed",
+        text: "Could not verify your check-in status. Please try again.",
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
+      return;
+    }
+  }
+  
+  // Proceed with check-in or check-out
+  response = await axiosInstance.post(
+    "/attendance/mark",
+    { type, photo: photoPayload, location },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
 
       // Show success message based on user type
       if (isWorker) {

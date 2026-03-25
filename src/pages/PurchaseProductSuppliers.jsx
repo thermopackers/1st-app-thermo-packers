@@ -97,11 +97,7 @@ export default function PurchaseProductSuppliers() {
                   📊 Stock Management
                 </button>
               </NavLink>
-       <NavLink to="/rm-rate" className="w-full">
-                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white border border-gray-300 rounded-lg p-6 text-sm sm:text-base text-center cursor-pointer">
-                  💵 RM Rate
-                </button>
-              </NavLink>
+     
             </div>
           </div>
 

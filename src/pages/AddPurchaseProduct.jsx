@@ -352,7 +352,7 @@ const handleSubmit = async (e) => {
       ))}
 
     {/* 🆕 Weight Field - Now in grams */}
-<div>
+{/* <div>
   <label className="block font-semibold mb-1" htmlFor="weight">
     Weight (grams)
   </label>
@@ -370,7 +370,7 @@ const handleSubmit = async (e) => {
   <p className="text-sm text-gray-500 mt-1">
     Enter weight in grams (used for costing calculations)
   </p>
-</div>
+</div> */}
 
       {/* Category Field - Required for regular products */}
       <div>

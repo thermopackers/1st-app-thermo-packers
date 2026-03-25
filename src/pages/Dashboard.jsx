@@ -64,6 +64,16 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [driverVehicle, setDriverVehicle] = useState(null);
   const [docNotifCount, setDocNotifCount] = useState(0);
+  // Add this new state variable with your other useState declarations
+const [birthdayUsers, setBirthdayUsers] = useState([]);
+const [showConfetti, setShowConfetti] = useState(false);
+// Add this state with your other useState declarations (around line 20-30)
+const [hasShownBirthday, setHasShownBirthday] = useState(() => {
+  // Check localStorage for today's date
+  const lastShownDate = localStorage.getItem('birthdayShownDate');
+  const today = new Date().toDateString();
+  return lastShownDate === today;
+});
   // Add these refs near your other state declarations
 const profileButtonRef = useRef(null);
 const profilePanelRef = useRef(null);
@@ -138,6 +148,43 @@ useEffect(() => {
   };
   fetchVehicle();
 }, [user,userRoles]);
+
+// Enhanced useEffect to fetch birthday users with localStorage tracking
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchBirthdays = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axiosInstance.get("/users/todays-birthdays", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.data && res.data.length > 0) {
+        // Check if we've already shown birthday notification today
+        const today = new Date().toDateString();
+        const lastShownDate = localStorage.getItem('birthdayShownDate');
+        const hasShownToday = lastShownDate === today;
+        
+        // Only set birthday users if not shown today
+        if (!hasShownToday) {
+          setBirthdayUsers(res.data);
+          
+          // Auto-show confetti if it's the current user's birthday
+          const isMyBirthday = res.data.some(birthdayUser => birthdayUser._id === user?._id);
+          if (isMyBirthday) {
+            setShowConfetti(true);
+            setTimeout(() => setShowConfetti(false), 5000);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch birthdays", err);
+    }
+  };
+  
+  fetchBirthdays();
+}, [user]);
 
 useEffect(() => {
   // ✅ Fix: Add null check
@@ -411,9 +458,315 @@ useEffect(() => {
     return buttonContent;
   };
 
+// Advanced Happy Birthday Notification Component - Professional Design
+const BirthdayNotification = ({ birthdayUsers, onClose }) => {
+  const [showConfetti, setShowConfetti] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  
+  if (!birthdayUsers || birthdayUsers.length === 0) return null;
+  
+  // Check if current user is the one having birthday
+  const isMyBirthday = birthdayUsers.some(user => user._id === user?._id);
+  
+  // Auto-rotate between multiple birthday people
+  useEffect(() => {
+    if (birthdayUsers.length > 1) {
+      const interval = setInterval(() => {
+        setActiveIndex((prev) => (prev + 1) % birthdayUsers.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [birthdayUsers.length]);
+  
+  // Stop confetti after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const currentPerson = birthdayUsers[activeIndex];
+  
+  return (
+    <>
+      {/* Full Page Overlay - Subtle Gradient */}
+      <motion.div
+        className="fixed inset-0 z-[100] flex items-center justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.6 }}
+        style={{
+          background: 'radial-gradient(circle at center, rgba(251, 113, 133, 0.15) 0%, rgba(244, 114, 182, 0.08) 50%, rgba(139, 92, 246, 0.05) 100%)',
+          backdropFilter: 'blur(20px)'
+        }}
+      >
+        {/* Animated Floating Particles - Subtle */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(30)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                background: `linear-gradient(135deg, rgba(251, 113, 133, 0.3), rgba(244, 114, 182, 0.2))`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`
+              }}
+              animate={{
+                y: [0, -30, 0],
+                x: [0, Math.random() * 20 - 10, 0],
+                opacity: [0, 0.5, 0]
+              }}
+              transition={{
+                duration: 4 + Math.random() * 3,
+                delay: Math.random() * 5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Main Content Card - Glass Morphism */}
+        <motion.div
+          className="relative z-10 max-w-2xl w-full mx-6"
+          initial={{ scale: 0.95, opacity: 0, y: 30 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ 
+            type: "spring",
+            damping: 25,
+            stiffness: 200,
+            delay: 0.2
+          }}
+        >
+          <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/30">
+            {/* Subtle Gradient Top Border */}
+            {/* <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-400 via-pink-400 to-purple-400" /> */}
+            
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-white/40 transition-all duration-300"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* Content */}
+            <div className="p-8 md:p-10 text-center">
+              {/* Animated Icon */}
+              <motion.div
+                className="relative inline-block mb-6"
+                animate={{ 
+                  y: [0, -8, 0],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <div className="text-7xl md:text-8xl relative">
+                  🎂
+                  <motion.div
+                    className="absolute -top-2 -right-2 text-2xl"
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 10, -10, 0]
+                    }}
+                    transition={{ 
+                      duration: 1,
+                      repeat: Infinity,
+                      repeatDelay: 2
+                    }}
+                  >
+                    ✨
+                  </motion.div>
+                </div>
+              </motion.div>
+              
+              {/* Greeting Text - Gradient */}
+              <motion.h1
+                className="text-3xl md:text-5xl font-bold mb-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                style={{
+                  background: 'linear-gradient(135deg, #f43f5e 0%, #ec489a 50%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                {isMyBirthday ? "Happy Birthday! 🎉" : "Birthday Celebration! 🎊"}
+              </motion.h1>
+              
+              {/* Birthday Person Spotlight */}
+              <motion.div
+                className="mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {birthdayUsers.length === 1 ? (
+                  <div className="inline-flex items-center gap-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-2xl px-6 py-3 shadow-sm border border-rose-100">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-2xl shadow-lg">
+                      🎁
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm text-gray-500">Celebrating today</p>
+                      <p className="text-xl font-semibold text-gray-800">{birthdayUsers[0].name}</p>
+                      {birthdayUsers[0].designation && (
+                        <p className="text-xs text-gray-500">{birthdayUsers[0].designation}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-gray-600 text-sm">Today we're celebrating:</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {birthdayUsers.map((person, idx) => (
+                        <motion.div
+                          key={person._id}
+                          className={`px-4 py-2 rounded-full transition-all duration-300 ${
+                            idx === activeIndex 
+                              ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg scale-105' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.5 + idx * 0.1 }}
+                        >
+                          <span className="text-sm font-medium">{person.name}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+                    {birthdayUsers.length > 1 && (
+                      <div className="mt-3">
+                        <div className="bg-gradient-to-r from-rose-500 to-pink-500 rounded-xl p-4 shadow-lg">
+                          <p className="text-white text-lg font-semibold">
+                            {currentPerson?.name}
+                          </p>
+                          {currentPerson?.designation && (
+                            <p className="text-white/80 text-sm mt-1">{currentPerson.designation}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+              
+              {/* Birthday Message */}
+              <motion.div
+                className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-rose-50/50 to-pink-50/50 border border-rose-100/50"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <p className="text-gray-700 text-base md:text-lg leading-relaxed">
+                  {isMyBirthday 
+                    ? "🎁 May your day be filled with joy, laughter, and wonderful surprises! Here's to another amazing year! 🎁"
+                    : "🎈 Join us in celebrating our wonderful team members! Let's make their day extra special! 🎈"
+                  }
+                </p>
+              </motion.div>
+              
+              {/* Celebration Actions */}
+              <motion.div
+                className="flex flex-col sm:flex-row gap-3 justify-center"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+              >
+                <motion.button
+                  onClick={() => {
+                    setShowConfetti(true);
+                    setTimeout(() => setShowConfetti(false), 5000);
+                  }}
+                  className="group px-6 py-2.5 rounded-xl font-medium transition-all duration-300 relative overflow-hidden"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    background: 'linear-gradient(135deg, #f43f5e 0%, #ec489a 100%)',
+                    boxShadow: '0 4px 15px rgba(244, 63, 94, 0.3)'
+                  }}
+                >
+                  <span className="relative z-10 text-white flex items-center gap-2">
+                    <span>🎉</span>
+                    Celebrate Again
+                  </span>
+                </motion.button>
+                
+                <motion.button
+                  onClick={onClose}
+                  className="px-6 py-2.5 rounded-xl font-medium transition-all duration-300 bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white border border-gray-200"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Close
+                </motion.button>
+              </motion.div>
+            </div>
+            
+            {/* Subtle Decorative Elements */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-200 to-transparent" />
+          </div>
+        </motion.div>
+      </motion.div>
+      
+      {/* Elegant Confetti Effect */}
+      {showConfetti && typeof window !== 'undefined' && (
+        <div className="fixed inset-0 pointer-events-none z-[200]">
+          {[...Array(80)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute"
+              style={{
+                width: `${4 + Math.random() * 6}px`,
+                height: `${4 + Math.random() * 6}px`,
+                background: `linear-gradient(135deg, 
+                  hsl(${Math.random() * 60 + 330}, 70%, 60%),
+                  hsl(${Math.random() * 60 + 330}, 70%, 50%))`,
+                borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                left: `${Math.random() * 100}%`,
+                top: '-20px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              animate={{
+                y: window.innerHeight + 100,
+                x: `calc(${Math.random() * 200 - 100}px)`,
+                rotate: Math.random() * 720,
+                opacity: [1, 1, 0]
+              }}
+              transition={{
+                duration: 1.5 + Math.random() * 1.5,
+                delay: Math.random() * 0.3,
+                ease: "easeOut"
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
   return (
  <>
-  <InternalNavbar />
+<BirthdayNotification 
+  birthdayUsers={birthdayUsers} 
+  onClose={() => {
+    // Save to localStorage that we've shown birthday today
+    const today = new Date().toDateString();
+    localStorage.setItem('birthdayShownDate', today);
+    setBirthdayUsers([]);
+  }}
+/>
+      <InternalNavbar />
 
   {/* Compact Profile Button */}
   <div className="fixed top-47 left-4 z-50">
@@ -859,24 +1212,42 @@ useEffect(() => {
                     </ActionButton>
                   </div>
 
-                {userRoles.includes("accounts") && (
-  <div className="border-t border-gray-200 pt-6">
-    <h4 className="text-lg font-bold text-gray-900 text-center mb-4">
-      Purchase Product / Suppliers
-    </h4>
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-      <ActionButton
-        onClick={() => navigate("/purchase-products-suppliers")}
-        variant="indigo"
-        icon="🏪"
-        className="w-full sm:w-auto sm:flex-1 max-w-md"
-      >
-        <div className="text-lg font-semibold">
-          Purchase Product / Suppliers
-        </div>
-      </ActionButton>
-      
-     
+            {userRoles.includes("accounts") && (
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+    {/* Purchase Product / Suppliers Section */}
+    <div className="border-t border-gray-200 pt-6 flex flex-col">
+      <h4 className="text-lg md:text-xl font-bold text-gray-900 text-center mb-4">
+        Purchase Product / Suppliers
+      </h4>
+      <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <ActionButton
+          onClick={() => navigate("/purchase-products-suppliers")}
+          variant="indigo"
+          icon="🏪"
+          className="w-full sm:w-auto sm:flex-1 max-w-md"
+        >
+          <div className="text-base md:text-lg font-semibold">
+            Purchase Product / Suppliers
+          </div>
+        </ActionButton>
+      </div>
+    </div>
+    
+    {/* RM Rate Section */}
+    <div className="border-t border-gray-200 pt-6 flex flex-col">
+      <h4 className="text-lg md:text-xl font-bold text-gray-900 text-center mb-4">
+        RM Rate
+      </h4>
+      <div className="flex-1 flex items-center justify-center">
+        <NavLink to="/rm-rate" className="w-full block">
+          <button className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 transition-all duration-200 text-white border border-gray-300 rounded-2xl p-4 sm:p-5 md:p-6 text-sm sm:text-base text-center shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]">
+            <span className="inline-flex items-center justify-center gap-2">
+              <span className="text-lg sm:text-xl">💵</span>
+              <span className="font-medium">Access RM Rate</span>
+            </span>
+          </button>
+        </NavLink>
+      </div>
     </div>
   </div>
 )}
@@ -1347,7 +1718,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
         className="md:col-span-2"
       >
         <div className="text-lg font-semibold">
-          Outward Freight Calculator
+         Outward Diesel, Freight & Kharcha Calculator
         </div>
       </ActionButton>
                   </div>

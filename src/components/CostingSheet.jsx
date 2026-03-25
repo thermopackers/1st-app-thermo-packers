@@ -1,21 +1,21 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, Calculator, Package, DollarSign } from "lucide-react";
+import { ChevronDown, ChevronUp, Calculator, Package, DollarSign, Truck } from "lucide-react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
 
-export default function CostingSheet({ customerId }) {
+export default function CostingSheet({ customerId, frequentProducts = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [rawMaterials, setRawMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
   const [rmRate, setRmRate] = useState(0);
   const [conversionRates, setConversionRates] = useState({});
+  const [freightOutward, setFreightOutward] = useState({});
+  const [inPcsMode, setInPcsMode] = useState({});
   const [calculatedPrices, setCalculatedPrices] = useState({});
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const [savedCostingSheets, setSavedCostingSheets] = useState([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
   
-  // Use refs to track current values for comparison in async functions
+  // Use refs to track current values
   const rmRateRef = useRef(rmRate);
   const savedSheetsRef = useRef(savedCostingSheets);
   
@@ -28,11 +28,6 @@ export default function CostingSheet({ customerId }) {
     savedSheetsRef.current = savedCostingSheets;
   }, [savedCostingSheets]);
 
-  // Fetch categories first to get the Thermocol Dana Raw Material category ID
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   // Fetch saved costing sheets when component mounts
   useEffect(() => {
     if (customerId) {
@@ -40,38 +35,95 @@ export default function CostingSheet({ customerId }) {
     }
   }, [customerId]);
 
-  // Set up periodic RM rate checking when component is open
+  // Fetch RM rate when opened
   useEffect(() => {
-    let interval;
-    
     if (isOpen) {
-      // Check for RM rate changes every 10 seconds (reduced from 30)
-      interval = setInterval(() => {
-        console.log("Checking for RM rate updates...");
-        fetchRMRate(true); // Pass true to indicate it's a periodic check
-      }, 10000); // 10 seconds
+      fetchRMRate();
+    }
+  }, [isOpen]);
+
+  // Fetch products based on frequentProducts when component opens
+  useEffect(() => {
+    if (isOpen && frequentProducts.length > 0) {
+      fetchProductsFromFrequentList();
+    }
+  }, [isOpen, frequentProducts]);
+
+  const fetchProductsFromFrequentList = async () => {
+    if (frequentProducts.length === 0) {
+      setRawMaterials([]);
+      return;
     }
     
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [isOpen]);
+    setLoading(true);
+    try {
+      const productIds = frequentProducts.map(p => p.productId);
+      const productPromises = productIds.map(id => 
+        axiosInstance.get(`/products-multer/${id}`)
+      );
+      const responses = await Promise.all(productPromises);
+      const products = responses.map(res => res.data);
+      setRawMaterials(products);
+      
+      // Initialize states
+      const initialRates = {};
+      const initialFreight = {};
+      const initialInPcs = {};
+      
+      products.forEach(product => {
+        // Check if there's a saved sheet for this product
+        const savedSheet = getLatestSheetForProduct(product._id);
+        
+        if (savedSheet) {
+          // Load saved values
+          initialRates[product._id] = savedSheet.conversionRate || 0;
+          initialFreight[product._id] = savedSheet.freight || 0;
+          initialInPcs[product._id] = savedSheet.isInPcs || false;
+        } else {
+          // Default values
+          initialRates[product._id] = 0;
+          initialFreight[product._id] = 0;
+          initialInPcs[product._id] = false;
+        }
+      });
+      
+      setConversionRates(initialRates);
+      setFreightOutward(initialFreight);
+      setInPcsMode(initialInPcs);
+      
+      // Recalculate prices for all products with saved values
+      products.forEach(product => {
+        if (initialRates[product._id] > 0) {
+          calculateProductPrice(
+            product._id, 
+            initialRates[product._id], 
+            rmRate, 
+            initialInPcs[product._id], 
+            initialFreight[product._id]
+          );
+        }
+      });
+      
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSavedCostingSheets = async () => {
     try {
       const res = await axiosInstance.get(`/customers/${customerId}/costing-sheets`);
       const sheets = res.data || [];
-      console.log("Fetched saved sheets:", sheets);
       setSavedCostingSheets(sheets);
       
-      // If there are saved sheets, pre-fill the conversion rates and calculations
       if (sheets.length > 0) {
         const savedRates = {};
+        const savedFreight = {};
+        const savedModes = {};
         const savedCalculations = {};
         
-        // Get the latest sheet for each product
         const latestSheets = {};
         sheets.forEach(sheet => {
           if (!latestSheets[sheet.productId] || 
@@ -82,20 +134,24 @@ export default function CostingSheet({ customerId }) {
         
         Object.values(latestSheets).forEach(sheet => {
           savedRates[sheet.productId] = sheet.conversionRate;
+          savedFreight[sheet.productId] = sheet.freight || 0;
+          savedModes[sheet.productId] = sheet.isInPcs || false;
           
-          const pricePerPiece = typeof sheet.pricePerPiece === 'number' 
-            ? sheet.pricePerPiece.toFixed(2) 
-            : sheet.pricePerPiece;
-            
           savedCalculations[sheet.productId] = {
             totalPerKg: sheet.totalPerKg,
-            pricePerPiece: pricePerPiece,
+            pricePerPiece: sheet.pricePerPiece,
             productWeight: sheet.productWeight,
-            rmRate: sheet.rmRate
+            rmRate: sheet.rmRate,
+            freight: sheet.freight || 0,
+            totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
+            totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
+            isInPcs: sheet.isInPcs || false
           };
         });
         
         setConversionRates(savedRates);
+        setFreightOutward(savedFreight);
+        setInPcsMode(savedModes);
         setCalculatedPrices(savedCalculations);
       }
     } catch (err) {
@@ -103,139 +159,47 @@ export default function CostingSheet({ customerId }) {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const res = await axiosInstance.get("/categories");
-      setCategories(res.data);
-      
-      // Find the Thermocol Dana Raw Material category
-      const thermocolCategory = res.data.find(cat => 
-        cat.name.toLowerCase().includes("thermocol") || 
-        cat.name.toLowerCase().includes("dana") ||
-        cat.name.toLowerCase().includes("raw material")
-      );
-      
-      if (thermocolCategory) {
-        setSelectedCategory(thermocolCategory._id);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-      toast.error("Failed to load categories");
-    }
-  };
-
-  // Fetch raw materials (thermocol dana products from purchase products)
-  useEffect(() => {
-    if (isOpen && selectedCategory) {
-      fetchRawMaterials();
-      fetchRMRate(false);
-    }
-  }, [isOpen, selectedCategory]);
-
-  const fetchRawMaterials = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get(`/purchase-products?category=${selectedCategory}&limit=100`);
-      const products = res.data.data || res.data;
-      setRawMaterials(products);
-    } catch (err) {
-      console.error("Error fetching raw materials:", err);
-      toast.error("Failed to load raw materials");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRMRate = async (isPeriodicCheck = false) => {
+  const fetchRMRate = async () => {
     try {
       const res = await axiosInstance.get("/rm-rate");
       const newRate = res.data.rate || 0;
-      
-      // Get current values from refs (not state, to avoid closure issues)
       const currentRate = rmRateRef.current;
       const currentSheets = savedSheetsRef.current;
       
-      console.log("Current rmRate ref:", currentRate);
-      console.log("New rate from API:", newRate);
-      console.log("Has saved sheets:", currentSheets.length > 0);
-      
-      // If this is the first load (rmRate is 0), just set the rate
       if (currentRate === 0) {
-        console.log("Initial RM rate load");
         setRmRate(newRate);
-        
-        // After setting initial rate, recalculate prices for unsaved products
-        setTimeout(() => {
-          Object.keys(conversionRates).forEach(productId => {
-            if (conversionRates[productId] > 0) {
-              calculateProductPrice(productId, conversionRates[productId], newRate);
-            }
-          });
-        }, 100);
-        
         return;
       }
       
-      // If rate changed and we have saved sheets, auto-recalculate
       if (currentRate !== newRate) {
-        console.log(`RM rate changed from ${currentRate} to ${newRate}`);
-        
-        // First update the RM rate state
         setRmRate(newRate);
-        
-        // Then auto-recalculate all saved sheets
         if (currentSheets.length > 0) {
           await autoRecalculateSheets(newRate);
         }
-        
-        // Also recalculate unsaved products
-        setTimeout(() => {
-          Object.keys(conversionRates).forEach(productId => {
-            if (conversionRates[productId] > 0) {
-              calculateProductPrice(productId, conversionRates[productId], newRate);
-            }
-          });
-        }, 200);
-      } else {
-        if (isPeriodicCheck) {
-          console.log("RM rate unchanged during periodic check");
-        }
       }
-      
     } catch (err) {
       console.error("Error fetching RM rate:", err);
-      if (!isPeriodicCheck) {
-        toast.error("Failed to load RM rate");
-      }
+      toast.error("Failed to load RM rate");
     }
   };
 
   const autoRecalculateSheets = async (newRmRate) => {
     const currentSheets = savedSheetsRef.current;
-    
-    if (currentSheets.length === 0) {
-      console.log("No saved sheets to recalculate");
-      return;
-    }
+    if (currentSheets.length === 0) return;
     
     setIsRecalculating(true);
     try {
-      console.log(`Auto-recalculating ${currentSheets.length} sheets with new RM rate: ${newRmRate}`);
-      
       const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets/recalculate`, {
         newRmRate
       });
       
       const updatedSheets = res.data.costingSheets;
-      console.log("Received updated sheets:", updatedSheets);
-      
       setSavedCostingSheets(updatedSheets);
       
-      // Update conversion rates and calculated prices
       const savedRates = {};
+      const savedFreight = {};
+      const savedModes = {};
       const savedCalculations = {};
-      
-      // Get latest sheet for each product
       const latestSheets = {};
       updatedSheets.forEach(sheet => {
         if (!latestSheets[sheet.productId] || 
@@ -246,23 +210,26 @@ export default function CostingSheet({ customerId }) {
       
       Object.values(latestSheets).forEach(sheet => {
         savedRates[sheet.productId] = sheet.conversionRate;
+        savedFreight[sheet.productId] = sheet.freight || 0;
+        savedModes[sheet.productId] = sheet.isInPcs || false;
         savedCalculations[sheet.productId] = {
           totalPerKg: sheet.totalPerKg,
-          pricePerPiece: sheet.pricePerPiece.toFixed(2),
+          pricePerPiece: sheet.pricePerPiece,
           productWeight: sheet.productWeight,
-          rmRate: sheet.rmRate
+          rmRate: sheet.rmRate,
+          freight: sheet.freight || 0,
+          totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
+          totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
+          isInPcs: sheet.isInPcs || false
         };
       });
       
       setConversionRates(savedRates);
+      setFreightOutward(savedFreight);
+      setInPcsMode(savedModes);
       setCalculatedPrices(savedCalculations);
       
-      // Show a subtle toast notification
-      toast.success(`${updatedSheets.length} costing sheets updated with new RM rate`, {
-        duration: 3000,
-        icon: '🔄'
-      });
-      
+      toast.success(`${updatedSheets.length} costing sheets updated with new RM rate`);
     } catch (err) {
       console.error("Error auto-recalculating sheets:", err);
       toast.error("Failed to auto-update costing sheets");
@@ -273,39 +240,68 @@ export default function CostingSheet({ customerId }) {
 
   const handleConversionRateChange = (productId, value) => {
     const rate = parseFloat(value) || 0;
-    setConversionRates(prev => ({
-      ...prev,
-      [productId]: rate
-    }));
-    
-    calculateProductPrice(productId, rate, rmRate);
-    
-    // Remove from saved sheets when conversion rate changes
-    setSavedCostingSheets(prev => 
-      prev.filter(sheet => sheet.productId !== productId)
-    );
+    setConversionRates(prev => ({ ...prev, [productId]: rate }));
+    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId]);
+    // Mark as unsaved
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   };
 
-  const calculateProductPrice = (productId, conversionRate, currentRmRate) => {
+  const handleFreightChange = (productId, value) => {
+    const freight = parseFloat(value) || 0;
+    setFreightOutward(prev => ({ ...prev, [productId]: freight }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight);
+    // Mark as unsaved
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  };
+
+  const handleInPcsToggle = (productId, checked) => {
+    setInPcsMode(prev => ({ ...prev, [productId]: checked }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId]);
+    // Mark as unsaved
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  };
+
+  const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight) => {
     const product = rawMaterials.find(p => p._id === productId);
     if (!product) return;
     
-    const productWeight = parseFloat(product.weight) || 0;
+    let basePrice = 0;
+    let productWeight = 0;
+    let totalPerKg = currentRmRate + conversionRate;
     
-    if (productWeight === 0) {
-      console.warn("Product weight is 0, cannot calculate price");
-      return;
+    if (isInPcs) {
+      // Case 2: With product weight (in kg or grams)
+      const weightStr = product.weight || "";
+      if (weightStr.toLowerCase().includes("kg")) {
+        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+        if (match) productWeight = parseFloat(match[1]);
+      } else if (weightStr.toLowerCase().includes("g")) {
+        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+        if (match) productWeight = parseFloat(match[1]) / 1000;
+      } else {
+        productWeight = parseFloat(weightStr) || 0;
+      }
+      
+      basePrice = totalPerKg * productWeight;
+    } else {
+      // Case 1: Without product weight (per kg basis)
+      basePrice = totalPerKg;
     }
     
-    const totalPerKg = currentRmRate + conversionRate;
-    const pricePerPiece = totalPerKg * productWeight;
+    const totalWithFreight = basePrice + freight;
+    const totalWithGST = totalWithFreight * 1.18; // 18% GST
     
     setCalculatedPrices(prev => ({
       ...prev,
       [productId]: {
         totalPerKg,
-        pricePerPiece: pricePerPiece.toFixed(2),
-        productWeight
+        pricePerPiece: basePrice.toFixed(2),
+        productWeight: isInPcs ? productWeight : 0,
+        weightDisplay: product.weight,
+        freight: freight,
+        totalWithFreight: totalWithFreight.toFixed(2),
+        totalWithGST: totalWithGST.toFixed(2),
+        isInPcs
       }
     }));
   };
@@ -314,6 +310,8 @@ export default function CostingSheet({ customerId }) {
     const product = rawMaterials.find(p => p._id === productId);
     const calculation = calculatedPrices[productId];
     const conversionRate = conversionRates[productId];
+    const freight = freightOutward[productId];
+    const isInPcs = inPcsMode[productId];
     
     if (!calculation || !conversionRate || conversionRate <= 0) {
       toast.error("Please enter conversion rate first");
@@ -329,21 +327,34 @@ export default function CostingSheet({ customerId }) {
         conversionRate,
         totalPerKg: calculation.totalPerKg,
         pricePerPiece: parseFloat(calculation.pricePerPiece),
+        freight: freight,
+        totalWithFreight: parseFloat(calculation.totalWithFreight),
+        totalWithGST: parseFloat(calculation.totalWithGST),
+        isInPcs,
         date: new Date()
       });
       
       const savedSheet = res.data.costingSheet;
       
+      // Update saved sheets state with the new/updated sheet
       setSavedCostingSheets(prev => {
         const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
         if (existingIndex >= 0) {
           const updated = [...prev];
           updated[existingIndex] = savedSheet;
           return updated;
-        } else {
-          return [...prev, savedSheet];
         }
+        return [...prev, savedSheet];
       });
+      
+      // Also update the calculation to include saved data
+      setCalculatedPrices(prev => ({
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          saved: true
+        }
+      }));
       
       toast.success("Costing sheet saved successfully");
     } catch (err) {
@@ -353,24 +364,17 @@ export default function CostingSheet({ customerId }) {
   };
 
   const getLatestSheetForProduct = (productId) => {
-    const productSheets = savedCostingSheets.filter(
-      sheet => sheet.productId === productId
-    );
-    
+    const productSheets = savedCostingSheets.filter(sheet => sheet.productId === productId);
     if (productSheets.length === 0) return null;
-    
-    return productSheets.sort((a, b) => 
-      new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date)
-    )[0];
+    return productSheets.sort((a, b) => new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date))[0];
   };
 
-  // If no category found
-  if (!selectedCategory && categories.length > 0) {
+  if (frequentProducts.length === 0) {
     return (
       <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-4 bg-yellow-50 text-yellow-700">
-          <p className="font-medium">⚠️ Thermocol Dana Raw Material category not found</p>
-          <p className="text-sm mt-1">Please create a category named "Thermocol Dana Raw Material" first.</p>
+          <p className="font-medium">⚠️ No frequent products found</p>
+          <p className="text-sm mt-1">Add products to the "Frequently Bought Products" section first.</p>
         </div>
       </div>
     );
@@ -378,36 +382,33 @@ export default function CostingSheet({ customerId }) {
 
   return (
     <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
-      {/* Collapsible Header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
       >
         <div className="flex items-center gap-2">
           <Calculator size={20} />
-          <span className="font-semibold">Costing Sheet - Thermocol Dana Raw Materials</span>
-         
-          {isRecalculating && (
-            <span className="ml-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-              Updating...
+          <span className="font-semibold">Costing Sheet - Frequently Bought Products</span>
+          {/* {savedCostingSheets.length > 0 && (
+            <span className="ml-2 bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+              {savedCostingSheets.length} saved
             </span>
+          )} */}
+          {isRecalculating && (
+            <span className="ml-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">Updating...</span>
           )}
         </div>
         {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </button>
 
-      {/* Collapsible Content */}
       {isOpen && (
         <div className="p-4 bg-gray-50">
-          {/* Current RM Rate Display */}
           <div className="mb-4 p-3 bg-white rounded-lg border border-blue-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-blue-700">
-                <DollarSign size={18} />
                 <span className="font-medium">Current RM Rate:</span>
                 <span className="text-lg font-bold">₹{rmRate.toFixed(2)}/kg</span>
               </div>
-              
               {isRecalculating && (
                 <span className="text-sm text-yellow-600 flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
@@ -424,64 +425,54 @@ export default function CostingSheet({ customerId }) {
           ) : rawMaterials.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Package size={40} className="mx-auto mb-2 opacity-50" />
-              <p>No thermocol dana raw materials found in this category</p>
+              <p>No products found in frequent products list</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {rawMaterials.map((product) => {
                 const savedSheet = getLatestSheetForProduct(product._id);
                 const hasSavedSheet = !!savedSheet;
+                const isInPcs = inPcsMode[product._id];
+                const savedConversionRate = savedSheet?.conversionRate || 0;
+                const savedFreight = savedSheet?.freight || 0;
                 
-                let calculation;
-                if (hasSavedSheet && !calculatedPrices[product._id]) {
-                  calculation = {
-                    totalPerKg: savedSheet.totalPerKg,
-                    pricePerPiece: typeof savedSheet.pricePerPiece === 'number' 
-                      ? savedSheet.pricePerPiece.toFixed(2) 
-                      : savedSheet.pricePerPiece,
-                    productWeight: savedSheet.productWeight
-                  };
-                } else if (calculatedPrices[product._id]) {
-                  calculation = calculatedPrices[product._id];
-                } else {
-                  calculation = {
-                    totalPerKg: 0,
-                    pricePerPiece: "0.00",
-                    productWeight: parseFloat(product.weight) || 0
-                  };
-                }
+                const calculation = calculatedPrices[product._id] || {
+                  totalPerKg: 0,
+                  pricePerPiece: "0.00",
+                  productWeight: 0,
+                  freight: 0,
+                  totalWithFreight: "0.00",
+                  totalWithGST: "0.00",
+                  isInPcs: false
+                };
 
                 return (
-                  <div key={product._id} className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200 ${
-                    hasSavedSheet ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                  }`}>
-                    {/* Product Header */}
+                  <div key={product._id} className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200 ${hasSavedSheet ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
                     <div className={`p-3 border-b ${hasSavedSheet ? 'border-green-200' : 'border-gray-100'} bg-gradient-to-r from-gray-50 to-white`}>
                       <div className="flex justify-between items-start">
-                        <h3 className="font-semibold text-gray-800 truncate" title={product.name}>
-                          {product.name}
-                        </h3>
-                        {hasSavedSheet && (
-                          <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
-                            Saved
-                          </span>
-                        )}
+                        <h3 className="font-semibold text-gray-800 truncate">{product.name}</h3>
+                        {hasSavedSheet && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">Saved</span>}
                       </div>
                       <p className="text-xs text-gray-500">Unit: {product.unit || 'kg'}</p>
-                      {product.weight && (
-                        <p className="text-xs text-gray-500">Weight: {product.weight} kg</p>
-                      )}
+                      
+                      {/* Checkbox for "in pcs" mode */}
+                      <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isInPcs}
+                          onChange={(e) => handleInPcsToggle(product._id, e.target.checked)}
+                          className="w-3 h-3"
+                        />
+                        <span className="text-gray-600">Calculate per piece (with product weight)</span>
+                      </label>
                     </div>
 
-                    {/* Costing Calculation */}
                     <div className="p-3 space-y-2">
-                      {/* RM Rate */}
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">RM Rate/kg:</span>
                         <span className="font-medium">₹{rmRate.toFixed(2)}</span>
                       </div>
 
-                      {/* Conversion Rate Input */}
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-600">Conversion/kg:</span>
                         <div className="relative flex-1">
@@ -490,47 +481,85 @@ export default function CostingSheet({ customerId }) {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : (savedSheet?.conversionRate || '')}
+                            value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : savedConversionRate}
                             onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
-                            className={`w-full pl-6 pr-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                              hasSavedSheet ? 'border-green-400 bg-green-50' : 'border-gray-300'
-                            }`}
+                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                             placeholder="0.00"
                           />
                         </div>
                       </div>
 
-                      {/* Total per kg */}
                       <div className="flex justify-between items-center text-sm font-medium">
                         <span className="text-gray-600">Total/kg:</span>
                         <span className="text-green-600">₹{calculation.totalPerKg.toFixed(2)}</span>
                       </div>
 
-                      {/* Product Weight */}
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">Product Weight:</span>
-                        <span className="font-medium">{calculation.productWeight} kg</span>
+                      {isInPcs && (
+                        <>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600">Product Weight:</span>
+                            <span className="font-medium">{calculation.productWeight} kg</span>
+                          </div>
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-700">Price/Piece:</span>
+                            <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
+                          </div>
+                        </>
+                      )}
+
+                      {!isInPcs && (
+                        <>
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-700">Price/kg:</span>
+                            <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Freight Outward Field */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Truck size={16} className="text-gray-500" />
+                        <span className="text-sm text-gray-600">Freight Outward:</span>
+                        <div className="relative flex-1">
+                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : savedFreight}
+                            onChange={(e) => handleFreightChange(product._id, e.target.value)}
+                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500">{isInPcs ? '/pc' : '/kg'}</span>
                       </div>
 
-                      {/* Divider */}
-                      <div className="border-t border-gray-200 my-2"></div>
-
-                      {/* Final Price per piece */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-700">Price/Piece:</span>
-                        <span className="text-lg font-bold text-purple-600">
-                          ₹{calculation.pricePerPiece}
-                        </span>
+                      <div className="flex justify-between items-center text-sm font-medium text-blue-600">
+                        <span className="text-gray-600">Total with Freight:</span>
+                        <span className="font-bold">₹{calculation.totalWithFreight}</span>
                       </div>
 
-                      {/* Save Button */}
+                      <div className="bg-gray-100 rounded p-2 mt-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">GST (18%):</span>
+                          <span className="font-medium text-orange-600">
+                            ₹{(parseFloat(calculation.totalWithFreight) * 0.18).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-base font-bold mt-1">
+                          <span className="text-gray-700">Final Price (incl. GST):</span>
+                          <span className="text-green-700">₹{calculation.totalWithGST}</span>
+                        </div>
+                      </div>
+
                       <button
                         onClick={() => saveCostingSheet(product._id)}
-                        disabled={!conversionRates[product._id] && !savedSheet?.conversionRate}
+                        disabled={!conversionRates[product._id] && !savedConversionRate}
                         className={`w-full mt-2 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200 ${
-                          hasSavedSheet
-                            ? 'bg-green-600 hover:bg-green-700'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                          hasSavedSheet ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
                         } disabled:bg-gray-400`}
                       >
                         {hasSavedSheet ? 'Update Costing Sheet' : 'Save Costing Sheet'}

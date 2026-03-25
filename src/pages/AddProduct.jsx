@@ -14,12 +14,12 @@ export default function AddProduct() {
     sizes: "",
     hsnCode: "",
     gstPercent: "",
-      description: "", // 🆕 Add this line
-        weight: "", // 🆕 NEW FIELD - Add this
+    description: "",
+    weight: "", // Weight in grams
   });
 
-  const [images, setImages] = useState([]); // product images
-  const [internalImages, setInternalImages] = useState([]); // 🆕 internal images/pdfs
+  const [images, setImages] = useState([]);
+  const [internalImages, setInternalImages] = useState([]);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -52,7 +52,6 @@ export default function AddProduct() {
         const compressedFile = await imageCompression(file, options);
         processed.push(compressedFile);
       } else {
-        // PDFs or non-images → push directly
         processed.push(file);
       }
     }
@@ -68,109 +67,116 @@ export default function AddProduct() {
     setInternalImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-  const data = new FormData();
+    const data = new FormData();
 
-  // Append text fields
-  Object.entries(formData).forEach(([key, val]) => {
-    if (key === "sizes") {
-      data.append(key, JSON.stringify(val.split(",").map((s) => s.trim())));
-    } else {
-      data.append(key, val); // This now includes description
-    }
-  });
-
-  // Append product images
-  images.forEach((file) => {
-    data.append("images", file);
-  });
-
-  // Append internal images/pdfs
-  internalImages.forEach((file) => {
-    data.append("internalImages", file);
-  });
-
-  try {
-    await axiosInstance.post("/products-multer", data, {
-      headers: { "Content-Type": "multipart/form-data" },
+    // Append text fields
+    Object.entries(formData).forEach(([key, val]) => {
+      if (key === "sizes") {
+        data.append(key, JSON.stringify(val.split(",").map((s) => s.trim())));
+      } else if (key === "weight") {
+        // Convert grams to kg for storage (divide by 1000)
+        const weightInKg = val ? parseFloat(val) / 1000 : "";
+        data.append(key, weightInKg);
+      } else {
+        data.append(key, val);
+      }
     });
-    toast.success("Product added successfully!");
-    navigate("/dashboard");
-  } catch (err) {
-    console.error("Product addition failed", err);
-    const message = err.response?.data?.error || "Failed to add product";
-    alert(message);
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    // Append product images
+    images.forEach((file) => {
+      data.append("images", file);
+    });
+
+    // Append internal images/pdfs
+    internalImages.forEach((file) => {
+      data.append("internalImages", file);
+    });
+
+    try {
+      await axiosInstance.post("/products-multer", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Product added successfully!");
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Product addition failed", err);
+      const message = err.response?.data?.error || "Failed to add product";
+      alert(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
       <InternalNavbar />
       <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-lg shadow-lg relative">
-
         <h2 className="text-3xl font-extrabold text-center mb-8 text-gray-800">
           Add New Sales Product
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Text fields with labels */}
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">Product Name *</label>
-    <input name="name" placeholder="Product Name" required value={formData.name} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
-  </div>
+          {/* Text fields with labels */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Product Name *</label>
+            <input name="name" placeholder="Product Name" required value={formData.name} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+          </div>
 
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">Unit *</label>
-    <input name="unit" placeholder="Unit (e.g. kg)" required value={formData.unit} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
-  </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Unit *</label>
+            <input name="unit" placeholder="Unit (e.g. kg)" required value={formData.unit} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+          </div>
 
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">Sizes</label>
-    <input name="sizes" placeholder="Sizes (comma separated)" value={formData.sizes} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
-  </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Sizes</label>
+            <input name="sizes" placeholder="Sizes (comma separated)" value={formData.sizes} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+          </div>
 
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">HSN Code</label>
-    <input name="hsnCode" placeholder="HSN Code" value={formData.hsnCode} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
-  </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">HSN Code</label>
+            <input name="hsnCode" placeholder="HSN Code" value={formData.hsnCode} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+          </div>
 
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">GST Percentage</label>
-    <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
-  </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">GST Percentage</label>
+            <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
+          </div>
 
-    {/* 🆕 NEW FIELD - Product Weight */}
-  {/* <div>
-    <label className="block text-gray-700 font-semibold mb-2">Product Weight</label>
-    <input 
-      name="weight" 
-      placeholder="e.g., 1kg, 500g, 2.5kg" 
-      value={formData.weight} 
-      onChange={handleChange} 
-      className="w-full p-3 border border-gray-300 rounded-lg"
-    />
-  </div> */}
+          {/* 🆕 Product Weight - Now in GRAMS */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Product Weight (grams)</label>
+            <input 
+              name="weight" 
+              type="number"
+              step="1"
+              min="0"
+              placeholder="e.g., 500, 1000, 2500" 
+              value={formData.weight} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
+          </div>
 
-  {/* 🆕 Description Field */}
-  <div>
-    <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
-    <textarea 
-      name="description" 
-      placeholder="Product Description" 
-      value={formData.description} 
-      onChange={handleChange} 
-      rows="4"
-      className="w-full p-3 border border-gray-300 rounded-lg"
-    />
-  </div>
+          {/* Description Field */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
+            <textarea 
+              name="description" 
+              placeholder="Product Description" 
+              value={formData.description} 
+              onChange={handleChange} 
+              rows="4"
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+          </div>
 
           {/* Product Images */}
-          <label className="block text-gray-700 font-semibold mb-2">Uplaod Product Sheet Images (max 5)</label>
+          <label className="block text-gray-700 font-semibold mb-2">Upload Product Sheet Images (max 5)</label>
           <input type="file" accept="image/*" multiple onChange={handleImageChange} className="w-full border rounded p-2" />
           <div className="flex flex-wrap gap-4 mt-4">
             {images.map((file, idx) => (

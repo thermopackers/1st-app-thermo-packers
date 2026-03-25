@@ -149,7 +149,7 @@ export default function RMRate() {
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden mb-6">
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                <DollarSign size={24} />
+                <h2>₹</h2>
                 Current RM Rate
               </h2>
             </div>
