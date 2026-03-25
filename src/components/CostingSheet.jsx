@@ -59,7 +59,6 @@ const fetchProductsFromFrequentList = async () => {
   try {
     console.log("Frequent products data:", frequentProducts);
     
-    // Filter out products without valid productId
     const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
     console.log("Valid products with IDs:", validProducts);
     
@@ -74,27 +73,24 @@ const fetchProductsFromFrequentList = async () => {
     const productIds = validProducts.map(p => p.productId);
     console.log("Product IDs to fetch:", productIds);
     
-    // Try batch endpoint first
     let products = [];
+    
     try {
       console.log("Trying batch endpoint...");
-      const batchRes = await axiosInstance.post("/products-multer/batch", { productIds });
+      const batchRes = await axiosInstance.post("/products/products-multer/batch", { productIds });
       products = batchRes.data;
       console.log("Batch fetch successful, got", products.length, "products");
     } catch (batchError) {
       console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
-      
-      // Fallback to individual fetches with error handling
       const productPromises = productIds.map(async (id) => {
         try {
-          const res = await axiosInstance.get(`/products-multer/${id}`);
+          const res = await axiosInstance.get(`/products/products-multer/${id}`);
           return res.data;
         } catch (err) {
           console.error(`Failed to fetch product ${id}:`, err.message);
           return null;
         }
       });
-      
       const responses = await Promise.all(productPromises);
       products = responses.filter(p => p !== null);
     }
@@ -110,20 +106,33 @@ const fetchProductsFromFrequentList = async () => {
     
     setRawMaterials(products);
     
-    // Initialize states
+    // Initialize states from saved sheets
     const initialRates = {};
     const initialFreight = {};
     const initialInPcs = {};
+    const initialCalculations = {};
     
     products.forEach(product => {
       // Check if there's a saved sheet for this product
       const savedSheet = getLatestSheetForProduct(product._id);
       
       if (savedSheet) {
+        console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
         // Load saved values
         initialRates[product._id] = savedSheet.conversionRate || 0;
         initialFreight[product._id] = savedSheet.freight || 0;
         initialInPcs[product._id] = savedSheet.isInPcs || false;
+        
+        initialCalculations[product._id] = {
+          totalPerKg: savedSheet.totalPerKg,
+          pricePerPiece: savedSheet.pricePerPiece,
+          productWeight: savedSheet.productWeight,
+          freight: savedSheet.freight || 0,
+          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+          isInPcs: savedSheet.isInPcs || false,
+          weightDisplay: product.weight
+        };
       } else {
         // Default values
         initialRates[product._id] = 0;
@@ -135,19 +144,22 @@ const fetchProductsFromFrequentList = async () => {
     setConversionRates(initialRates);
     setFreightOutward(initialFreight);
     setInPcsMode(initialInPcs);
+    setCalculatedPrices(initialCalculations);
     
-    // Recalculate prices for all products with saved values
-    products.forEach(product => {
-      if (initialRates[product._id] > 0) {
-        calculateProductPrice(
-          product._id, 
-          initialRates[product._id], 
-          rmRate, 
-          initialInPcs[product._id], 
-          initialFreight[product._id]
-        );
-      }
-    });
+    // If there are no saved calculations, recalculate for products with rates
+    if (Object.keys(initialCalculations).length === 0) {
+      products.forEach(product => {
+        if (initialRates[product._id] > 0) {
+          calculateProductPrice(
+            product._id, 
+            initialRates[product._id], 
+            rmRate, 
+            initialInPcs[product._id], 
+            initialFreight[product._id]
+          );
+        }
+      });
+    }
     
   } catch (err) {
     console.error("Error fetching products:", err);
@@ -353,62 +365,89 @@ const fetchProductsFromFrequentList = async () => {
     }));
   };
 
-  const saveCostingSheet = async (productId) => {
-    const product = rawMaterials.find(p => p._id === productId);
-    const calculation = calculatedPrices[productId];
-    const conversionRate = conversionRates[productId];
-    const freight = freightOutward[productId];
-    const isInPcs = inPcsMode[productId];
-    
-    if (!calculation || !conversionRate || conversionRate <= 0) {
-      toast.error("Please enter conversion rate first");
-      return;
-    }
+ const saveCostingSheet = async (productId) => {
+  const product = rawMaterials.find(p => p._id === productId);
+  const calculation = calculatedPrices[productId];
+  const conversionRate = conversionRates[productId];
+  const freight = freightOutward[productId];
+  const isInPcs = inPcsMode[productId];
+  
+  if (!calculation || !conversionRate || conversionRate <= 0) {
+    toast.error("Please enter conversion rate first");
+    return;
+  }
 
-    try {
-      const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
-        productId,
-        productName: product.name,
-        productWeight: calculation.productWeight,
-        rmRate,
-        conversionRate,
-        totalPerKg: calculation.totalPerKg,
-        pricePerPiece: parseFloat(calculation.pricePerPiece),
-        freight: freight,
-        totalWithFreight: parseFloat(calculation.totalWithFreight),
-        totalWithGST: parseFloat(calculation.totalWithGST),
-        isInPcs,
-        date: new Date()
-      });
-      
-      const savedSheet = res.data.costingSheet;
-      
-      // Update saved sheets state with the new/updated sheet
-      setSavedCostingSheets(prev => {
-        const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = savedSheet;
-          return updated;
-        }
-        return [...prev, savedSheet];
-      });
-      
-      // Also update the calculation to include saved data
-      setCalculatedPrices(prev => ({
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          saved: true
-        }
-      }));
-      
-      toast.success("Costing sheet saved successfully");
-    } catch (err) {
-      console.error("Error saving costing sheet:", err);
-      toast.error("Failed to save costing sheet");
-    }
-  };
+  try {
+    const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
+      productId,
+      productName: product.name,
+      productWeight: calculation.productWeight,
+      rmRate,
+      conversionRate,
+      totalPerKg: calculation.totalPerKg,
+      pricePerPiece: parseFloat(calculation.pricePerPiece),
+      freight: freight,
+      totalWithFreight: parseFloat(calculation.totalWithFreight),
+      totalWithGST: parseFloat(calculation.totalWithGST),
+      isInPcs,
+      date: new Date()
+    });
+    
+    const savedSheet = res.data.costingSheet;
+    
+    // Update saved sheets state with the new/updated sheet
+    setSavedCostingSheets(prev => {
+      const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = savedSheet;
+        return updated;
+      }
+      return [...prev, savedSheet];
+    });
+    
+    // CRITICAL: Update the local states with the saved values to persist them
+    setConversionRates(prev => ({
+      ...prev,
+      [productId]: savedSheet.conversionRate
+    }));
+    
+    setFreightOutward(prev => ({
+      ...prev,
+      [productId]: savedSheet.freight || 0
+    }));
+    
+    setInPcsMode(prev => ({
+      ...prev,
+      [productId]: savedSheet.isInPcs || false
+    }));
+    
+    // Update calculated prices with saved data
+    setCalculatedPrices(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        totalPerKg: savedSheet.totalPerKg,
+        pricePerPiece: savedSheet.pricePerPiece,
+        productWeight: savedSheet.productWeight,
+        freight: savedSheet.freight || 0,
+        totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+        totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+        isInPcs: savedSheet.isInPcs || false
+      }
+    }));
+    
+    toast.success("Costing sheet saved successfully");
+    
+    // Force a re-render to show saved state
+    setIsOpen(false);
+    setTimeout(() => setIsOpen(true), 100);
+    
+  } catch (err) {
+    console.error("Error saving costing sheet:", err);
+    toast.error("Failed to save costing sheet");
+  }
+};
 
   const getLatestSheetForProduct = (productId) => {
     const productSheets = savedCostingSheets.filter(sheet => sheet.productId === productId);
@@ -504,12 +543,12 @@ const fetchProductsFromFrequentList = async () => {
                       
                       {/* Checkbox for "in pcs" mode */}
                       <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isInPcs}
-                          onChange={(e) => handleInPcsToggle(product._id, e.target.checked)}
-                          className="w-3 h-3"
-                        />
+                     <input
+  type="checkbox"
+  checked={inPcsMode[product._id] !== undefined ? inPcsMode[product._id] : (savedSheet?.isInPcs || false)}
+  onChange={(e) => handleInPcsToggle(product._id, e.target.checked)}
+  className="w-3 h-3"
+/>
                         <span className="text-gray-600">Calculate per piece (with product weight)</span>
                       </label>
                     </div>
@@ -524,15 +563,15 @@ const fetchProductsFromFrequentList = async () => {
                         <span className="text-sm text-gray-600">Conversion/kg:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : savedConversionRate}
-                            onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
-                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="0.00"
-                          />
+                         <input
+  type="number"
+  step="0.01"
+  min="0"
+  value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : (savedSheet?.conversionRate || '')}
+  onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
+  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  placeholder="0.00"
+/>
                         </div>
                       </div>
 
@@ -571,15 +610,15 @@ const fetchProductsFromFrequentList = async () => {
                         <span className="text-sm text-gray-600">Freight Outward:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : savedFreight}
-                            onChange={(e) => handleFreightChange(product._id, e.target.value)}
-                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="0.00"
-                          />
+                         <input
+  type="number"
+  step="0.01"
+  min="0"
+  value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : (savedSheet?.freight || '')}
+  onChange={(e) => handleFreightChange(product._id, e.target.value)}
+  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  placeholder="0.00"
+/>
                         </div>
                         <span className="text-xs text-gray-500">{isInPcs ? '/pc' : '/kg'}</span>
                       </div>
