@@ -59,7 +59,6 @@ const fetchProductsFromFrequentList = async () => {
   try {
     console.log("Frequent products data:", frequentProducts);
     
-    // Filter out products without valid productId
     const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
     console.log("Valid products with IDs:", validProducts);
     
@@ -74,7 +73,6 @@ const fetchProductsFromFrequentList = async () => {
     const productIds = validProducts.map(p => p.productId);
     console.log("Product IDs to fetch:", productIds);
     
-    // Try batch endpoint first
     let products = [];
     try {
       console.log("Trying batch endpoint...");
@@ -83,8 +81,6 @@ const fetchProductsFromFrequentList = async () => {
       console.log("Batch fetch successful, got", products.length, "products");
     } catch (batchError) {
       console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
-      
-      // Fallback to individual fetches with error handling
       const productPromises = productIds.map(async (id) => {
         try {
           const res = await axiosInstance.get(`/products-multer/${id}`);
@@ -94,7 +90,6 @@ const fetchProductsFromFrequentList = async () => {
           return null;
         }
       });
-      
       const responses = await Promise.all(productPromises);
       products = responses.filter(p => p !== null);
     }
@@ -110,20 +105,33 @@ const fetchProductsFromFrequentList = async () => {
     
     setRawMaterials(products);
     
-    // Initialize states
+    // Initialize states from saved sheets
     const initialRates = {};
     const initialFreight = {};
     const initialInPcs = {};
+    const initialCalculations = {};
     
     products.forEach(product => {
       // Check if there's a saved sheet for this product
       const savedSheet = getLatestSheetForProduct(product._id);
       
       if (savedSheet) {
+        console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
         // Load saved values
         initialRates[product._id] = savedSheet.conversionRate || 0;
         initialFreight[product._id] = savedSheet.freight || 0;
         initialInPcs[product._id] = savedSheet.isInPcs || false;
+        
+        initialCalculations[product._id] = {
+          totalPerKg: savedSheet.totalPerKg,
+          pricePerPiece: savedSheet.pricePerPiece,
+          productWeight: savedSheet.productWeight,
+          freight: savedSheet.freight || 0,
+          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+          isInPcs: savedSheet.isInPcs || false,
+          weightDisplay: product.weight
+        };
       } else {
         // Default values
         initialRates[product._id] = 0;
@@ -135,19 +143,22 @@ const fetchProductsFromFrequentList = async () => {
     setConversionRates(initialRates);
     setFreightOutward(initialFreight);
     setInPcsMode(initialInPcs);
+    setCalculatedPrices(initialCalculations);
     
-    // Recalculate prices for all products with saved values
-    products.forEach(product => {
-      if (initialRates[product._id] > 0) {
-        calculateProductPrice(
-          product._id, 
-          initialRates[product._id], 
-          rmRate, 
-          initialInPcs[product._id], 
-          initialFreight[product._id]
-        );
-      }
-    });
+    // If there are no saved calculations, recalculate for products with rates
+    if (Object.keys(initialCalculations).length === 0) {
+      products.forEach(product => {
+        if (initialRates[product._id] > 0) {
+          calculateProductPrice(
+            product._id, 
+            initialRates[product._id], 
+            rmRate, 
+            initialInPcs[product._id], 
+            initialFreight[product._id]
+          );
+        }
+      });
+    }
     
   } catch (err) {
     console.error("Error fetching products:", err);
@@ -301,12 +312,13 @@ const fetchProductsFromFrequentList = async () => {
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   };
 
-  const handleInPcsToggle = (productId, checked) => {
-    setInPcsMode(prev => ({ ...prev, [productId]: checked }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId]);
-    // Mark as unsaved
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+const handleInPcsToggle = (productId, checked) => {
+  setInPcsMode(prev => ({ ...prev, [productId]: checked }));
+  // Recalculate with the new mode
+  calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId]);
+  // Mark as unsaved
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+};
 
   const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight) => {
     const product = rawMaterials.find(p => p._id === productId);
@@ -353,62 +365,86 @@ const fetchProductsFromFrequentList = async () => {
     }));
   };
 
-  const saveCostingSheet = async (productId) => {
-    const product = rawMaterials.find(p => p._id === productId);
-    const calculation = calculatedPrices[productId];
-    const conversionRate = conversionRates[productId];
-    const freight = freightOutward[productId];
-    const isInPcs = inPcsMode[productId];
-    
-    if (!calculation || !conversionRate || conversionRate <= 0) {
-      toast.error("Please enter conversion rate first");
-      return;
-    }
+const saveCostingSheet = async (productId) => {
+  const product = rawMaterials.find(p => p._id === productId);
+  const calculation = calculatedPrices[productId];
+  const conversionRate = conversionRates[productId];
+  const freight = freightOutward[productId];
+  const isInPcs = inPcsMode[productId];
+  
+  if (!calculation || !conversionRate || conversionRate <= 0) {
+    toast.error("Please enter conversion rate first");
+    return;
+  }
 
-    try {
-      const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
-        productId,
-        productName: product.name,
-        productWeight: calculation.productWeight,
-        rmRate,
-        conversionRate,
-        totalPerKg: calculation.totalPerKg,
-        pricePerPiece: parseFloat(calculation.pricePerPiece),
-        freight: freight,
-        totalWithFreight: parseFloat(calculation.totalWithFreight),
-        totalWithGST: parseFloat(calculation.totalWithGST),
-        isInPcs,
-        date: new Date()
-      });
-      
-      const savedSheet = res.data.costingSheet;
-      
-      // Update saved sheets state with the new/updated sheet
-      setSavedCostingSheets(prev => {
-        const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = savedSheet;
-          return updated;
-        }
-        return [...prev, savedSheet];
-      });
-      
-      // Also update the calculation to include saved data
-      setCalculatedPrices(prev => ({
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          saved: true
-        }
-      }));
-      
-      toast.success("Costing sheet saved successfully");
-    } catch (err) {
-      console.error("Error saving costing sheet:", err);
-      toast.error("Failed to save costing sheet");
-    }
-  };
+  try {
+    const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
+      productId,
+      productName: product.name,
+      productWeight: calculation.productWeight,
+      rmRate,
+      conversionRate,
+      totalPerKg: calculation.totalPerKg,
+      pricePerPiece: parseFloat(calculation.pricePerPiece),
+      freight: freight,
+      totalWithFreight: parseFloat(calculation.totalWithFreight),
+      totalWithGST: parseFloat(calculation.totalWithGST),
+      isInPcs,
+      date: new Date()
+    });
+    
+    const savedSheet = res.data.costingSheet;
+    
+    // 🔥 CRITICAL: Update the local states with the saved values
+    setConversionRates(prev => ({
+      ...prev,
+      [productId]: savedSheet.conversionRate
+    }));
+    
+    setFreightOutward(prev => ({
+      ...prev,
+      [productId]: savedSheet.freight || 0
+    }));
+    
+    setInPcsMode(prev => ({
+      ...prev,
+      [productId]: savedSheet.isInPcs || false
+    }));
+    
+    // Update calculated prices with saved data
+    setCalculatedPrices(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        totalPerKg: savedSheet.totalPerKg,
+        pricePerPiece: savedSheet.pricePerPiece,
+        productWeight: savedSheet.productWeight,
+        freight: savedSheet.freight || 0,
+        totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+        totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+        isInPcs: savedSheet.isInPcs || false,
+        saved: true
+      }
+    }));
+    
+    // Update saved sheets state with the new/updated sheet
+    setSavedCostingSheets(prev => {
+      const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = savedSheet;
+        return updated;
+      }
+      return [...prev, savedSheet];
+    });
+    
+    toast.success("Costing sheet saved successfully");
+    
+  } catch (err) {
+    console.error("Error saving costing sheet:", err);
+    toast.error("Failed to save costing sheet");
+  }
+};
 
   const getLatestSheetForProduct = (productId) => {
     const productSheets = savedCostingSheets.filter(sheet => sheet.productId === productId);
