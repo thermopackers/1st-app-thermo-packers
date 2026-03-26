@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, Calculator, Package, DollarSign, Truck } from "lucide-react";
+import { ChevronDown, ChevronUp, Calculator, Package, DollarSign, Truck, Edit2 } from "lucide-react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
 
@@ -11,9 +11,11 @@ export default function CostingSheet({ customerId, frequentProducts = [] }) {
   const [conversionRates, setConversionRates] = useState({});
   const [freightOutward, setFreightOutward] = useState({});
   const [inPcsMode, setInPcsMode] = useState({});
+  const [customWeights, setCustomWeights] = useState({}); // 🆕 Store custom weight per product
   const [calculatedPrices, setCalculatedPrices] = useState({});
   const [savedCostingSheets, setSavedCostingSheets] = useState([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [editingWeightId, setEditingWeightId] = useState(null); // 🆕 Track which product is being edited
   
   // Use refs to track current values
   const rmRateRef = useRef(rmRate);
@@ -49,173 +51,241 @@ export default function CostingSheet({ customerId, frequentProducts = [] }) {
     }
   }, [isOpen, frequentProducts]);
 
-const fetchProductsFromFrequentList = async () => {
-  if (frequentProducts.length === 0) {
-    setRawMaterials([]);
-    return;
+  // Helper function to determine if product unit is kg
+  const isUnitKg = (unit) => {
+    return unit?.toLowerCase() === "kg";
+  };
+
+  // Initialize per piece mode based on unit
+  const initializeInPcsMode = (product) => {
+    const unit = product.unit || "";
+    return !isUnitKg(unit);
+  };
+
+const getEffectiveWeight = (productId) => {
+  const product = rawMaterials.find(p => p._id === productId);
+  if (!product) return 0;
+  
+  // ✅ First check customWeights state (this is the live state)
+  if (customWeights[productId] !== undefined && customWeights[productId] !== null && customWeights[productId] !== 0) {
+    return customWeights[productId]; // Use the custom weight from state
   }
   
-  setLoading(true);
-  try {
-    console.log("Frequent products data:", frequentProducts);
-    
-    const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
-    console.log("Valid products with IDs:", validProducts);
-    
-    if (validProducts.length === 0) {
-      console.warn("No valid product IDs found in frequent products");
-      toast.warning("Products don't have valid IDs. Please check product data.");
-      setRawMaterials([]);
-      setLoading(false);
-      return;
-    }
-    
-    const productIds = validProducts.map(p => p.productId);
-    console.log("Product IDs to fetch:", productIds);
-    
-    let products = [];
-    try {
-      console.log("Trying batch endpoint...");
-      const batchRes = await axiosInstance.post("/products-multer/batch", { productIds });
-      products = batchRes.data;
-      console.log("Batch fetch successful, got", products.length, "products");
-    } catch (batchError) {
-      console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
-      const productPromises = productIds.map(async (id) => {
-        try {
-          const res = await axiosInstance.get(`/products-multer/${id}`);
-          return res.data;
-        } catch (err) {
-          console.error(`Failed to fetch product ${id}:`, err.message);
-          return null;
-        }
-      });
-      const responses = await Promise.all(productPromises);
-      products = responses.filter(p => p !== null);
-    }
-    
-    console.log("Loaded products:", products);
-    
-    if (products.length === 0) {
-      toast.error("No products found. Please check product IDs.");
-      setRawMaterials([]);
-      setLoading(false);
-      return;
-    }
-    
-    setRawMaterials(products);
-    
-    // Initialize states from saved sheets
-    const initialRates = {};
-    const initialFreight = {};
-    const initialInPcs = {};
-    const initialCalculations = {};
-    
-    products.forEach(product => {
-      // Check if there's a saved sheet for this product
-      const savedSheet = getLatestSheetForProduct(product._id);
-      
-      if (savedSheet) {
-        console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
-        // Load saved values
-        initialRates[product._id] = savedSheet.conversionRate || 0;
-        initialFreight[product._id] = savedSheet.freight || 0;
-        initialInPcs[product._id] = savedSheet.isInPcs || false;
-        
-        initialCalculations[product._id] = {
-          totalPerKg: savedSheet.totalPerKg,
-          pricePerPiece: savedSheet.pricePerPiece,
-          productWeight: savedSheet.productWeight,
-          freight: savedSheet.freight || 0,
-          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
-          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
-          isInPcs: savedSheet.isInPcs || false,
-          weightDisplay: product.weight
-        };
-      } else {
-        // Default values
-        initialRates[product._id] = 0;
-        initialFreight[product._id] = 0;
-        initialInPcs[product._id] = false;
-      }
-    });
-    
-    setConversionRates(initialRates);
-    setFreightOutward(initialFreight);
-    setInPcsMode(initialInPcs);
-    setCalculatedPrices(initialCalculations);
-    
-    // If there are no saved calculations, recalculate for products with rates
-    if (Object.keys(initialCalculations).length === 0) {
-      products.forEach(product => {
-        if (initialRates[product._id] > 0) {
-          calculateProductPrice(
-            product._id, 
-            initialRates[product._id], 
-            rmRate, 
-            initialInPcs[product._id], 
-            initialFreight[product._id]
-          );
-        }
-      });
-    }
-    
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    console.error("Error details:", err.response?.data);
-    toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
-    setRawMaterials([]);
-  } finally {
-    setLoading(false);
+  // Then check if there's a saved sheet with custom weight
+  const savedSheet = getLatestSheetForProduct(productId);
+  if (savedSheet && savedSheet.customWeight !== undefined && savedSheet.customWeight !== null && savedSheet.customWeight !== 0) {
+    return savedSheet.customWeight;
   }
+  
+  // Otherwise use product's original weight (convert from grams to kg if needed)
+  const weightStr = product.weight || "";
+  if (weightStr.toLowerCase().includes("kg")) {
+    const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+    if (match) return parseFloat(match[1]);
+  } else if (weightStr.toLowerCase().includes("g")) {
+    const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+    if (match) return parseFloat(match[1]) / 1000;
+  }
+  return parseFloat(weightStr) || 0;
+};
+  
+// Update the formatWeightDisplay function to always show in grams
+const formatWeightDisplay = (weightInKg) => {
+  const grams = weightInKg * 1000;
+  return `${grams.toFixed(0)} g`;
 };
 
-  const fetchSavedCostingSheets = async () => {
+  const fetchProductsFromFrequentList = async () => {
+    if (frequentProducts.length === 0) {
+      setRawMaterials([]);
+      return;
+    }
+    
+    setLoading(true);
     try {
-      const res = await axiosInstance.get(`/customers/${customerId}/costing-sheets`);
-      const sheets = res.data || [];
-      setSavedCostingSheets(sheets);
+      console.log("Frequent products data:", frequentProducts);
       
-      if (sheets.length > 0) {
-        const savedRates = {};
-        const savedFreight = {};
-        const savedModes = {};
-        const savedCalculations = {};
-        
-        const latestSheets = {};
-        sheets.forEach(sheet => {
-          if (!latestSheets[sheet.productId] || 
-              new Date(sheet.updatedAt || sheet.date) > new Date(latestSheets[sheet.productId].updatedAt || latestSheets[sheet.productId].date)) {
-            latestSheets[sheet.productId] = sheet;
+      const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
+      console.log("Valid products with IDs:", validProducts);
+      
+      if (validProducts.length === 0) {
+        console.warn("No valid product IDs found in frequent products");
+        toast.warning("Products don't have valid IDs. Please check product data.");
+        setRawMaterials([]);
+        setLoading(false);
+        return;
+      }
+      
+      const productIds = validProducts.map(p => p.productId);
+      console.log("Product IDs to fetch:", productIds);
+      
+      let products = [];
+      try {
+        console.log("Trying batch endpoint...");
+        const batchRes = await axiosInstance.post("/products-multer/batch", { productIds });
+        products = batchRes.data;
+        console.log("Batch fetch successful, got", products.length, "products");
+      } catch (batchError) {
+        console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
+        const productPromises = productIds.map(async (id) => {
+          try {
+            const res = await axiosInstance.get(`/products-multer/${id}`);
+            return res.data;
+          } catch (err) {
+            console.error(`Failed to fetch product ${id}:`, err.message);
+            return null;
           }
         });
-        
-        Object.values(latestSheets).forEach(sheet => {
-          savedRates[sheet.productId] = sheet.conversionRate;
-          savedFreight[sheet.productId] = sheet.freight || 0;
-          savedModes[sheet.productId] = sheet.isInPcs || false;
-          
-          savedCalculations[sheet.productId] = {
-            totalPerKg: sheet.totalPerKg,
-            pricePerPiece: sheet.pricePerPiece,
-            productWeight: sheet.productWeight,
-            rmRate: sheet.rmRate,
-            freight: sheet.freight || 0,
-            totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
-            totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
-            isInPcs: sheet.isInPcs || false
-          };
-        });
-        
-        setConversionRates(savedRates);
-        setFreightOutward(savedFreight);
-        setInPcsMode(savedModes);
-        setCalculatedPrices(savedCalculations);
+        const responses = await Promise.all(productPromises);
+        products = responses.filter(p => p !== null);
       }
+      
+      console.log("Loaded products:", products);
+      
+      if (products.length === 0) {
+        toast.error("No products found. Please check product IDs.");
+        setRawMaterials([]);
+        setLoading(false);
+        return;
+      }
+      
+      setRawMaterials(products);
+      
+      // Initialize states from saved sheets or based on unit
+      const initialRates = {};
+      const initialFreight = {};
+      const initialInPcs = {};
+      const initialWeights = {};
+      const initialCalculations = {};
+      
+      products.forEach(product => {
+        // Check if there's a saved sheet for this product
+        const savedSheet = getLatestSheetForProduct(product._id);
+        
+        if (savedSheet) {
+          console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
+  // Load saved values
+  initialRates[product._id] = savedSheet.conversionRate || 0;
+  initialFreight[product._id] = savedSheet.freight || 0;
+  initialInPcs[product._id] = savedSheet.isInPcs || false;
+  // ✅ Load custom weight if saved
+  if (savedSheet.customWeight !== undefined && savedSheet.customWeight !== null) {
+    initialWeights[product._id] = savedSheet.customWeight;
+  }
+          
+          initialCalculations[product._id] = {
+            totalPerKg: savedSheet.totalPerKg,
+            pricePerPiece: savedSheet.pricePerPiece,
+            productWeight: savedSheet.productWeight,
+            freight: savedSheet.freight || 0,
+            totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+            totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+            isInPcs: savedSheet.isInPcs || false,
+            weightDisplay: product.weight
+          };
+        } else {
+          // Default values - set inPcs based on unit
+          const defaultInPcs = initializeInPcsMode(product);
+          initialRates[product._id] = 0;
+          initialFreight[product._id] = 0;
+          initialInPcs[product._id] = defaultInPcs;
+        }
+      });
+      
+      setConversionRates(initialRates);
+      setFreightOutward(initialFreight);
+      setInPcsMode(initialInPcs);
+      setCustomWeights(initialWeights);
+      setCalculatedPrices(initialCalculations);
+      
+      // If there are no saved calculations, recalculate for products with rates
+      if (Object.keys(initialCalculations).length === 0) {
+        products.forEach(product => {
+          if (initialRates[product._id] > 0) {
+            calculateProductPrice(
+              product._id, 
+              initialRates[product._id], 
+              rmRate, 
+              initialInPcs[product._id], 
+              initialFreight[product._id],
+              initialWeights[product._id]
+            );
+          }
+        });
+      }
+      
     } catch (err) {
-      console.error("Error fetching saved costing sheets:", err);
+      console.error("Error fetching products:", err);
+      console.error("Error details:", err.response?.data);
+      toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
+      setRawMaterials([]);
+    } finally {
+      setLoading(false);
     }
   };
+
+const fetchSavedCostingSheets = async () => {
+  try {
+    const res = await axiosInstance.get(`/customers/${customerId}/costing-sheets`);
+    const sheets = res.data || [];
+    setSavedCostingSheets(sheets);
+    
+    if (sheets.length > 0) {
+      const savedRates = {};
+      const savedFreight = {};
+      const savedModes = {};
+      const savedWeights = {};
+      const savedCalculations = {};
+      
+      const latestSheets = {};
+      sheets.forEach(sheet => {
+        if (!latestSheets[sheet.productId] || 
+            new Date(sheet.updatedAt || sheet.date) > new Date(latestSheets[sheet.productId].updatedAt || latestSheets[sheet.productId].date)) {
+          latestSheets[sheet.productId] = sheet;
+        }
+      });
+      
+      Object.values(latestSheets).forEach(sheet => {
+        savedRates[sheet.productId] = sheet.conversionRate;
+        savedFreight[sheet.productId] = sheet.freight || 0;
+        savedModes[sheet.productId] = sheet.isInPcs || false;
+        
+        // ✅ IMPORTANT: Set the custom weight from saved sheet
+        if (sheet.customWeight !== undefined && sheet.customWeight !== null) {
+          savedWeights[sheet.productId] = sheet.customWeight;
+        }
+        
+        savedCalculations[sheet.productId] = {
+          totalPerKg: sheet.totalPerKg,
+          pricePerPiece: sheet.pricePerPiece,
+          productWeight: sheet.productWeight,
+          rmRate: sheet.rmRate,
+          freight: sheet.freight || 0,
+          totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
+          totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
+          isInPcs: sheet.isInPcs || false
+        };
+      });
+      
+      setConversionRates(savedRates);
+      setFreightOutward(savedFreight);
+      setInPcsMode(savedModes);
+      setCustomWeights(savedWeights); // ✅ This will update the weights display
+      setCalculatedPrices(savedCalculations);
+      
+      // ✅ Also need to update rawMaterials to reflect the custom weights
+      setRawMaterials(prev => prev.map(product => {
+        if (savedWeights[product._id] !== undefined) {
+          // Don't modify the actual product, just use for display
+          return product;
+        }
+        return product;
+      }));
+    }
+  } catch (err) {
+    console.error("Error fetching saved costing sheets:", err);
+  }
+};
 
   const fetchRMRate = async () => {
     try {
@@ -257,6 +327,7 @@ const fetchProductsFromFrequentList = async () => {
       const savedRates = {};
       const savedFreight = {};
       const savedModes = {};
+      const savedWeights = {};
       const savedCalculations = {};
       const latestSheets = {};
       updatedSheets.forEach(sheet => {
@@ -270,6 +341,9 @@ const fetchProductsFromFrequentList = async () => {
         savedRates[sheet.productId] = sheet.conversionRate;
         savedFreight[sheet.productId] = sheet.freight || 0;
         savedModes[sheet.productId] = sheet.isInPcs || false;
+        if (sheet.customWeight !== undefined) {
+          savedWeights[sheet.productId] = sheet.customWeight;
+        }
         savedCalculations[sheet.productId] = {
           totalPerKg: sheet.totalPerKg,
           pricePerPiece: sheet.pricePerPiece,
@@ -285,6 +359,7 @@ const fetchProductsFromFrequentList = async () => {
       setConversionRates(savedRates);
       setFreightOutward(savedFreight);
       setInPcsMode(savedModes);
+      setCustomWeights(savedWeights);
       setCalculatedPrices(savedCalculations);
       
       toast.success(`${updatedSheets.length} costing sheets updated with new RM rate`);
@@ -299,28 +374,40 @@ const fetchProductsFromFrequentList = async () => {
   const handleConversionRateChange = (productId, value) => {
     const rate = parseFloat(value) || 0;
     setConversionRates(prev => ({ ...prev, [productId]: rate }));
-    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId]);
-    // Mark as unsaved
+    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   };
 
   const handleFreightChange = (productId, value) => {
     const freight = parseFloat(value) || 0;
     setFreightOutward(prev => ({ ...prev, [productId]: freight }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight);
-    // Mark as unsaved
+    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   };
 
-const handleInPcsToggle = (productId, checked) => {
-  setInPcsMode(prev => ({ ...prev, [productId]: checked }));
-  // Recalculate with the new mode
-  calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId]);
-  // Mark as unsaved
-  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  const handleInPcsToggle = (productId, checked) => {
+    setInPcsMode(prev => ({ ...prev, [productId]: checked }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId], customWeights[productId]);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  };
+  
+// Handle custom weight change (weight is in kg)
+const handleWeightChange = (productId, value) => {
+  // If value is empty string, treat as 0 for now
+  if (value === '') {
+    setCustomWeights(prev => ({ ...prev, [productId]: 0 }));
+    return;
+  }
+  
+  const weight = parseFloat(value);
+  if (!isNaN(weight) && weight >= 0) {
+    setCustomWeights(prev => ({ ...prev, [productId]: weight }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  }
 };
 
-  const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight) => {
+  const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight, customWeight) => {
     const product = rawMaterials.find(p => p._id === productId);
     if (!product) return;
     
@@ -329,26 +416,29 @@ const handleInPcsToggle = (productId, checked) => {
     let totalPerKg = currentRmRate + conversionRate;
     
     if (isInPcs) {
-      // Case 2: With product weight (in kg or grams)
-      const weightStr = product.weight || "";
-      if (weightStr.toLowerCase().includes("kg")) {
-        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-        if (match) productWeight = parseFloat(match[1]);
-      } else if (weightStr.toLowerCase().includes("g")) {
-        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-        if (match) productWeight = parseFloat(match[1]) / 1000;
+      // Use custom weight if provided, otherwise use product weight
+      if (customWeight !== undefined && customWeight > 0) {
+        productWeight = customWeight;
       } else {
-        productWeight = parseFloat(weightStr) || 0;
+        const weightStr = product.weight || "";
+        if (weightStr.toLowerCase().includes("kg")) {
+          const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+          if (match) productWeight = parseFloat(match[1]);
+        } else if (weightStr.toLowerCase().includes("g")) {
+          const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+          if (match) productWeight = parseFloat(match[1]) / 1000;
+        } else {
+          productWeight = parseFloat(weightStr) || 0;
+        }
       }
       
       basePrice = totalPerKg * productWeight;
     } else {
-      // Case 1: Without product weight (per kg basis)
       basePrice = totalPerKg;
     }
     
     const totalWithFreight = basePrice + freight;
-    const totalWithGST = totalWithFreight * 1.18; // 18% GST
+    const totalWithGST = totalWithFreight * 1.18;
     
     setCalculatedPrices(prev => ({
       ...prev,
@@ -365,86 +455,77 @@ const handleInPcsToggle = (productId, checked) => {
     }));
   };
 
-const saveCostingSheet = async (productId) => {
-  const product = rawMaterials.find(p => p._id === productId);
-  const calculation = calculatedPrices[productId];
-  const conversionRate = conversionRates[productId];
-  const freight = freightOutward[productId];
-  const isInPcs = inPcsMode[productId];
-  
-  if (!calculation || !conversionRate || conversionRate <= 0) {
-    toast.error("Please enter conversion rate first");
-    return;
-  }
+  const saveCostingSheet = async (productId) => {
+    const product = rawMaterials.find(p => p._id === productId);
+    const calculation = calculatedPrices[productId];
+    const conversionRate = conversionRates[productId];
+    const freight = freightOutward[productId];
+    const isInPcs = inPcsMode[productId];
+    const customWeight = customWeights[productId];
+    
+    if (!calculation || !conversionRate || conversionRate <= 0) {
+      toast.error("Please enter conversion rate first");
+      return;
+    }
 
-  try {
-    const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
-      productId,
-      productName: product.name,
-      productWeight: calculation.productWeight,
-      rmRate,
-      conversionRate,
-      totalPerKg: calculation.totalPerKg,
-      pricePerPiece: parseFloat(calculation.pricePerPiece),
-      freight: freight,
-      totalWithFreight: parseFloat(calculation.totalWithFreight),
-      totalWithGST: parseFloat(calculation.totalWithGST),
-      isInPcs,
-      date: new Date()
-    });
-    
-    const savedSheet = res.data.costingSheet;
-    
-    // 🔥 CRITICAL: Update the local states with the saved values
-    setConversionRates(prev => ({
-      ...prev,
-      [productId]: savedSheet.conversionRate
-    }));
-    
-    setFreightOutward(prev => ({
-      ...prev,
-      [productId]: savedSheet.freight || 0
-    }));
-    
-    setInPcsMode(prev => ({
-      ...prev,
-      [productId]: savedSheet.isInPcs || false
-    }));
-    
-    // Update calculated prices with saved data
-    setCalculatedPrices(prev => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        totalPerKg: savedSheet.totalPerKg,
-        pricePerPiece: savedSheet.pricePerPiece,
-        productWeight: savedSheet.productWeight,
-        freight: savedSheet.freight || 0,
-        totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
-        totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
-        isInPcs: savedSheet.isInPcs || false,
-        saved: true
+    try {
+      const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
+        productId,
+        productName: product.name,
+        productWeight: calculation.productWeight,
+        rmRate,
+        conversionRate,
+        totalPerKg: calculation.totalPerKg,
+        pricePerPiece: parseFloat(calculation.pricePerPiece),
+        freight: freight,
+        totalWithFreight: parseFloat(calculation.totalWithFreight),
+        totalWithGST: parseFloat(calculation.totalWithGST),
+        isInPcs,
+        customWeight: customWeight, // 🆕 Save custom weight
+        date: new Date()
+      });
+      
+      const savedSheet = res.data.costingSheet;
+      
+      setConversionRates(prev => ({ ...prev, [productId]: savedSheet.conversionRate }));
+      setFreightOutward(prev => ({ ...prev, [productId]: savedSheet.freight || 0 }));
+      setInPcsMode(prev => ({ ...prev, [productId]: savedSheet.isInPcs || false }));
+      if (savedSheet.customWeight !== undefined) {
+        setCustomWeights(prev => ({ ...prev, [productId]: savedSheet.customWeight }));
       }
-    }));
-    
-    // Update saved sheets state with the new/updated sheet
-    setSavedCostingSheets(prev => {
-      const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = savedSheet;
-        return updated;
-      }
-      return [...prev, savedSheet];
-    });
-    
-    toast.success("Costing sheet saved successfully");
-    
-  } catch (err) {
-    console.error("Error saving costing sheet:", err);
-    toast.error("Failed to save costing sheet");
-  }
-};
+      
+      setCalculatedPrices(prev => ({
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          totalPerKg: savedSheet.totalPerKg,
+          pricePerPiece: savedSheet.pricePerPiece,
+          productWeight: savedSheet.productWeight,
+          freight: savedSheet.freight || 0,
+          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+          isInPcs: savedSheet.isInPcs || false,
+          saved: true
+        }
+      }));
+      
+      setSavedCostingSheets(prev => {
+        const existingIndex = prev.findIndex(sheet => sheet.productId === productId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = savedSheet;
+          return updated;
+        }
+        return [...prev, savedSheet];
+      });
+      
+      toast.success("Costing sheet saved successfully");
+      
+    } catch (err) {
+      console.error("Error saving costing sheet:", err);
+      toast.error("Failed to save costing sheet");
+    }
+  };
 
   const getLatestSheetForProduct = (productId) => {
     const productSheets = savedCostingSheets.filter(sheet => sheet.productId === productId);
@@ -472,11 +553,6 @@ const saveCostingSheet = async (productId) => {
         <div className="flex items-center gap-2">
           <Calculator size={20} />
           <span className="font-semibold">Costing Sheet - Frequently Bought Products</span>
-          {/* {savedCostingSheets.length > 0 && (
-            <span className="ml-2 bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
-              {savedCostingSheets.length} saved
-            </span>
-          )} */}
           {isRecalculating && (
             <span className="ml-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">Updating...</span>
           )}
@@ -512,22 +588,46 @@ const saveCostingSheet = async (productId) => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rawMaterials.map((product) => {
-                const savedSheet = getLatestSheetForProduct(product._id);
-                const hasSavedSheet = !!savedSheet;
-                const isInPcs = inPcsMode[product._id];
-                const savedConversionRate = savedSheet?.conversionRate || 0;
-                const savedFreight = savedSheet?.freight || 0;
-                
-                const calculation = calculatedPrices[product._id] || {
-                  totalPerKg: 0,
-                  pricePerPiece: "0.00",
-                  productWeight: 0,
-                  freight: 0,
-                  totalWithFreight: "0.00",
-                  totalWithGST: "0.00",
-                  isInPcs: false
-                };
+             {rawMaterials.map((product) => {
+  const savedSheet = getLatestSheetForProduct(product._id);
+  const hasSavedSheet = !!savedSheet;
+  const unit = product.unit || "";
+  const isKg = isUnitKg(unit);
+  
+  let showCheckbox = false;
+  let isInPcs = false;
+  
+  if (hasSavedSheet) {
+    isInPcs = inPcsMode[product._id] !== undefined ? inPcsMode[product._id] : (savedSheet?.isInPcs || false);
+    showCheckbox = !isKg;
+  } else {
+    if (isKg) {
+      showCheckbox = false;
+      isInPcs = false;
+    } else {
+      showCheckbox = true;
+      isInPcs = true;
+    }
+  }
+  
+  const savedConversionRate = savedSheet?.conversionRate || 0;
+  const savedFreight = savedSheet?.freight || 0;
+  
+  // ✅ ADD THESE TWO LINES HERE:
+  const effectiveWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+  const effectiveWeightInGrams = (effectiveWeight * 1000).toFixed(0);
+  
+  const isEditing = editingWeightId === product._id;
+  
+  const calculation = calculatedPrices[product._id] || {
+    totalPerKg: 0,
+    pricePerPiece: "0.00",
+    productWeight: effectiveWeight,
+    freight: 0,
+    totalWithFreight: "0.00",
+    totalWithGST: "0.00",
+    isInPcs: isInPcs
+  };
 
                 return (
                   <div key={product._id} className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200 ${hasSavedSheet ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
@@ -536,18 +636,19 @@ const saveCostingSheet = async (productId) => {
                         <h3 className="font-semibold text-gray-800 truncate">{product.name}</h3>
                         {hasSavedSheet && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">Saved</span>}
                       </div>
-                      <p className="text-xs text-gray-500">Unit: {product.unit || 'kg'}</p>
+                      <p className="text-xs text-gray-500">Unit: {unit || 'kg'}</p>
                       
-                      {/* Checkbox for "in pcs" mode */}
-                      <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isInPcs}
-                          onChange={(e) => handleInPcsToggle(product._id, e.target.checked)}
-                          className="w-3 h-3"
-                        />
-                        <span className="text-gray-600">Calculate per piece (with product weight)</span>
-                      </label>
+                      {showCheckbox && (
+                        <label className="items-center gap-2 mt-2 text-xs cursor-pointer hidden">
+                          <input
+                            type="checkbox"
+                            checked={isInPcs}
+                            onChange={(e) => handleInPcsToggle(product._id, e.target.checked)}
+                            className="w-3 h-3"
+                          />
+                          <span className="text-gray-600">Calculate per piece (with product weight)</span>
+                        </label>
+                      )}
                     </div>
 
                     <div className="p-3 space-y-2">
@@ -579,9 +680,75 @@ const saveCostingSheet = async (productId) => {
 
                       {isInPcs && (
                         <>
+                          {/* Editable Product Weight */}
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Product Weight:</span>
-                            <span className="font-medium">{calculation.productWeight} kg</span>
+                            <span className="text-gray-600">Product Weight (Enter wt. in grams):</span>
+                            <div className="flex items-center gap-1">
+                           {isEditing ? (
+  <>
+    <input
+      type="text"
+      value={effectiveWeightInGrams}  // Show in grams
+      onChange={(e) => {
+        const value = e.target.value;
+        // Allow numbers, decimal point, and delete/backspace
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+          // Convert grams to kg for storage
+          const grams = parseFloat(value);
+          if (!isNaN(grams)) {
+            const kgValue = grams / 1000;
+            handleWeightChange(product._id, kgValue);
+          } else if (value === '') {
+            handleWeightChange(product._id, '');
+          }
+        }
+      }}
+      className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+      autoFocus
+      onBlur={() => {
+        // Convert to number and validate on blur
+        const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+        if (currentWeight <= 0) {
+          handleWeightChange(product._id, 0);
+        }
+        setEditingWeightId(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+          if (currentWeight <= 0) {
+            handleWeightChange(product._id, 0);
+          }
+          setEditingWeightId(null);
+        }
+        if (e.key === 'Escape') {
+          setEditingWeightId(null);
+        }
+      }}
+    />
+    <span className="text-xs text-gray-500">g</span>
+    <button
+      onClick={() => setEditingWeightId(null)}
+      className="text-gray-400 hover:text-gray-600 text-xs"
+    >
+      Cancel
+    </button>
+  </>
+) : (
+  <>
+    <span className="font-medium">
+      {formatWeightDisplay(effectiveWeight)}
+    </span>
+    <button
+      onClick={() => setEditingWeightId(product._id)}
+      className="text-blue-500 hover:text-blue-700"
+      title="Edit weight for this costing sheet"
+    >
+      <Edit2 size={12} />
+    </button>
+  </>
+)}
+                            </div>
                           </div>
                           <div className="border-t border-gray-200 my-2"></div>
                           <div className="flex justify-between items-center">
@@ -621,7 +788,7 @@ const saveCostingSheet = async (productId) => {
                       </div>
 
                       <div className="flex justify-between items-center text-sm font-medium text-blue-600">
-                        <span className="text-gray-600">Total with Freight:</span>
+                        <span className="text-gray-600">Total Price with Outward Freight:</span>
                         <span className="font-bold">₹{calculation.totalWithFreight}</span>
                       </div>
 

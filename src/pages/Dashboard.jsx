@@ -459,14 +459,24 @@ useEffect(() => {
   };
 
 // Advanced Happy Birthday Notification Component - Professional Design
-const BirthdayNotification = ({ birthdayUsers, onClose }) => {
+const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
   const [showConfetti, setShowConfetti] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   
   if (!birthdayUsers || birthdayUsers.length === 0) return null;
   
-  // Check if current user is the one having birthday
-  const isMyBirthday = birthdayUsers.some(user => user._id === user?._id);
+  // ✅ FIX: Check if current user is the one having birthday - use email comparison as fallback
+  const isMyBirthday = birthdayUsers.some(birthdayUser => {
+    // Compare by ID if both exist
+    if (currentUser?._id && birthdayUser._id) {
+      return currentUser._id === birthdayUser._id;
+    }
+    // Fallback to email comparison
+    if (currentUser?.email && birthdayUser.email) {
+      return currentUser.email === birthdayUser.email;
+    }
+    return false;
+  });
   
   // Auto-rotate between multiple birthday people
   useEffect(() => {
@@ -541,9 +551,6 @@ const BirthdayNotification = ({ birthdayUsers, onClose }) => {
           }}
         >
           <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/30">
-            {/* Subtle Gradient Top Border */}
-            {/* <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-400 via-pink-400 to-purple-400" /> */}
-            
             {/* Close Button */}
             <button
               onClick={onClose}
@@ -670,7 +677,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose }) => {
                 <p className="text-gray-700 text-base md:text-lg leading-relaxed">
                   {isMyBirthday 
                     ? "🎁 May your day be filled with joy, laughter, and wonderful surprises! Here's to another amazing year! 🎁"
-                    : "🎈 Join us in celebrating our wonderful team members! Let's make their day extra special! 🎈"
+                    : `🎈 Join us in wishing ${birthdayUsers.length === 1 ? birthdayUsers[0].name : 'our team members'} a fantastic birthday! Let's make their day special! 🎈`
                   }
                 </p>
               </motion.div>
@@ -759,8 +766,8 @@ const BirthdayNotification = ({ birthdayUsers, onClose }) => {
  <>
 <BirthdayNotification 
   birthdayUsers={birthdayUsers} 
+  currentUser={user}
   onClose={() => {
-    // Save to localStorage that we've shown birthday today
     const today = new Date().toDateString();
     localStorage.setItem('birthdayShownDate', today);
     setBirthdayUsers([]);
