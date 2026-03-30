@@ -90,6 +90,7 @@ export default function PlantMachineryMaintenance() {
                       ↻
                     </button>
                   </div>
+                  <span className="flex items-center justify-center text-white font-black bg-blue-700">Daily Check - Log Book</span>
                   <div className="h-3/4 grid grid-cols-3 gap-1 p-1">
                     {/* Unit 1 */}
                     <NavLink to="/plant-machinery-maintenance-power-factor" className="h-full">
@@ -142,7 +143,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">⚗️</div>
               <div className="font-bold text-sm mb-0.5">Alkalinity</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
+              <div className="text-xs opacity-90 leading-tight">Check every 15 days (Twice a Month) - Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -153,7 +154,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💧</div>
               <div className="font-bold text-sm mb-0.5">TDS</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
+              <div className="text-xs opacity-90 leading-tight">Check every 15 days (Twice a Month) - Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -164,7 +165,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">🧪</div>
               <div className="font-bold text-sm mb-0.5">PH</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
+              <div className="text-xs opacity-90 leading-tight">Check every 15 days (Twice a Month) - Log Book</div>
             </div>
           </div>
         </NavLink>
@@ -175,7 +176,7 @@ if (s.type === "water-quality-grid") {
             <div className="relative z-10 text-center p-2">
               <div className="text-3xl mb-1 group-hover:scale-110 transition-transform duration-300">💎</div>
               <div className="font-bold text-sm mb-0.5">Hardness</div>
-              <div className="text-xs opacity-90 leading-tight">Daily Check Log Book</div>
+              <div className="text-xs opacity-90 leading-tight">Check every 15 days (Twice a Month) - Log Book</div>
             </div>
           </div>
         </NavLink>

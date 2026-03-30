@@ -16,6 +16,7 @@ export default function AddProduct() {
     gstPercent: "",
     description: "",
     weight: "", // Weight in grams
+    pcsPerPacket: "", // 🆕 Number of pieces in 1 packet
   });
 
   const [images, setImages] = useState([]);
@@ -81,6 +82,9 @@ export default function AddProduct() {
         // Convert grams to kg for storage (divide by 1000)
         const weightInKg = val ? parseFloat(val) / 1000 : "";
         data.append(key, weightInKg);
+      } else if (key === "pcsPerPacket") {
+        // Store as number
+        data.append(key, val ? parseInt(val) : 0);
       } else {
         data.append(key, val);
       }
@@ -146,7 +150,7 @@ export default function AddProduct() {
             <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
           </div>
 
-          {/* 🆕 Product Weight - Now in GRAMS */}
+          {/* Product Weight - In GRAMS */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Product Weight (grams)</label>
             <input 
@@ -160,6 +164,22 @@ export default function AddProduct() {
               className="w-full p-3 border border-gray-300 rounded-lg"
             />
             <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
+          </div>
+
+          {/* 🆕 Number of Pieces in 1 Packet */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
+            <input 
+              name="pcsPerPacket" 
+              type="number"
+              step="1"
+              min="0"
+              placeholder="e.g., 10, 20, 50" 
+              value={formData.pcsPerPacket} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">Number of pieces contained in one packet</p>
           </div>
 
           {/* Description Field */}

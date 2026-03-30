@@ -17,6 +17,7 @@ const DOCUMENT_TYPES = {
     tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
   payment_receipts: "Tempo Challan Copy & Payment Receipts",
     vin_chassis_photo: "VIN - Chassis Number Photo", // Add this line
+      punjab_permit: "Punjab Permit (Goods Permit)", // Add this new option
 };
 
 export default function VehicleDocumentManager({ vehicleNumber }) {
@@ -31,6 +32,7 @@ export default function VehicleDocumentManager({ vehicleNumber }) {
     issueDate: '',
     expiryDate: '',
     notes: '',
+      mobileNumber: '', // Add this line
     documents: []
   });
 
@@ -172,6 +174,7 @@ const handleSubmit = async (e) => {
       issueDate: doc.issueDate.split('T')[0],
       expiryDate: doc.expiryDate.split('T')[0],
       notes: doc.notes || '',
+        mobileNumber: doc.mobileNumber || '', // Add this line
     documents: doc.documentUrls?.map(url => ({ url, isExisting: true })) || [] // ✅ preload existing
     });
     setShowForm(true);
@@ -248,6 +251,17 @@ const handleSubmit = async (e) => {
                 ))}
               </select>
             </div>
+<div>
+  <label className="block text-sm font-medium mb-1">Mobile Number</label>
+  <input
+    type="tel"
+    name="mobileNumber"
+    value={formData.mobileNumber}
+    onChange={handleInputChange}
+    className="w-full p-2 border rounded"
+    placeholder="Enter mobile number"
+  />
+</div>
 {editingDoc && (
   <div>
     <label className="block text-sm font-medium mb-1">Document Number</label>
@@ -260,7 +274,7 @@ const handleSubmit = async (e) => {
   </div>
 )}
 
-{!["vehicle_images", "vin_chassis_photo"].includes(formData.documentType) && (
+{!["vehicle_images", "vin_chassis_photo", "rc_copy"].includes(formData.documentType) && (
   <>
     <div>
       <label className="block text-sm font-medium mb-1">Issue Date</label>
@@ -383,6 +397,7 @@ const handleSubmit = async (e) => {
               <th className="p-3 text-left">Notes</th>
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">Actions</th>
+                <th className="p-3 text-left">Mobile Number Linked</th>
             </tr>
           </thead>
           <tbody>
@@ -390,7 +405,7 @@ const handleSubmit = async (e) => {
             let status = "Valid";
 let statusClass = "bg-green-100 text-green-800";
 
-if (!["vehicle_images", "vin_chassis_photo"].includes(doc.documentType)) {
+if (!["vehicle_images", "vin_chassis_photo", "rc_copy"].includes(doc.documentType)) {
   const expiring = isExpiring(doc.expiryDate);
   const expired = isExpired(doc.expiryDate);
 
@@ -472,6 +487,7 @@ if (!["vehicle_images", "vin_chassis_photo"].includes(doc.documentType)) {
                       Delete
                     </button>
                   </td>
+                      <td className="p-3">{doc.mobileNumber || "—"}</td>
                 </tr>
               );
             })}

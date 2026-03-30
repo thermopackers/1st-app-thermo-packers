@@ -20,6 +20,7 @@ export default function EditProduct() {
     gstPercent: "",
     description: "",
     weight: "", // Weight in grams
+    pcsPerPacket: "", // 🆕 Number of pieces in 1 packet
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +59,7 @@ export default function EditProduct() {
           gstPercent: res.data.gstPercent || "",
           description: res.data.description || "",
           weight: weightInGrams, // Display in grams
+          pcsPerPacket: res.data.pcsPerPacket || "", // 🆕
         });
 
         // Existing product images
@@ -191,6 +193,9 @@ export default function EditProduct() {
       // Convert weight from grams to kg for storage
       const weightInKg = formData.weight ? parseFloat(formData.weight) / 1000 : "";
       data.append("weight", weightInKg);
+      
+      // 🆕 Add pcsPerPacket
+      data.append("pcsPerPacket", formData.pcsPerPacket ? parseInt(formData.pcsPerPacket) : 0);
 
       // Images
       images.forEach((imgFile) => data.append("images", imgFile));
@@ -257,7 +262,7 @@ export default function EditProduct() {
             <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
           </div>
 
-          {/* 🆕 Product Weight - Now in GRAMS */}
+          {/* Product Weight - In GRAMS */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Product Weight (grams)</label>
             <input 
@@ -271,6 +276,22 @@ export default function EditProduct() {
               className="w-full border p-2 rounded"
             />
             <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
+          </div>
+
+          {/* 🆕 Number of Pieces in 1 Packet */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
+            <input 
+              type="number"
+              step="1"
+              min="0"
+              name="pcsPerPacket" 
+              value={formData.pcsPerPacket} 
+              onChange={handleChange} 
+              placeholder="e.g., 10, 20, 50" 
+              className="w-full border p-2 rounded"
+            />
+            <p className="text-sm text-gray-500 mt-1">Number of pieces contained in one packet</p>
           </div>
 
           {/* Description Field */}

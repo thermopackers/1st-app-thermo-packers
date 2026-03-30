@@ -204,6 +204,18 @@ useEffect(() => {
     })
   };
 
+  const isLateCheckIn = (checkInTime) => {
+  if (!checkInTime) return false;
+  const date = new Date(checkInTime);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  
+  // Compare with 9:50 AM (9 hours and 50 minutes)
+  if (hours > 9) return true;
+  if (hours === 9 && minutes > 50) return true;
+  return false;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -486,40 +498,40 @@ useEffect(() => {
             {entry.user?.role || "N/A"}
           </td>
         )}
-        <td className="px-4 py-3 text-sm text-gray-600">
-          {entry.checkIn ? (
-            <div className="space-y-1">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-green-600" />
-                <span>{formatTime(entry.checkIn.time)}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                {entry.checkIn.photo && (
-                  <button
-                    onClick={() => handleViewImage(entry.checkIn, 'check-in')}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
-                    title="View Check-In Photo"
-                  >
-                    <Eye className="w-3 h-3" />
-                    <span>Photo</span>
-                  </button>
-                )}
-                {entry.checkIn.location && (
-                  <button
-                    onClick={() => handleViewLocation(entry.checkIn.location)}
-                    className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
-                    title="View Check-In Location"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    <span>Location</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </td>
+       <td className={`px-4 py-3 text-sm ${isLateCheckIn(entry.checkIn?.time) ? 'bg-orange-400' : ''}`}>
+  {entry.checkIn ? (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1">
+        <Clock className="w-3 h-3 text-green-600" />
+        <span>{formatTime(entry.checkIn.time)}</span>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        {entry.checkIn.photo && (
+          <button
+            onClick={() => handleViewImage(entry.checkIn, 'check-in')}
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
+            title="View Check-In Photo"
+          >
+            <Eye className="w-3 h-3" />
+            <span>Photo</span>
+          </button>
+        )}
+        {entry.checkIn.location && (
+          <button
+            onClick={() => handleViewLocation(entry.checkIn.location)}
+            className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
+            title="View Check-In Location"
+          >
+            <MapPin className="w-3 h-3" />
+            <span>Location</span>
+          </button>
+        )}
+      </div>
+    </div>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
         <td className="px-4 py-3 text-sm text-gray-600">
           {entry.checkOut ? (
             <div className="space-y-1">

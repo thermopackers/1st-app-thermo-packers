@@ -821,7 +821,7 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
 </div>)}
 
           <div>
-            <label className="block mb-1 font-semibold">Google Maps Link</label>
+            <label className="block mb-1 font-semibold">Customer Factory Location Google Maps Link</label>
             <input
               name="locationLink"
               value={customer.locationLink || ""}

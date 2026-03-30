@@ -2,12 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Calculator, Package, DollarSign, Truck, Edit2 } from "lucide-react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
+// At the top of your file
+import pdfMake from 'pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
 
+// Configure pdfmake
+pdfMake.vfs = pdfFonts.vfs;
 export default function CostingSheet({ customerId, frequentProducts = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [rawMaterials, setRawMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
   const [rmRate, setRmRate] = useState(0);
+  const [internalNotes, setInternalNotes] = useState({});  // 🆕 Store internal notes per product
+const [remarks, setRemarks] = useState({});              // 🆕 Store remarks per product
   const [conversionRates, setConversionRates] = useState({});
   const [freightOutward, setFreightOutward] = useState({});
   const [inPcsMode, setInPcsMode] = useState({});
@@ -51,10 +58,11 @@ export default function CostingSheet({ customerId, frequentProducts = [] }) {
     }
   }, [isOpen, frequentProducts]);
 
-  // Helper function to determine if product unit is kg
-  const isUnitKg = (unit) => {
-    return unit?.toLowerCase() === "kg";
-  };
+// Helper function to determine if product unit is kg or kgs
+const isUnitKg = (unit) => {
+  const normalizedUnit = unit?.toLowerCase().trim();
+  return normalizedUnit === "kg" || normalizedUnit === "kgs";
+};
 
   // Initialize per piece mode based on unit
   const initializeInPcsMode = (product) => {
@@ -157,7 +165,9 @@ const formatWeightDisplay = (weightInKg) => {
       const initialInPcs = {};
       const initialWeights = {};
       const initialCalculations = {};
-      
+      const initialInternalNotes = {};
+const initialRemarks = {};
+
       products.forEach(product => {
         // Check if there's a saved sheet for this product
         const savedSheet = getLatestSheetForProduct(product._id);
@@ -168,6 +178,8 @@ const formatWeightDisplay = (weightInKg) => {
   initialRates[product._id] = savedSheet.conversionRate || 0;
   initialFreight[product._id] = savedSheet.freight || 0;
   initialInPcs[product._id] = savedSheet.isInPcs || false;
+    initialInternalNotes[product._id] = savedSheet.internalNotes || "";
+  initialRemarks[product._id] = savedSheet.remarks || "";
   // ✅ Load custom weight if saved
   if (savedSheet.customWeight !== undefined && savedSheet.customWeight !== null) {
     initialWeights[product._id] = savedSheet.customWeight;
@@ -197,7 +209,8 @@ const formatWeightDisplay = (weightInKg) => {
       setInPcsMode(initialInPcs);
       setCustomWeights(initialWeights);
       setCalculatedPrices(initialCalculations);
-      
+      setInternalNotes(initialInternalNotes);
+setRemarks(initialRemarks);
       // If there are no saved calculations, recalculate for products with rates
       if (Object.keys(initialCalculations).length === 0) {
         products.forEach(product => {
@@ -236,6 +249,8 @@ const fetchSavedCostingSheets = async () => {
       const savedModes = {};
       const savedWeights = {};
       const savedCalculations = {};
+      const savedInternalNotes = {};
+const savedRemarks = {};
       
       const latestSheets = {};
       sheets.forEach(sheet => {
@@ -249,7 +264,9 @@ const fetchSavedCostingSheets = async () => {
         savedRates[sheet.productId] = sheet.conversionRate;
         savedFreight[sheet.productId] = sheet.freight || 0;
         savedModes[sheet.productId] = sheet.isInPcs || false;
-        
+        savedInternalNotes[sheet.productId] = sheet.internalNotes || "";
+savedRemarks[sheet.productId] = sheet.remarks || "";
+
         // ✅ IMPORTANT: Set the custom weight from saved sheet
         if (sheet.customWeight !== undefined && sheet.customWeight !== null) {
           savedWeights[sheet.productId] = sheet.customWeight;
@@ -272,7 +289,8 @@ const fetchSavedCostingSheets = async () => {
       setInPcsMode(savedModes);
       setCustomWeights(savedWeights); // ✅ This will update the weights display
       setCalculatedPrices(savedCalculations);
-      
+      setInternalNotes(savedInternalNotes);
+setRemarks(savedRemarks);
       // ✅ Also need to update rawMaterials to reflect the custom weights
       setRawMaterials(prev => prev.map(product => {
         if (savedWeights[product._id] !== undefined) {
@@ -407,6 +425,18 @@ const handleWeightChange = (productId, value) => {
   }
 };
 
+// Handle internal notes change
+const handleInternalNotesChange = (productId, value) => {
+  setInternalNotes(prev => ({ ...prev, [productId]: value }));
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+};
+
+// Handle remarks change
+const handleRemarksChange = (productId, value) => {
+  setRemarks(prev => ({ ...prev, [productId]: value }));
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+};
+
   const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight, customWeight) => {
     const product = rawMaterials.find(p => p._id === productId);
     if (!product) return;
@@ -462,7 +492,9 @@ const handleWeightChange = (productId, value) => {
     const freight = freightOutward[productId];
     const isInPcs = inPcsMode[productId];
     const customWeight = customWeights[productId];
-    
+     const internalNote = internalNotes[productId] || "";
+  const remark = remarks[productId] || "";
+  
     if (!calculation || !conversionRate || conversionRate <= 0) {
       toast.error("Please enter conversion rate first");
       return;
@@ -482,6 +514,8 @@ const handleWeightChange = (productId, value) => {
         totalWithGST: parseFloat(calculation.totalWithGST),
         isInPcs,
         customWeight: customWeight, // 🆕 Save custom weight
+          internalNotes: internalNote,  // 🆕 Add this
+      remarks: remark,              // 🆕 Add this
         date: new Date()
       });
       
@@ -543,6 +577,290 @@ const handleWeightChange = (productId, value) => {
       </div>
     );
   }
+
+// Generate PDF and share via WhatsApp
+const generatePDF = (product, calculation, remarks) => {
+  const currentDate = new Date().toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  // Define document definition
+  const docDefinition = {
+    pageSize: 'A4',
+    pageMargins: [40, 60, 40, 60],
+    content: [
+      // Page border wrapper
+      {
+        layout: 'noBorders',
+        table: {
+          widths: ['*'],
+          body: [[
+            {
+              stack: [
+                // Header - Company name centered
+                {
+                  text: 'THERMO PACKERS',
+                  style: 'companyName',
+                  alignment: 'center',
+                  margin: [0, 0, 0, 5]
+                },
+                // Date on right side
+                {
+                  text: `Date: ${currentDate}`,
+                  style: 'date',
+                  alignment: 'right',
+                  margin: [0, 0, 0, 20]
+                },
+                {
+                  text: 'Costing Sheet',
+                  style: 'title',
+                  alignment: 'center',
+                  margin: [0, 0, 0, 20]
+                },
+                // Product Details Section
+                {
+                  text: 'PRODUCT DETAILS',
+                  style: 'sectionHeader',
+                  margin: [0, 0, 0, 10]
+                },
+                {
+                  table: {
+                    widths: ['40%', '60%'],
+                    body: [
+                      [{ text: 'Product Name', style: 'tableLabel' }, { text: product.name, style: 'tableValue' }],
+                      [{ text: 'RM Rate', style: 'tableLabel' }, { text: `₹${rmRate.toFixed(2)}/kg`, style: 'tableValue' }],
+                      [{ text: 'Conversion', style: 'tableLabel' }, { text: `₹${conversionRates[product._id] || 0}/kg`, style: 'tableValue' }],
+                      [{ text: 'Total/kg', style: 'tableLabel' }, { text: `₹${calculation.totalPerKg.toFixed(2)}`, style: 'tableValue' }],
+                    ]
+                  },
+                  layout: 'noBorders',
+                  margin: [0, 0, 0, 15]
+                },
+                // Pricing Section
+                {
+                  text: 'PRICING DETAILS',
+                  style: 'sectionHeader',
+                  margin: [0, 0, 0, 10]
+                },
+                {
+                  table: {
+                    widths: ['40%', '60%'],
+                    body: [
+                      ...(calculation.isInPcs ? [
+                        [{ text: 'Product Weight', style: 'tableLabel' }, { text: formatWeightDisplay(calculation.productWeight), style: 'tableValue' }],
+                        [{ text: 'Price/Piece', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
+                      ] : [
+                        [{ text: 'Price/kg', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
+                      ]),
+                      [{ text: 'Freight Outward', style: 'tableLabel' }, { text: `₹${calculation.freight || 0}${calculation.isInPcs ? '/pc' : '/kg'}`, style: 'tableValue' }],
+                      [{ text: 'Total with Freight', style: 'tableLabel' }, { text: `₹${calculation.totalWithFreight}`, style: 'tableValue' }],
+                    ]
+                  },
+                  layout: 'noBorders',
+                  margin: [0, 0, 0, 15]
+                },
+                // GST Section
+                {
+                  text: 'TAX DETAILS',
+                  style: 'sectionHeader',
+                  margin: [0, 0, 0, 10]
+                },
+                {
+                  table: {
+                    widths: ['40%', '60%'],
+                    body: [
+                      [{ text: 'GST (18%)', style: 'tableLabel' }, { text: `₹${(parseFloat(calculation.totalWithFreight) * 0.18).toFixed(2)}`, style: 'tableValue' }],
+                      [{ text: 'Final Price (incl. GST)', style: 'tableLabelBold' }, { text: `₹${calculation.totalWithGST}`, style: 'tableValueBold' }],
+                    ]
+                  },
+                  layout: 'noBorders',
+                  margin: [0, 0, 0, 15]
+                },
+              ]
+            }
+          ]]
+        },
+        margin: [0, 0, 0, 0]
+      }
+    ],
+    styles: {
+      companyName: {
+        fontSize: 20,
+        bold: true,
+        color: '#1a56db'
+      },
+      date: {
+        fontSize: 10,
+        color: '#666666'
+      },
+      title: {
+        fontSize: 16,
+        bold: true,
+        color: '#333333'
+      },
+      sectionHeader: {
+        fontSize: 12,
+        bold: true,
+        color: '#ffffff',
+        fillColor: '#1a56db',
+        margin: [0, 5, 0, 5],
+        padding: [10, 5, 10, 5]
+      },
+      tableLabel: {
+        fontSize: 10,
+        bold: true,
+        color: '#555555'
+      },
+      tableValue: {
+        fontSize: 10,
+        color: '#333333'
+      },
+      tableLabelBold: {
+        fontSize: 11,
+        bold: true,
+        color: '#1a56db'
+      },
+      tableValueBold: {
+        fontSize: 12,
+        bold: true,
+        color: '#16a34a'
+      },
+      remarksLabel: {
+        fontSize: 10,
+        bold: true,
+        color: '#1a56db'
+      },
+      remarksText: {
+        fontSize: 10,
+        color: '#444444',
+        margin: [0, 5, 0, 5]
+      },
+      footer: {
+        fontSize: 10,
+        italic: true,
+        color: '#888888'
+      }
+    },
+    defaultStyle: {
+      font: 'Roboto'
+    }
+  };
+
+  // Add Remarks section if exists
+  if (remarks && remarks.trim()) {
+    docDefinition.content[0].table.body[0][0].stack.push(
+      {
+        text: 'REMARKS',
+        style: 'sectionHeader',
+        margin: [0, 0, 0, 10]
+      },
+      {
+        stack: [
+          { text: 'Remarks:', style: 'remarksLabel', margin: [0, 0, 0, 5] },
+          { text: remarks, style: 'remarksText' }
+        ],
+        margin: [10, 0, 10, 15]
+      }
+    );
+  }
+
+  // Add Footer
+  docDefinition.content[0].table.body[0][0].stack.push(
+    {
+      text: 'Thank you for choosing Thermo Packers!',
+      style: 'footer',
+      alignment: 'center',
+      margin: [0, 20, 0, 10]
+    }
+  );
+
+  // Add page border by using a table with border around entire content
+  docDefinition.pageMargins = [30, 50, 30, 50];
+  
+  // Wrap everything in a bordered container
+  const borderedContent = {
+    layout: {
+      fillColor: function(rowIndex, node, columnIndex) {
+        return null;
+      },
+      hLineWidth: function(i, node) {
+        return 1;
+      },
+      vLineWidth: function(i, node) {
+        return 1;
+      },
+      hLineColor: function(i, node) {
+        return '#333333';
+      },
+      vLineColor: function(i, node) {
+        return '#333333';
+      },
+      paddingLeft: function(i, node) {
+        return 10;
+      },
+      paddingRight: function(i, node) {
+        return 10;
+      },
+      paddingTop: function(i, node) {
+        return 10;
+      },
+      paddingBottom: function(i, node) {
+        return 10;
+      }
+    },
+    table: {
+      widths: ['*'],
+      body: [[
+        {
+          stack: docDefinition.content[0].table.body[0][0].stack,
+          margin: [5, 5, 5, 5]
+        }
+      ]]
+    },
+    margin: [0, 0, 0, 0]
+  };
+
+  docDefinition.content = [borderedContent];
+
+  // Generate PDF and share via WhatsApp
+  pdfMake.createPdf(docDefinition).getBlob((blob) => {
+    // Create a file from the blob
+    const file = new File([blob], `Costing_Sheet_${product.name}_${currentDate.replace(/\//g, '-')}.pdf`, { type: 'application/pdf' });
+    
+    // Check if Web Share API is available (mobile devices)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Use Web Share API to share directly (works on mobile)
+      navigator.share({
+        files: [file],
+        title: 'Costing Sheet',
+        text: ''
+      }).catch((error) => {
+        console.log('Error sharing:', error);
+        // Fallback: download the file
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Costing_Sheet_${product.name}_${currentDate.replace(/\//g, '-')}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        alert('PDF downloaded. You can now share it via WhatsApp from your device.');
+      });
+    } else {
+      // For desktop browsers, download the file and show instructions
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Costing_Sheet_${product.name}_${currentDate.replace(/\//g, '-')}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      // Show instruction to share via WhatsApp
+      alert('PDF downloaded! You can now share it via WhatsApp from your device or computer.');
+    }
+  });
+};
 
   return (
     <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
@@ -804,16 +1122,46 @@ const handleWeightChange = (productId, value) => {
                           <span className="text-green-700">₹{calculation.totalWithGST}</span>
                         </div>
                       </div>
+{/* Internal Notes Field */}
+<div className="mt-2">
+  <label className="block text-xs text-gray-600 mb-1">Internal Notes: (Only for Internal reference - Not Shared in Costing Sheet)</label>
+  <textarea
+    rows="2"
+    value={internalNotes[product._id] || ""}
+    onChange={(e) => handleInternalNotesChange(product._id, e.target.value)}
+    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+    placeholder="Add internal notes..."
+  />
+</div>
 
-                      <button
-                        onClick={() => saveCostingSheet(product._id)}
-                        disabled={!conversionRates[product._id] && !savedConversionRate}
-                        className={`w-full mt-2 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200 ${
-                          hasSavedSheet ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                        } disabled:bg-gray-400`}
-                      >
-                        {hasSavedSheet ? 'Update Costing Sheet' : 'Save Costing Sheet'}
-                      </button>
+{/* Remarks Field */}
+<div className="mt-2">
+  <label className="block text-xs text-gray-600 mb-1">Remarks: (Shared with Costing Sheet)</label>
+  <textarea
+    rows="2"
+    value={remarks[product._id] || ""}
+    onChange={(e) => handleRemarksChange(product._id, e.target.value)}
+    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+    placeholder="Add remarks..."
+  />
+</div>
+<div className="flex gap-2 mt-2">
+ <button
+  onClick={() => generatePDF(product, calculation, remarks[product._id] || savedSheet?.remarks || "")}
+  className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200"
+>
+  📤 Share via WhatsApp
+</button>
+  <button
+    onClick={() => saveCostingSheet(product._id)}
+    disabled={!conversionRates[product._id] && !savedConversionRate}
+    className={`flex-1 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200 ${
+      hasSavedSheet ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'
+    } disabled:bg-gray-400`}
+  >
+    {hasSavedSheet ? '💾 Update' : '💾 Save'}
+  </button>
+</div>
                     </div>
                   </div>
                 );

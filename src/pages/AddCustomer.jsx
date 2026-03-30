@@ -337,7 +337,7 @@ const handleSubmit = async (e) => {
             </div>
 
             <div>
-              <label className="block mb-1 font-medium text-gray-700">Address(Mention pincode)</label>
+              <label className="block mb-1 font-medium text-gray-700">Address</label>
               <textarea
                 name="address"
                 value={formData.address}
@@ -385,7 +385,7 @@ const handleSubmit = async (e) => {
 
             <div>
   <label className="block mb-1 font-medium text-gray-700">
-    Google Maps Location Link
+   Customer Factory Location Google Maps Link
   </label>
   <input
     name="locationLink"

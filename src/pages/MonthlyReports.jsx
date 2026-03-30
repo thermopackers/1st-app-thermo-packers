@@ -387,7 +387,7 @@ const renderLateDetails = (lateDetails) => {
     );
   };
 
-// Update the PDF download function to include monthly off
+// Update the PDF download function to include monthly off with proper page height
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -570,16 +570,15 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       return dateObj.getDay() === 0;
     }).length;
     
-    // ========== NEW: Monthly Off Logic ==========
+    // ========== Monthly Off Logic ==========
     // There is exactly 1 monthly off per month
     const monthlyOff = 1;
     
     // Calculate net leaves (leave days minus monthly off)
-    // If there are no leaves, show monthly off as 1
     const netLeaves = leaveCount > 0 ? leaveCount - monthlyOff : 0;
     const monthlyOffDisplay = leaveCount > 0 ? monthlyOff : 1;
     
-    // Generate table
+    // Generate table - calculate required height first
     autoTable(doc, {
       head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Worked Hours', 'Attendance']],
       body: tableData,
@@ -594,39 +593,54 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         3: { cellWidth: 35 },
         4: { cellWidth: 35 },
         5: { cellWidth: 40 }
-      }
+      },
+      margin: { bottom: 60 } // Add more bottom margin for summary
     });
     
-    // Add summary at the bottom
+    // Add summary at the bottom with proper positioning
     const finalY = doc.lastAutoTable.finalY || 40;
-
+    
+    // Calculate if we need a new page for summary
+    let summaryStartY = finalY + 15;
+    if (summaryStartY > 180) {
+      doc.addPage();
+      summaryStartY = 20;
+    }
+    
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Summary:`, 14, finalY + 15);
+    doc.text(`Summary:`, 14, summaryStartY);
     doc.setFont('helvetica', 'normal');
     
+    let currentY = summaryStartY + 10;
+    
     // Line 1: Total Days in Month (up to today)
-    doc.text(`Total Days in Month: ${allDatesInMonth.length}`, 14, finalY + 25);
+    doc.text(`Total Days in Month: ${allDatesInMonth.length}`, 14, currentY);
+    currentY += 10;
     
     // Line 2: Sundays (Total vs Worked)
-    doc.text(`Sundays: ${sundays.length} total (${sundaysWorked} worked, ${sundays.length - sundaysWorked} off)`, 14, finalY + 35);
+    doc.text(`Sundays: ${sundays.length} total (${sundaysWorked} worked, ${sundays.length - sundaysWorked} off)`, 14, currentY);
+    currentY += 10;
     
     // Line 3: Working Days (weekdays + Sundays worked)
-    doc.text(`Working Days: ${workingDays.length}`, 14, finalY + 45);
+    doc.text(`Working Days: ${workingDays.length}`, 14, currentY);
+    currentY += 10;
     
     // Line 4: Present and Absent (from working days only)
-    doc.text(`Present: ${presentCount} | Absent: ${absentDays.length}`, 14, finalY + 55);
+    doc.text(`Present: ${presentCount} | Absent: ${absentDays.length}`, 14, currentY);
+    currentY += 10;
     
     // Line 5: FD, HD
-    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, finalY + 65);
+    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, currentY);
+    currentY += 10;
     
     // Line 6: Leaves with Monthly Off adjustment
     if (leaveCount > 0) {
-      doc.text(`Leaves: ${leaveCount} total | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, finalY + 75);
+      doc.text(`Leaves: ${leaveCount} total | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, currentY);
     } else {
-      doc.text(`Monthly Off: ${monthlyOffDisplay}`, 14, finalY + 75);
+      doc.text(`Monthly Off: ${monthlyOffDisplay}`, 14, currentY);
     }
-
+    
     // Save PDF
     doc.save(`attendance-${userName}-${month}.pdf`);
 
