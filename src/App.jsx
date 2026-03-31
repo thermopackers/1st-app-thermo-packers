@@ -48,6 +48,7 @@ export default function App() {
     "/factory-attendance-logs",
     "/factory-monthly-reports",
     "/rm-rate",
+    "/maintenance/transformer",
     "/tour-planning",
     "/maintenance/earthing",
     "/edit-rfq",

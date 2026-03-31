@@ -19,6 +19,7 @@ export default function PlantMachineryMaintenance() {
     type: "water-quality-grid", // Updated type
     color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
   },
+    { name: "Transformer 300KW (Weekly Maintenance Log Book)", path: "/maintenance/transformer", color: "bg-orange-600 hover:bg-orange-700" }, // Add this line
   { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-blue-600 hover:bg-blue-700" },
@@ -200,6 +201,7 @@ if (s.type === "water-quality-grid") {
             
             // Check if other sections are enabled
             const isEnabled = s.name === "Air Compressors" || 
+                             s.name === "Transformer 300KW (Weekly Maintenance Log Book)" || // Add this
                              s.name === "Earthing" ||
                              s.name === "DG Set (Diesel Generator) - Main Electric Panel" ||
                              s.name === "Water Filter" ||

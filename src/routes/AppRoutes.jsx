@@ -9,6 +9,7 @@ import { useUserContext } from "../context/UserContext";
 import AddProduct from "../pages/AddProduct";
 import AddCustomer from "../pages/AddCustomer";
 import CustomerList from "../pages/CustomerList";
+import TransformerMaintenance from "../pages/TransformerMaintenance";
 import ProductList from "../pages/ProductList";
 import EditProduct from "../pages/EditProduct";
 import EditCustomer from "../pages/EditCustomer";
@@ -298,6 +299,7 @@ export default function AppRoutes() {
 <Route path="/freight-calculator" element={<FreightCalculator />} />
 <Route path="/factory-attendance-logs" element={<FactoryAttendanceLogs />} />
 <Route path="/factory-monthly-reports" element={<FactoryMonthlyReports />} />
+<Route path="/maintenance/transformer" element={<TransformerMaintenance />} />
 
             <Route
               path="/asset-management"
