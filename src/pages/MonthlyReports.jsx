@@ -388,7 +388,7 @@ const renderLateDetails = (lateDetails) => {
   };
 
 // Update the PDF download function to include monthly off with proper page height
-// Update the PDF download function with optimized table for more rows per page
+// Update the PDF download function with full attendance status text and optimized for more rows
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -396,7 +396,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     
-    // Use portrait orientation for more rows per page (A4 portrait fits ~30 rows)
+    // Use portrait orientation for more rows per page
     const doc = new jsPDF('portrait');
     
     // Get user name
@@ -419,11 +419,11 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     }
     
     // Title
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.text(`Attendance Report - ${userName}`, 14, 15);
     doc.setFontSize(10);
-    doc.text(`Month: ${monthName}`, 14, 25);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 32);
+    doc.text(`Month: ${monthName}`, 14, 23);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 31);
     
     // Calculate all dates in the month up to today
     const [year, m] = month.split("-");
@@ -456,7 +456,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       attendanceMap[record.date] = record;
     });
     
-    // Prepare table data for ALL dates in the month (compact format)
+    // Prepare table data for ALL dates in the month with FULL status text
     const tableData = allDatesInMonth.map(dateStr => {
       const record = attendanceMap[dateStr];
       const dateObj = new Date(dateStr);
@@ -470,7 +470,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       
       if (record) {
         if (record.type === 'leave') {
-          attendanceType = "Leave";
+          attendanceType = "On Leave";
         } else if (record.type === 'present') {
           checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
           checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
@@ -493,7 +493,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         if (isSunday) {
           attendanceType = "Weekly Off";
         } else if (record && record.type === 'present') {
-          // Present day (non-Sunday)
+          // Check for half day reasons
           const isIncomplete = record.checkInTime && !record.checkOutTime;
           const isLateHalfDay = (() => {
             if (!record.checkInTime) return false;
@@ -509,14 +509,29 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
             expectedTime.setHours(18, 0, 0, 0);
             return checkOutDate < expectedTime;
           })();
+          
           const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
-          attendanceType = isHalfDay ? "HD" : "FD";
+          
+          if (isHalfDay) {
+            if (isIncomplete) {
+              attendanceType = "Half Day (Incomplete)";
+            } else if (isLateHalfDay && isEarlyHalfDay) {
+              attendanceType = "Half Day (Late & Early)";
+            } else if (isLateHalfDay) {
+              attendanceType = "Half Day (Late)";
+            } else if (isEarlyHalfDay) {
+              attendanceType = "Half Day (Early)";
+            } else {
+              attendanceType = "Half Day";
+            }
+          } else {
+            attendanceType = "Full Day";
+          }
         } else {
           attendanceType = "Absent";
         }
       }
       
-      // Compact row data
       return [
         formatDate(dateStr),
         dayName,
@@ -580,11 +595,11 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       },
       columnStyles: {
         0: { cellWidth: 25 },  // Date
-        1: { cellWidth: 20 },  // Day
-        2: { cellWidth: 25 },  // Check-In
-        3: { cellWidth: 25 },  // Check-Out
+        1: { cellWidth: 18 },  // Day
+        2: { cellWidth: 28 },  // Check-In
+        3: { cellWidth: 28 },  // Check-Out
         4: { cellWidth: 25 },  // Hours
-        5: { cellWidth: 25 }   // Status
+        5: { cellWidth: 45 }   // Status (wider for full text)
       },
       margin: { top: 40, bottom: 50, left: 10, right: 10 },
       pageBreak: 'auto',
@@ -626,12 +641,12 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     currentY += 6;
     
     // Line 5
-    doc.text(`FD: ${fdCount} | HD: ${hdCount}`, 14, currentY);
+    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, currentY);
     currentY += 6;
     
     // Line 6
     if (leaveCount > 0) {
-      doc.text(`Leaves: ${leaveCount} | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, currentY);
+      doc.text(`Leaves: ${leaveCount} total | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, currentY);
     } else {
       doc.text(`Monthly Off: ${monthlyOffDisplay}`, 14, currentY);
     }
