@@ -388,7 +388,6 @@ const renderLateDetails = (lateDetails) => {
   };
 
 // Update the PDF download function to include monthly off with proper page height
-// Update the PDF download function to fit everything in one A4 page
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
@@ -396,7 +395,6 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     
-    // Use landscape for more horizontal space, single page
     const doc = new jsPDF('landscape');
     
     // Get user name
@@ -418,12 +416,12 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       });
     }
     
-    // Title - smaller font
+    // Title
+    doc.setFontSize(18);
+    doc.text(`Attendance Report - ${userName}`, 14, 15);
     doc.setFontSize(12);
-    doc.text(`Attendance Report - ${userName}`, 14, 12);
-    doc.setFontSize(9);
-    doc.text(`Month: ${monthName}`, 14, 19);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 26);
+    doc.text(`Month: ${monthName}`, 14, 25);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 32);
     
     // Calculate all dates in the month up to today
     const [year, m] = month.split("-");
@@ -456,7 +454,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       attendanceMap[record.date] = record;
     });
     
-    // Prepare table data for ALL dates in the month with FULL status text
+    // Prepare table data for ALL dates in the month
     const tableData = allDatesInMonth.map(dateStr => {
       const record = attendanceMap[dateStr];
       const dateObj = new Date(dateStr);
@@ -467,11 +465,13 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       let checkOut = "—";
       let hours = "—";
       let attendanceType = "";
+      let isPresent = false;
       
       if (record) {
         if (record.type === 'leave') {
-          attendanceType = "Leave";
+          attendanceType = "On Leave";
         } else if (record.type === 'present') {
+          isPresent = true;
           checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
           checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
           
@@ -483,7 +483,8 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
             const totalMinutes = Math.round(diffMs / (1000 * 60));
             const hrs = Math.floor(totalMinutes / 60);
             const mins = totalMinutes % 60;
-            hours = `${hrs}h ${mins}m`;
+            const formattedMins = mins < 10 ? `0${mins}` : mins;
+            hours = `${hrs}h ${formattedMins}m`;
           }
         }
       }
@@ -493,8 +494,9 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         if (isSunday) {
           attendanceType = "Weekly Off";
         } else if (record && record.type === 'present') {
-          // Check for half day reasons
+          // Present day (non-Sunday)
           const isIncomplete = record.checkInTime && !record.checkOutTime;
+          
           const isLateHalfDay = (() => {
             if (!record.checkInTime) return false;
             const checkInDate = new Date(record.checkInTime);
@@ -502,6 +504,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
             thresholdTime.setHours(9, 51, 0, 0);
             return checkInDate > thresholdTime;
           })();
+          
           const isEarlyHalfDay = (() => {
             if (!record.checkOutTime) return false;
             const checkOutDate = new Date(record.checkOutTime);
@@ -512,21 +515,12 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
           
           const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
           
-          if (isHalfDay) {
-            if (isIncomplete) {
-              attendanceType = "HD (Incomplete)";
-            } else if (isLateHalfDay && isEarlyHalfDay) {
-              attendanceType = "HD (L+E)";
-            } else if (isLateHalfDay) {
-              attendanceType = "HD (Late)";
-            } else if (isEarlyHalfDay) {
-              attendanceType = "HD (Early)";
-            } else {
-              attendanceType = "Half Day";
-            }
-          } else {
-            attendanceType = "Full Day";
-          }
+          let reasons = [];
+          if (isIncomplete) reasons.push("Incomplete");
+          if (isLateHalfDay) reasons.push("Late");
+          if (isEarlyHalfDay) reasons.push("Early");
+          
+          attendanceType = isHalfDay ? `Half Day${reasons.length ? ' (' + reasons.join(', ') + ')' : ''}` : "Full Day";
         } else {
           attendanceType = "Absent";
         }
@@ -548,96 +542,103 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     const presentDates = presentRecords.map(r => r.date);
     const leaveDates = leaveRecords.map(r => r.date);
     
-    // Calculate working days
+    // Calculate working days (all days except Sundays that were NOT worked)
     const workingDays = allDatesInMonth.filter(date => {
       const dateObj = new Date(date);
       const isSunday = dateObj.getDay() === 0;
       const isPresent = presentDates.includes(date);
-      if (isSunday) return isPresent;
-      return true;
+      
+      if (isSunday) {
+        return isPresent; // Only count if they worked
+      }
+      return true; // All weekdays are working days
     });
     
+    // Calculate absent days (weekdays not present and not on leave)
     const absentDays = workingDays.filter(date => {
       const isPresent = presentDates.includes(date);
       const isOnLeave = leaveDates.includes(date);
       return !isPresent && !isOnLeave;
     });
     
+    // Calculate present count (excluding Sundays unless worked)
     const presentCount = presentDates.length;
+    
+    // Calculate Sundays worked
     const sundaysWorked = presentDates.filter(date => {
       const dateObj = new Date(date);
       return dateObj.getDay() === 0;
     }).length;
     
-    // Monthly Off Logic
+    // ========== Monthly Off Logic ==========
+    // There is exactly 1 monthly off per month
     const monthlyOff = 1;
+    
+    // Calculate net leaves (leave days minus monthly off)
     const netLeaves = leaveCount > 0 ? leaveCount - monthlyOff : 0;
     const monthlyOffDisplay = leaveCount > 0 ? monthlyOff : 1;
     
-    // Generate compact table to fit on one page
+    // Generate table - calculate required height first
     autoTable(doc, {
-      head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Hours', 'Status']],
+      head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Worked Hours', 'Attendance']],
       body: tableData,
-      startY: 32,
+      startY: 40,
       theme: 'striped',
-      headStyles: { 
-        fillColor: [41, 128, 185], 
-        textColor: 255, 
-        fontStyle: 'bold',
-        fontSize: 7,
-        cellPadding: 1.5
-      },
-      styles: { 
-        fontSize: 6.5, 
-        cellPadding: 1.5,
-        lineHeight: 1.1,
-        valign: 'middle'
-      },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 22 },  // Date
-        1: { cellWidth: 16 },  // Day
-        2: { cellWidth: 28 },  // Check-In
-        3: { cellWidth: 28 },  // Check-Out
-        4: { cellWidth: 22 },  // Hours
-        5: { cellWidth: 38 }   // Status
+        0: { cellWidth: 30 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 35 },
+        5: { cellWidth: 40 }
       },
-      margin: { top: 32, bottom: 55, left: 8, right: 8 },
-      pageBreak: 'auto'
+      margin: { bottom: 60 } // Add more bottom margin for summary
     });
     
-    // Get the final Y position after table
-    let finalY = doc.lastAutoTable.finalY || 32;
+    // Add summary at the bottom with proper positioning
+    const finalY = doc.lastAutoTable.finalY || 40;
     
-    // Add summary in a compact box below the table
-    finalY += 5;
+    // Calculate if we need a new page for summary
+    let summaryStartY = finalY + 15;
+    if (summaryStartY > 180) {
+      doc.addPage();
+      summaryStartY = 20;
+    }
     
-    // Draw a light border box for summary
-    doc.setDrawColor(200, 200, 200);
-    doc.setFillColor(245, 245, 245);
-    doc.rect(10, finalY - 3, 270, 38, 'F');
-    doc.rect(10, finalY - 3, 270, 38, 'D');
-    
-    doc.setFontSize(8);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`SUMMARY`, 14, finalY + 4);
+    doc.text(`Summary:`, 14, summaryStartY);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
     
-    let currentY = finalY + 10;
+    let currentY = summaryStartY + 10;
     
-    // Line 1 - Total Days and Sundays
-    doc.text(`Total Days: ${allDatesInMonth.length}  |  Sundays: ${sundays.length} total (${sundaysWorked} worked, ${sundays.length - sundaysWorked} off)`, 14, currentY);
-    currentY += 6;
+    // Line 1: Total Days in Month (up to today)
+    doc.text(`Total Days in Month: ${allDatesInMonth.length}`, 14, currentY);
+    currentY += 10;
     
-    // Line 2 - Working Days, Present, Absent
-    doc.text(`Working Days: ${workingDays.length}  |  Present: ${presentCount}  |  Absent: ${absentDays.length}`, 14, currentY);
-    currentY += 6;
+    // Line 2: Sundays (Total vs Worked)
+    doc.text(`Sundays: ${sundays.length} total (${sundaysWorked} worked, ${sundays.length - sundaysWorked} off)`, 14, currentY);
+    currentY += 10;
     
-    // Line 3 - FD, HD, Leaves
+    // Line 3: Working Days (weekdays + Sundays worked)
+    doc.text(`Working Days: ${workingDays.length}`, 14, currentY);
+    currentY += 10;
+    
+    // Line 4: Present and Absent (from working days only)
+    doc.text(`Present: ${presentCount} | Absent: ${absentDays.length}`, 14, currentY);
+    currentY += 10;
+    
+    // Line 5: FD, HD
+    doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, currentY);
+    currentY += 10;
+    
+    // Line 6: Leaves with Monthly Off adjustment
     if (leaveCount > 0) {
-      doc.text(`Full Days (FD): ${fdCount}  |  Half Days (HD): ${hdCount}  |  Leaves: ${leaveCount} total (Monthly Off: 1 | Net: ${netLeaves})`, 14, currentY);
+      doc.text(`Leaves: ${leaveCount} total | Monthly Off: 1 | Net Leaves: ${netLeaves}`, 14, currentY);
     } else {
-      doc.text(`Full Days (FD): ${fdCount}  |  Half Days (HD): ${hdCount}  |  Monthly Off: ${monthlyOffDisplay}`, 14, currentY);
+      doc.text(`Monthly Off: ${monthlyOffDisplay}`, 14, currentY);
     }
     
     // Save PDF
