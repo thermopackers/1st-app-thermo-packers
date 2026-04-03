@@ -209,3 +209,18 @@ select[multiple] option:checked {
 .backface-hidden {
   backface-visibility: hidden;
 }
+/* Mobile responsive table styles */
+@media (max-width: 768px) {
+  .packaging-report-container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  input, textarea, button {
+    font-size: 14px !important;
+  }
+  
+  .min-w-\[800px\] {
+    min-width: 800px;
+  }
+}
