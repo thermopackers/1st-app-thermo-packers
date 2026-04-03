@@ -348,250 +348,250 @@ const PackagingReport = () => {
           </button>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <p className="text-center py-10 text-blue-600">Loading...</p>
-        ) : (
-          <div className="w-full overflow-x-auto shadow rounded border border-gray-300">
-            <table className="w-full text-sm table-fixed">
-              <thead className="bg-blue-600 text-white">
-                <tr>
-                  <th className="px-3 py-2 text-center w-12">Sr No.</th>
-                  <th className="px-3 py-2 text-center w-24">Date</th>
-                  <th className="px-3 py-2 text-center w-28">Lady Name</th>
-<th className="px-3 py-2 text-center w-56">Product in Production</th>
-                  <th className="px-3 py-2 text-center w-20">No. of Pcs in 1 Packet</th>
-                  <th className="px-3 py-2 text-center w-24">Wet Weight (g)</th>
-                  <th className="px-3 py-2 text-center w-24">Dry Weight (g)</th>
-                  <th className="px-3 py-2 text-center w-24">Polythene Size</th>
-                  <th className="px-3 py-2 text-center w-36">Packed Qty (Pcs & Packets)</th>
-                  <th className="px-3 py-2 text-center w-36">Total Dispatch (Pcs & Packets)</th>
-                  <th className="px-3 py-2 text-center w-36">Balance Stock (Pcs & Packets)</th>
-                  <th className="px-3 py-2 text-center w-20">Tape Used</th>
-                  <th className="px-3 py-2 text-center w-16">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.keys(groupedData).length === 0 ? (
-                  <tr>
-                    <td colSpan={13} className="text-center py-4 text-gray-500">No data available</td>
-                  </tr>
-                ) : (
-                  (() => {
-                    // Get all dates from groupedData (already paginated by backend)
-                    const dates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a));
-                    let serialNo = (currentPage - 1) * ROWS_PER_PAGE;
+   {/* Table */}
+{loading ? (
+  <p className="text-center py-10 text-blue-600">Loading...</p>
+) : (
+  <div className="w-full overflow-x-auto shadow rounded border border-gray-300" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="min-w-[1200px] md:min-w-full">
+      <table className="w-full text-sm table-auto">
+        <thead className="bg-blue-600 text-white sticky top-0">
+          <tr>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '60px' }}>Sr No.</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '110px' }}>Date</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '130px' }}>Lady Name</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '220px' }}>Product in Production</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '130px' }}>No. of Pcs in 1 Packet</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '100px' }}>Wet Weight (g)</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '100px' }}>Dry Weight (g)</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '110px' }}>Polythene Size</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '160px' }}>Packed Qty (Pcs & Packets)</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '160px' }}>Total Dispatch (Pcs & Packets)</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '160px' }}>Balance Stock (Pcs & Packets)</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '80px' }}>Tape Used</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap" style={{ minWidth: '70px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.keys(groupedData).length === 0 ? (
+            <tr>
+              <td colSpan={13} className="text-center py-4 text-gray-500">No data available</td>
+            </tr>
+          ) : (
+            (() => {
+              // Get all dates from groupedData (already paginated by backend)
+              const dates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a));
+              let serialNo = (currentPage - 1) * ROWS_PER_PAGE;
 
-                    return dates.map((date) => {
-                      const rows = groupedData[date];
-                      const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
-                      const totalDispatchQty = rows.reduce((sum, r) => sum + (parseFloat(r.dispatchQty) || 0), 0);
-                      const totalBalanceStock = rows.reduce((sum, r) => sum + (parseFloat(r.balanceStock) || 0), 0);
-                      
-                      // Calculate total packets for summary (using first row's pcsPerPacket as reference)
-                      const firstRowPcsPerPacket = rows[0]?.pcsPerPacket;
-                      const totalPacketDisplay = firstRowPcsPerPacket ? 
-                        getPacketDisplay(totalPackedQty, firstRowPcsPerPacket) : `${totalPackedQty} pcs`;
+              return dates.map((date) => {
+                const rows = groupedData[date];
+                const totalPackedQty = rows.reduce((sum, r) => sum + (parseFloat(r.packedQty) || 0), 0);
+                const totalDispatchQty = rows.reduce((sum, r) => sum + (parseFloat(r.dispatchQty) || 0), 0);
+                const totalBalanceStock = rows.reduce((sum, r) => sum + (parseFloat(r.balanceStock) || 0), 0);
+                
+                // Calculate total packets for summary (using first row's pcsPerPacket as reference)
+                const firstRowPcsPerPacket = rows[0]?.pcsPerPacket;
+
+                return (
+                  <React.Fragment key={date}>
+                    {rows.map((row, idx) => {
+                      serialNo += 1;
+                      const packedDisplay = getPacketDisplay(row.packedQty, row.pcsPerPacket);
+                      const dispatchDisplay = getPacketDisplay(row.dispatchQty, row.pcsPerPacket);
+                      const balanceDisplay = getPacketDisplay(row.balanceStock, row.pcsPerPacket);
 
                       return (
-                        <React.Fragment key={date}>
-                          {rows.map((row, idx) => {
-                            serialNo += 1;
-                            const packedDisplay = getPacketDisplay(row.packedQty, row.pcsPerPacket);
-                            const dispatchDisplay = getPacketDisplay(row.dispatchQty, row.pcsPerPacket);
-                            const balanceDisplay = getPacketDisplay(row.balanceStock, row.pcsPerPacket);
-
-                            return (
-                              <tr
-                                key={`${date}-${idx}`}
-                                className={
-                                  row.isNew
-                                    ? 'bg-green-200 border-green-500'
-                                    : idx % 2 === 0
-                                    ? 'bg-gray-50'
-                                    : ''
-                                }
-                              >
-                                <td className="px-2 py-1 text-center">{serialNo}</td>
-                                <td className="px-3 py-1 text-center">
-                                  <input
-                                    type="date"
-                                    value={row.date}
-                                    max={new Date().toISOString().split('T')[0]}
-                                    onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full"
-                                  />
-                                </td>
-                                <td className="px-1 py-1">
-                                  <input
-                                    type="text"
-                                    value={row.ladyName || ''}
-                                    onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full min-w-[110px]"
-                                    placeholder="Name"
-                                  />
-                                </td>
-                             <td className="px-2 py-1">
-  <textarea
-    list={`product-options-${date}-${idx}`}
-    value={row.productionProduct || ''}
-    onChange={(e) => handleProductChange(date, idx, e.target.value)}
-    className="border rounded px-2 py-1 w-full min-w-[180px] resize-y"
-    placeholder="Type or select product"
-    rows="2"
-    style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
-  />
-  <datalist id={`product-options-${date}-${idx}`}>
-    {productOptions.map((prod, i) => (
-      <option key={i} value={prod.productName || prod.name} />
-    ))}
-  </datalist>
-</td>
-                                <td className="px-2 py-1 text-center">
-                                  <input
-                                    type="text"
-                                    value={row.pcsPerPacket || ''}
-                                    readOnly
-                                    className="border rounded px-2 py-1 w-full bg-gray-100 text-center"
-                                    placeholder="Auto"
-                                  />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <input
-                                    type="number"
-                                    value={row.productWeight || ''}
-                                    onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full"
-                                    placeholder="Grams"
-                                  />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <input
-                                    type="number"
-                                    value={row.dryWeight || ''}
-                                    onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full"
-                                    placeholder="Dry (grams)"
-                                  />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <input
-                                    type="text"
-                                    value={row.polytheneSize || ''}
-                                    onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full"
-                                    placeholder="Size"
-                                  />
-                                </td>
-                                <td className="px-2 py-1">
-                                  <div className="flex flex-col gap-1">
-                                    <input
-                                      type="number"
-                                      value={row.packedQty || ''}
-                                      onChange={(e) => handlePackedQtyChange(date, idx, e.target.value)}
-                                      className="border rounded px-2 py-1 w-full"
-                                      placeholder="Enter pcs"
-                                    />
-                                    {row.packedQty && row.pcsPerPacket && (
-                                      <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
-                                        {packedDisplay}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1">
-                                  <div className="flex flex-col gap-1">
-                                    <input
-                                      type="number"
-                                      value={row.dispatchQty || ''}
-                                      onChange={(e) => handleDispatchQtyChange(date, idx, e.target.value)}
-                                      className="border rounded px-2 py-1 w-full"
-                                      placeholder="Enter pcs"
-                                    />
-                                    {row.dispatchQty && row.pcsPerPacket && (
-                                      <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-                                        {dispatchDisplay}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1">
-                                  <div className="flex flex-col gap-1">
-                                    <input
-                                      type="number"
-                                      value={row.balanceStock || ''}
-                                      onChange={(e) => handleBalanceStockChange(date, idx, e.target.value)}
-                                      className="border rounded px-2 py-1 w-full"
-                                      placeholder="Enter pcs"
-                                    />
-                                    {row.balanceStock && row.pcsPerPacket && (
-                                      <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded">
-                                        {balanceDisplay}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1">
-                                  <input
-                                    type="number"
-                                    value={row.tapeUsed || ''}
-                                    onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
-                                    className="border rounded px-2 py-1 w-full"
-                                    placeholder="Tapes"
-                                  />
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  <button
-                                    onClick={() => handleDeleteRow(date, idx)}
-                                    className="text-red-600 hover:text-red-800 text-sm font-medium whitespace-nowrap"
-                                  >
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-
-                          {/* Total Row for each date */}
-                          <tr className="bg-yellow-100 font-semibold text-gray-900">
-                            <td colSpan={8} className="text-right px-3 py-2">
-                              Total for {date}
-                            </td>
-                            <td className="text-center font-bold">
-                              {totalPackedQty} pcs
-                              {firstRowPcsPerPacket && (
-                                <div className="text-xs text-green-700">
-                                  {getPacketDisplay(totalPackedQty, firstRowPcsPerPacket)}
-                                </div>
+                        <tr
+                          key={`${date}-${idx}`}
+                          className={
+                            row.isNew
+                              ? 'bg-green-200 border-green-500'
+                              : idx % 2 === 0
+                              ? 'bg-gray-50'
+                              : ''
+                          }
+                        >
+                          <td className="px-2 py-1 text-center whitespace-nowrap">{serialNo}</td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="date"
+                              value={row.date}
+                              max={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => handleInputChange(date, idx, 'date', e.target.value)}
+                              className="border rounded px-2 py-1 w-full"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="text"
+                              value={row.ladyName || ''}
+                              onChange={(e) => handleInputChange(date, idx, 'ladyName', e.target.value)}
+                              className="border rounded px-2 py-1 w-full min-w-[120px]"
+                              placeholder="Name"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <textarea
+                              list={`product-options-${date}-${idx}`}
+                              value={row.productionProduct || ''}
+                              onChange={(e) => handleProductChange(date, idx, e.target.value)}
+                              className="border rounded px-2 py-1 w-full min-w-[200px] resize-y"
+                              placeholder="Type or select product"
+                              rows="2"
+                              style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                            />
+                            <datalist id={`product-options-${date}-${idx}`}>
+                              {productOptions.map((prod, i) => (
+                                <option key={i} value={prod.productName || prod.name} />
+                              ))}
+                            </datalist>
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            <input
+                              type="text"
+                              value={row.pcsPerPacket || ''}
+                              readOnly
+                              className="border rounded px-2 py-1 w-full bg-gray-100 text-center"
+                              placeholder="Auto"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              value={row.productWeight || ''}
+                              onChange={(e) => handleInputChange(date, idx, 'productWeight', e.target.value)}
+                              className="border rounded px-2 py-1 w-full"
+                              placeholder="Grams"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              value={row.dryWeight || ''}
+                              onChange={(e) => handleInputChange(date, idx, 'dryWeight', e.target.value)}
+                              className="border rounded px-2 py-1 w-full"
+                              placeholder="Dry (grams)"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="text"
+                              value={row.polytheneSize || ''}
+                              onChange={(e) => handleInputChange(date, idx, 'polytheneSize', e.target.value)}
+                              className="border rounded px-2 py-1 w-full"
+                              placeholder="Size"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="number"
+                                value={row.packedQty || ''}
+                                onChange={(e) => handlePackedQtyChange(date, idx, e.target.value)}
+                                className="border rounded px-2 py-1 w-full"
+                                placeholder="Enter pcs"
+                              />
+                              {row.packedQty && row.pcsPerPacket && (
+                                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded whitespace-nowrap">
+                                  {packedDisplay}
+                                </span>
                               )}
-                            </td>
-                            <td className="text-center font-bold">
-                              {totalDispatchQty} pcs
-                              {firstRowPcsPerPacket && (
-                                <div className="text-xs text-blue-700">
-                                  {getPacketDisplay(totalDispatchQty, firstRowPcsPerPacket)}
-                                </div>
+                            </div>
+                          </td>
+                          <td className="px-2 py-1">
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="number"
+                                value={row.dispatchQty || ''}
+                                onChange={(e) => handleDispatchQtyChange(date, idx, e.target.value)}
+                                className="border rounded px-2 py-1 w-full"
+                                placeholder="Enter pcs"
+                              />
+                              {row.dispatchQty && row.pcsPerPacket && (
+                                <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
+                                  {dispatchDisplay}
+                                </span>
                               )}
-                            </td>
-                            <td className="text-center font-bold">
-                              {totalBalanceStock} pcs
-                              {firstRowPcsPerPacket && (
-                                <div className="text-xs text-purple-700">
-                                  {getPacketDisplay(totalBalanceStock, firstRowPcsPerPacket)}
-                                </div>
+                            </div>
+                          </td>
+                          <td className="px-2 py-1">
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="number"
+                                value={row.balanceStock || ''}
+                                onChange={(e) => handleBalanceStockChange(date, idx, e.target.value)}
+                                className="border rounded px-2 py-1 w-full"
+                                placeholder="Enter pcs"
+                              />
+                              {row.balanceStock && row.pcsPerPacket && (
+                                <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded whitespace-nowrap">
+                                  {balanceDisplay}
+                                </span>
                               )}
-                            </td>
-                            <td colSpan={2}></td>
-                          </tr>
-                        </React.Fragment>
+                            </div>
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              value={row.tapeUsed || ''}
+                              onChange={(e) => handleInputChange(date, idx, 'tapeUsed', e.target.value)}
+                              className="border rounded px-2 py-1 w-full"
+                              placeholder="Tapes"
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            <button
+                              onClick={() => handleDeleteRow(date, idx)}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium whitespace-nowrap"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
                       );
-                    });
-                  })()
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    })}
+
+                    {/* Total Row for each date */}
+                    <tr className="bg-yellow-100 font-semibold text-gray-900">
+                      <td colSpan={8} className="text-right px-3 py-2 whitespace-nowrap">
+                        Total for {date}
+                      </td>
+                      <td className="text-center font-bold">
+                        {totalPackedQty} pcs
+                        {firstRowPcsPerPacket && (
+                          <div className="text-xs text-green-700 whitespace-nowrap">
+                            {getPacketDisplay(totalPackedQty, firstRowPcsPerPacket)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-center font-bold">
+                        {totalDispatchQty} pcs
+                        {firstRowPcsPerPacket && (
+                          <div className="text-xs text-blue-700 whitespace-nowrap">
+                            {getPacketDisplay(totalDispatchQty, firstRowPcsPerPacket)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-center font-bold">
+                        {totalBalanceStock} pcs
+                        {firstRowPcsPerPacket && (
+                          <div className="text-xs text-purple-700 whitespace-nowrap">
+                            {getPacketDisplay(totalBalanceStock, firstRowPcsPerPacket)}
+                          </div>
+                        )}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </React.Fragment>
+                );
+              });
+            })()
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
         {/* Pagination */}
         <div className="flex justify-between items-center mt-6">
