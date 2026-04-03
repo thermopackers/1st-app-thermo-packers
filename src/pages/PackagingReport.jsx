@@ -359,7 +359,7 @@ const PackagingReport = () => {
                   <th className="px-3 py-2 text-center w-12">Sr No.</th>
                   <th className="px-3 py-2 text-center w-24">Date</th>
                   <th className="px-3 py-2 text-center w-28">Lady Name</th>
-                  <th className="px-3 py-2 text-center w-40">Product in Production</th>
+<th className="px-3 py-2 text-center w-56">Product in Production</th>
                   <th className="px-3 py-2 text-center w-20">No. of Pcs in 1 Packet</th>
                   <th className="px-3 py-2 text-center w-24">Wet Weight (g)</th>
                   <th className="px-3 py-2 text-center w-24">Dry Weight (g)</th>
@@ -431,20 +431,22 @@ const PackagingReport = () => {
                                     placeholder="Name"
                                   />
                                 </td>
-                                <td className="px-2 py-1">
-                                  <input
-                                    list={`product-options-${date}-${idx}`}
-                                    value={row.productionProduct || ''}
-                                    onChange={(e) => handleProductChange(date, idx, e.target.value)}
-                                    className="border rounded px-2 py-1 w-full min-w-[150px]"
-                                    placeholder="Type or select product"
-                                  />
-                                  <datalist id={`product-options-${date}-${idx}`}>
-                                    {productOptions.map((prod, i) => (
-                                      <option key={i} value={prod.productName || prod.name} />
-                                    ))}
-                                  </datalist>
-                                </td>
+                             <td className="px-2 py-1">
+  <textarea
+    list={`product-options-${date}-${idx}`}
+    value={row.productionProduct || ''}
+    onChange={(e) => handleProductChange(date, idx, e.target.value)}
+    className="border rounded px-2 py-1 w-full min-w-[180px] resize-y"
+    placeholder="Type or select product"
+    rows="2"
+    style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+  />
+  <datalist id={`product-options-${date}-${idx}`}>
+    {productOptions.map((prod, i) => (
+      <option key={i} value={prod.productName || prod.name} />
+    ))}
+  </datalist>
+</td>
                                 <td className="px-2 py-1 text-center">
                                   <input
                                     type="text"
