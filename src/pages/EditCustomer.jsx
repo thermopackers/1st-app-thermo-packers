@@ -144,6 +144,22 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const openCostingSheet = params.get('openCostingSheet');
+  
+  if (openCostingSheet === 'true') {
+    // Add a slight delay to ensure the component is mounted
+    setTimeout(() => {
+      // Find the CostingSheet component's button and click it
+      const costingSheetButton = document.querySelector('[data-costing-sheet-toggle]');
+      if (costingSheetButton && costingSheetButton.getAttribute('data-expanded') !== 'true') {
+        costingSheetButton.click();
+      }
+    }, 500);
+  }
+}, [location.search]);
+
+useEffect(() => {
   async function fetchCustomer() {
     try {
       const res = await axiosInstance.get(`/customers/${id}`);

@@ -10,6 +10,7 @@ import Catalog from "../components/Catalog";
 import Pricing from "../components/Pricing";
 import FAQ from "../components/FAQ";
 import CustomerReviews from "../components/CustomerReviews";
+import ExhibitionShowcase from "../components/ExhibitionShowcase";  // ADD THIS LINE
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -29,6 +30,7 @@ const Home = () => {
     
     return () => clearTimeout(scrollTimer);
   }, []);
+  
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -152,6 +154,9 @@ const Home = () => {
         <section className="relative z-10 stacked-section">
           <CustomerReviews />
         </section>
+
+        {/* ADD THIS - Exhibition Showcase Section */}
+        <ExhibitionShowcase />
 
         {/* Floating WhatsApp */}
         <FloatingWhatsApp />

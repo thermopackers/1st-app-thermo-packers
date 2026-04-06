@@ -64,6 +64,8 @@ const [newDriver, setNewDriver] = useState({
   phone: "",
   email: "",
 });
+console.log("customerDetails",customerDetails);
+
 const [formData, setFormData] = useState({
   vehicleNumber: "",
   remarks: "",
@@ -1220,7 +1222,7 @@ const exportFormattedPDF = () => {
     });
 
     // Add company header
-    pdf.setFillColor(59, 130, 246); // Blue background
+    pdf.setFillColor(59, 130, 246);
     pdf.rect(0, 0, 297, 20, 'F');
     
     pdf.setFontSize(16);
@@ -1232,17 +1234,17 @@ const exportFormattedPDF = () => {
     pdf.setTextColor(255, 255, 255);
     pdf.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 148, 18, { align: 'center' });
 
-    // Table headers (Status column removed)
-    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'Sales Products/Material', 'Remarks'];
-    const columnWidths = [15, 20, 30, 35, 35, 45, 45, 40]; // Adjusted widths for remaining columns
+    // Table headers
+    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'City', 'Map', 'Sales Products', 'Diesel(L)', 'Expenses', 'Remarks'];
+    const columnWidths = [10, 14, 20, 20, 24, 28, 22, 18, 28, 12, 14, 27];
     
     let yPosition = 30;
     
-    // Add table headers with background
-    pdf.setFillColor(243, 244, 246); // Gray background
+    // Add table headers
+    pdf.setFillColor(243, 244, 246);
     pdf.rect(10, yPosition - 5, 277, 8, 'F');
     
-    pdf.setFontSize(9);
+    pdf.setFontSize(7);
     pdf.setTextColor(0, 0, 0);
     pdf.setFont(undefined, 'bold');
     
@@ -1252,15 +1254,17 @@ const exportFormattedPDF = () => {
       xPosition += columnWidths[index];
     });
 
-    yPosition += 12; // Increased gap after headers
+    yPosition += 10;
 
     // Add table rows
     pdf.setFont(undefined, 'normal');
-    pdf.setFontSize(8);
+    pdf.setFontSize(7);
     
-    plans.forEach((plan, index) => {
-      // Add new page if needed (with more buffer space)
-      if (yPosition > 170) {
+    for (let idx = 0; idx < plans.length; idx++) {
+      const plan = plans[idx];
+      
+      // Check if we need a new page
+      if (yPosition > 180) {
         pdf.addPage();
         yPosition = 20;
         
@@ -1273,99 +1277,267 @@ const exportFormattedPDF = () => {
         
         yPosition = 30;
         
-        // Add table headers again
+        // Add headers again
         pdf.setFillColor(243, 244, 246);
         pdf.rect(10, yPosition - 5, 277, 8, 'F');
-        pdf.setFontSize(9);
+        pdf.setFontSize(7);
         pdf.setTextColor(0, 0, 0);
         pdf.setFont(undefined, 'bold');
         
         xPosition = 10;
-        headers.forEach((header, idx) => {
+        headers.forEach((header, hIdx) => {
           pdf.text(header, xPosition + 2, yPosition);
-          xPosition += columnWidths[idx];
+          xPosition += columnWidths[hIdx];
         });
         
-        yPosition += 12; // Increased gap after headers on new page
+        yPosition += 10;
         pdf.setFont(undefined, 'normal');
-        pdf.setFontSize(8);
+        pdf.setFontSize(7);
       }
 
-      // Alternate row background for better readability (extended height)
-      const rowBackgroundHeight = 8; // Base height for background
-      if (index % 2 === 0) {
+      // Alternate row background
+      if (idx % 2 === 0) {
         pdf.setFillColor(249, 250, 251);
-        pdf.rect(10, yPosition - 3, 277, rowBackgroundHeight, 'F');
+        pdf.rect(10, yPosition - 3, 277, 10, 'F');
       }
 
-      // Process customers with bullet points
-      const customersContent = Array.isArray(plan.customerNames) && plan.customerNames.length > 0 
-        ? plan.customerNames.map((name, i) => `${i + 1}. ${name}`).join('\n')
-        : "-";
-
-      // Process products with bullet points
-      const productsContent = Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0 
-        ? plan.salesProducts.map((product, i) => `${i + 1}. ${product}`).join('\n')
-        : "-";
-
-      // Row data without status column
-      const rowData = [
-        ((page - 1) * 10 + index + 1).toString(),
-        plan.dateOfTrip ? new Date(plan.dateOfTrip).toLocaleDateString("en-GB") : "-",
-        plan.vehicleNumber || "-",
-        plan.driverName || plan.assignedTo?.name || "-",
-        plan.location || "-",
-        customersContent,
-        productsContent,
-        plan.remarks ? (plan.remarks.length > 30 ? plan.remarks.substring(0, 30) + '...' : plan.remarks) : "-" // Increased remarks length
-      ];
-
-      let xPosition = 10;
-      let maxLinesInRow = 1;
-
-      rowData.forEach((cell, cellIndex) => {
-        const lines = pdf.splitTextToSize(cell, columnWidths[cellIndex] - 4);
-        pdf.setTextColor(0, 0, 0);
-        
-        // Draw each line separately with better line spacing
-        lines.forEach((line, lineIndex) => {
-          pdf.text(line, xPosition + 2, yPosition + (lineIndex * 4));
+      // Format customer names with bullet points
+      let customersText = "-";
+      if (Array.isArray(plan.customerNames) && plan.customerNames.length > 0) {
+        customersText = plan.customerNames.map((name, i) => `${i + 1}. ${name}`).join('\n');
+      }
+      
+      // Format cities with numbering (matching customer order)
+      let citiesText = "-";
+      if (Array.isArray(plan.customerNames) && plan.customerNames.length > 0) {
+        const cities = [];
+        plan.customerNames.forEach((customerName, i) => {
+          const customer = customerDetails.find(c => c.name === customerName);
+          
+          if (customer && customer.city) {
+            cities.push(`${i + 1}. ${customer.city}`);
+          } else if (customer && customer.address) {
+            const addressParts = customer.address.split(',');
+            const possibleCity = addressParts.length > 1 ? addressParts[addressParts.length - 2]?.trim() : null;
+            if (possibleCity) {
+              cities.push(`${i + 1}. ${possibleCity}`);
+            } else {
+              cities.push(`${i + 1}. -`);
+            }
+          } else {
+            cities.push(`${i + 1}. -`);
+          }
         });
         
-        // Track the maximum number of lines in this row
-        if (lines.length > maxLinesInRow) {
-          maxLinesInRow = lines.length;
+        if (cities.length > 0) {
+          citiesText = cities.join('\n');
         }
-        
-        xPosition += columnWidths[cellIndex];
+      }
+      
+      // Format map links with numbering - store separately for link annotations
+      let mapIconsText = "";
+      let mapUrls = [];
+      let mapLines = [];
+      
+      if (Array.isArray(plan.customerNames) && plan.customerNames.length > 0) {
+        plan.customerNames.forEach((customerName, i) => {
+          const customer = customerDetails.find(c => c.name === customerName);
+          
+          let mapUrl = null;
+          if (customer && customer.locationLink) {
+            mapUrl = customer.locationLink.trim();
+          } else if (customer && customer.address) {
+            const encodedAddress = encodeURIComponent(customer.address);
+            mapUrl = `https://maps.google.com/?q=${encodedAddress}`;
+          }
+          
+          const lineText = `${i + 1}. ${mapUrl ? '[MAP]' : '[NO MAP]'}`;
+          mapLines.push({ text: lineText, url: mapUrl, index: i });
+          
+          if (mapUrl) {
+            mapUrls.push(mapUrl);
+          }
+        });
+      }
+      
+      if (mapLines.length === 0) {
+        mapIconsText = "-";
+      }
+      
+      // Format sales products with bullet points
+      let productsText = "-";
+      if (Array.isArray(plan.salesProducts) && plan.salesProducts.length > 0) {
+        productsText = plan.salesProducts.map((product, i) => `${i + 1}. ${product}`).join('\n');
+      }
+      
+      // Format diesel liters
+      let dieselText = "-";
+      if (plan.dieselLiters && plan.dieselLiters !== "") {
+        dieselText = String(plan.dieselLiters);
+      }
+      
+      // Format expenses
+      let expensesText = "-";
+      if (plan.expenses && plan.expenses !== "") {
+        const cleanExpense = String(plan.expenses).replace(/[^0-9.-]/g, '');
+        if (cleanExpense && cleanExpense !== "-") {
+          expensesText = cleanExpense;
+        }
+      }
+      
+      // Format remarks
+      let remarksText = "-";
+      if (plan.remarks && plan.remarks !== "") {
+        let cleanRemark = String(plan.remarks).replace(/[^\w\s\-.,!?]/g, '');
+        remarksText = cleanRemark.length > 35 ? cleanRemark.substring(0, 35) + '...' : cleanRemark;
+      }
+      
+      // Format date
+      let dateText = "-";
+      if (plan.dateOfTrip) {
+        dateText = new Date(plan.dateOfTrip).toLocaleDateString("en-GB");
+      }
+      
+      // Format driver name
+      let driverText = plan.driverName || (plan.assignedTo?.name) || "-";
+      
+      // Format vehicle number
+      let vehicleText = plan.vehicleNumber || "-";
+      
+      // Format location
+      let locationText = plan.location || "-";
+
+      // Calculate row height
+      let maxLines = 1;
+      
+      const customersLines = pdf.splitTextToSize(customersText, columnWidths[5] - 4).length;
+      const citiesLines = pdf.splitTextToSize(citiesText, columnWidths[6] - 4).length;
+      const productsLines = pdf.splitTextToSize(productsText, columnWidths[8] - 4).length;
+      const remarksLines = pdf.splitTextToSize(remarksText, columnWidths[11] - 4).length;
+      
+      // For map lines, count each line
+      const mapLinesCount = mapLines.length > 0 ? mapLines.length : 1;
+      
+      maxLines = Math.max(1, customersLines, citiesLines, mapLinesCount, productsLines, remarksLines);
+      
+      // Draw row data
+      let currentX = 10;
+      let lineY = yPosition;
+
+      // Sr No
+      pdf.text(((page - 1) * 10 + idx + 1).toString(), currentX + 2, lineY);
+      currentX += columnWidths[0];
+      
+      // Date
+      pdf.text(dateText, currentX + 2, lineY);
+      currentX += columnWidths[1];
+      
+      // Vehicle
+      pdf.text(vehicleText, currentX + 2, lineY);
+      currentX += columnWidths[2];
+      
+      // Driver
+      pdf.text(driverText, currentX + 2, lineY);
+      currentX += columnWidths[3];
+      
+      // Location
+      const locationLines = pdf.splitTextToSize(locationText, columnWidths[4] - 4);
+      locationLines.forEach((line, lineIdx) => {
+        pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
+      });
+      currentX += columnWidths[4];
+      
+      // Customers
+      const customerLines = pdf.splitTextToSize(customersText, columnWidths[5] - 4);
+      customerLines.forEach((line, lineIdx) => {
+        pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
+      });
+      currentX += columnWidths[5];
+      
+      // Cities
+      const cityLines = pdf.splitTextToSize(citiesText, columnWidths[6] - 4);
+      cityLines.forEach((line, lineIdx) => {
+        pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
+      });
+      currentX += columnWidths[6];
+      
+      // Map Icons - Draw each line individually with clickable link
+      if (mapLines.length > 0) {
+        mapLines.forEach((line, lineIdx) => {
+          const lineYPos = lineY + (lineIdx * 3.5);
+          
+          if (line.url) {
+            // Draw [MAP] in blue
+            pdf.setTextColor(0, 0, 255);
+            pdf.text(line.text, currentX + 2, lineYPos);
+            
+            // Calculate the exact text width to make it clickable
+            const textWidth = pdf.getTextWidth(line.text);
+            // Add link annotation over the text area
+            pdf.link(currentX + 2, lineYPos - 2, textWidth, 3.5, { url: line.url });
+          } else {
+            // Draw [NO MAP] in black
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(line.text, currentX + 2, lineYPos);
+          }
+        });
+        pdf.setTextColor(0, 0, 0);
+      } else {
+        pdf.text("-", currentX + 2, lineY);
+      }
+      currentX += columnWidths[7];
+      
+      // Sales Products
+      const productLines = pdf.splitTextToSize(productsText, columnWidths[8] - 4);
+      productLines.forEach((line, lineIdx) => {
+        pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
+      });
+      currentX += columnWidths[8];
+      
+      // Diesel
+      pdf.text(dieselText, currentX + 2, lineY);
+      currentX += columnWidths[9];
+      
+      // Expenses
+      pdf.text(expensesText, currentX + 2, lineY);
+      currentX += columnWidths[10];
+      
+      // Remarks
+      const remarkLines = pdf.splitTextToSize(remarksText, columnWidths[11] - 4);
+      remarkLines.forEach((line, lineIdx) => {
+        pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
       });
 
-      // Calculate row height with minimum gap
-      const rowHeight = Math.max(12, maxLinesInRow * 4);
+      // Calculate row height
+      const rowHeight = Math.max(10, maxLines * 3.5 + 2);
       
-      // Add row border for better separation
-      pdf.setDrawColor(226, 232, 240); // Light gray border
+      // Draw row border
+      pdf.setDrawColor(226, 232, 240);
       pdf.setLineWidth(0.2);
-      pdf.rect(10, yPosition - 3, 277, rowHeight + 2); // Border around the row
+      pdf.rect(10, yPosition - 3, 277, rowHeight, 'S');
       
-      // Move to next row with proper gap
-      yPosition += rowHeight + 4; // Added 4mm gap between rows
-    });
+      // Move to next row
+      yPosition += rowHeight;
+    }
 
-    // Add footer with page numbers (moved up to accommodate more content)
+    // Add footer
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setTextColor(128, 128, 128);
-      pdf.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
-      pdf.text(`Total Plans: ${plans.length}`, 15, 200);
+      pdf.text(`Page ${i} of ${pageCount}`, 280, 195, { align: 'right' });
+      pdf.text(`Total Plans: ${plans.length}`, 15, 195);
+      pdf.setTextColor(0, 0, 255);
+      pdf.text(`[MAP] = Clickable Google Maps Link (blue text)`, 15, 190);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`[NO MAP] = No map link available`, 15, 186);
     }
 
     pdf.save(`dispatch-plans-${new Date().toISOString().split('T')[0]}.pdf`);
     toast.success("PDF exported successfully!", { id: "pdf-export" });
   } catch (error) {
-    console.error("Error generating formatted PDF:", error);
+    console.error("Error generating PDF:", error);
     toast.error("Failed to export PDF", { id: "pdf-export" });
   }
 };
@@ -2013,6 +2185,40 @@ useEffect(() => {
           </div>
         )}
       </td>
+      <td className="px-4 py-4 border border-gray-200">
+  <div className="space-y-1">
+    {Array.isArray(plan.customerNames) && plan.customerNames.length > 0 ? (
+      plan.customerNames.map((customerName, i) => {
+        // Find the customer in customerDetails
+        const customer = customerDetails.find(c => c.name === customerName);
+        let cityName = "-";
+        
+        if (customer && customer.city) {
+          cityName = customer.city;
+        } else if (customer && customer.address) {
+          // Try to extract city from address
+          const addressParts = customer.address.split(',');
+          const possibleCity = addressParts.length > 1 ? addressParts[addressParts.length - 2]?.trim() : null;
+          if (possibleCity) {
+            cityName = possibleCity;
+          }
+        }
+        
+        return (
+          <div key={i} className={`text-xs px-2 py-1 rounded ${
+            plan.customerNames.length > 1 
+              ? 'bg-purple-50 border border-purple-200 text-purple-700' 
+              : 'bg-gray-50 text-gray-700'
+          }`}>
+            <span className="font-medium">{i + 1}. {cityName}</span>
+          </div>
+        );
+      })
+    ) : (
+      <span className="text-gray-400">-</span>
+    )}
+  </div>
+</td>
       {/* Location - Editable */}
      <td className="px-4 py-4 border border-gray-200 min-w-[300px]">
   {isEditing ? (
@@ -2585,6 +2791,9 @@ useEffect(() => {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
           Customers
         </th>
+         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200">
+      City
+    </th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 min-w-[200px]">
   Location
 </th>
@@ -2859,6 +3068,38 @@ useEffect(() => {
 </button>
             </div>
           </td>
+          <td className="px-4 py-4 border border-gray-200">
+  <div className="space-y-1">
+    {customerNames.filter(name => name.trim()).length > 0 ? (
+      customerNames.map((customerName, idx) => {
+        if (!customerName.trim()) return null;
+        
+        // Find the customer in customerDetails
+        const customer = customerDetails.find(c => c.name === customerName);
+        let cityName = "-";
+        
+        if (customer && customer.city) {
+          cityName = customer.city;
+        } else if (customer && customer.address) {
+          // Try to extract city from address
+          const addressParts = customer.address.split(',');
+          const possibleCity = addressParts.length > 1 ? addressParts[addressParts.length - 2]?.trim() : null;
+          if (possibleCity) {
+            cityName = possibleCity;
+          }
+        }
+        
+        return (
+          <div key={idx} className="text-xs px-2 py-1 rounded bg-purple-50 border border-purple-200 text-purple-700">
+            <span className="font-medium">{idx + 1}. {cityName}</span>
+          </div>
+        );
+      })
+    ) : (
+      <span className="text-xs text-gray-400">No customers selected</span>
+    )}
+  </div>
+</td>
             <td className="px-4 py-4 border border-gray-200 min-w-[300px]">
   <textarea
     value={formData.location}

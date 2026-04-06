@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
+import { Calculator } from "lucide-react";
 
 export default function CustomerList() {
     const { user } = useUserContext();
@@ -610,6 +611,7 @@ const exportToExcel = async () => {
                 <th className="p-3 border">Google Map</th>
                 <th className="p-3 border">Documents</th>
                 <th className="p-3 border">Customer Handled / Managed By</th>
+                    <th className="p-3 border text-center">Costing Sheet</th>  {/* NEW COLUMN */}
                 <th className="p-3 border text-center">Actions</th>
               </tr>
             </thead>
@@ -759,6 +761,16 @@ const exportToExcel = async () => {
     <span className="text-gray-400">—</span>
   )}
 </td>
+ <td className="p-3 border text-center">
+        <button
+          onClick={() => navigate(`/customers/edit/${c._id}?openCostingSheet=true`)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-sm flex items-center gap-1 mx-auto transition-colors duration-200"
+          title="Open Costing Sheet"
+        >
+          <Calculator size={16} />
+          Costing Sheet
+        </button>
+      </td>
 
                   <td className="p-3 border text-center space-x-2">
                     <Link

@@ -432,20 +432,38 @@ const fetchRegisteredVehicles = async () => {
           )}
         </div>
 
-        {/* Document Manager Section */}
+{/* Document Manager Section */}
 {selectedVehicle && userRoles.includes("accounts") && (
-            <div ref={docsRef} className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Managing Documents for: <span className="text-blue-600">{selectedVehicle.vehicleNumber}</span>
-              </h3>
-              <p className="text-gray-600 mt-1">Upload and manage vehicle documents and certificates</p>
-            </div>
-            <div className="p-6">
-              <VehicleDocumentManager vehicleNumber={selectedVehicle.vehicleNumber} />
-            </div>
-          </div>
+    <div ref={docsRef} className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <h3 className="text-xl font-semibold text-gray-900">
+        Managing Documents for: <span className="text-blue-600">{selectedVehicle.vehicleNumber}</span>
+      </h3>
+      <div className="mt-2 space-y-1">
+        <p className="text-gray-600">Upload and manage vehicle documents and certificates</p>
+        {selectedVehicle.phone && (
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            Driver Phone: {selectedVehicle.phone}
+          </p>
         )}
+        {selectedVehicle.driverEmail && (
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Email: {selectedVehicle.driverEmail}
+          </p>
+        )}
+      </div>
+    </div>
+    <div className="p-6">
+      <VehicleDocumentManager vehicleNumber={selectedVehicle.vehicleNumber} />
+    </div>
+  </div>
+)}
 
             {/* Register New Vehicle Section - Only for non-drivers */}
 {!userRoles.includes("driver") && (

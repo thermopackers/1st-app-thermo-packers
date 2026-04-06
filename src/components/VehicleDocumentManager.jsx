@@ -251,7 +251,7 @@ const handleSubmit = async (e) => {
                 ))}
               </select>
             </div>
-<div>
+{/* <div>
   <label className="block text-sm font-medium mb-1">Mobile Number</label>
   <input
     type="tel"
@@ -261,7 +261,7 @@ const handleSubmit = async (e) => {
     className="w-full p-2 border rounded"
     placeholder="Enter mobile number"
   />
-</div>
+</div> */}
 {editingDoc && (
   <div>
     <label className="block text-sm font-medium mb-1">Document Number</label>
@@ -397,7 +397,7 @@ const handleSubmit = async (e) => {
               <th className="p-3 text-left">Notes</th>
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">Actions</th>
-                <th className="p-3 text-left">Mobile Number Linked</th>
+                {/* <th className="p-3 text-left">Mobile Number Linked</th> */}
             </tr>
           </thead>
           <tbody>
@@ -487,7 +487,7 @@ if (!["vehicle_images", "vin_chassis_photo", "rc_copy"].includes(doc.documentTyp
                       Delete
                     </button>
                   </td>
-                      <td className="p-3">{doc.mobileNumber || "—"}</td>
+                      {/* <td className="p-3">{doc.mobileNumber || "—"}</td> */}
                 </tr>
               );
             })}

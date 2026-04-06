@@ -579,12 +579,41 @@ const handleRemarksChange = (productId, value) => {
   }
 
 // Generate PDF and share via WhatsApp
-const generatePDF = (product, calculation, remarks) => {
+const generatePDF = async (product, calculation, remarks) => {
   const currentDate = new Date().toLocaleDateString('en-IN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
+
+  // Fetch the first image of the product
+  let productImageUrl = null;
+  try {
+    // Fetch product details to get images
+    const productRes = await axiosInstance.get(`/products-multer/${product._id}`);
+    if (productRes.data && productRes.data.images && productRes.data.images.length > 0) {
+      productImageUrl = productRes.data.images[0];
+      console.log("Product image found:", productImageUrl);
+    }
+  } catch (err) {
+    console.error("Failed to fetch product image:", err);
+  }
+
+  // Convert image to base64 if available
+  let imageBase64 = null;
+  if (productImageUrl) {
+    try {
+      const response = await fetch(productImageUrl);
+      const blob = await response.blob();
+      imageBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error("Failed to convert image to base64:", err);
+    }
+  }
 
   // Define document definition
   const docDefinition = {
@@ -618,65 +647,6 @@ const generatePDF = (product, calculation, remarks) => {
                   style: 'title',
                   alignment: 'center',
                   margin: [0, 0, 0, 20]
-                },
-                // Product Details Section
-                {
-                  text: 'PRODUCT DETAILS',
-                  style: 'sectionHeader',
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  table: {
-                    widths: ['40%', '60%'],
-                    body: [
-                      [{ text: 'Product Name', style: 'tableLabel' }, { text: product.name, style: 'tableValue' }],
-                      [{ text: 'RM Rate', style: 'tableLabel' }, { text: `₹${rmRate.toFixed(2)}/kg`, style: 'tableValue' }],
-                      [{ text: 'Conversion', style: 'tableLabel' }, { text: `₹${conversionRates[product._id] || 0}/kg`, style: 'tableValue' }],
-                      [{ text: 'Total/kg', style: 'tableLabel' }, { text: `₹${calculation.totalPerKg.toFixed(2)}`, style: 'tableValue' }],
-                    ]
-                  },
-                  layout: 'noBorders',
-                  margin: [0, 0, 0, 15]
-                },
-                // Pricing Section
-                {
-                  text: 'PRICING DETAILS',
-                  style: 'sectionHeader',
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  table: {
-                    widths: ['40%', '60%'],
-                    body: [
-                      ...(calculation.isInPcs ? [
-                        [{ text: 'Product Weight', style: 'tableLabel' }, { text: formatWeightDisplay(calculation.productWeight), style: 'tableValue' }],
-                        [{ text: 'Price/Piece', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
-                      ] : [
-                        [{ text: 'Price/kg', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
-                      ]),
-                      [{ text: 'Freight Outward', style: 'tableLabel' }, { text: `₹${calculation.freight || 0}${calculation.isInPcs ? '/pc' : '/kg'}`, style: 'tableValue' }],
-                      [{ text: 'Total with Freight', style: 'tableLabel' }, { text: `₹${calculation.totalWithFreight}`, style: 'tableValue' }],
-                    ]
-                  },
-                  layout: 'noBorders',
-                  margin: [0, 0, 0, 15]
-                },
-                // GST Section
-                {
-                  text: 'TAX DETAILS',
-                  style: 'sectionHeader',
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  table: {
-                    widths: ['40%', '60%'],
-                    body: [
-                      [{ text: 'GST (18%)', style: 'tableLabel' }, { text: `₹${(parseFloat(calculation.totalWithFreight) * 0.18).toFixed(2)}`, style: 'tableValue' }],
-                      [{ text: 'Final Price (incl. GST)', style: 'tableLabelBold' }, { text: `₹${calculation.totalWithGST}`, style: 'tableValueBold' }],
-                    ]
-                  },
-                  layout: 'noBorders',
-                  margin: [0, 0, 0, 15]
                 },
               ]
             }
@@ -741,12 +711,95 @@ const generatePDF = (product, calculation, remarks) => {
         fontSize: 10,
         italic: true,
         color: '#888888'
+      },
+      productImage: {
+        alignment: 'center',
+        margin: [0, 0, 0, 15]
       }
     },
     defaultStyle: {
       font: 'Roboto'
     }
   };
+
+  // Add product image if available
+  if (imageBase64) {
+    docDefinition.content[0].table.body[0][0].stack.push({
+      image: imageBase64,
+      width: 150,
+      height: 150,
+      alignment: 'center',
+      margin: [0, 0, 0, 15]
+    });
+  }
+
+  // Add Product Details Section
+  docDefinition.content[0].table.body[0][0].stack.push(
+    {
+      text: 'PRODUCT DETAILS',
+      style: 'sectionHeader',
+      margin: [0, 0, 0, 10]
+    },
+    {
+      table: {
+        widths: ['40%', '60%'],
+        body: [
+          [{ text: 'Product Name', style: 'tableLabel' }, { text: product.name, style: 'tableValue' }],
+          [{ text: 'RM Rate', style: 'tableLabel' }, { text: `₹${rmRate.toFixed(2)}/kg`, style: 'tableValue' }],
+          [{ text: 'Conversion', style: 'tableLabel' }, { text: `₹${conversionRates[product._id] || 0}/kg`, style: 'tableValue' }],
+          [{ text: 'Total/kg', style: 'tableLabel' }, { text: `₹${calculation.totalPerKg.toFixed(2)}`, style: 'tableValue' }],
+        ]
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 15]
+    }
+  );
+
+  // Pricing Section
+  docDefinition.content[0].table.body[0][0].stack.push(
+    {
+      text: 'PRICING DETAILS',
+      style: 'sectionHeader',
+      margin: [0, 0, 0, 10]
+    },
+    {
+      table: {
+        widths: ['40%', '60%'],
+        body: [
+          ...(calculation.isInPcs ? [
+            [{ text: 'Product Weight', style: 'tableLabel' }, { text: formatWeightDisplay(calculation.productWeight), style: 'tableValue' }],
+            [{ text: 'Price/Piece', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
+          ] : [
+            [{ text: 'Price/kg', style: 'tableLabel' }, { text: `₹${calculation.pricePerPiece}`, style: 'tableValue' }],
+          ]),
+          [{ text: 'Freight Outward', style: 'tableLabel' }, { text: `₹${calculation.freight || 0}${calculation.isInPcs ? '/pc' : '/kg'}`, style: 'tableValue' }],
+          [{ text: 'Total with Freight', style: 'tableLabel' }, { text: `₹${calculation.totalWithFreight}`, style: 'tableValue' }],
+        ]
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 15]
+    }
+  );
+
+  // GST Section
+  docDefinition.content[0].table.body[0][0].stack.push(
+    {
+      text: 'TAX DETAILS',
+      style: 'sectionHeader',
+      margin: [0, 0, 0, 10]
+    },
+    {
+      table: {
+        widths: ['40%', '60%'],
+        body: [
+          [{ text: 'GST (18%)', style: 'tableLabel' }, { text: `₹${(parseFloat(calculation.totalWithFreight) * 0.18).toFixed(2)}`, style: 'tableValue' }],
+          [{ text: 'Final Price (incl. GST)', style: 'tableLabelBold' }, { text: `₹${calculation.totalWithGST}`, style: 'tableValueBold' }],
+        ]
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 15]
+    }
+  );
 
   // Add Remarks section if exists
   if (remarks && remarks.trim()) {
@@ -776,7 +829,7 @@ const generatePDF = (product, calculation, remarks) => {
     }
   );
 
-  // Add page border by using a table with border around entire content
+  // Add page border
   docDefinition.pageMargins = [30, 50, 30, 50];
   
   // Wrap everything in a bordered container
@@ -826,19 +879,15 @@ const generatePDF = (product, calculation, remarks) => {
 
   // Generate PDF and share via WhatsApp
   pdfMake.createPdf(docDefinition).getBlob((blob) => {
-    // Create a file from the blob
     const file = new File([blob], `Costing_Sheet_${product.name}_${currentDate.replace(/\//g, '-')}.pdf`, { type: 'application/pdf' });
     
-    // Check if Web Share API is available (mobile devices)
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      // Use Web Share API to share directly (works on mobile)
       navigator.share({
         files: [file],
         title: 'Costing Sheet',
         text: ''
       }).catch((error) => {
         console.log('Error sharing:', error);
-        // Fallback: download the file
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -848,15 +897,12 @@ const generatePDF = (product, calculation, remarks) => {
         alert('PDF downloaded. You can now share it via WhatsApp from your device.');
       });
     } else {
-      // For desktop browsers, download the file and show instructions
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `Costing_Sheet_${product.name}_${currentDate.replace(/\//g, '-')}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
-      
-      // Show instruction to share via WhatsApp
       alert('PDF downloaded! You can now share it via WhatsApp from your device or computer.');
     }
   });
@@ -864,10 +910,12 @@ const generatePDF = (product, calculation, remarks) => {
 
   return (
     <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
-      >
+    <button
+  onClick={() => setIsOpen(!isOpen)}
+  data-costing-sheet-toggle="true"
+  data-expanded={isOpen}
+  className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+>
         <div className="flex items-center gap-2">
           <Calculator size={20} />
           <span className="font-semibold">Costing Sheet - Frequently Bought Products</span>
@@ -1122,17 +1170,7 @@ const generatePDF = (product, calculation, remarks) => {
                           <span className="text-green-700">₹{calculation.totalWithGST}</span>
                         </div>
                       </div>
-{/* Internal Notes Field */}
-<div className="mt-2">
-  <label className="block text-xs text-gray-600 mb-1">Internal Notes: (Only for Internal reference - Not Shared in Costing Sheet)</label>
-  <textarea
-    rows="2"
-    value={internalNotes[product._id] || ""}
-    onChange={(e) => handleInternalNotesChange(product._id, e.target.value)}
-    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-    placeholder="Add internal notes..."
-  />
-</div>
+
 
 {/* Remarks Field */}
 <div className="mt-2">
@@ -1143,6 +1181,18 @@ const generatePDF = (product, calculation, remarks) => {
     onChange={(e) => handleRemarksChange(product._id, e.target.value)}
     className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
     placeholder="Add remarks..."
+  />
+</div>
+
+{/* Internal Notes Field */}
+<div className="mt-2">
+  <label className="block text-xs text-gray-600 mb-1">Internal Notes: (Only for Internal reference - Not Shared in Costing Sheet)</label>
+  <textarea
+    rows="2"
+    value={internalNotes[product._id] || ""}
+    onChange={(e) => handleInternalNotesChange(product._id, e.target.value)}
+    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+    placeholder="Add internal notes..."
   />
 </div>
 <div className="flex gap-2 mt-2">

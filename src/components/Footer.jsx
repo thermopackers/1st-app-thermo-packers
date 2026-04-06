@@ -15,7 +15,8 @@ import {
   FaUserTie,
   FaTruck,
   FaShieldAlt,
-  FaAward
+  FaAward,
+  FaChevronRight
 } from "react-icons/fa";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -105,11 +106,25 @@ export default function Footer() {
     navigate(`/login${mode === 'customer' ? '?mode=customer' : ''}`);
   };
 
+  // Function to scroll to exhibition and open specific one
+  const scrollToExhibition = (exhibitionIndex) => {
+    const exhibitionsSection = document.getElementById('exhibitions');
+    if (exhibitionsSection) {
+      exhibitionsSection.scrollIntoView({ behavior: 'smooth' });
+      
+      // Dispatch a custom event to tell ExhibitionShowcase which exhibition to open
+      setTimeout(() => {
+        const event = new CustomEvent('openExhibition', { detail: { index: exhibitionIndex } });
+        window.dispatchEvent(event);
+      }, 500); // Delay to allow scroll to complete
+    }
+  };
+
   const quickLinks = [
     { path: "/", label: "Home", icon: "🏠" },
     { path: "/products", label: "Products", icon: "📦" },
     { path: "/about", label: "About Us", icon: "📘" },
-    { path: "/contact", label: "Contact", icon: "☎️" }
+    { path: "/contact", label: "Contact", icon: "☎️" },
   ];
 
   const contactInfo = [
@@ -166,6 +181,13 @@ export default function Footer() {
     { icon: <FaShieldAlt className="w-5 h-5" />, text: "Quality Certified" },
     { icon: <FaTruck className="w-5 h-5" />, text: "Fast Delivery" },
     { icon: <FaAward className="w-5 h-5" />, text: "Industry Leaders" }
+  ];
+
+  // Exhibition links with labels
+  const exhibitionLinks = [
+    { label: "BNI BIZ Expo 2023", icon: "🏢", index: 0, location: "Ludhiana" },
+    { label: "IFEX 2024", icon: "🌾", index: 1, location: "Bengaluru" },
+    { label: "Krishi Mach Expo 2026", icon: "🚜", index: 2, location: "Chandigarh" }
   ];
 
   return (
@@ -258,6 +280,35 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
+            
+            {/* Recent Exhibition Participation Section */}
+            <div className="mt-6 pt-4 border-t border-white/10">
+              <h5 className="text-[#B0BC27] font-semibold text-md mb-3 flex items-center gap-2">
+                <span>🎪</span>
+                Recent Exhibition Participation
+              </h5>
+              <ul className="space-y-2">
+                {exhibitionLinks.map((expo, idx) => (
+                  <li key={idx}>
+                    <button
+                      onClick={() => scrollToExhibition(expo.index)}
+                      className="flex items-center justify-between w-full text-sm lg:text-base text-white/70 hover:text-white transition-all duration-300 group py-1.5 px-2 rounded-lg hover:bg-white/5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{expo.icon}</span>
+                        <span className="group-hover:translate-x-1 transition-transform duration-300">
+                          {expo.label}
+                        </span>
+                      </div>
+                      <FaChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-1" />
+                    </button>
+                    <div className="text-xs text-white/40 pl-7">
+                      {expo.location}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Login Portal */}
