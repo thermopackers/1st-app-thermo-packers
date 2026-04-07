@@ -13,6 +13,9 @@ import ProductCustomerSearch from "../components/ProductCustomerSearch";
 import NotificationBell from "../components/NotificationBell";
 import AttendanceNotification from "../components/AttendanceNotification";
 import DailyTodoList from "../components/DailyTodoList";
+import { Calendar } from "lucide-react"; // Add Calendar icon to existing imports
+import UserGoogleCalendar from "../components/UserGoogleCalendar";
+
 
 export default function Dashboard() {
  // Helper function to parse roles properly
@@ -64,6 +67,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [driverVehicle, setDriverVehicle] = useState(null);
   const [docNotifCount, setDocNotifCount] = useState(0);
+  const [showCalendar, setShowCalendar] = useState(false);
   // Add this new state variable with your other useState declarations
 const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
@@ -933,6 +937,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
                <ProductCustomerSearch />
 
       <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
+
 {/* Document Alerts Button - Top Center */}
 {userRoles.includes("accounts") && docNotifCount > 0 && (
   <div className="flex justify-center">
@@ -1041,11 +1046,29 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 )}
 <NotificationBell />
 </div>
+<div className="flex items-center justify-center gap-2">
 {userRoles.includes("accounts") &&
       <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
  {user?.allowAttendance && <AttendanceNotification />}
 </div>}
+{/* Google Calendar Button */}
+  <motion.button
+    onClick={() => setShowCalendar(true)}
+    className="bg-white rounded-lg p-2 md:mt-4.5 mt-1 border border-gray-200"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+    title="Google Calendar"
+  >
+    <Calendar className="w-5 h-5 text-blue-600" />
+  </motion.button>
 
+{/* Google Calendar Modal */}
+<UserGoogleCalendar 
+  isOpen={showCalendar} 
+  onClose={() => setShowCalendar(false)}
+  user={user}
+/>
+</div>
 {/* Collapsible Daily Todo List */}
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
   <DailyTodoList userId={user?._id} />
