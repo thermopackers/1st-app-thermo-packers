@@ -1,23 +1,96 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Calendar, Gift } from "lucide-react";
+import { X, Calendar, Gift, ExternalLink, AlertCircle } from "lucide-react";
 import HolidaysList from "./HolidaysList";
 
 const UserGoogleCalendar = ({ isOpen, onClose, user }) => {
   const [showHolidays, setShowHolidays] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Safely encode the email to prevent malformed requests
-  const userEmail = user?.email ? encodeURIComponent(user.email) : null;
+  // Detect mobile device
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
-  // Create calendar embed URL with proper encoding
-  const calendarSrc = userEmail 
-    ? `https://calendar.google.com/calendar/embed?src=${userEmail}&ctz=Asia%2FKolkata&mode=MONTH&showPrint=0&showCalendars=0&showTz=1`
-    : `https://calendar.google.com/calendar/embed?ctz=Asia%2FKolkata&mode=MONTH&showPrint=0&showCalendars=0&showTz=1`;
-
-  // If no user or no email, don't render the calendar
-  if (!user || !user.email) {
-    return null;
-  }
+  const userEmail = user?.email;
+  
+  // Google Calendar Web URL (opens in new tab)
+  const calendarWebUrl = userEmail 
+    ? `https://calendar.google.com/calendar/u/0/r?tab=mc`
+    : `https://calendar.google.com/calendar/u/0/r`;
+  
+  // Alternative: Direct link to user's calendar
+  const directCalendarUrl = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(userEmail || '')}&ctz=Asia/Kolkata`;
+  
+  // Open calendar in new tab
+  const openCalendarInNewTab = () => {
+    window.open(calendarWebUrl, '_blank', 'noopener,noreferrer');
+  };
+  
+  // For desktop: use iframe
+  // For mobile: show button to open in new tab
+  const renderContent = () => {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col items-center justify-center p-6 sm:p-8 text-center">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <Calendar className="w-10 h-10 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            Open Google Calendar
+          </h3>
+          <p className="text-gray-500 text-sm mb-6 max-w-xs">
+            For the best experience on mobile, open Google Calendar in a new tab
+          </p>
+          <button
+            onClick={openCalendarInNewTab}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open Google Calendar
+          </button>
+          
+          <div className="mt-6 p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
+              <p className="text-xs text-amber-700 text-left">
+                Make sure you're logged into your Google account in your browser
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Desktop: use iframe
+    const calendarSrc = userEmail 
+      ? `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(userEmail)}&ctz=Asia%2FKolkata&mode=MONTH&showPrint=0&showCalendars=0&showTz=1`
+      : `https://calendar.google.com/calendar/embed?ctz=Asia%2FKolkata&mode=MONTH&showPrint=0&showCalendars=0&showTz=1`;
+    
+    return (
+      <>
+        <div className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
+          <span>ℹ️</span>
+          <span>Login to Google Calendar to see your events</span>
+        </div>
+        <div className="p-2 h-[70vh] bg-gray-50">
+          <iframe
+            src={calendarSrc}
+            className="w-full h-full rounded-lg border-0 shadow-inner"
+            title="Google Calendar"
+            frameBorder="0"
+            scrolling="yes"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
+          />
+        </div>
+      </>
+    );
+  };
 
   return (
     <>
@@ -68,25 +141,8 @@ const UserGoogleCalendar = ({ isOpen, onClose, user }) => {
                 </div>
               </div>
 
-              {/* Info Banner */}
-              <div className="px-3 sm:px-4 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
-                <span>ℹ️</span>
-                <span className="text-[10px] sm:text-xs">Login to Google Calendar to see your events</span>
-              </div>
-
-              {/* Calendar Iframe - with error handling */}
-              <div className="p-1 sm:p-2 h-[60vh] sm:h-[70vh] bg-gray-50">
-                <iframe
-                  key={calendarSrc}
-                  src={calendarSrc}
-                  className="w-full h-full rounded-lg border-0 shadow-inner"
-                  title="Google Calendar"
-                  style={{ minHeight: "400px" }}
-                  frameBorder="0"
-                  scrolling="yes"
-                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-scripts"
-                />
-              </div>
+              {/* Content - Mobile/Desktop different */}
+              {renderContent()}
 
               {/* Footer */}
               <div className="p-2 sm:p-3 bg-gray-50 border-t border-gray-200 text-center text-[10px] sm:text-xs text-gray-500">
