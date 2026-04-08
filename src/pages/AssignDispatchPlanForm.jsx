@@ -1346,9 +1346,6 @@ const exportFormattedPDF = () => {
           let mapUrl = null;
           if (customer && customer.locationLink) {
             mapUrl = customer.locationLink.trim();
-          } else if (customer && customer.address) {
-            const encodedAddress = encodeURIComponent(customer.address);
-            mapUrl = `https://maps.google.com/?q=${encodedAddress}`;
           }
           
           const lineText = `${i + 1}. ${mapUrl ? '[MAP]' : '[NO MAP]'}`;
