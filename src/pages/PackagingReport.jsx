@@ -46,6 +46,7 @@ const PackagingReport = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [loading, setLoading] = useState(true);
+const [isSaving, setIsSaving] = useState(false); // Add this with other useState declarations
 
   // Parse user roles properly
   const userRoles = user ? parseUserRoles(user) : [];
@@ -264,26 +265,31 @@ const PackagingReport = () => {
     setGroupedData(updated);
   };
 
-  const handleSave = async () => {
-    const flatData = Object.values(groupedData).flat();
-    try {
-      await axiosInstance.post('/packaging-report/packaging-report-update', flatData, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
+const handleSave = async () => {
+  if (isSaving) return; // Prevent multiple saves
+  setIsSaving(true);
+  
+  const flatData = Object.values(groupedData).flat();
+  try {
+    await axiosInstance.post('/packaging-report/packaging-report-update', flatData, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
 
-      // Remove isNew after saving
-      const cleaned = {};
-      for (const date in groupedData) {
-        cleaned[date] = groupedData[date].map(({ isNew, ...rest }) => rest);
-      }
-
-      setGroupedData(cleaned);
-      toast.success('Data saved successfully!');
-    } catch (err) {
-      toast.error('Failed to save data');
-      console.error(err);
+    // Remove isNew after saving
+    const cleaned = {};
+    for (const date in groupedData) {
+      cleaned[date] = groupedData[date].map(({ isNew, ...rest }) => rest);
     }
-  };
+
+    setGroupedData(cleaned);
+    toast.success('Data saved successfully!');
+  } catch (err) {
+    toast.error('Failed to save data');
+    console.error(err);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   // Use userRoles for access control
   if (!(userRoles.includes('accounts') || userRoles.includes('packaging'))) {
@@ -340,12 +346,13 @@ const PackagingReport = () => {
           >
             Add Row
           </button>
-          <button
-            onClick={handleSave}
-            className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Save
-          </button>
+         <button
+  onClick={handleSave}
+  disabled={isSaving}
+  className={`px-5 py-2 text-white rounded ${isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+>
+  {isSaving ? 'Saving...' : 'Save'}
+</button>
         </div>
 
    {/* Table */}
@@ -430,22 +437,25 @@ const PackagingReport = () => {
                               placeholder="Name"
                             />
                           </td>
-                          <td className="px-2 py-1">
-                            <textarea
-                              list={`product-options-${date}-${idx}`}
-                              value={row.productionProduct || ''}
-                              onChange={(e) => handleProductChange(date, idx, e.target.value)}
-                              className="border rounded px-2 py-1 w-full min-w-[200px] resize-y"
-                              placeholder="Type or select product"
-                              rows="2"
-                              style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
-                            />
-                            <datalist id={`product-options-${date}-${idx}`}>
-                              {productOptions.map((prod, i) => (
-                                <option key={i} value={prod.productName || prod.name} />
-                              ))}
-                            </datalist>
-                          </td>
+                         <td className="px-2 py-1">
+  <input
+    list={`product-options-${date}-${idx}`}
+    value={row.productionProduct || ''}
+    onChange={(e) => handleProductChange(date, idx, e.target.value)}
+    className="border rounded px-2 py-1 w-full min-w-[200px]"
+    placeholder="Type or select product"
+  />
+  <datalist id={`product-options-${date}-${idx}`}>
+    {productOptions.map((prod, i) => (
+      <option key={i} value={prod.productName || prod.name} />
+    ))}
+  </datalist>
+  {row.productionProduct && row.productionProduct.length > 30 && (
+    <div className="text-xs text-gray-500 mt-1 break-words">
+      {row.productionProduct}
+    </div>
+  )}
+</td>
                           <td className="px-2 py-1 text-center">
                             <input
                               type="text"
