@@ -36,6 +36,7 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -43,27 +44,27 @@ export default function Products() {
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const { data } = await axiosInstance.get("/products/all-products", {
-        params: { 
-          page, 
-          limit, 
-          category: selectedCat || undefined,
-          search: searchTerm || undefined,
-        },
-      });    
-      setAllProducts(data.products || []);
-      setTotalPages(data.pagination?.totalPages || 0);
-    } catch (err) {
-      console.error("Failed to fetch products:", err);
-      setAllProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const fetchProducts = async () => {
+  setLoading(true);
+  try {
+    const { data } = await axiosInstance.get("/products/all-products", {
+      params: { 
+        page, 
+        limit, 
+        category: selectedCat || undefined,
+        search: searchTerm || undefined,
+      },
+    });    
+    setAllProducts(data.products || []);
+    setTotalPages(data.pagination?.totalPages || 0);
+    setTotalProductsCount(data.pagination?.totalProducts || 0); // Add this line
+  } catch (err) {
+    console.error("Failed to fetch products:", err);
+    setAllProducts([]);
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -349,14 +350,14 @@ export default function Products() {
                 variants={itemVariants}
               >
                 <div className="text-gray-600 mb-4 sm:mb-0">
-                  Showing <span className="font-semibold text-gray-800">{paginated.length}</span> products
-                  {selectedCat && (
-                    <span> in <span className="font-semibold text-[#B0BC27]">{selectedCat}</span></span>
-                  )}
-                  {searchTerm && (
-                    <span> for "<span className="font-semibold text-gray-800">{searchTerm}</span>"</span>
-                  )}
-                </div>
+  Showing <span className="font-semibold text-gray-800">{paginated.length}</span> of <span className="font-semibold text-gray-800">{totalProductsCount}</span> products
+  {selectedCat && (
+    <span> in <span className="font-semibold text-[#B0BC27]">{selectedCat}</span></span>
+  )}
+  {searchTerm && (
+    <span> for "<span className="font-semibold text-gray-800">{searchTerm}</span>"</span>
+  )}
+</div>
               </motion.div>
 
               {/* Loading State */}
