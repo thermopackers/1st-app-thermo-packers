@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { categories } from "../data/products.js";
+import localProducts from "../data/products.js";
 import ProductCard from "../components/ProductCard";
 import FloatingWhatsApp from "../components/FloatingWhatsapp";
 import { Helmet } from "react-helmet";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/all";
-import axiosInstance from "../axiosInstance";
 import { slugifyProduct } from "../utils/slugify";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, X, ChevronDown, ChevronLeft, Loader } from "lucide-react";
+import { motion } from "framer-motion";
+import { Search, X, ChevronLeft, Loader } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -35,67 +35,63 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [totalProductsCount, setTotalProductsCount] = useState(0);
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const limit = 12;
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-
-const fetchProducts = async () => {
-  setLoading(true);
-  try {
-    const { data } = await axiosInstance.get("/products/all-products", {
-      params: { 
-        page, 
-        limit, 
-        category: selectedCat || undefined,
-        search: searchTerm || undefined,
-      },
-    });    
-    setAllProducts(data.products || []);
-    setTotalPages(data.pagination?.totalPages || 0);
-    setTotalProductsCount(data.pagination?.totalProducts || 0); // Add this line
-  } catch (err) {
-    console.error("Failed to fetch products:", err);
-    setAllProducts([]);
-  } finally {
-    setLoading(false);
-  }
-};
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [page, limit, selectedCat, searchTerm]);
-
-  // ✅ FIXED: Scroll to top when component mounts, route changes, OR page changes
-  useEffect(() => {
-    console.log('Scrolling to top - path:', location.pathname, 'page:', page);
+  const fetchProducts = () => {
+    setLoading(true);
     
-    // Multiple methods for reliability
+    // Filter products based on category and search term
+    let filteredProducts = [...localProducts];
+    
+    // Filter by category if selected
+    if (selectedCat) {
+      filteredProducts = filteredProducts.filter(p => p.category === selectedCat);
+    }
+    
+    // Filter by search term if exists
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredProducts = filteredProducts.filter(p => 
+        p.name?.toLowerCase().includes(term) || 
+        p.description?.toLowerCase().includes(term) ||
+        p.category?.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+    
+    setAllProducts(paginatedProducts);
+    setTotalPages(Math.ceil(filteredProducts.length / limit));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [page, selectedCat, searchTerm]);
+
+  // Scroll to top when component mounts or route changes
+  useEffect(() => {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     
-    // Force scroll after render
     const timer = setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }, 10);
     
     return () => clearTimeout(timer);
-  }, [location.pathname, page]); // Add page to dependencies
+  }, [location.pathname, page]);
 
-  // FIXED: Simplified animations to prevent visibility issues
+  // GSAP animations
   useEffect(() => {
     if (loading) return;
 
     const ctx = gsap.context(() => {
-      // Simple fade-in animation for products
       gsap.fromTo(".product-card-animate", 
         { opacity: 0, y: 20 },
         { 
@@ -107,7 +103,7 @@ const fetchProducts = async () => {
           scrollTrigger: {
             trigger: ".products-grid",
             start: "top 80%",
-            toggleActions: "play none none none", // Only play once
+            toggleActions: "play none none none",
           }
         }
       );
@@ -116,7 +112,7 @@ const fetchProducts = async () => {
     }, sectionRef);
 
     return () => ctx.revert();
-  }, [allProducts, loading]); // Added loading to dependencies
+  }, [allProducts, loading]);
 
   useEffect(() => {
     setSelectedCat(decodedCat);
@@ -124,37 +120,12 @@ const fetchProducts = async () => {
     setPage(1);
   }, [decodedCat]);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (window.innerWidth < 768 && !e.target.closest(".group")) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsMobileFilterOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const paginated = allProducts;
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.3 // Reduced duration for faster loading
+        duration: 0.3
       }
     }
   };
@@ -197,7 +168,7 @@ const fetchProducts = async () => {
 
         {/* Header Section */}
         <div className="max-w-7xl mx-auto">
-          {/* Back Button and Mobile Filter */}
+          {/* Back Button */}
           <div className="flex items-center justify-between mb-6">
             <motion.button
               onClick={() => navigate(-1)}
@@ -207,17 +178,6 @@ const fetchProducts = async () => {
             >
               <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               <span className="text-sm font-medium hidden xs:block">Back</span>
-            </motion.button>
-
-            {/* Mobile Filter Button */}
-            <motion.button
-              onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-              className="md:hidden flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-lg border border-gray-200 text-gray-700 hover:shadow-xl transition-all duration-300"
-              whileTap={{ scale: 0.95 }}
-              variants={itemVariants}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm font-medium">Filters</span>
             </motion.button>
           </div>
 
@@ -270,25 +230,10 @@ const fetchProducts = async () => {
 
           {/* Main Content Grid */}
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar - Categories Filter */}
-            <motion.div
-              className={`lg:w-80 flex-shrink-0 ${
-                isMobileFilterOpen ? 'block' : 'hidden'
-              } lg:block`}
-              variants={itemVariants}
-            >
+            {/* Sidebar - Categories always visible */}
+            <div className="lg:w-80 flex-shrink-0">
               <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sticky top-24">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-800">Categories</h3>
-                  {isMobile && (
-                    <button
-                      onClick={() => setIsMobileFilterOpen(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-6">Categories</h3>
                 
                 <div className="space-y-2">
                   <button
@@ -296,7 +241,6 @@ const fetchProducts = async () => {
                       setSelectedCat("");
                       setPage(1);
                       navigate("/products");
-                      if (isMobile) setIsMobileFilterOpen(false);
                     }}
                     className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-between ${
                       !selectedCat
@@ -305,13 +249,11 @@ const fetchProducts = async () => {
                     }`}
                   >
                     <span>All Products</span>
-                    <span className="text-sm opacity-70">({allProducts.length})</span>
                   </button>
 
                   {Object.keys(categories).map((cat) => {
-                    const productsInCat = allProducts.filter((p) => p.category === cat);
                     const isActive = selectedCat === cat;
-
+                    
                     return (
                       <div key={cat} className="group relative">
                         <button
@@ -319,7 +261,6 @@ const fetchProducts = async () => {
                             setSelectedCat(cat);
                             setPage(1);
                             navigate(`/products/${slugify(cat)}`);
-                            if (isMobile) setIsMobileFilterOpen(false);
                           }}
                           className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-between ${
                             isActive
@@ -328,19 +269,13 @@ const fetchProducts = async () => {
                           }`}
                         >
                           <span className="capitalize">{cat}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm opacity-70">({productsInCat.length})</span>
-                            {productsInCat.length > 0 && (
-                              <ChevronDown className={`w-4 h-4 transition-transform ${isActive ? 'rotate-180' : ''}`} />
-                            )}
-                          </div>
                         </button>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Products Grid */}
             <div className="flex-1">
@@ -350,14 +285,14 @@ const fetchProducts = async () => {
                 variants={itemVariants}
               >
                 <div className="text-gray-600 mb-4 sm:mb-0">
-  Showing <span className="font-semibold text-gray-800">{paginated.length}</span> of <span className="font-semibold text-gray-800">{totalProductsCount}</span> products
-  {selectedCat && (
-    <span> in <span className="font-semibold text-[#B0BC27]">{selectedCat}</span></span>
-  )}
-  {searchTerm && (
-    <span> for "<span className="font-semibold text-gray-800">{searchTerm}</span>"</span>
-  )}
-</div>
+                  Showing <span className="font-semibold text-gray-800">{allProducts.length}</span> products
+                  {selectedCat && (
+                    <span> in <span className="font-semibold text-[#B0BC27]">{selectedCat}</span></span>
+                  )}
+                  {searchTerm && (
+                    <span> for "<span className="font-semibold text-gray-800">{searchTerm}</span>"</span>
+                  )}
+                </div>
               </motion.div>
 
               {/* Loading State */}
@@ -374,13 +309,13 @@ const fetchProducts = async () => {
                 </motion.div>
               ) : (
                 <>
-                  {/* Products Grid - FIXED: Removed complex animations that cause invisibility */}
+                  {/* Products Grid */}
                   <div className="products-grid grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {paginated.length > 0 ? (
-                      paginated.map((product, index) => (
+                    {allProducts.length > 0 ? (
+                      allProducts.map((product, index) => (
                         <div
                           key={product._id || index}
-                          className="product-card-animate" // Simple class for basic animation
+                          className="product-card-animate"
                         >
                           <ProductCard product={product} />
                         </div>
@@ -400,6 +335,7 @@ const fetchProducts = async () => {
                             setSearchTerm("");
                             setSelectedCat("");
                             setPage(1);
+                            navigate("/products");
                           }}
                           className="bg-[#B0BC27] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#9ca824] transition-colors duration-300"
                         >
@@ -421,7 +357,7 @@ const fetchProducts = async () => {
                         <button
                           onClick={() => {
                             setPage(Math.max(1, page - 1));
-                            window.scrollTo(0, 0); // Force scroll
+                            window.scrollTo(0, 0);
                           }}
                           disabled={page === 1}
                           className="px-4 py-2 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-gray-300 hover:bg-gray-50"
@@ -446,7 +382,7 @@ const fetchProducts = async () => {
                               key={i}
                               onClick={() => {
                                 setPage(pageNum);
-                                window.scrollTo(0, 0); // Force scroll
+                                window.scrollTo(0, 0);
                               }}
                               className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${
                                 page === pageNum
@@ -462,7 +398,7 @@ const fetchProducts = async () => {
                         <button
                           onClick={() => {
                             setPage(Math.min(totalPages, page + 1));
-                            window.scrollTo(0, 0); // Force scroll
+                            window.scrollTo(0, 0);
                           }}
                           disabled={page === totalPages}
                           className="px-4 py-2 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-gray-300 hover:bg-gray-50"
