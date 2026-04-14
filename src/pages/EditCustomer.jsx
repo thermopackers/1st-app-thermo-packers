@@ -1800,7 +1800,7 @@ const handleEditProductionSlip = (e, slip) => {
 {/* Production Slips Table */}
 {productionSlips.length > 0 && (
   <div className="mt-8 border-t pt-6">
-    <h4 className="font-semibold mb-3">📋 Production Slips</h4>
+    <h4 className="font-semibold mb-3">📋 Draft Production Slips</h4>
     <div className="overflow-x-auto">
       <table className="min-w-full border">
         <thead className="bg-indigo-50">
