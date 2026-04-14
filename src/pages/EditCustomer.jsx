@@ -64,6 +64,17 @@ const [samples, setSamples] = useState([]);
 // Add these for editing
 const [editingSecurityChequeId, setEditingSecurityChequeId] = useState(null);
 const [editingSampleId, setEditingSampleId] = useState(null);
+// Add with your other state declarations
+const [showProductionSlipForm, setShowProductionSlipForm] = useState(false);
+const [productionSlipForm, setProductionSlipForm] = useState({
+  files: [],
+  notes: "",
+  slipType: "production_order"
+});
+const [productionSlips, setProductionSlips] = useState([]);
+const [loadingProductionSlips, setLoadingProductionSlips] = useState(false);
+const [editingProductionSlipId, setEditingProductionSlipId] = useState(null);
+
 useEffect(() => {
   const fetchCategories = async () => {
     try {
@@ -143,21 +154,31 @@ useEffect(() => {
   fetchUsers();
 }, []);
 
+// Replace the existing useEffect for auto-opening costing sheet with this:
+
 useEffect(() => {
   const params = new URLSearchParams(location.search);
   const openCostingSheet = params.get('openCostingSheet');
   
   if (openCostingSheet === 'true') {
-    // Add a slight delay to ensure the component is mounted
-    setTimeout(() => {
-      // Find the CostingSheet component's button and click it
+    // Use a longer delay and retry mechanism
+    const tryClickButton = (attempts = 0) => {
       const costingSheetButton = document.querySelector('[data-costing-sheet-toggle]');
       if (costingSheetButton && costingSheetButton.getAttribute('data-expanded') !== 'true') {
         costingSheetButton.click();
+        console.log("Costing sheet button clicked!");
+      } else if (attempts < 10) {
+        // Retry after 500ms, up to 10 times (5 seconds total)
+        setTimeout(() => tryClickButton(attempts + 1), 500);
+      } else {
+        console.log("Could not find costing sheet button after 10 attempts");
       }
-    }, 500);
+    };
+    
+    // Start trying after a short delay
+    setTimeout(() => tryClickButton(), 300);
   }
-}, [location.search]);
+}, [location.search, frequentProducts]);
 
 useEffect(() => {
   async function fetchCustomer() {
@@ -191,6 +212,7 @@ useEffect(() => {
       fetchGiftHistory();
       fetchSecurityCheques();
       fetchSamples();
+        fetchProductionSlips();
       
     } catch (err) {
       if (err.response?.status === 404) {
@@ -613,6 +635,47 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   }
 };
 
+// Add with your other fetch functions (around line 300-350)
+const fetchProductionSlips = async () => {
+  try {
+    const res = await axiosInstance.get(`/customers/${id}/production-slips`);
+    if (res.data.success) {
+      setProductionSlips(res.data.productionSlips || []);
+    }
+  } catch (err) {
+    console.error("Failed to fetch production slips", err);
+  }
+};
+
+
+
+const handleEditProductionSlip = (e, slip) => {
+  e.preventDefault(); // Add this to prevent any form submission
+  e.stopPropagation(); // Stop event bubbling
+  
+  console.log("=== EDITING PRODUCTION SLIP ===");
+  console.log("Slip data:", slip);
+  
+  // Populate the production slip form with existing data
+  setProductionSlipForm({
+    files: slip.files || [],
+    notes: slip.notes || "",
+    slipType: slip.slipType
+  });
+  
+  // Show the form and store the slip ID for update
+  setEditingProductionSlipId(slip._id);
+  setShowProductionSlipForm(true);
+  
+  // Scroll to the form
+  setTimeout(() => {
+    const formSection = document.getElementById('gift-management-section');
+    if (formSection) {
+      formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+};
+
   if (loading) return <p>Loading customer...</p>;
   if (!customer) return null;
 
@@ -957,38 +1020,45 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
 <div ref={giftsSectionRef} id="gift-management-section" className="mt-8 border-t pt-8">
 <div className="flex justify-between items-center mb-4">
   <h3 className="text-xl font-bold">🪔 Diwali Gift Distribution</h3>
-  <div className="flex gap-2">
-    <button
-      type="button"
-      onClick={() => setShowGiftForm(!showGiftForm)}
-      className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
-    >
-      {showGiftForm ? "Cancel" : "➕ Add Diwali Gift"}
-    </button>
-   <button
-  type="button"
-  onClick={() => {
-    setShowSecurityChequeForm(!showSecurityChequeForm);
-    setEditingSecurityChequeId(null); // Reset editing state
-    setSecurityChequeForm({ amount: "", chequeFile: null, remarks: "" }); // Reset form
-  }}
-  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
->
-  {showSecurityChequeForm ? "Cancel" : "🏦 Security Cheque"}
-</button>
-
-<button
-  type="button"
-  onClick={() => {
-    setShowSamplesForm(!showSamplesForm);
-    setEditingSampleId(null); // Reset editing state
-    setSamplesForm({ sampleName: "", sampleFiles: [], remarks: "" }); // Reset form
-  }}
-  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
->
-  {showSamplesForm ? "Cancel" : "🧪 Samples"}
-</button>
-  </div>
+ {/* Replace the entire button group div with this */}
+<div className="flex gap-2 flex-wrap">
+  <button
+    type="button"
+    onClick={() => setShowProductionSlipForm(!showProductionSlipForm)}
+    className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+  >
+    {showProductionSlipForm ? "Cancel" : "📋 Production Slips"}
+  </button>
+  <button
+    type="button"
+    onClick={() => setShowGiftForm(!showGiftForm)}
+    className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+  >
+    {showGiftForm ? "Cancel" : "➕ Add Diwali Gift"}
+  </button>
+  <button
+    type="button"
+    onClick={() => {
+      setShowSecurityChequeForm(!showSecurityChequeForm);
+      setEditingSecurityChequeId(null);
+      setSecurityChequeForm({ amount: "", chequeFile: null, remarks: "" });
+    }}
+    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+  >
+    {showSecurityChequeForm ? "Cancel" : "🏦 Security Cheque"}
+  </button>
+  <button
+    type="button"
+    onClick={() => {
+      setShowSamplesForm(!showSamplesForm);
+      setEditingSampleId(null);
+      setSamplesForm({ sampleName: "", sampleFiles: [], remarks: "" });
+    }}
+    className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+  >
+    {showSamplesForm ? "Cancel" : "🧪 Samples"}
+  </button>
+</div>
 </div>
 
 {showGiftForm && (
@@ -1317,6 +1387,186 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   </div>
 )}
 
+{/* Production Slip Form */}
+{showProductionSlipForm && (
+  <div className="bg-indigo-50 p-4 rounded-lg mb-6">
+    <h4 className="font-semibold mb-3">
+      {editingProductionSlipId ? "✏️ Edit Production Slip" : "📋 Add Production Slip"}
+    </h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block mb-1 font-semibold">Slip Type *</label>
+        <select
+          value={productionSlipForm.slipType}
+          onChange={(e) => setProductionSlipForm(prev => ({ ...prev, slipType: e.target.value }))}
+          className="w-full border p-2 rounded"
+          required
+        >
+          <option value="production_order">Production Order Slip</option>
+          <option value="raw_block_cutting">Raw Block Cutting Slip</option>
+          <option value="shape_molding">Shape Molding Slip</option>
+        </select>
+      </div>
+      
+      <div>
+        <label className="block mb-1 font-semibold">Upload Files {!editingProductionSlipId && "*"}</label>
+        <input
+          type="file"
+          accept="image/*,.pdf,.doc,.docx"
+          multiple
+          onChange={(e) => setProductionSlipForm(prev => ({ ...prev, files: Array.from(e.target.files) }))}
+          className="w-full border p-2 rounded"
+          required={!editingProductionSlipId}
+        />
+        {editingProductionSlipId && (
+          <p className="text-xs text-gray-500 mt-1">Leave empty to keep existing files</p>
+        )}
+      </div>
+      
+      <div className="md:col-span-2">
+        <label className="block mb-1 font-semibold">Notes</label>
+        <textarea
+          value={productionSlipForm.notes}
+          onChange={(e) => setProductionSlipForm(prev => ({ ...prev, notes: e.target.value }))}
+          className="w-full border p-2 rounded"
+          placeholder="Add notes about this production slip"
+          rows={2}
+        />
+      </div>
+      
+      {/* Show existing files when editing */}
+      {editingProductionSlipId && productionSlipForm.files.length > 0 && productionSlipForm.files[0]?.startsWith?.('http') && (
+        <div className="md:col-span-2">
+          <p className="text-sm font-medium text-gray-600">Existing Files:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {productionSlipForm.files.map((file, index) => (
+              <div key={index} className="relative">
+                {file?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                  <img src={file} alt={`File ${index + 1}`} className="w-16 h-16 object-cover rounded" />
+                ) : (
+                  <a href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+                    📄 File {index + 1}
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newFiles = [...productionSlipForm.files];
+                    newFiles.splice(index, 1);
+                    setProductionSlipForm(prev => ({ ...prev, files: newFiles }));
+                  }}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Show new files to upload */}
+      {productionSlipForm.files.length > 0 && productionSlipForm.files[0] instanceof File && (
+        <div className="md:col-span-2">
+          <p className="text-sm font-medium text-gray-600">New files to upload:</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {productionSlipForm.files.map((file, index) => (
+              <span key={index} className="px-2 py-1 bg-gray-100 rounded text-sm">
+                {file.name}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newFiles = [...productionSlipForm.files];
+                    newFiles.splice(index, 1);
+                    setProductionSlipForm(prev => ({ ...prev, files: newFiles }));
+                  }}
+                  className="ml-2 text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+    
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          let uploadedUrls = [];
+          
+          // Check if we have new files to upload (File objects)
+          const newFiles = productionSlipForm.files.filter(file => file instanceof File);
+          const existingUrls = productionSlipForm.files.filter(file => typeof file === 'string');
+          
+          if (newFiles.length > 0) {
+            toast.loading("Uploading files...");
+            uploadedUrls = await uploadToCloudinary(newFiles);
+            toast.dismiss();
+          }
+          
+          const finalFiles = [...existingUrls, ...uploadedUrls];
+          
+          if (finalFiles.length === 0 && !editingProductionSlipId) {
+            toast.error("Please upload at least one file");
+            return;
+          }
+          
+          if (!productionSlipForm.slipType) {
+            toast.error("Please select a slip type");
+            return;
+          }
+          
+          const slipData = {
+            files: finalFiles,
+            notes: productionSlipForm.notes,
+            slipType: productionSlipForm.slipType
+          };
+          
+          if (editingProductionSlipId) {
+            // Update existing slip
+            await axiosInstance.put(`/customers/${id}/production-slip/${editingProductionSlipId}`, slipData);
+            toast.success("Production slip updated successfully!");
+            setEditingProductionSlipId(null);
+          } else {
+            // Add new slip
+            await axiosInstance.post(`/customers/${id}/production-slip`, slipData);
+            toast.success("Production slip added successfully!");
+          }
+          
+          // Reset form and refresh data
+          setProductionSlipForm({ files: [], notes: "", slipType: "production_order" });
+          setShowProductionSlipForm(false);
+          fetchProductionSlips();
+          
+        } catch (err) {
+          console.error("Save production slip error:", err);
+          toast.error(err.response?.data?.error || "Failed to save production slip");
+        }
+      }}
+      className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+    >
+      {editingProductionSlipId ? "💾 Update Production Slip" : "💾 Save Production Slip"}
+    </button>
+    
+    {editingProductionSlipId && (
+      <button
+        type="button"
+        onClick={() => {
+          setEditingProductionSlipId(null);
+          setProductionSlipForm({ files: [], notes: "", slipType: "production_order" });
+          setShowProductionSlipForm(false);
+        }}
+        className="mt-4 ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+      >
+        Cancel Edit
+      </button>
+    )}
+  </div>
+)}
+
 {/* Gift History Table with Pagination */}
 <div className="mt-6">
   <div className="flex justify-between items-center mb-3">
@@ -1546,6 +1796,100 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   </div>
 )}
 </div>
+
+{/* Production Slips Table */}
+{productionSlips.length > 0 && (
+  <div className="mt-8 border-t pt-6">
+    <h4 className="font-semibold mb-3">📋 Production Slips</h4>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border">
+        <thead className="bg-indigo-50">
+          <tr>
+            <th className="p-2 border">Date</th>
+            <th className="p-2 border">Slip Type</th>
+            <th className="p-2 border">Files</th>
+            <th className="p-2 border">Notes</th>
+            <th className="p-2 border">Added By</th>
+            <th className="p-2 border">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {productionSlips.map((slip, index) => (
+            <tr key={slip._id || index}>
+              <td className="p-2 border">
+                {new Date(slip.date).toLocaleDateString()}
+              </td>
+              <td className="p-2 border">
+                {slip.slipType === 'production_order' && '📋 Production Order'}
+                {slip.slipType === 'raw_block_cutting' && '🪨 Raw Block Cutting'}
+                {slip.slipType === 'shape_molding' && '🔧 Shape Molding'}
+              </td>
+              <td className="p-2 border">
+                <div className="flex flex-wrap gap-2">
+                  {slip.files?.map((file, fileIndex) => (
+                    file?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      <a key={fileIndex} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                        <img src={file} alt={`File ${fileIndex + 1}`} className="w-12 h-12 object-cover rounded" />
+                      </a>
+                    ) : (
+                      <a key={fileIndex} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+                        📄 File {fileIndex + 1}
+                      </a>
+                    )
+                  ))}
+                </div>
+              </td>
+              <td className="p-2 border">{slip.notes || "-"}</td>
+              <td className="p-2 border">
+                {slip.addedBy?.name || slip.addedBy || "Unknown"}
+              </td>
+              <td className="p-2 border">
+                <div className="flex gap-2">
+                <button
+  onClick={(e) => handleEditProductionSlip(e, slip)}
+  className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-300 rounded hover:bg-blue-50"
+>
+  ✏️ Edit
+</button>
+     <button
+  type="button"
+  onClick={async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!window.confirm("Are you sure you want to delete this production slip?")) {
+      return;
+    }
+    
+    try {
+      const deleteUrl = `/customers/${id}/production-slip/${slip._id}`;
+      const response = await axiosInstance.delete(deleteUrl);
+      
+      if (response.data && response.data.success === true) {
+        toast.success("Production slip deleted successfully!");
+        // Refresh the list
+        await fetchProductionSlips();
+      } else {
+        toast.error(response.data?.error || "Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error(err.response?.data?.error || "Failed to delete production slip");
+    }
+  }}
+  className="text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+>
+  🗑️ Delete
+</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
           <div className="flex justify-between items-center space-x-4">
             <button

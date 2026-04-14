@@ -20,6 +20,9 @@ export default function PlantMachineryMaintenance() {
     color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
   },
     { name: "Transformer 300KW (Weekly Maintenance Log Book)", path: "/maintenance/transformer", color: "bg-orange-600 hover:bg-orange-700" }, // Add this line
+      { name: "Boiler Yearly Certificate", path: "/maintenance/boiler-certificate", color: "bg-red-600 hover:bg-red-700" }, // Add this
+        { name: "Factory Act Department", path: "/factory-act", color: "bg-indigo-600 hover:bg-indigo-700" }, // Add this
+          { name: "Weighing Scale Calibration", path: "/weighing-scale", color: "bg-teal-600 hover:bg-teal-700" }, // Add this
   { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-blue-600 hover:bg-blue-700" },
@@ -202,6 +205,9 @@ if (s.type === "water-quality-grid") {
             // Check if other sections are enabled
             const isEnabled = s.name === "Air Compressors" || 
                              s.name === "Transformer 300KW (Weekly Maintenance Log Book)" || // Add this
+                                              s.name === "Boiler Yearly Certificate" || // Add this
+                                                               s.name === "Factory Act Department" || // Add this
+                                                                                s.name === "Weighing Scale Calibration" || // Add this
                              s.name === "Earthing" ||
                              s.name === "DG Set (Diesel Generator) - Main Electric Panel" ||
                              s.name === "Water Filter" ||

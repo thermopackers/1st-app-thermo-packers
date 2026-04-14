@@ -32,6 +32,26 @@ const [remarks, setRemarks] = useState({});              // 🆕 Store remarks p
   useEffect(() => {
     rmRateRef.current = rmRate;
   }, [rmRate]);
+
+  // Add this useEffect after the other useEffects
+useEffect(() => {
+  // When RM rate changes and we have products, recalculate all prices
+  if (rmRate > 0 && rawMaterials.length > 0) {
+    console.log("RM rate changed to:", rmRate, "Recalculating all product prices...");
+    
+    rawMaterials.forEach(product => {
+      const productId = product._id;
+      const conversionRate = conversionRates[productId] || 0;
+      const freight = freightOutward[productId] || 0;
+      const isInPcs = inPcsMode[productId] || false;
+      const customWeight = customWeights[productId];
+      
+      if (conversionRate > 0) {
+        calculateProductPrice(productId, conversionRate, rmRate, isInPcs, freight, customWeight);
+      }
+    });
+  }
+}, [rmRate, rawMaterials]); // Re-run when rmRate changes or rawMaterials loads
   
   useEffect(() => {
     savedSheetsRef.current = savedCostingSheets;
@@ -305,29 +325,54 @@ setRemarks(savedRemarks);
   }
 };
 
-  const fetchRMRate = async () => {
-    try {
-      const res = await axiosInstance.get("/rm-rate");
-      const newRate = res.data.rate || 0;
-      const currentRate = rmRateRef.current;
-      const currentSheets = savedSheetsRef.current;
-      
-      if (currentRate === 0) {
-        setRmRate(newRate);
-        return;
-      }
-      
-      if (currentRate !== newRate) {
-        setRmRate(newRate);
-        if (currentSheets.length > 0) {
-          await autoRecalculateSheets(newRate);
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching RM rate:", err);
-      toast.error("Failed to load RM rate");
+const fetchRMRate = async () => {
+  try {
+    const res = await axiosInstance.get("/rm-rate");
+    const newRate = res.data.rate || 0;
+    const currentRate = rmRateRef.current;
+    const currentSheets = savedSheetsRef.current;
+    
+    if (currentRate === 0) {
+      setRmRate(newRate);
+      return;
     }
-  };
+    
+    if (currentRate !== newRate) {
+      console.log(`RM rate changed from ${currentRate} to ${newRate}`);
+      setRmRate(newRate);
+      
+      // ✅ Recalculate all product prices with the new RM rate
+      if (rawMaterials.length > 0) {
+        console.log("Recalculating all product prices with new RM rate...");
+        
+        // Get current values for all products
+        const updatedConversionRates = { ...conversionRates };
+        const updatedFreightOutward = { ...freightOutward };
+        const updatedInPcsMode = { ...inPcsMode };
+        const updatedCustomWeights = { ...customWeights };
+        
+        // Recalculate each product's price
+        rawMaterials.forEach(product => {
+          const productId = product._id;
+          const conversionRate = updatedConversionRates[productId] || 0;
+          const freight = updatedFreightOutward[productId] || 0;
+          const isInPcs = updatedInPcsMode[productId] || false;
+          const customWeight = updatedCustomWeights[productId];
+          
+          calculateProductPrice(productId, conversionRate, newRate, isInPcs, freight, customWeight);
+        });
+      }
+      
+      // Also recalculate saved sheets if any
+      if (currentSheets.length > 0) {
+        await autoRecalculateSheets(newRate);
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching RM rate:", err);
+    toast.error("Failed to load RM rate");
+  }
+};
 
   const autoRecalculateSheets = async (newRmRate) => {
     const currentSheets = savedSheetsRef.current;
@@ -437,53 +482,54 @@ const handleRemarksChange = (productId, value) => {
   setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
 };
 
-  const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight, customWeight) => {
-    const product = rawMaterials.find(p => p._id === productId);
-    if (!product) return;
-    
-    let basePrice = 0;
-    let productWeight = 0;
-    let totalPerKg = currentRmRate + conversionRate;
-    
-    if (isInPcs) {
-      // Use custom weight if provided, otherwise use product weight
-      if (customWeight !== undefined && customWeight > 0) {
-        productWeight = customWeight;
-      } else {
-        const weightStr = product.weight || "";
-        if (weightStr.toLowerCase().includes("kg")) {
-          const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-          if (match) productWeight = parseFloat(match[1]);
-        } else if (weightStr.toLowerCase().includes("g")) {
-          const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-          if (match) productWeight = parseFloat(match[1]) / 1000;
-        } else {
-          productWeight = parseFloat(weightStr) || 0;
-        }
-      }
-      
-      basePrice = totalPerKg * productWeight;
+const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight, customWeight) => {
+  // Use rawMaterials from state, but ensure we have the latest
+  const product = rawMaterials.find(p => p._id === productId);
+  if (!product) return;
+  
+  let basePrice = 0;
+  let productWeight = 0;
+  let totalPerKg = currentRmRate + conversionRate;
+  
+  if (isInPcs) {
+    // Use custom weight if provided, otherwise use product weight
+    if (customWeight !== undefined && customWeight > 0) {
+      productWeight = customWeight;
     } else {
-      basePrice = totalPerKg;
+      const weightStr = product.weight || "";
+      if (weightStr.toLowerCase().includes("kg")) {
+        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+        if (match) productWeight = parseFloat(match[1]);
+      } else if (weightStr.toLowerCase().includes("g")) {
+        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+        if (match) productWeight = parseFloat(match[1]) / 1000;
+      } else {
+        productWeight = parseFloat(weightStr) || 0;
+      }
     }
     
-    const totalWithFreight = basePrice + freight;
-    const totalWithGST = totalWithFreight * 1.18;
-    
-    setCalculatedPrices(prev => ({
-      ...prev,
-      [productId]: {
-        totalPerKg,
-        pricePerPiece: basePrice.toFixed(2),
-        productWeight: isInPcs ? productWeight : 0,
-        weightDisplay: product.weight,
-        freight: freight,
-        totalWithFreight: totalWithFreight.toFixed(2),
-        totalWithGST: totalWithGST.toFixed(2),
-        isInPcs
-      }
-    }));
-  };
+    basePrice = totalPerKg * productWeight;
+  } else {
+    basePrice = totalPerKg;
+  }
+  
+  const totalWithFreight = basePrice + freight;
+  const totalWithGST = totalWithFreight * 1.18;
+  
+  setCalculatedPrices(prev => ({
+    ...prev,
+    [productId]: {
+      totalPerKg,
+      pricePerPiece: basePrice.toFixed(2),
+      productWeight: isInPcs ? productWeight : 0,
+      weightDisplay: product.weight,
+      freight: freight,
+      totalWithFreight: totalWithFreight.toFixed(2),
+      totalWithGST: totalWithGST.toFixed(2),
+      isInPcs
+    }
+  }));
+};
 
   const saveCostingSheet = async (productId) => {
     const product = rawMaterials.find(p => p._id === productId);

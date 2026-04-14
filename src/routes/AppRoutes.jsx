@@ -90,6 +90,11 @@ import FreightCalculator from "../pages/FreightCalculator";
 import FactoryAttendanceLogs from "../components/FactoryAttendanceLogs";
 import FactoryMonthlyReports from "../components/FactoryMonthlyReports";
 import RMRate from "../pages/RMRate";
+import BoilerCertificate from "../pages/BoilerCertificate";
+import FactoryActDepartment from "../pages/FactoryActDepartment";
+import FactoryActCertificates from "../pages/FactoryActCertificates";
+import WeighingScale from "../pages/WeighingScale";
+import WeighingScaleDetail from "../pages/WeighingScaleDetail";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -207,6 +212,12 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/maintenance/boiler-certificate" element={<BoilerCertificate />} />
+<Route path="/factory-act" element={<FactoryActDepartment />} />
+<Route path="/factory-act/certificates" element={<FactoryActCertificates />} />
+<Route path="/weighing-scale" element={<WeighingScale />} />
+<Route path="/weighing-scale/:scaleId" element={<WeighingScaleDetail />} />
 
             <Route
               path="/orders"

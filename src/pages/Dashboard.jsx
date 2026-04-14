@@ -61,6 +61,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [invitationLink, setInvitationLink] = useState(null);
+  const [expiringFactoryCertificates, setExpiringFactoryCertificates] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -71,6 +72,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   // Add this new state variable with your other useState declarations
 const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
+const [expiringCertificates, setExpiringCertificates] = useState([]);
 // Add this state with your other useState declarations (around line 20-30)
 const [hasShownBirthday, setHasShownBirthday] = useState(() => {
   // Check localStorage for today's date
@@ -153,6 +155,23 @@ useEffect(() => {
   fetchVehicle();
 }, [user,userRoles]);
 
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchExpiringFactoryCertificates = async () => {
+    try {
+      const res = await axiosInstance.get("/factory-act-certificate/expiring");
+      if (res.data.success && res.data.certificates.length > 0) {
+        setExpiringFactoryCertificates(res.data.certificates);
+      }
+    } catch (err) {
+      console.error("Error fetching expiring factory certificates:", err);
+    }
+  };
+  
+  fetchExpiringFactoryCertificates();
+}, [user]);
+
 // Enhanced useEffect to fetch birthday users with localStorage tracking
 useEffect(() => {
   if (!user) return;
@@ -211,6 +230,24 @@ useEffect(() => {
   };
   fetchDocNotifCount();
 }, [user,userRoles]);
+
+// Add this useEffect to fetch expiring certificates
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchExpiringCertificates = async () => {
+    try {
+      const res = await axiosInstance.get("/boiler-certificate/expiring");
+      if (res.data.success && res.data.certificates.length > 0) {
+        setExpiringCertificates(res.data.certificates);
+      }
+    } catch (err) {
+      console.error("Error fetching expiring certificates:", err);
+    }
+  };
+  
+  fetchExpiringCertificates();
+}, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -938,6 +975,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 
       <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
 
+
 {/* Document Alerts Button - Top Center */}
 {userRoles.includes("accounts") && docNotifCount > 0 && (
   <div className="flex justify-center">
@@ -1072,6 +1110,98 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 {/* Collapsible Daily Todo List */}
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
   <DailyTodoList userId={user?._id} />
+  {/* Boiler Certificate Expiry Alert */}
+{expiringCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-orange-700">
+            <strong>⚠️ Boiler Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-orange-600 mt-1">
+            {expiringCertificates.length} certificate{expiringCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-orange-600">
+                • Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/maintenance/boiler-certificate")}
+            className="mt-2 text-xs text-orange-700 font-semibold hover:text-orange-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringCertificates([])}
+          className="flex-shrink-0 text-orange-400 hover:text-orange-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
+{/* Factory Act Certificate Expiry Alert */}
+{expiringFactoryCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-indigo-700">
+            <strong>📋 Factory Act Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-indigo-600 mt-1">
+            {expiringFactoryCertificates.length} certificate{expiringFactoryCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringFactoryCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-indigo-600">
+                • {cert.certificateName} - Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/factory-act/certificates")}
+            className="mt-2 text-xs text-indigo-700 font-semibold hover:text-indigo-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringFactoryCertificates([])}
+          className="flex-shrink-0 text-indigo-400 hover:text-indigo-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
 </div>
 
 {/* Main Dashboard Content */}

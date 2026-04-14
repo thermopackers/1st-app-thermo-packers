@@ -1235,26 +1235,43 @@ const exportFormattedPDF = () => {
     pdf.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 148, 18, { align: 'center' });
 
     // Table headers
-    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'City', 'Map', 'Sales Products', 'Diesel(L)', 'Expenses', 'Remarks'];
-    const columnWidths = [10, 14, 20, 20, 24, 28, 22, 18, 28, 12, 14, 27];
+    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'City', 'Material Unloading Location', 'Sales Products', 'Fuel - Diesel(Ltrs)(To & Fro)', 'Driver Expenses (Kharcha)', 'Remarks'];
+    const columnWidths = [10, 14, 20, 20, 24, 28, 22, 28, 28, 28, 26, 27];
     
     let yPosition = 30;
     
-    // Add table headers
+    // Add table headers with multi-line support for long headers
     pdf.setFillColor(243, 244, 246);
-    pdf.rect(10, yPosition - 5, 277, 8, 'F');
+    
+    // Calculate header rows needed
+    const headerRows = [];
+    headers.forEach((header, index) => {
+      const maxWidth = columnWidths[index] - 2;
+      const lines = pdf.splitTextToSize(header, maxWidth);
+      headerRows.push(lines);
+    });
+    
+    const maxHeaderLines = Math.max(...headerRows.map(lines => lines.length));
+    const headerHeight = maxHeaderLines * 4;
+    
+    // Draw header background
+    pdf.rect(10, yPosition - 5, 277, headerHeight + 2, 'F');
     
     pdf.setFontSize(7);
     pdf.setTextColor(0, 0, 0);
     pdf.setFont(undefined, 'bold');
     
+    // Draw multi-line headers
     let xPosition = 10;
     headers.forEach((header, index) => {
-      pdf.text(header, xPosition + 2, yPosition);
+      const lines = headerRows[index];
+      lines.forEach((line, lineIndex) => {
+        pdf.text(line, xPosition + 2, yPosition + (lineIndex * 4));
+      });
       xPosition += columnWidths[index];
     });
 
-    yPosition += 10;
+    yPosition += headerHeight + 5;
 
     // Add table rows
     pdf.setFont(undefined, 'normal');
@@ -1277,20 +1294,23 @@ const exportFormattedPDF = () => {
         
         yPosition = 30;
         
-        // Add headers again
+        // Add headers again with multi-line support
         pdf.setFillColor(243, 244, 246);
-        pdf.rect(10, yPosition - 5, 277, 8, 'F');
+        pdf.rect(10, yPosition - 5, 277, headerHeight + 2, 'F');
         pdf.setFontSize(7);
         pdf.setTextColor(0, 0, 0);
         pdf.setFont(undefined, 'bold');
         
         xPosition = 10;
         headers.forEach((header, hIdx) => {
-          pdf.text(header, xPosition + 2, yPosition);
+          const lines = headerRows[hIdx];
+          lines.forEach((line, lineIndex) => {
+            pdf.text(line, xPosition + 2, yPosition + (lineIndex * 4));
+          });
           xPosition += columnWidths[hIdx];
         });
         
-        yPosition += 10;
+        yPosition += headerHeight + 5;
         pdf.setFont(undefined, 'normal');
         pdf.setFontSize(7);
       }
@@ -1382,11 +1402,12 @@ const exportFormattedPDF = () => {
         }
       }
       
-      // Format remarks
+      // Format remarks - FIXED: Allow more text and proper wrapping
       let remarksText = "-";
       if (plan.remarks && plan.remarks !== "") {
         let cleanRemark = String(plan.remarks).replace(/[^\w\s\-.,!?]/g, '');
-        remarksText = cleanRemark.length > 35 ? cleanRemark.substring(0, 35) + '...' : cleanRemark;
+        // Remove length limit - let it wrap naturally within column width
+        remarksText = cleanRemark;
       }
       
       // Format date
@@ -1404,9 +1425,10 @@ const exportFormattedPDF = () => {
       // Format location
       let locationText = plan.location || "-";
 
-      // Calculate row height
+      // Calculate row height - FIXED: Include all text wrapping
       let maxLines = 1;
       
+      const locationLinesCount = pdf.splitTextToSize(locationText, columnWidths[4] - 4).length;
       const customersLines = pdf.splitTextToSize(customersText, columnWidths[5] - 4).length;
       const citiesLines = pdf.splitTextToSize(citiesText, columnWidths[6] - 4).length;
       const productsLines = pdf.splitTextToSize(productsText, columnWidths[8] - 4).length;
@@ -1415,14 +1437,17 @@ const exportFormattedPDF = () => {
       // For map lines, count each line
       const mapLinesCount = mapLines.length > 0 ? mapLines.length : 1;
       
-      maxLines = Math.max(1, customersLines, citiesLines, mapLinesCount, productsLines, remarksLines);
+      maxLines = Math.max(1, locationLinesCount, customersLines, citiesLines, mapLinesCount, productsLines, remarksLines);
+      
+      // Calculate row height based on max lines
+      const rowHeight = Math.max(10, maxLines * 3.5 + 4);
       
       // Draw row data
       let currentX = 10;
       let lineY = yPosition;
 
       // Sr No
-      pdf.text(((page - 1) * 10 + idx + 1).toString(), currentX + 2, lineY);
+      pdf.text((idx + 1).toString(), currentX + 2, lineY);
       currentX += columnWidths[0];
       
       // Date
@@ -1499,14 +1524,11 @@ const exportFormattedPDF = () => {
       pdf.text(expensesText, currentX + 2, lineY);
       currentX += columnWidths[10];
       
-      // Remarks
+      // Remarks - FIXED: Properly display all text with wrapping
       const remarkLines = pdf.splitTextToSize(remarksText, columnWidths[11] - 4);
       remarkLines.forEach((line, lineIdx) => {
         pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
       });
-
-      // Calculate row height
-      const rowHeight = Math.max(10, maxLines * 3.5 + 2);
       
       // Draw row border
       pdf.setDrawColor(226, 232, 240);

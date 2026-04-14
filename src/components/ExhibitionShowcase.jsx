@@ -9,6 +9,8 @@ import {
   FaExpand,
   FaChevronLeft,
   FaChevronRight,
+  FaPause,
+  FaPlay,
 } from "react-icons/fa";
 
 const exhibitions = [
@@ -188,8 +190,55 @@ const ExhibitionShowcase = () => {
   const [mediaType, setMediaType] = useState(null);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [allMediaItems, setAllMediaItems] = useState([]);
+  const [isAutoSliding, setIsAutoSliding] = useState(true);
+  const autoSlideIntervalRef = useRef(null);
   const sectionRef = useRef(null);
   const cardRef = useRef(null);
+
+  // Auto-slide functionality
+  const startAutoSlide = () => {
+    if (autoSlideIntervalRef.current) {
+      clearInterval(autoSlideIntervalRef.current);
+    }
+    autoSlideIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % exhibitions.length);
+    }, 5000); // Change slide every 5 seconds
+  };
+
+  const stopAutoSlide = () => {
+    if (autoSlideIntervalRef.current) {
+      clearInterval(autoSlideIntervalRef.current);
+      autoSlideIntervalRef.current = null;
+    }
+  };
+
+  const toggleAutoSlide = () => {
+    if (isAutoSliding) {
+      stopAutoSlide();
+      setIsAutoSliding(false);
+    } else {
+      startAutoSlide();
+      setIsAutoSliding(true);
+    }
+  };
+
+  // Start auto-slide on mount
+  useEffect(() => {
+    startAutoSlide();
+    return () => {
+      stopAutoSlide();
+    };
+  }, []);
+
+  // Reset auto-slide timer when user manually changes slide
+  const handleManualNavigation = (newIndex) => {
+    setCurrentIndex(newIndex);
+    if (isAutoSliding) {
+      // Reset the timer
+      stopAutoSlide();
+      startAutoSlide();
+    }
+  };
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -218,21 +267,6 @@ const ExhibitionShowcase = () => {
     return () => ctx.revert();
   }, [currentIndex]);
 
-  // Listen for custom event to open specific exhibition from footer
-useEffect(() => {
-  const handleOpenExhibition = (event) => {
-    const { index } = event.detail;
-    if (index !== undefined && exhibitions[index]) {
-      setCurrentIndex(index);
-      // Optional: Auto-open the exhibition details modal
-      openExhibition(exhibitions[index]);
-    }
-  };
-
-  window.addEventListener('openExhibition', handleOpenExhibition);
-  return () => window.removeEventListener('openExhibition', handleOpenExhibition);
-}, []);
-
   // Handle keyboard navigation for media modal
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -249,17 +283,31 @@ useEffect(() => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedMedia, currentMediaIndex, allMediaItems]);
 
+  // Listen for custom event to open specific exhibition from footer
+  useEffect(() => {
+    const handleOpenExhibition = (event) => {
+      const { index } = event.detail;
+      if (index !== undefined && exhibitions[index]) {
+        handleManualNavigation(index);
+        // Optional: Auto-open the exhibition details modal
+        // openExhibition(exhibitions[index]);
+      }
+    };
+
+    window.addEventListener('openExhibition', handleOpenExhibition);
+    return () => window.removeEventListener('openExhibition', handleOpenExhibition);
+  }, []);
+
   const nextExhibition = () => {
-    setCurrentIndex((prev) => (prev + 1) % exhibitions.length);
+    handleManualNavigation((currentIndex + 1) % exhibitions.length);
   };
 
   const prevExhibition = () => {
-    setCurrentIndex(
-      (prev) => (prev - 1 + exhibitions.length) % exhibitions.length,
-    );
+    handleManualNavigation((currentIndex - 1 + exhibitions.length) % exhibitions.length);
   };
 
   const openExhibition = (expo) => {
+    stopAutoSlide(); // Stop auto-slide when opening details
     setExpandedExpo(expo);
     document.body.style.overflow = "hidden";
   };
@@ -269,9 +317,13 @@ useEffect(() => {
     setSelectedMedia(null);
     setMediaType(null);
     document.body.style.overflow = "auto";
+    if (isAutoSliding) {
+      startAutoSlide(); // Restart auto-slide when closing details
+    }
   };
 
   const openMedia = (media, type, mediaItems, clickedIndex) => {
+    stopAutoSlide(); // Stop auto-slide when viewing media
     // Combine all images and videos into one array with type info
     const allItems = [];
     if (expandedExpo) {
@@ -295,6 +347,9 @@ useEffect(() => {
     setMediaType(null);
     setAllMediaItems([]);
     setCurrentMediaIndex(0);
+    if (isAutoSliding && !expandedExpo) {
+      startAutoSlide(); // Restart auto-slide if no modal is open
+    }
   };
 
   const navigateMedia = (direction) => {
@@ -367,6 +422,15 @@ useEffect(() => {
               <FaChevronRight className="w-5 h-5" />
             </button>
 
+            {/* Auto-slide Toggle Button */}
+            <button
+              onClick={toggleAutoSlide}
+              className="absolute top-0 right-16 lg:right-20 z-20 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all duration-300 text-gray-700 hover:text-[#B0BC27]"
+              aria-label={isAutoSliding ? "Pause auto-slide" : "Start auto-slide"}
+            >
+              {isAutoSliding ? <FaPause className="w-4 h-4" /> : <FaPlay className="w-4 h-4" />}
+            </button>
+
             {/* Single Exhibition Card */}
             <div className="flex justify-center">
               <div
@@ -375,7 +439,7 @@ useEffect(() => {
                 onClick={() => openExhibition(currentExpo)}
               >
                 <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                  {/* Thumbnail */}
+                  {/* Thumbnail with auto-slide indicator */}
                   <div className="relative h-80 md:h-96 overflow-hidden">
                     <img
                       src={currentExpo.thumbnail}
@@ -394,6 +458,18 @@ useEffect(() => {
                     <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
                       {currentIndex + 1} / {exhibitions.length}
                     </div>
+                    {/* Auto-slide indicator bar */}
+                    {isAutoSliding && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
+                        <div 
+                          className="h-full bg-[#B0BC27] rounded-full"
+                          style={{
+                            width: '100%',
+                            animation: 'slideProgress 5s linear infinite'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
@@ -411,7 +487,7 @@ useEffect(() => {
                         <span>{currentExpo.location}</span>
                       </div>
                     </div>
-                    <p className="text-gray-600 text-base leading-relaxed mb-4">
+                    <p className="text-gray-600 text-base leading-relaxed mb-4 line-clamp-3">
                       {currentExpo.description}
                     </p>
                     <div className="flex justify-between items-center pt-4 border-t border-gray-100">
@@ -443,7 +519,7 @@ useEffect(() => {
               {exhibitions.map((_, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setCurrentIndex(idx)}
+                  onClick={() => handleManualNavigation(idx)}
                   className={`transition-all duration-300 rounded-full ${
                     idx === currentIndex
                       ? "w-8 h-2 bg-[#B0BC27]"
@@ -697,6 +773,20 @@ useEffect(() => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        @keyframes slideProgress {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
+          }
         }
       `}</style>
     </>
