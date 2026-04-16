@@ -305,9 +305,6 @@ const saveAttendance = async () => {
             <div class="text-6xl mb-4">📍</div>
             <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
             <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
-            <p class="text-xs text-gray-400">1. Click the location icon in your browser's address bar<br>
-            2. Select "Allow" for location access<br>
-            3. Try again</p>
           </div>
         `,
         confirmButtonColor: "#B0BC27",
@@ -362,13 +359,7 @@ const saveAttendance = async () => {
         html: `
           <div class="text-center">
             <div class="text-6xl mb-4">🔍</div>
-            <p class="text-gray-600 mb-2">Make sure your face is:</p>
-            <ul class="text-sm text-gray-500 text-left max-w-xs mx-auto">
-              <li>• Well-lit and clearly visible</li>
-              <li>• Centered in the frame</li>
-              <li>• Close to the camera</li>
-              <li>• Not wearing sunglasses</li>
-            </ul>
+            <p class="text-gray-600 mb-2">Make sure your face is clearly visible and centered.</p>
           </div>
         `,
         confirmButtonColor: "#B0BC27",
@@ -379,56 +370,34 @@ const saveAttendance = async () => {
 
     console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
 
-    // ✅ Face match - with FIXED descriptor loading
+    // ✅ Face match
     console.log("🔍 Getting descriptor for user:", user?.name, "ID:", user?._id);
     const descriptorData = await getDescriptor();
     
-    // DEBUG: Log what we got
-    console.log("📊 Loaded descriptor data:", descriptorData ? {
-      type: descriptorData.constructor.name,
-      length: descriptorData.length,
-      isArray: Array.isArray(descriptorData),
-      isFloat32Array: descriptorData instanceof Float32Array,
-      sample: Array.isArray(descriptorData) ? descriptorData.slice(0, 3) : 'not an array'
-    } : "NULL");
-    
-    // FIX: Convert to Float32Array if needed
     let descriptor;
     if (!descriptorData) {
       console.error("❌ No descriptor found in cache/DB");
       
-      // Try to fetch directly from API as fallback
       try {
         console.log("🔄 Attempting to fetch descriptor directly from API...");
         const response = await axiosInstance.get("/users/preprocessed-descriptors");
         const descriptors = response.data;
         console.log(`📊 API returned ${descriptors.length} descriptors`);
         
-        // Find this user's descriptor
         const userDescriptor = descriptors.find(d => d._id === user._id);
         if (userDescriptor && userDescriptor.descriptor) {
           console.log("✅ Found descriptor in API response");
-          
-          // Convert regular array to Float32Array for face-api
           const descriptorArray = new Float32Array(userDescriptor.descriptor);
-          
-          // Cache it
           setDescriptorCache({
             userId: user._id,
             descriptor: descriptorArray
           });
-          
           descriptor = descriptorArray;
         } else {
           Swal.fire({
             icon: "error",
             title: "Face Data Missing",
-            html: `
-              <div class="text-center">
-                <p class="text-gray-600 mb-2">Your face descriptor data is missing.</p>
-                <p class="text-sm text-gray-500">Please click the "Pre-process Faces" button again.</p>
-              </div>
-            `,
+            text: "Your face descriptor data is missing. Please contact admin.",
             confirmButtonColor: "#B0BC27",
           });
           setIsSaving(false);
@@ -446,11 +415,9 @@ const saveAttendance = async () => {
         return;
       }
     } else {
-      // FIX: Ensure descriptor is Float32Array
       if (descriptorData instanceof Float32Array) {
         descriptor = descriptorData;
       } else if (Array.isArray(descriptorData)) {
-        // Convert regular array to Float32Array
         console.log("🔄 Converting regular array to Float32Array");
         descriptor = new Float32Array(descriptorData);
       } else {
@@ -458,7 +425,7 @@ const saveAttendance = async () => {
         Swal.fire({
           icon: "error",
           title: "Format Error",
-          text: "Face descriptor is in wrong format. Please reprocess faces.",
+          text: "Face descriptor is in wrong format. Please contact admin.",
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
@@ -466,24 +433,17 @@ const saveAttendance = async () => {
       }
     }
 
-    // Now use the properly formatted descriptor
     const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.7);
     const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
     console.log("🔍 Match result:", {
       label: bestMatch.label,
       distance: bestMatch.distance,
-      isUnknown: bestMatch.label === "unknown"
     });
     
     if (bestMatch.label === "unknown") {
-      // Try with a lower threshold
       console.log("🔄 Retrying with lower threshold (0.6)...");
       const faceMatcherLower = new faceapi.FaceMatcher([descriptor], 0.6);
       const retryMatch = faceMatcherLower.findBestMatch(face1.descriptor);
-      console.log("🔍 Retry match result:", {
-        label: retryMatch.label,
-        distance: retryMatch.distance
-      });
       
       if (retryMatch.label === "unknown") {
         Swal.fire({
@@ -497,216 +457,226 @@ const saveAttendance = async () => {
       }
     }
 
-    // 🗜️ Compress image
-    const compressedImage = await compressImage(image1, 0.3);
+    // 🗜️ Compress image MORE aggressively
+    console.log("🖼️ Original image size:", Math.round(image1.length / 1024), "KB");
+    
+    // Compress with lower quality (0.2 instead of 0.3)
+    let compressedImage = await compressImage(image1, 0.2);
+    
+    // If still too large (> 150KB), compress further
+    let quality = 0.2;
+    let imageSizeKB = compressedImage.length / 1024;
+    
+    while (imageSizeKB > 150 && quality > 0.1) {
+      quality -= 0.05;
+      console.log(`🔄 Re-compressing with quality ${quality}, current size: ${Math.round(imageSizeKB)}KB`);
+      compressedImage = await compressImage(image1, quality);
+      imageSizeKB = compressedImage.length / 1024;
+    }
+    
+    console.log("✅ Final compressed size:", Math.round(imageSizeKB), "KB");
 
-    // 📤 Upload to server
     const photoPayload = compressedImage.startsWith("data:")
       ? compressedImage
       : `data:image/jpeg;base64,${compressedImage}`;
 
-    try {
-      // Determine current shift based on time (for workers)
-      const now = new Date();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
+    // Determine user type
+    const workerDesignations = ["operator", "helper", "driver"];
+    const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
 
-      // 👇 NEW LOGIC: Check user designation to decide which API to use
-      const workerDesignations = ["operator", "helper", "driver"];
-      const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
-
-      let response;
-      
-      if (isWorker) {
-        // Worker (Operator, Helper, Driver) - Use factory attendance
-        console.log("👷 Worker detected, using factory attendance system");
-        response = await axiosInstance.post(
-          "/factory-attendance/mark",
-          { 
-            type, 
-            photo: photoPayload, 
-            location,
-            userId: user._id,
-            shift: currentShift,
-            source: 'portal' // Marked via driver portal
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-} else {
-  // Staff (Accounts, Sales, etc.) - Use regular attendance
-  console.log("👔 Staff detected, using regular attendance system");
-  
-  // ✅ NEW: For staff, first check if they have checked in before allowing check-out
-  if (type === "check-out") {
-    try {
-      // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
-      console.log("📅 Checking for check-in on:", today);
-      
-      // Fetch today's attendance records
-      const attendanceResponse = await axiosInstance.get("/attendance", {
-        params: {
-          date: today
-        },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      console.log("📊 Attendance response:", attendanceResponse.data);
-      
-      // Get the logs array (could be nested in logs or directly)
-      let attendanceData = [];
-      if (attendanceResponse.data.logs) {
-        attendanceData = attendanceResponse.data.logs;
-      } else if (Array.isArray(attendanceResponse.data)) {
-        attendanceData = attendanceResponse.data;
+    // Function to make API call with retry
+    const makeApiCallWithRetry = async (apiCall, maxRetries = 2) => {
+      let lastError;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`📡 API attempt ${attempt} of ${maxRetries}...`);
+          
+          // Set timeout for the request (30 seconds)
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Request timeout")), 30000);
+          });
+          
+          const apiPromise = apiCall();
+          const response = await Promise.race([apiPromise, timeoutPromise]);
+          
+          console.log(`✅ API call successful on attempt ${attempt}`);
+          return response;
+        } catch (err) {
+          lastError = err;
+          console.error(`❌ Attempt ${attempt} failed:`, err.message);
+          
+          if (attempt < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            const waitTime = attempt * 2000;
+            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
       }
-      
-      console.log("📋 Attendance data length:", attendanceData.length);
-      
-      // Check if user has a check-in record for today
-      const hasCheckIn = attendanceData.some(record => {
-        // Check if this record belongs to the current user
-        const recordUserId = record.user?._id || record.user;
-        if (recordUserId !== user._id) return false;
+      throw lastError;
+    };
+
+    // For staff, check check-in status before check-out
+    if (!isWorker && type === "check-out") {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        console.log("📅 Checking for check-in on:", today);
         
-        // Check if this is a check-in record
-        const isCheckIn = record.type === "check-in" || 
-                          (record.checkIn && record.checkIn.time) ||
-                          (record.checkInTime);
+        const attendanceResponse = await axiosInstance.get("/attendance", {
+          params: { date: today },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
+        });
         
-        // Get the record date
-        const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
+        let attendanceData = [];
+        if (attendanceResponse.data.logs) {
+          attendanceData = attendanceResponse.data.logs;
+        } else if (Array.isArray(attendanceResponse.data)) {
+          attendanceData = attendanceResponse.data;
+        }
         
-        console.log(`📝 Record: user=${recordUserId}, type=${record.type}, date=${recordDate}, isCheckIn=${isCheckIn}`);
+        const hasCheckIn = attendanceData.some(record => {
+          const recordUserId = record.user?._id || record.user;
+          if (recordUserId !== user._id) return false;
+          
+          const isCheckIn = record.type === "check-in" || 
+                            (record.checkIn && record.checkIn.time) ||
+                            (record.checkInTime);
+          
+          const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
+          
+          return recordDate === today && isCheckIn;
+        });
         
-        return recordDate === today && isCheckIn;
-      });
-      
-      console.log("✅ Has check-in today:", hasCheckIn);
-      
-      if (!hasCheckIn) {
+        if (!hasCheckIn) {
+          Swal.fire({
+            icon: "error",
+            title: "Cannot Check Out",
+            text: "You haven't checked in today. Please check in first.",
+            confirmButtonColor: "#B0BC27",
+          });
+          setIsSaving(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.error("❌ Error checking attendance:", checkErr);
         Swal.fire({
           icon: "error",
-          title: "Cannot Check Out",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">⚠️</div>
-              <p class="text-gray-600 mb-2">You haven't checked in today.</p>
-              <p class="text-sm text-gray-500">Please check in first before checking out.</p>
-            </div>
-          `,
+          title: "Verification Failed",
+          text: "Could not verify your check-in status. Please try again.",
           confirmButtonColor: "#B0BC27",
         });
         setIsSaving(false);
         return;
       }
-    } catch (checkErr) {
-      console.error("❌ Error checking attendance:", checkErr);
-      console.error("Error details:", checkErr.response?.data || checkErr.message);
-      
-      // Show error but don't block check-out? Better to show error
-      Swal.fire({
-        icon: "error",
-        title: "Verification Failed",
-        text: "Could not verify your check-in status. Please try again.",
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
     }
-  }
-  
-  // Proceed with check-in or check-out
-  response = await axiosInstance.post(
-    "/attendance/mark",
-    { type, photo: photoPayload, location },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-}
 
-      // Show success message based on user type
+    // Make the API call with retry logic
+    let response;
+    try {
       if (isWorker) {
-        Swal.fire({
-          icon: "success",
-          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">✅</div>
-              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-              <p class="text-sm text-gray-500 mb-1">Time: ${new Date().toLocaleTimeString()}</p>
-            <a 
-  href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}"  
-  class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium mt-4"
->
-
-  View Attendance Logs
-</a>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-          showConfirmButton: false,
-        });
+        console.log("👷 Worker detected, using factory attendance system");
+        response = await makeApiCallWithRetry(() =>
+          axiosInstance.post(
+            "/factory-attendance/mark",
+            { 
+              type, 
+              photo: photoPayload, 
+              location,
+              userId: user._id,
+              shift: currentShift,
+              source: 'portal'
+            },
+            { 
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 30000
+            }
+          )
+        );
       } else {
-        Swal.fire({
-          icon: "success",
-          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">✅</div>
-              <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-              <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
-              <a href="/attendance-logs" class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
-                View Attendance Logs
-              </a>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-          showConfirmButton: false,
-        });
+        console.log("👔 Staff detected, using regular attendance system");
+        response = await makeApiCallWithRetry(() =>
+          axiosInstance.post(
+            "/attendance/mark",
+            { type, photo: photoPayload, location },
+            { 
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 30000
+            }
+          )
+        );
       }
 
+      // Show success message
+      Swal.fire({
+        icon: "success",
+        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">✅</div>
+            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+            <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+            <a href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}" 
+               class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
+              View Attendance Logs
+            </a>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+        showConfirmButton: false,
+        timer: 3000
+      });
+
       setCapturing(false);
-      console.log("✅ Attendance saved successfully to database:", response.data);
+      console.log("✅ Attendance saved successfully");
 
     } catch (err) {
       setCapturing(false);
       
-      if (err.response?.data?.error?.includes("already marked")) {
+      if (err.message === "Request timeout") {
+        Swal.fire({
+          icon: "error",
+          title: "Network Timeout",
+          text: "Request took too long. Please check your internet connection and try again.",
+          confirmButtonColor: "#B0BC27",
+        });
+      } else if (err.response?.data?.error?.includes("already marked")) {
         Swal.fire({
           icon: "info",
           title: "Already Marked",
           text: `You already marked ${type} for today.`,
           confirmButtonColor: "#B0BC27",
         });
-        console.log("⚠️ Attendance already marked today");
       } else if (err.response?.data?.error?.includes("location")) {
         Swal.fire({
           icon: "error",
           title: "Location Error",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">📍</div>
-              <p class="text-gray-600 mb-2">Location is required for attendance.</p>
-              <p class="text-sm text-gray-500">Please enable location services and try again.</p>
-            </div>
-          `,
+          text: "Location is required for attendance. Please enable location services.",
           confirmButtonColor: "#B0BC27",
         });
       } else {
-         const errorMessage = err.response?.data?.error || err.message || "Failed to save attendance";
-
+        // Store failed attempt in localStorage for later retry
+        const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+        failedUploads.push({
+          data: { type, photo: photoPayload, location },
+          timestamp: new Date().toISOString(),
+          userId: user._id,
+          isWorker: isWorker
+        });
+        // Keep only last 10 failed attempts
+        if (failedUploads.length > 10) failedUploads.shift();
+        localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
+        
         Swal.fire({
           icon: "error",
           title: "Save Failed",
-          html: `
-            <div class="text-center">
-              <p class="text-gray-600 mb-2">${errorMessage}</p>
-            </div>
-          `,
+          text: err.response?.data?.error || err.message || "Failed to save attendance. It will be retried automatically.",
           confirmButtonColor: "#B0BC27",
         });
-        console.error("❌ Attendance save failed:", err.response?.data || err.message);
       }
     }
 
