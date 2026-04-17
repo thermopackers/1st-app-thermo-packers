@@ -57,6 +57,54 @@ useEffect(() => {
     savedSheetsRef.current = savedCostingSheets;
   }, [savedCostingSheets]);
 
+  // Add this useEffect after fetchSavedCostingSheets is defined
+useEffect(() => {
+  // When saved sheets are loaded, restore the calculations
+  if (savedCostingSheets.length > 0 && rawMaterials.length > 0) {
+    console.log("Restoring calculations from saved sheets...");
+    
+    const restoredRates = {};
+    const restoredFreight = {};
+    const restoredModes = {};
+    const restoredWeights = {};
+    const restoredCalculations = {};
+    
+    // Get the latest sheet for each product
+    const latestSheets = {};
+    savedCostingSheets.forEach(sheet => {
+      if (!latestSheets[sheet.productId] || 
+          new Date(sheet.updatedAt || sheet.date) > new Date(latestSheets[sheet.productId].updatedAt || latestSheets[sheet.productId].date)) {
+        latestSheets[sheet.productId] = sheet;
+      }
+    });
+    
+    Object.values(latestSheets).forEach(sheet => {
+      restoredRates[sheet.productId] = sheet.conversionRate;
+      restoredFreight[sheet.productId] = sheet.freight || 0;
+      restoredModes[sheet.productId] = sheet.isInPcs || false;
+      if (sheet.customWeight !== undefined && sheet.customWeight !== null) {
+        restoredWeights[sheet.productId] = sheet.customWeight;
+      }
+      restoredCalculations[sheet.productId] = {
+        totalPerKg: sheet.totalPerKg,
+        pricePerPiece: sheet.pricePerPiece,
+        productWeight: sheet.productWeight,
+        freight: sheet.freight || 0,
+        totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
+        totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
+        isInPcs: sheet.isInPcs || false,
+        weightDisplay: rawMaterials.find(p => p._id === sheet.productId)?.weight || ""
+      };
+    });
+    
+    setConversionRates(restoredRates);
+    setFreightOutward(restoredFreight);
+    setInPcsMode(restoredModes);
+    setCustomWeights(restoredWeights);
+    setCalculatedPrices(restoredCalculations);
+  }
+}, [savedCostingSheets, rawMaterials]);
+
   // Fetch saved costing sheets when component mounts
   useEffect(() => {
     if (customerId) {
