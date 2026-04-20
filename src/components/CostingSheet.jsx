@@ -22,12 +22,8 @@ const [remarks, setRemarks] = useState({});              // 🆕 Store remarks p
   const [calculatedPrices, setCalculatedPrices] = useState({});
   const [savedCostingSheets, setSavedCostingSheets] = useState([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
-const [editingWeightId, setEditingWeightId] = useState(null); // 🆕 Track which product is being edited
+  const [editingWeightId, setEditingWeightId] = useState(null); // 🆕 Track which product is being edited
   
-// Timeout refs for debouncing
-const conversionRateTimeouts = useRef({});
-const freightTimeouts = useRef({});
-const weightTimeouts = useRef({});  
   // Use refs to track current values
   const rmRateRef = useRef(rmRate);
   const savedSheetsRef = useRef(savedCostingSheets);
@@ -487,40 +483,33 @@ const fetchRMRate = async () => {
   };
 
 const handleConversionRateChange = (productId, value) => {
-  // Clear previous timeout for this product
-  if (conversionRateTimeouts.current[productId]) {
-    clearTimeout(conversionRateTimeouts.current[productId]);
+  // Allow empty string for typing
+  if (value === '') {
+    setConversionRates(prev => ({ ...prev, [productId]: '' }));
+    return;
   }
   
-  // Update state immediately with the new value (don't wait for debounce)
-  setConversionRates(prev => ({ ...prev, [productId]: value === '' ? 0 : parseFloat(value) || 0 }));
-  
-  // Debounce the calculation to avoid rapid re-renders
-  conversionRateTimeouts.current[productId] = setTimeout(() => {
-    const rate = value === '' ? 0 : parseFloat(value);
-    if (!isNaN(rate)) {
-      calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
-      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-    }
-  }, 500);
+  const rate = parseFloat(value);
+  if (!isNaN(rate)) {
+    setConversionRates(prev => ({ ...prev, [productId]: rate }));
+    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  }
 };
 
 const handleFreightChange = (productId, value) => {
-  if (freightTimeouts.current[productId]) {
-    clearTimeout(freightTimeouts.current[productId]);
+  // Allow empty string for typing
+  if (value === '') {
+    setFreightOutward(prev => ({ ...prev, [productId]: '' }));
+    return;
   }
   
-  // Update state immediately with the new value
-  setFreightOutward(prev => ({ ...prev, [productId]: value === '' ? 0 : parseFloat(value) || 0 }));
-  
-  // Debounce the calculation
-  freightTimeouts.current[productId] = setTimeout(() => {
-    const freight = value === '' ? 0 : parseFloat(value);
-    if (!isNaN(freight)) {
-      calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
-      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-    }
-  }, 500);
+  const freight = parseFloat(value);
+  if (!isNaN(freight)) {
+    setFreightOutward(prev => ({ ...prev, [productId]: freight }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  }
 };
 
   const handleInPcsToggle = (productId, checked) => {
@@ -531,21 +520,18 @@ const handleFreightChange = (productId, value) => {
   
 // Handle custom weight change (weight is in kg)
 const handleWeightChange = (productId, value) => {
-  if (weightTimeouts.current[productId]) {
-    clearTimeout(weightTimeouts.current[productId]);
+  // Allow empty string for typing
+  if (value === '') {
+    setCustomWeights(prev => ({ ...prev, [productId]: '' }));
+    return;
   }
   
-  // Update state immediately with the new value
-  setCustomWeights(prev => ({ ...prev, [productId]: value === '' ? 0 : parseFloat(value) || 0 }));
-  
-  // Debounce the calculation
-  weightTimeouts.current[productId] = setTimeout(() => {
-    const weight = value === '' ? 0 : parseFloat(value);
-    if (!isNaN(weight) && weight >= 0) {
-      calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
-      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-    }
-  }, 500);
+  const weight = parseFloat(value);
+  if (!isNaN(weight) && weight >= 0) {
+    setCustomWeights(prev => ({ ...prev, [productId]: weight }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  }
 };
 
 // Handle internal notes change
@@ -1177,45 +1163,44 @@ const generatePDF = async (product, calculation, remarks) => {
                            {isEditing ? (
   <>
     <input
-      type="text"
-      value={effectiveWeightInGrams}  // Show in grams
-      onChange={(e) => {
-        const value = e.target.value;
-        // Allow numbers, decimal point, and delete/backspace
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-          // Convert grams to kg for storage
-          const grams = parseFloat(value);
-          if (!isNaN(grams)) {
-            const kgValue = grams / 1000;
-            handleWeightChange(product._id, kgValue);
-          } else if (value === '') {
-            handleWeightChange(product._id, '');
-          }
-        }
-      }}
-      className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-      autoFocus
-      onBlur={() => {
-        // Convert to number and validate on blur
-        const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-        if (currentWeight <= 0) {
-          handleWeightChange(product._id, 0);
-        }
-        setEditingWeightId(null);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-          if (currentWeight <= 0) {
-            handleWeightChange(product._id, 0);
-          }
-          setEditingWeightId(null);
-        }
-        if (e.key === 'Escape') {
-          setEditingWeightId(null);
-        }
-      }}
-    />
+  type="text"
+  value={effectiveWeightInGrams}
+  onChange={(e) => {
+    const value = e.target.value;
+    // Allow numbers, decimal point, and delete/backspace
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      // Convert grams to kg for storage
+      const grams = parseFloat(value);
+      if (!isNaN(grams)) {
+        const kgValue = grams / 1000;
+        handleWeightChange(product._id, kgValue);
+      } else if (value === '') {
+        handleWeightChange(product._id, '');
+      }
+    }
+  }}
+  className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  autoFocus
+  onBlur={() => {
+    const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+    if (currentWeight <= 0) {
+      handleWeightChange(product._id, 0);
+    }
+    setEditingWeightId(null);
+  }}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+      if (currentWeight <= 0) {
+        handleWeightChange(product._id, 0);
+      }
+      setEditingWeightId(null);
+    }
+    if (e.key === 'Escape') {
+      setEditingWeightId(null);
+    }
+  }}
+/>
     <span className="text-xs text-gray-500">g</span>
     <button
       onClick={() => setEditingWeightId(null)}
@@ -1264,7 +1249,7 @@ const generatePDF = async (product, calculation, remarks) => {
                         <span className="text-sm text-gray-600">Freight Outward:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                        <input
+                         <input
   type="number"
   step="0.01"
   min="0"
