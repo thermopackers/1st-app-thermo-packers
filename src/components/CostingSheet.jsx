@@ -1163,15 +1163,30 @@ const generatePDF = async (product, calculation, remarks) => {
                         <span className="text-sm text-gray-600">Conversion/kg:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : savedConversionRate}
-                            onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
-                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="0.00"
-                          />
+                         <input
+  type="text"
+  inputMode="decimal"
+  value={conversionRates[product._id] !== undefined && conversionRates[product._id] !== 0 ? conversionRates[product._id] : (savedConversionRate || '')}
+  onChange={(e) => {
+    const val = e.target.value;
+    // Allow empty, numbers, and decimal point
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      setConversionRates(prev => ({ ...prev, [product._id]: val === '' ? 0 : parseFloat(val) || 0 }));
+      // Clear previous timeout
+      if (conversionRateTimeouts.current[product._id]) {
+        clearTimeout(conversionRateTimeouts.current[product._id]);
+      }
+      // Debounce calculation
+      conversionRateTimeouts.current[product._id] = setTimeout(() => {
+        const rate = val === '' ? 0 : parseFloat(val) || 0;
+        calculateProductPrice(product._id, rate, rmRate, inPcsMode[product._id], freightOutward[product._id], customWeights[product._id]);
+        setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== product._id));
+      }, 300);
+    }
+  }}
+  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  placeholder="0.00"
+/>
                         </div>
                       </div>
 
@@ -1188,46 +1203,52 @@ const generatePDF = async (product, calculation, remarks) => {
                             <div className="flex items-center gap-1">
                            {isEditing ? (
   <>
-    <input
-      type="text"
-      value={effectiveWeightInGrams}  // Show in grams
-      onChange={(e) => {
-        const value = e.target.value;
-        // Allow numbers, decimal point, and delete/backspace
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-          // Convert grams to kg for storage
-          const grams = parseFloat(value);
-          if (!isNaN(grams)) {
-            const kgValue = grams / 1000;
-            handleWeightChange(product._id, kgValue);
-          } else if (value === '') {
-            handleWeightChange(product._id, '');
+ <input
+  type="text"
+  inputMode="decimal"
+  value={customWeights[product._id] !== undefined && customWeights[product._id] !== 0 ? (customWeights[product._id] * 1000).toFixed(0) : effectiveWeightInGrams}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      if (val === '') {
+        setCustomWeights(prev => ({ ...prev, [product._id]: 0 }));
+        if (weightTimeouts.current[product._id]) {
+          clearTimeout(weightTimeouts.current[product._id]);
+        }
+        weightTimeouts.current[product._id] = setTimeout(() => {
+          calculateProductPrice(product._id, conversionRates[product._id], rmRate, inPcsMode[product._id], freightOutward[product._id], 0);
+          setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== product._id));
+        }, 300);
+      } else {
+        const grams = parseFloat(val);
+        if (!isNaN(grams)) {
+          const kgValue = grams / 1000;
+          setCustomWeights(prev => ({ ...prev, [product._id]: kgValue }));
+          if (weightTimeouts.current[product._id]) {
+            clearTimeout(weightTimeouts.current[product._id]);
           }
+          weightTimeouts.current[product._id] = setTimeout(() => {
+            calculateProductPrice(product._id, conversionRates[product._id], rmRate, inPcsMode[product._id], freightOutward[product._id], kgValue);
+            setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== product._id));
+          }, 300);
         }
-      }}
-      className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-      autoFocus
-      onBlur={() => {
-        // Convert to number and validate on blur
-        const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-        if (currentWeight <= 0) {
-          handleWeightChange(product._id, 0);
-        }
-        setEditingWeightId(null);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-          if (currentWeight <= 0) {
-            handleWeightChange(product._id, 0);
-          }
-          setEditingWeightId(null);
-        }
-        if (e.key === 'Escape') {
-          setEditingWeightId(null);
-        }
-      }}
-    />
+      }
+    }
+  }}
+  className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  autoFocus
+  onBlur={() => {
+    setEditingWeightId(null);
+  }}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      setEditingWeightId(null);
+    }
+    if (e.key === 'Escape') {
+      setEditingWeightId(null);
+    }
+  }}
+/>
     <span className="text-xs text-gray-500">g</span>
     <button
       onClick={() => setEditingWeightId(null)}
@@ -1276,15 +1297,27 @@ const generatePDF = async (product, calculation, remarks) => {
                         <span className="text-sm text-gray-600">Freight Outward:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : savedFreight}
-                            onChange={(e) => handleFreightChange(product._id, e.target.value)}
-                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="0.00"
-                          />
+                         <input
+  type="text"
+  inputMode="decimal"
+  value={freightOutward[product._id] !== undefined && freightOutward[product._id] !== 0 ? freightOutward[product._id] : (savedFreight || '')}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      setFreightOutward(prev => ({ ...prev, [product._id]: val === '' ? 0 : parseFloat(val) || 0 }));
+      if (freightTimeouts.current[product._id]) {
+        clearTimeout(freightTimeouts.current[product._id]);
+      }
+      freightTimeouts.current[product._id] = setTimeout(() => {
+        const freightVal = val === '' ? 0 : parseFloat(val) || 0;
+        calculateProductPrice(product._id, conversionRates[product._id], rmRate, inPcsMode[product._id], freightVal, customWeights[product._id]);
+        setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== product._id));
+      }, 300);
+    }
+  }}
+  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+  placeholder="0.00"
+/>
                         </div>
                         <span className="text-xs text-gray-500">{isInPcs ? '/pc' : '/kg'}</span>
                       </div>
