@@ -11,6 +11,7 @@ pdfMake.vfs = pdfFonts.vfs;
 export default function CostingSheet({ customerId, frequentProducts = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [rawMaterials, setRawMaterials] = useState([]);
+  const [isUserEditing, setIsUserEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rmRate, setRmRate] = useState(0);
   const [internalNotes, setInternalNotes] = useState({});  // 🆕 Store internal notes per product
@@ -57,10 +58,11 @@ useEffect(() => {
     savedSheetsRef.current = savedCostingSheets;
   }, [savedCostingSheets]);
 
-  // Add this useEffect after fetchSavedCostingSheets is defined
+// Add this useEffect after fetchSavedCostingSheets is defined
 useEffect(() => {
   // When saved sheets are loaded, restore the calculations
-  if (savedCostingSheets.length > 0 && rawMaterials.length > 0) {
+  // BUT only if user is NOT actively editing
+  if (!isUserEditing && savedCostingSheets.length > 0 && rawMaterials.length > 0) {
     console.log("Restoring calculations from saved sheets...");
     
     const restoredRates = {};
@@ -103,7 +105,7 @@ useEffect(() => {
     setCustomWeights(restoredWeights);
     setCalculatedPrices(restoredCalculations);
   }
-}, [savedCostingSheets, rawMaterials]);
+}, [savedCostingSheets, rawMaterials, isUserEditing]);
 
   // Fetch saved costing sheets when component mounts
   useEffect(() => {
@@ -279,6 +281,8 @@ const initialRemarks = {};
       setCalculatedPrices(initialCalculations);
       setInternalNotes(initialInternalNotes);
 setRemarks(initialRemarks);
+setIsUserEditing(false);
+
       // If there are no saved calculations, recalculate for products with rates
       if (Object.keys(initialCalculations).length === 0) {
         products.forEach(product => {
@@ -483,6 +487,8 @@ const fetchRMRate = async () => {
   };
 
 const handleConversionRateChange = (productId, value) => {
+  setIsUserEditing(true);
+  
   // Allow empty string for typing
   if (value === '') {
     setConversionRates(prev => ({ ...prev, [productId]: '' }));
@@ -495,9 +501,14 @@ const handleConversionRateChange = (productId, value) => {
     calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   }
+  
+  // Reset editing flag after a short delay
+  setTimeout(() => setIsUserEditing(false), 500);
 };
 
 const handleFreightChange = (productId, value) => {
+  setIsUserEditing(true);
+  
   // Allow empty string for typing
   if (value === '') {
     setFreightOutward(prev => ({ ...prev, [productId]: '' }));
@@ -510,16 +521,22 @@ const handleFreightChange = (productId, value) => {
     calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   }
+  
+  setTimeout(() => setIsUserEditing(false), 500);
 };
 
-  const handleInPcsToggle = (productId, checked) => {
-    setInPcsMode(prev => ({ ...prev, [productId]: checked }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId], customWeights[productId]);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+const handleInPcsToggle = (productId, checked) => {
+  setIsUserEditing(true);
+  setInPcsMode(prev => ({ ...prev, [productId]: checked }));
+  calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId], customWeights[productId]);
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  setTimeout(() => setIsUserEditing(false), 500);
+};
   
 // Handle custom weight change (weight is in kg)
 const handleWeightChange = (productId, value) => {
+  setIsUserEditing(true);
+  
   // Allow empty string for typing
   if (value === '') {
     setCustomWeights(prev => ({ ...prev, [productId]: '' }));
@@ -532,6 +549,8 @@ const handleWeightChange = (productId, value) => {
     calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   }
+  
+  setTimeout(() => setIsUserEditing(false), 500);
 };
 
 // Handle internal notes change
