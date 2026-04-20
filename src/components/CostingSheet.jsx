@@ -22,8 +22,12 @@ const [remarks, setRemarks] = useState({});              // 🆕 Store remarks p
   const [calculatedPrices, setCalculatedPrices] = useState({});
   const [savedCostingSheets, setSavedCostingSheets] = useState([]);
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [editingWeightId, setEditingWeightId] = useState(null); // 🆕 Track which product is being edited
+const [editingWeightId, setEditingWeightId] = useState(null); // 🆕 Track which product is being edited
   
+// Timeout refs for debouncing
+const conversionRateTimeouts = useRef({});
+const freightTimeouts = useRef({});
+const weightTimeouts = useRef({});  
   // Use refs to track current values
   const rmRateRef = useRef(rmRate);
   const savedSheetsRef = useRef(savedCostingSheets);
@@ -482,19 +486,50 @@ const fetchRMRate = async () => {
     }
   };
 
-  const handleConversionRateChange = (productId, value) => {
-    const rate = parseFloat(value) || 0;
+const handleConversionRateChange = (productId, value) => {
+  // Clear previous timeout for this product
+  if (conversionRateTimeouts.current[productId]) {
+    clearTimeout(conversionRateTimeouts.current[productId]);
+  }
+  
+  // Allow empty string
+  if (value === '') {
+    setConversionRates(prev => ({ ...prev, [productId]: 0 }));
+    return;
+  }
+  
+  const rate = parseFloat(value);
+  if (!isNaN(rate)) {
     setConversionRates(prev => ({ ...prev, [productId]: rate }));
-    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+    
+    // Debounce the calculation to avoid rapid re-renders
+    conversionRateTimeouts.current[productId] = setTimeout(() => {
+      calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
+      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+    }, 300);
+  }
+};
 
-  const handleFreightChange = (productId, value) => {
-    const freight = parseFloat(value) || 0;
+const handleFreightChange = (productId, value) => {
+  if (freightTimeouts.current[productId]) {
+    clearTimeout(freightTimeouts.current[productId]);
+  }
+  
+  if (value === '') {
+    setFreightOutward(prev => ({ ...prev, [productId]: 0 }));
+    return;
+  }
+  
+  const freight = parseFloat(value);
+  if (!isNaN(freight)) {
     setFreightOutward(prev => ({ ...prev, [productId]: freight }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+    
+    freightTimeouts.current[productId] = setTimeout(() => {
+      calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
+      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+    }, 300);
+  }
+};
 
   const handleInPcsToggle = (productId, checked) => {
     setInPcsMode(prev => ({ ...prev, [productId]: checked }));
@@ -504,6 +539,10 @@ const fetchRMRate = async () => {
   
 // Handle custom weight change (weight is in kg)
 const handleWeightChange = (productId, value) => {
+  if (weightTimeouts.current[productId]) {
+    clearTimeout(weightTimeouts.current[productId]);
+  }
+  
   // If value is empty string, treat as 0 for now
   if (value === '') {
     setCustomWeights(prev => ({ ...prev, [productId]: 0 }));
@@ -513,8 +552,11 @@ const handleWeightChange = (productId, value) => {
   const weight = parseFloat(value);
   if (!isNaN(weight) && weight >= 0) {
     setCustomWeights(prev => ({ ...prev, [productId]: weight }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+    
+    weightTimeouts.current[productId] = setTimeout(() => {
+      calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
+      setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+    }, 300);
   }
 };
 
