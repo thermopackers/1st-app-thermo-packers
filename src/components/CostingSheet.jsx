@@ -11,7 +11,6 @@ pdfMake.vfs = pdfFonts.vfs;
 export default function CostingSheet({ customerId, frequentProducts = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [rawMaterials, setRawMaterials] = useState([]);
-  const [isUserEditing, setIsUserEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rmRate, setRmRate] = useState(0);
   const [internalNotes, setInternalNotes] = useState({});  // 🆕 Store internal notes per product
@@ -58,12 +57,13 @@ useEffect(() => {
     savedSheetsRef.current = savedCostingSheets;
   }, [savedCostingSheets]);
 
-// Add this useEffect after fetchSavedCostingSheets is defined
+// Track if initial load has been done
+const initialLoadDone = useRef(false);
+
 useEffect(() => {
-  // When saved sheets are loaded, restore the calculations
-  // BUT only if user is NOT actively editing
-  if (!isUserEditing && savedCostingSheets.length > 0 && rawMaterials.length > 0) {
-    console.log("Restoring calculations from saved sheets...");
+  // Only restore calculations on initial load, not on every update
+  if (!initialLoadDone.current && savedCostingSheets.length > 0 && rawMaterials.length > 0) {
+    console.log("Initial restore of calculations from saved sheets...");
     
     const restoredRates = {};
     const restoredFreight = {};
@@ -104,8 +104,10 @@ useEffect(() => {
     setInPcsMode(restoredModes);
     setCustomWeights(restoredWeights);
     setCalculatedPrices(restoredCalculations);
+    
+    initialLoadDone.current = true;
   }
-}, [savedCostingSheets, rawMaterials, isUserEditing]);
+}, [savedCostingSheets, rawMaterials]);
 
   // Fetch saved costing sheets when component mounts
   useEffect(() => {
@@ -274,15 +276,13 @@ const initialRemarks = {};
         }
       });
       
-      setConversionRates(initialRates);
-      setFreightOutward(initialFreight);
-      setInPcsMode(initialInPcs);
-      setCustomWeights(initialWeights);
-      setCalculatedPrices(initialCalculations);
+   setConversionRates(prev => Object.keys(prev).length ? prev : initialRates);
+setFreightOutward(prev => Object.keys(prev).length ? prev : initialFreight);
+setInPcsMode(prev => Object.keys(prev).length ? prev : initialInPcs);
+setCustomWeights(prev => Object.keys(prev).length ? prev : initialWeights);
+setCalculatedPrices(prev => Object.keys(prev).length ? prev : initialCalculations);
       setInternalNotes(initialInternalNotes);
 setRemarks(initialRemarks);
-setIsUserEditing(false);
-
       // If there are no saved calculations, recalculate for products with rates
       if (Object.keys(initialCalculations).length === 0) {
         products.forEach(product => {
@@ -315,63 +315,8 @@ const fetchSavedCostingSheets = async () => {
     const sheets = res.data || [];
     setSavedCostingSheets(sheets);
     
-    if (sheets.length > 0) {
-      const savedRates = {};
-      const savedFreight = {};
-      const savedModes = {};
-      const savedWeights = {};
-      const savedCalculations = {};
-      const savedInternalNotes = {};
-const savedRemarks = {};
-      
-      const latestSheets = {};
-      sheets.forEach(sheet => {
-        if (!latestSheets[sheet.productId] || 
-            new Date(sheet.updatedAt || sheet.date) > new Date(latestSheets[sheet.productId].updatedAt || latestSheets[sheet.productId].date)) {
-          latestSheets[sheet.productId] = sheet;
-        }
-      });
-      
-      Object.values(latestSheets).forEach(sheet => {
-        savedRates[sheet.productId] = sheet.conversionRate;
-        savedFreight[sheet.productId] = sheet.freight || 0;
-        savedModes[sheet.productId] = sheet.isInPcs || false;
-        savedInternalNotes[sheet.productId] = sheet.internalNotes || "";
-savedRemarks[sheet.productId] = sheet.remarks || "";
-
-        // ✅ IMPORTANT: Set the custom weight from saved sheet
-        if (sheet.customWeight !== undefined && sheet.customWeight !== null) {
-          savedWeights[sheet.productId] = sheet.customWeight;
-        }
-        
-        savedCalculations[sheet.productId] = {
-          totalPerKg: sheet.totalPerKg,
-          pricePerPiece: sheet.pricePerPiece,
-          productWeight: sheet.productWeight,
-          rmRate: sheet.rmRate,
-          freight: sheet.freight || 0,
-          totalWithFreight: sheet.totalWithFreight || sheet.pricePerPiece,
-          totalWithGST: sheet.totalWithGST || (sheet.pricePerPiece * 1.18),
-          isInPcs: sheet.isInPcs || false
-        };
-      });
-      
-      setConversionRates(savedRates);
-      setFreightOutward(savedFreight);
-      setInPcsMode(savedModes);
-      setCustomWeights(savedWeights); // ✅ This will update the weights display
-      setCalculatedPrices(savedCalculations);
-      setInternalNotes(savedInternalNotes);
-setRemarks(savedRemarks);
-      // ✅ Also need to update rawMaterials to reflect the custom weights
-      setRawMaterials(prev => prev.map(product => {
-        if (savedWeights[product._id] !== undefined) {
-          // Don't modify the actual product, just use for display
-          return product;
-        }
-        return product;
-      }));
-    }
+    // Only auto-fill if this is the first load AND we don't have existing user inputs
+    // The useEffect above will handle initial restore
   } catch (err) {
     console.error("Error fetching saved costing sheets:", err);
   }
@@ -486,60 +431,31 @@ const fetchRMRate = async () => {
     }
   };
 
-const handleConversionRateChange = (productId, value) => {
-  setIsUserEditing(true);
-  
-  // Allow empty string for typing
-  if (value === '') {
-    setConversionRates(prev => ({ ...prev, [productId]: '' }));
-    return;
-  }
-  
-  const rate = parseFloat(value);
-  if (!isNaN(rate)) {
+  const handleConversionRateChange = (productId, value) => {
+    const rate = parseFloat(value) || 0;
     setConversionRates(prev => ({ ...prev, [productId]: rate }));
     calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  }
-  
-  // Reset editing flag after a short delay
-  setTimeout(() => setIsUserEditing(false), 500);
-};
+  };
 
-const handleFreightChange = (productId, value) => {
-  setIsUserEditing(true);
-  
-  // Allow empty string for typing
-  if (value === '') {
-    setFreightOutward(prev => ({ ...prev, [productId]: '' }));
-    return;
-  }
-  
-  const freight = parseFloat(value);
-  if (!isNaN(freight)) {
+  const handleFreightChange = (productId, value) => {
+    const freight = parseFloat(value) || 0;
     setFreightOutward(prev => ({ ...prev, [productId]: freight }));
     calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  }
-  
-  setTimeout(() => setIsUserEditing(false), 500);
-};
+  };
 
-const handleInPcsToggle = (productId, checked) => {
-  setIsUserEditing(true);
-  setInPcsMode(prev => ({ ...prev, [productId]: checked }));
-  calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId], customWeights[productId]);
-  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  setTimeout(() => setIsUserEditing(false), 500);
-};
+  const handleInPcsToggle = (productId, checked) => {
+    setInPcsMode(prev => ({ ...prev, [productId]: checked }));
+    calculateProductPrice(productId, conversionRates[productId], rmRate, checked, freightOutward[productId], customWeights[productId]);
+    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+  };
   
 // Handle custom weight change (weight is in kg)
 const handleWeightChange = (productId, value) => {
-  setIsUserEditing(true);
-  
-  // Allow empty string for typing
+  // If value is empty string, treat as 0 for now
   if (value === '') {
-    setCustomWeights(prev => ({ ...prev, [productId]: '' }));
+    setCustomWeights(prev => ({ ...prev, [productId]: 0 }));
     return;
   }
   
@@ -549,8 +465,6 @@ const handleWeightChange = (productId, value) => {
     calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   }
-  
-  setTimeout(() => setIsUserEditing(false), 500);
 };
 
 // Handle internal notes change
@@ -1156,15 +1070,15 @@ const generatePDF = async (product, calculation, remarks) => {
                         <span className="text-sm text-gray-600">Conversion/kg:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                         <input
-  type="number"
-  step="0.01"
-  min="0"
-  value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : savedConversionRate}
-  onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
-  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-  placeholder="0.00"
-/>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={conversionRates[product._id] !== undefined ? conversionRates[product._id] : savedConversionRate}
+                            onChange={(e) => handleConversionRateChange(product._id, e.target.value)}
+                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
                         </div>
                       </div>
 
@@ -1182,44 +1096,45 @@ const generatePDF = async (product, calculation, remarks) => {
                            {isEditing ? (
   <>
     <input
-  type="text"
-  value={effectiveWeightInGrams}
-  onChange={(e) => {
-    const value = e.target.value;
-    // Allow numbers, decimal point, and delete/backspace
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      // Convert grams to kg for storage
-      const grams = parseFloat(value);
-      if (!isNaN(grams)) {
-        const kgValue = grams / 1000;
-        handleWeightChange(product._id, kgValue);
-      } else if (value === '') {
-        handleWeightChange(product._id, '');
-      }
-    }
-  }}
-  className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-  autoFocus
-  onBlur={() => {
-    const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-    if (currentWeight <= 0) {
-      handleWeightChange(product._id, 0);
-    }
-    setEditingWeightId(null);
-  }}
-  onKeyDown={(e) => {
-    if (e.key === 'Enter') {
-      const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-      if (currentWeight <= 0) {
-        handleWeightChange(product._id, 0);
-      }
-      setEditingWeightId(null);
-    }
-    if (e.key === 'Escape') {
-      setEditingWeightId(null);
-    }
-  }}
-/>
+      type="text"
+      value={effectiveWeightInGrams}  // Show in grams
+      onChange={(e) => {
+        const value = e.target.value;
+        // Allow numbers, decimal point, and delete/backspace
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+          // Convert grams to kg for storage
+          const grams = parseFloat(value);
+          if (!isNaN(grams)) {
+            const kgValue = grams / 1000;
+            handleWeightChange(product._id, kgValue);
+          } else if (value === '') {
+            handleWeightChange(product._id, '');
+          }
+        }
+      }}
+      className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+      autoFocus
+      onBlur={() => {
+        // Convert to number and validate on blur
+        const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+        if (currentWeight <= 0) {
+          handleWeightChange(product._id, 0);
+        }
+        setEditingWeightId(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+          if (currentWeight <= 0) {
+            handleWeightChange(product._id, 0);
+          }
+          setEditingWeightId(null);
+        }
+        if (e.key === 'Escape') {
+          setEditingWeightId(null);
+        }
+      }}
+    />
     <span className="text-xs text-gray-500">g</span>
     <button
       onClick={() => setEditingWeightId(null)}
@@ -1268,15 +1183,15 @@ const generatePDF = async (product, calculation, remarks) => {
                         <span className="text-sm text-gray-600">Freight Outward:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400">₹</span>
-                         <input
-  type="number"
-  step="0.01"
-  min="0"
-  value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : savedFreight}
-  onChange={(e) => handleFreightChange(product._id, e.target.value)}
-  className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-  placeholder="0.00"
-/>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={freightOutward[product._id] !== undefined ? freightOutward[product._id] : savedFreight}
+                            onChange={(e) => handleFreightChange(product._id, e.target.value)}
+                            className="w-full pl-6 pr-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
                         </div>
                         <span className="text-xs text-gray-500">{isInPcs ? '/pc' : '/kg'}</span>
                       </div>
