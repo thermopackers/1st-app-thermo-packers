@@ -709,44 +709,45 @@ const handleEditProductionSlip = (e, slip) => {
     </button>
   )}
 </div>
-<div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto p-6">
-
-       
-        {frequentProducts.length > 0 && (
-  <div className="mt-6">
-    <h3 className="text-lg font-semibold mb-2">Frequently Bought Products</h3>
-    <div className="border rounded">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-100 text-left">
-          <tr>
-            <th className="px-3 py-2">Last Ordered</th>
-            <th className="px-3 py-2">Product</th>
-            <th className="px-3 py-2">Price</th>
-            <th className="px-3 py-2">Remarks</th>
-            <th className="px-3 py-2">Times Ordered</th>
-          </tr>
-        </thead>
-        <tbody>
-          {frequentProducts.map((item, idx) => (
-            <tr key={idx} className="border-t">
-<td className="px-3 py-2">
-  {item.orderDate ? new Date(item.orderDate).toLocaleDateString() : "-"}
-</td>
-              <td className="px-3 py-2">{item.product}</td>
-<td className="px-3 py-2 text-green-700 font-semibold">
-  ₹{item.price}
-  <span className="ml-1 text-xs text-gray-500">(last)</span>
-</td>
-              <td className="px-3 py-2">{item.remarks || "-"}</td>
-              <td className="px-3 py-2">{item.timesOrdered}</td>
+<div className="max-w-7xl mx-auto p-6">
+  {/* Frequently Bought Products Section - Full Width */}
+  {frequentProducts.length > 0 && (
+    <div className="mb-8 w-full overflow-x-auto">
+      <h3 className="text-lg font-semibold mb-2">Frequently Bought Products</h3>
+      <div className="border rounded overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-100 text-left">
+            <tr>
+              <th className="px-3 py-2 whitespace-nowrap">Last Ordered</th>
+              <th className="px-3 py-2 whitespace-nowrap">Product</th>
+              <th className="px-3 py-2 whitespace-nowrap">Price</th>
+              <th className="px-3 py-2 whitespace-nowrap">Remarks</th>
+              <th className="px-3 py-2 whitespace-nowrap">Times Ordered</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {frequentProducts.map((item, idx) => (
+              <tr key={idx} className="border-t">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {item.orderDate ? new Date(item.orderDate).toLocaleDateString() : "-"}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">{item.product}</td>
+                <td className="px-3 py-2 text-green-700 font-semibold whitespace-nowrap">
+                  ₹{item.price}
+                  <span className="ml-1 text-xs text-gray-500">(last)</span>
+                </td>
+                <td className="px-3 py-2">{item.remarks || "-"}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{item.timesOrdered}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
-)}
- <form onSubmit={handleSubmit} className="space-y-4">
+  )}
+
+  {/* Form Section */}
+  <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block mb-1 font-semibold">Name</label>
             <input
