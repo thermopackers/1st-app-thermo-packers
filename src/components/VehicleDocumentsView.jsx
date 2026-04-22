@@ -137,7 +137,7 @@ const openInSwal = (url, isImage) => {
                 <p className="text-sm mt-2">
                   <span className="font-semibold">Document #:</span> {doc.documentNumber}
                 </p>
-{!["vehicle_images", "vin_chassis_photo"].includes(doc.documentType) ? (
+{!["vehicle_images", "vin_chassis_photo", "payment_receipts"].includes(doc.documentType) ? (
   <>
   <p className="text-sm">
   <span className="font-semibold">Issue Date:</span>{" "}

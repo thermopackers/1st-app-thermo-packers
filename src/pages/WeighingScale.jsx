@@ -136,9 +136,10 @@ export default function WeighingScale() {
                     </div>
                   )}
                   
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition mt-2">
-                    Manage Scale
-                  </button>
+                 <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition mt-2">
+  Manage Scale
+  <span className="block text-xs text-blue-200 mt-1">📅 To Be Done Once in a Month</span>
+</button>
                 </div>
               </motion.div>
             );

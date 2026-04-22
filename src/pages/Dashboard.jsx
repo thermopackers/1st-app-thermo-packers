@@ -73,6 +73,11 @@ const [searchLoading, setSearchLoading] = useState(false);
 const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
 const [expiringCertificates, setExpiringCertificates] = useState([]);
+// Add these new state variables
+const [expiringAirReceiverCertificates, setExpiringAirReceiverCertificates] = useState([]);
+const [expiringManualChainPullyCertificates, setExpiringManualChainPullyCertificates] = useState([]);
+const [expiringAirPollutionCertificates, setExpiringAirPollutionCertificates] = useState([]);
+const [expiringWaterPollutionCertificates, setExpiringWaterPollutionCertificates] = useState([]);
 // Add this state with your other useState declarations (around line 20-30)
 const [hasShownBirthday, setHasShownBirthday] = useState(() => {
   // Check localStorage for today's date
@@ -155,21 +160,109 @@ useEffect(() => {
   fetchVehicle();
 }, [user,userRoles]);
 
+// Fetch expiring Air Receiver Certificates
 useEffect(() => {
   if (!user) return;
   
-  const fetchExpiringFactoryCertificates = async () => {
+  const fetchExpiringAirReceiverCertificates = async () => {
     try {
-      const res = await axiosInstance.get("/factory-act-certificate/expiring");
+      const res = await axiosInstance.get("/air-receiver-certificate/expiring");
       if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringFactoryCertificates(res.data.certificates);
+        setExpiringAirReceiverCertificates(res.data.certificates);
       }
     } catch (err) {
-      console.error("Error fetching expiring factory certificates:", err);
+      console.error("Error fetching expiring air receiver certificates:", err);
     }
   };
   
-  fetchExpiringFactoryCertificates();
+  fetchExpiringAirReceiverCertificates();
+}, [user]);
+
+// Fetch expiring Manual Chain Pully Certificates
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchExpiringManualChainPullyCertificates = async () => {
+    try {
+      const res = await axiosInstance.get("/manual-chain-pully-certificate/expiring");
+      if (res.data.success && res.data.certificates.length > 0) {
+        setExpiringManualChainPullyCertificates(res.data.certificates);
+      }
+    } catch (err) {
+      console.error("Error fetching expiring manual chain pully certificates:", err);
+    }
+  };
+  
+  fetchExpiringManualChainPullyCertificates();
+}, [user]);
+
+// Fetch expiring Air Pollution Certificates
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchExpiringAirPollutionCertificates = async () => {
+    try {
+      const res = await axiosInstance.get("/air-pollution-certificate/expiring");
+      if (res.data.success && res.data.certificates.length > 0) {
+        setExpiringAirPollutionCertificates(res.data.certificates);
+      }
+    } catch (err) {
+      console.error("Error fetching expiring air pollution certificates:", err);
+    }
+  };
+  
+  fetchExpiringAirPollutionCertificates();
+}, [user]);
+
+// Fetch expiring Water Pollution Certificates
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchExpiringWaterPollutionCertificates = async () => {
+    try {
+      const res = await axiosInstance.get("/water-pollution-certificate/expiring");
+      if (res.data.success && res.data.certificates.length > 0) {
+        setExpiringWaterPollutionCertificates(res.data.certificates);
+      }
+    } catch (err) {
+      console.error("Error fetching expiring water pollution certificates:", err);
+    }
+  };
+  
+  fetchExpiringWaterPollutionCertificates();
+}, [user]);
+
+// Fetch all expiring certificates (combined)
+useEffect(() => {
+  if (!user) return;
+  
+  const fetchAllExpiringCertificates = async () => {
+    try {
+      const endpoints = [
+        { key: 'boiler', url: '/boiler-certificate/expiring', setter: setExpiringCertificates },
+        { key: 'factory', url: '/factory-act-certificate/expiring', setter: setExpiringFactoryCertificates },
+        { key: 'airReceiver', url: '/air-receiver-certificate/expiring', setter: setExpiringAirReceiverCertificates },
+        { key: 'manualChain', url: '/manual-chain-pully-certificate/expiring', setter: setExpiringManualChainPullyCertificates },
+        { key: 'airPollution', url: '/air-pollution-certificate/expiring', setter: setExpiringAirPollutionCertificates },
+        { key: 'waterPollution', url: '/water-pollution-certificate/expiring', setter: setExpiringWaterPollutionCertificates }
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const res = await axiosInstance.get(endpoint.url);
+          if (res.data.success && res.data.certificates.length > 0) {
+            endpoint.setter(res.data.certificates);
+          }
+        } catch (err) {
+          console.error(`Error fetching ${endpoint.key} certificates:`, err);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching expiring certificates:", err);
+    }
+  };
+  
+  fetchAllExpiringCertificates();
 }, [user]);
 
 // Enhanced useEffect to fetch birthday users with localStorage tracking
@@ -231,23 +324,7 @@ useEffect(() => {
   fetchDocNotifCount();
 }, [user,userRoles]);
 
-// Add this useEffect to fetch expiring certificates
-useEffect(() => {
-  if (!user) return;
-  
-  const fetchExpiringCertificates = async () => {
-    try {
-      const res = await axiosInstance.get("/boiler-certificate/expiring");
-      if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringCertificates(res.data.certificates);
-      }
-    } catch (err) {
-      console.error("Error fetching expiring certificates:", err);
-    }
-  };
-  
-  fetchExpiringCertificates();
-}, [user]);
+
 
   useEffect(() => {
     if (!user) return;
@@ -1089,18 +1166,18 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
       <div className="flex justify-center items-center gap-4 md:mt-5 mt-1">
  {user?.allowAttendance && <AttendanceNotification />}
 </div>}
-{/* Google Calendar Button */}
+{/* Calendar Button - Top Right */}
   <motion.button
     onClick={() => setShowCalendar(true)}
     className="bg-white rounded-lg p-2 md:mt-4.5 mt-1 border border-gray-200"
     whileHover={{ scale: 1.05 }}
     whileTap={{ scale: 0.95 }}
-    title="Google Calendar"
+    title="View Task Calendar"
   >
     <Calendar className="w-5 h-5 text-blue-600" />
   </motion.button>
 
-{/* Google Calendar Modal */}
+{/* Calendar Modal */}
 <UserGoogleCalendar 
   isOpen={showCalendar} 
   onClose={() => setShowCalendar(false)}
@@ -1195,6 +1272,193 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
         <button
           onClick={() => setExpiringFactoryCertificates([])}
           className="flex-shrink-0 text-indigo-400 hover:text-indigo-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
+{/* Air Receiver Certificate Expiry Alert */}
+{expiringAirReceiverCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-cyan-50 border-l-4 border-cyan-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-cyan-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-cyan-700">
+            <strong>⚠️ Air Receiver Tank Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-cyan-600 mt-1">
+            {expiringAirReceiverCertificates.length} certificate{expiringAirReceiverCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringAirReceiverCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-cyan-600">
+                • Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/factory-act/air-receiver-certificate")}
+            className="mt-2 text-xs text-cyan-700 font-semibold hover:text-cyan-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringAirReceiverCertificates([])}
+          className="flex-shrink-0 text-cyan-400 hover:text-cyan-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
+
+{/* Manual Chain Pully Certificate Expiry Alert */}
+{expiringManualChainPullyCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-purple-700">
+            <strong>⚠️ Manual Chain Pully Block Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-purple-600 mt-1">
+            {expiringManualChainPullyCertificates.length} certificate{expiringManualChainPullyCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringManualChainPullyCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-purple-600">
+                • Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/factory-act/manual-chain-pully-certificate")}
+            className="mt-2 text-xs text-purple-700 font-semibold hover:text-purple-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringManualChainPullyCertificates([])}
+          className="flex-shrink-0 text-purple-400 hover:text-purple-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
+
+{/* Air Pollution Certificate Expiry Alert */}
+{expiringAirPollutionCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-green-700">
+            <strong>🌬️ Air Pollution Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-green-600 mt-1">
+            {expiringAirPollutionCertificates.length} certificate{expiringAirPollutionCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringAirPollutionCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-green-600">
+                • Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/pollution/air-pollution-certificate")}
+            className="mt-2 text-xs text-green-700 font-semibold hover:text-green-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringAirPollutionCertificates([])}
+          className="flex-shrink-0 text-green-400 hover:text-green-500"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
+
+{/* Water Pollution Certificate Expiry Alert */}
+{expiringWaterPollutionCertificates.length > 0 && (
+  <motion.div
+    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded shadow">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm text-blue-700">
+            <strong>💧 Water Pollution Certificate Expiry Alert</strong>
+          </p>
+          <p className="text-xs text-blue-600 mt-1">
+            {expiringWaterPollutionCertificates.length} certificate{expiringWaterPollutionCertificates.length > 1 ? 's are' : ' is'} expiring soon:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {expiringWaterPollutionCertificates.map(cert => (
+              <li key={cert._id} className="text-xs text-blue-600">
+                • Expires on {new Date(cert.expiryDate).toLocaleDateString('en-GB')} 
+                ({cert.daysUntilExpiry} days remaining)
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate("/pollution/water-pollution-certificate")}
+            className="mt-2 text-xs text-blue-700 font-semibold hover:text-blue-800 underline"
+          >
+            Go to Certificate Management →
+          </button>
+        </div>
+        <button
+          onClick={() => setExpiringWaterPollutionCertificates([])}
+          className="flex-shrink-0 text-blue-400 hover:text-blue-500"
         >
           ✕
         </button>

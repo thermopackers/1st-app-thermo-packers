@@ -5,6 +5,143 @@ import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { compressImage, compressMultipleImages } from "../utils/imageCompression";
 
+// Camera Modal Component
+const CameraModal = ({ isOpen, onClose, onCapture }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [stream, setStream] = useState(null);
+  const [error, setError] = useState(null);
+  const [devices, setDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [isFrontCamera, setIsFrontCamera] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      startCamera();
+      getCameraDevices();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, selectedDeviceId]);
+
+  const getCameraDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      setDevices(videoDevices);
+      if (videoDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoDevices[0].deviceId);
+      }
+    } catch (err) {
+      console.error("Error getting camera devices:", err);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      stopCamera();
+      const constraints = {
+        video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
+      };
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setError("Unable to access camera. Please check permissions.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  };
+
+  const switchCamera = () => {
+    const currentIndex = devices.findIndex(d => d.deviceId === selectedDeviceId);
+    const nextIndex = (currentIndex + 1) % devices.length;
+    setSelectedDeviceId(devices[nextIndex]?.deviceId);
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (video && canvas) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob(blob => {
+        const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
+        onCapture(file);
+        onClose();
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+      <div className="relative w-full max-w-2xl bg-black rounded-lg overflow-hidden">
+        <div className="relative">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-auto max-h-[70vh] object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+        
+        {error && (
+          <div className="absolute top-4 left-4 right-4 bg-red-500 text-white p-2 rounded text-sm">
+            {error}
+          </div>
+        )}
+        
+        <div className="p-4 flex justify-center gap-4 bg-gray-900">
+          {devices.length > 1 && (
+            <button
+              onClick={switchCamera}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <span>🔄</span> Switch Camera
+            </button>
+          )}
+          <button
+            onClick={capturePhoto}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+          >
+            <span>📸</span> Capture Photo
+          </button>
+          <button
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          >
+            Close
+          </button>
+        </div>
+        
+        <p className="text-center text-gray-400 text-xs p-2 bg-gray-900">
+          Position the scale reading clearly in frame and click Capture
+        </p>
+      </div>
+    </div>
+  );
+};
+
+
 export default function WeighingScaleDetail() {
   const { scaleId } = useParams();
   const navigate = useNavigate();
@@ -15,6 +152,10 @@ export default function WeighingScaleDetail() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [showRecordForm, setShowRecordForm] = useState(false);
   const newRecordRef = useRef(null);
+// Camera modal states
+const [showCameraModal, setShowCameraModal] = useState(false);
+const [currentUploadType, setCurrentUploadType] = useState(null); // 'brand', 'before', 'after'
+const [pendingUploadField, setPendingUploadField] = useState(null);
 
 // Date formatting helper functions - FIXED
 const formatDateToDDMMYYYY = (date) => {
@@ -499,6 +640,99 @@ const resetRecordForm = () => {
     );
   }
 
+  // Handle captured brand image
+const handleCapturedBrandImage = async (file) => {
+  setUploadingBrand(true);
+  const compressedFile = await compressImage(file);
+  const formData = new FormData();
+  formData.append("files", compressedFile);
+
+  try {
+    const res = await axiosInstance.post("/weighing-scale/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (res.data.success && res.data.urls.length > 0) {
+      setScaleDetails(prev => ({
+        ...prev,
+        brandImage: { url: res.data.urls[0], publicId: "" }
+      }));
+      
+      Swal.fire({
+        title: "Success!",
+        text: "Brand image captured and uploaded successfully",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    Swal.fire("Error", "Failed to upload image", "error");
+  } finally {
+    setUploadingBrand(false);
+  }
+};
+
+// Handle captured calibration file
+const handleCapturedFile = async (file, type) => {
+  if (type === 'before') setUploadingBefore(true);
+  else setUploadingAfter(true);
+
+  const compressedFile = await compressImage(file);
+  const formData = new FormData();
+  formData.append("files", compressedFile);
+
+  try {
+    const res = await axiosInstance.post("/weighing-scale/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (res.data.success && res.data.urls.length > 0) {
+      const newFiles = [{ url: res.data.urls[0], publicId: "" }];
+      
+      if (type === 'before') {
+        setRecordForm(prev => ({
+          ...prev,
+          beforeCalibration: {
+            ...prev.beforeCalibration,
+            files: [...prev.beforeCalibration.files, ...newFiles]
+          }
+        }));
+      } else {
+        setRecordForm(prev => ({
+          ...prev,
+          afterCalibration: {
+            ...prev.afterCalibration,
+            files: [...prev.afterCalibration.files, ...newFiles]
+          }
+        }));
+      }
+      
+      Swal.fire({
+        title: "Success!",
+        text: "Photo captured and uploaded successfully",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    Swal.fire("Error", "Failed to upload photo", "error");
+  } finally {
+    if (type === 'before') setUploadingBefore(false);
+    else setUploadingAfter(false);
+  }
+};
+
+// Open camera for specific upload type
+const openCamera = (type, field = null) => {
+  setCurrentUploadType(type);
+  setPendingUploadField(field);
+  setShowCameraModal(true);
+};
+
   return (
     <div className="min-h-screen bg-slate-100">
       <InternalNavbar />
@@ -513,111 +747,14 @@ const resetRecordForm = () => {
               ← Back to Scales
             </button>
             <h1 className="text-2xl font-bold text-slate-900">{scaleId} - Calibration Management</h1>
+             <div className="flex items-center gap-2 mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">
+      <span className="text-blue-500 text-lg">📅</span>
+      <span className="text-blue-700 text-sm font-medium">Note: Calibration To Be Done Once in a Month</span>
+    </div>
           </div>
         </div>
 
-        {/* Scale Details Section */}
-        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Scale Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-1">Brand Name</label>
-              <input
-                type="text"
-                value={scaleDetails.brandName}
-                onChange={(e) => setScaleDetails({ ...scaleDetails, brandName: e.target.value })}
-                className="border rounded p-2 w-full"
-                placeholder="Enter brand name"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Calibration Value (kg/g)</label>
-              <input
-                type="text"
-                value={scaleDetails.calibrationValue}
-                onChange={(e) => setScaleDetails({ ...scaleDetails, calibrationValue: e.target.value })}
-                className="border rounded p-2 w-full"
-                placeholder="e.g., 100kg, 50g"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Location</label>
-              <input
-                type="text"
-                value={scaleDetails.location}
-                onChange={(e) => setScaleDetails({ ...scaleDetails, location: e.target.value })}
-                className="border rounded p-2 w-full"
-                placeholder="Enter scale location"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Brand Image</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleBrandImageUpload}
-                disabled={uploadingBrand}
-                className="border rounded p-2 w-full"
-              />
-              {uploadingBrand && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
-              {scaleDetails.brandImage?.url && (
-                <div className="mt-3">
-                  <div className="relative inline-block group">
-                    <button
-                      onClick={() => {
-                        const isImage = scaleDetails.brandImage.url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-                        if (isImage) {
-                          Swal.fire({
-                            title: "Brand Image",
-                            imageUrl: scaleDetails.brandImage.url,
-                            imageAlt: "Brand Image",
-                            imageWidth: "500",
-                            imageHeight: "auto",
-                            showCloseButton: true,
-                            showConfirmButton: false,
-                            width: "600px",
-                            customClass: {
-                              popup: "rounded-2xl"
-                            }
-                          });
-                        } else {
-                          window.open(scaleDetails.brandImage.url, "_blank");
-                        }
-                      }}
-                      className="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-500 transition-all hover:scale-105"
-                    >
-                      <img
-                        src={scaleDetails.brandImage.url}
-                        alt="Brand"
-                        className="w-20 h-20 object-cover"
-                        onError={(e) => {
-                          e.target.src = "https://via.placeholder.com/80?text=No+Image";
-                        }}
-                      />
-                    </button>
-                    <span className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full px-1.5 py-0.5 text-xs">
-                      ✓
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Click image to enlarge</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <button
-              onClick={saveScaleDetails}
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Scale Details"}
-            </button>
-          </div>
-        </div>
+       
 
         {/* Add/Edit Record Button */}
         <div className="mb-6">
@@ -667,7 +804,7 @@ const resetRecordForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Weight at Platform (with {scaleDetails.calibrationValue || "calibrated"} weight) *
+                    Weight at Platform Non-Caliberated Weight(with {scaleDetails.calibrationValue || "calibrated"} weight) *
                   </label>
                   <input
                     type="text"
@@ -681,19 +818,31 @@ const resetRecordForm = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Upload Files</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    onChange={(e) => handleFileUpload(e, 'before')}
-                    disabled={uploadingBefore}
-                    className="border rounded p-2 w-full"
-                  />
-                  {uploadingBefore && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
-                  {renderFileThumbnails(recordForm.beforeCalibration.files, 'before')}
-                </div>
+               <div>
+  <label className="block text-sm font-medium mb-1">Upload Live Photo</label>
+  <div className="flex gap-2">
+    <button
+      type="button"
+      onClick={() => openCamera('before')}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+      disabled={uploadingBefore}
+    >
+      <span>📸</span> Take Live Photo
+    </button>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => handleFileUpload(e, 'before')}
+      disabled={uploadingBefore}
+      className="hidden"
+      id="beforeFileInput"
+    />
+   
+  </div>
+  <p className="text-xs text-gray-500 mt-1">📸 Take a live photo</p>
+  {uploadingBefore && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+  {renderFileThumbnails(recordForm.beforeCalibration.files, 'before')}
+</div>
               </div>
             </div>
 
@@ -717,19 +866,31 @@ const resetRecordForm = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Upload Files</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    onChange={(e) => handleFileUpload(e, 'after')}
-                    disabled={uploadingAfter}
-                    className="border rounded p-2 w-full"
-                  />
-                  {uploadingAfter && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
-                  {renderFileThumbnails(recordForm.afterCalibration.files, 'after')}
-                </div>
+              <div>
+  <label className="block text-sm font-medium mb-1">Upload Live Photo</label>
+  <div className="flex gap-2">
+    <button
+      type="button"
+      onClick={() => openCamera('after')}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+      disabled={uploadingAfter}
+    >
+      <span>📸</span> Take Live Photo
+    </button>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => handleFileUpload(e, 'after')}
+      disabled={uploadingAfter}
+      className="hidden"
+      id="afterFileInput"
+    />
+   
+  </div>
+  <p className="text-xs text-gray-500 mt-1">📸 Take a live photo</p>
+  {uploadingAfter && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+  {renderFileThumbnails(recordForm.afterCalibration.files, 'after')}
+</div>
               </div>
             </div>
 
@@ -886,7 +1047,130 @@ const resetRecordForm = () => {
             </div>
           )}
         </div>
+
+        
       </div>
+       {/* Scale Details Section */}
+        <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">Scale Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Brand Name</label>
+              <input
+                type="text"
+                value={scaleDetails.brandName}
+                onChange={(e) => setScaleDetails({ ...scaleDetails, brandName: e.target.value })}
+                className="border rounded p-2 w-full"
+                placeholder="Enter brand name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Weighing Scale Capacity (kg/g)</label>
+              <input
+                type="text"
+                value={scaleDetails.calibrationValue}
+                onChange={(e) => setScaleDetails({ ...scaleDetails, calibrationValue: e.target.value })}
+                className="border rounded p-2 w-full"
+                placeholder="e.g., 100kg, 50g"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Location</label>
+              <input
+                type="text"
+                value={scaleDetails.location}
+                onChange={(e) => setScaleDetails({ ...scaleDetails, location: e.target.value })}
+                className="border rounded p-2 w-full"
+                placeholder="Enter scale location"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Brand Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleBrandImageUpload}
+                disabled={uploadingBrand}
+                className="border rounded p-2 w-full"
+              />
+              {uploadingBrand && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+              {scaleDetails.brandImage?.url && (
+                <div className="mt-3">
+                  <div className="relative inline-block group">
+                    <button
+                      onClick={() => {
+                        const isImage = scaleDetails.brandImage.url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                        if (isImage) {
+                          Swal.fire({
+                            title: "Brand Image",
+                            imageUrl: scaleDetails.brandImage.url,
+                            imageAlt: "Brand Image",
+                            imageWidth: "500",
+                            imageHeight: "auto",
+                            showCloseButton: true,
+                            showConfirmButton: false,
+                            width: "600px",
+                            customClass: {
+                              popup: "rounded-2xl"
+                            }
+                          });
+                        } else {
+                          window.open(scaleDetails.brandImage.url, "_blank");
+                        }
+                      }}
+                      className="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-500 transition-all hover:scale-105"
+                    >
+                      <img
+                        src={scaleDetails.brandImage.url}
+                        alt="Brand"
+                        className="w-20 h-20 object-cover"
+                        onError={(e) => {
+                          e.target.src = "https://via.placeholder.com/80?text=No+Image";
+                        }}
+                      />
+                    </button>
+                    <span className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full px-1.5 py-0.5 text-xs">
+                      ✓
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Click image to enlarge</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <button
+              onClick={saveScaleDetails}
+              disabled={saving}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Scale Details"}
+            </button>
+          </div>
+        </div>
+    
+    {/* Camera Modal */}
+<CameraModal
+  isOpen={showCameraModal}
+  onClose={() => {
+    setShowCameraModal(false);
+    setCurrentUploadType(null);
+    setPendingUploadField(null);
+  }}
+  onCapture={async (capturedFile) => {
+    if (currentUploadType === 'brand') {
+      await handleCapturedBrandImage(capturedFile);
+    } else if (currentUploadType === 'before') {
+      await handleCapturedFile(capturedFile, 'before');
+    } else if (currentUploadType === 'after') {
+      await handleCapturedFile(capturedFile, 'after');
+    }
+  }}
+/>
     </div>
   );
 }

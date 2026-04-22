@@ -62,7 +62,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-green-600 to-teal-600">
@@ -90,7 +90,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                All Holidays
+                All Holidays Yearly
               </button>
               <button
                 onClick={() => setViewMode("monthly")}
@@ -129,7 +129,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
             </div>
             
             {/* Content */}
-            <div className="p-4 max-h-[60vh] overflow-y-auto">
+            <div className="p-4 overflow-y-auto flex-1">
               {/* All Holidays View */}
               {viewMode === "all" && (
                 <div className="overflow-x-auto">
@@ -269,7 +269,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
             
             {/* Footer with stats */}
             <div className="p-3 bg-gray-50 border-t border-gray-200 text-center text-xs text-gray-500">
-              <span>Total Gazetted Holidays in 2026: {holidays2026.length}</span>
+              <span>Total Holidays in 2026: {holidays2026.length}</span>
             </div>
           </motion.div>
         </>

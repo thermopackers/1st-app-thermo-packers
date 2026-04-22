@@ -13,7 +13,21 @@ export default function FactoryActDepartment() {
       icon: "📋",
       color: "from-blue-500 to-blue-600",
       description: "Manage all factory act related certificates, licenses, and documents"
-    }
+    },
+  {
+    name: "Air Receiver Tank Certificate",
+    path: "/factory-act/air-receiver-certificate",
+    icon: "🏭",
+    color: "from-blue-500 to-blue-600",
+    description: "Manage Air Receiver Tank certificates and compliance documents"
+  },
+  {
+    name: "Manual Chain Pully Block Certificate",
+    path: "/factory-act/manual-chain-pully-certificate",
+    icon: "⛓️",
+    color: "from-purple-500 to-purple-600",
+    description: "Manage Manual Chain Pully Block certificates and compliance documents"
+  }
   ];
 
   return (

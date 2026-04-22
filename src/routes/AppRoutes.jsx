@@ -36,6 +36,7 @@ import PurchaseProductSuppliers from "../pages/PurchaseProductSuppliers";
 import PurchaseOrderForm from "../pages/PurchaseOrderForm";
 import PurchaseOrdersList from "../pages/PurchaseOrdersList";
 import SendRFQ from "../pages/SendRFQ";
+import ESICManagement from "../pages/ESICManagement";
 import DrawingOrdersTable from "../pages/DrawingOrdersTable";
 import DrawingUploadForm from "../components/DrawingUploadForm";
 import ViewRFQs from "../pages/viewRFQs";
@@ -95,6 +96,11 @@ import FactoryActDepartment from "../pages/FactoryActDepartment";
 import FactoryActCertificates from "../pages/FactoryActCertificates";
 import WeighingScale from "../pages/WeighingScale";
 import WeighingScaleDetail from "../pages/WeighingScaleDetail";
+import AirReceiverCertificate from "../components/AirReceiverCertificate";
+import ManualChainPullyCertificate from "../components/ManualChainPullyCertificate";
+import PollutionDepartment from "../pages/PollutionDepartment";
+import AirPollutionCertificate from "../pages/AirPollutionCertificate";
+import WaterPollutionCertificate from "../pages/WaterPollutionCertificate";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -219,6 +225,11 @@ export default function AppRoutes() {
 <Route path="/weighing-scale" element={<WeighingScale />} />
 <Route path="/weighing-scale/:scaleId" element={<WeighingScaleDetail />} />
 
+<Route path="/factory-act/air-receiver-certificate" element={<AirReceiverCertificate />} />
+<Route path="/factory-act/manual-chain-pully-certificate" element={<ManualChainPullyCertificate />} />
+<Route path="/pollution-department" element={<PollutionDepartment />} />
+<Route path="/pollution/air-pollution-certificate" element={<AirPollutionCertificate />} />
+<Route path="/pollution/water-pollution-certificate" element={<WaterPollutionCertificate />} />
             <Route
               path="/orders"
               element={
@@ -655,6 +666,7 @@ export default function AppRoutes() {
 <Route path="/guard-attendance" element={<GuardAttendance />} />
 <Route path="/guard-attendance-history" element={<GuardAttendanceHistory />} />
 <Route path="/password-manager" element={<PasswordManager />} />
+<Route path="/maintenance/esic" element={<ESICManagement />} />
 
 <Route
 path="/maintenance/water-filter"

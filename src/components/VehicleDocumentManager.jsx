@@ -274,7 +274,7 @@ const handleSubmit = async (e) => {
   </div>
 )}
 
-{!["vehicle_images", "vin_chassis_photo", "rc_copy"].includes(formData.documentType) && (
+{!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts"].includes(formData.documentType) && (
   <>
     <div>
       <label className="block text-sm font-medium mb-1">Issue Date</label>
@@ -405,7 +405,7 @@ const handleSubmit = async (e) => {
             let status = "Valid";
 let statusClass = "bg-green-100 text-green-800";
 
-if (!["vehicle_images", "vin_chassis_photo", "rc_copy"].includes(doc.documentType)) {
+if (!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts"].includes(doc.documentType)) {
   const expiring = isExpiring(doc.expiryDate);
   const expired = isExpired(doc.expiryDate);
 

@@ -1038,11 +1038,78 @@ const generatePDF = async (product, calculation, remarks) => {
     isInPcs: isInPcs
   };
 
+  // Delete costing sheet for a product
+const deleteCostingSheet = async (productId, sheetId) => {
+  if (!window.confirm("Are you sure you want to delete this costing sheet? This action cannot be undone.")) {
+    return;
+  }
+  
+  try {
+    const response = await axiosInstance.delete(`/customers/${customerId}/costing-sheet/${sheetId}`);
+    
+    if (response.data.success) {
+      toast.success("Costing sheet deleted successfully!");
+      
+      // Clear the local state for this product
+      setConversionRates(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setFreightOutward(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setInPcsMode(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setCustomWeights(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setCalculatedPrices(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setInternalNotes(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      setRemarks(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      // Update the savedCostingSheets list
+      setSavedCostingSheets(prev => prev.filter(sheet => sheet._id !== sheetId));
+      
+      // Reset initial load flag to allow re-initialization if needed
+      initialLoadDone.current = false;
+    }
+  } catch (err) {
+    console.error("Delete costing sheet error:", err);
+    toast.error(err.response?.data?.error || "Failed to delete costing sheet");
+  }
+};
+
                 return (
                   <div key={product._id} className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200 ${hasSavedSheet ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
                     <div className={`p-3 border-b ${hasSavedSheet ? 'border-green-200' : 'border-gray-100'} bg-gradient-to-r from-gray-50 to-white`}>
                       <div className="flex justify-between items-start">
-                        <h3 className="font-semibold text-gray-800 truncate">{product.name}</h3>
+<h3 className="font-semibold text-gray-800 break-words">{product.name}</h3>
                         {hasSavedSheet && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">Saved</span>}
                       </div>
                       <p className="text-xs text-gray-500">Unit: {unit || 'kg'}</p>
@@ -1239,12 +1306,12 @@ const generatePDF = async (product, calculation, remarks) => {
   />
 </div>
 <div className="flex gap-2 mt-2">
- <button
-  onClick={() => generatePDF(product, calculation, remarks[product._id] || savedSheet?.remarks || "")}
-  className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200"
->
-  📤 Share via WhatsApp
-</button>
+  <button
+    onClick={() => generatePDF(product, calculation, remarks[product._id] || savedSheet?.remarks || "")}
+    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200"
+  >
+    📤 Share
+  </button>
   <button
     onClick={() => saveCostingSheet(product._id)}
     disabled={!conversionRates[product._id] && !savedConversionRate}
@@ -1254,6 +1321,15 @@ const generatePDF = async (product, calculation, remarks) => {
   >
     {hasSavedSheet ? '💾 Update' : '💾 Save'}
   </button>
+  {hasSavedSheet && (
+    <button
+      onClick={() => deleteCostingSheet(product._id, savedSheet._id)}
+      className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors duration-200"
+      title="Delete this costing sheet"
+    >
+      🗑️ Delete
+    </button>
+  )}
 </div>
                     </div>
                   </div>
