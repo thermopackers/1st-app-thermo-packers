@@ -2149,6 +2149,24 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 </DashboardCard>
               )}
 
+            {userRoles.includes("accounts") && (
+                              <DashboardCard>
+ <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    <span className="text-5xl">🖩</span>
+                    Costing Calculator
+                  </h3>
+  <div className="w-full">
+    <button
+      onClick={() => navigate("/costing-calculator")}
+      className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200"
+    >
+      Costing Calculator
+    </button>
+  </div>
+                  </DashboardCard>
+
+)}
+
               {/* Enhanced Material Requisition */}
               {userRoles.some((role) =>
                 [
@@ -2496,11 +2514,10 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     
 
         <motion.div
-          className="opacity-60 cursor-not-allowed"
           whileHover={{ scale: 1.02 }}
         >
-          <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
             <div className="flex flex-col items-center text-center">
+                      <ActionButton to="/esic">
               <div className="text-3xl mb-3">📑</div>
               <div className="text-lg font-semibold mb-2">
                 ESIC Management
@@ -2508,16 +2525,15 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
               <div className="text-gray-200 text-sm opacity-90">
                 ESIC Monthly Challan & Payment Receipts
               </div>
+               </ActionButton>
             </div>
-          </div>
         </motion.div>
 
         <motion.div
-          className="opacity-60 cursor-not-allowed"
           whileHover={{ scale: 1.02 }}
         >
-          <div className="w-full bg-gray-400 text-white p-6 rounded-2xl shadow-lg">
             <div className="flex flex-col items-center text-center">
+              <ActionButton to="/epfo">
               <div className="text-3xl mb-3">📑</div>
               <div className="text-lg font-semibold mb-2">
                 EPFO Management
@@ -2525,8 +2541,8 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
               <div className="text-gray-200 text-sm opacity-90">
                 EPFO Monthly Challan & Payment Receipts
               </div>
+              </ActionButton>
             </div>
-          </div>
         </motion.div>
 
         <motion.div

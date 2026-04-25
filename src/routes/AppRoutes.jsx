@@ -101,6 +101,8 @@ import ManualChainPullyCertificate from "../components/ManualChainPullyCertifica
 import PollutionDepartment from "../pages/PollutionDepartment";
 import AirPollutionCertificate from "../pages/AirPollutionCertificate";
 import WaterPollutionCertificate from "../pages/WaterPollutionCertificate";
+import EPFOManagement from "../pages/EPFOManagement";
+import CostingCalculator from "../components/CostingCalculator";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -666,7 +668,10 @@ export default function AppRoutes() {
 <Route path="/guard-attendance" element={<GuardAttendance />} />
 <Route path="/guard-attendance-history" element={<GuardAttendanceHistory />} />
 <Route path="/password-manager" element={<PasswordManager />} />
-<Route path="/maintenance/esic" element={<ESICManagement />} />
+<Route path="/esic" element={<ESICManagement />} />
+<Route path="/epfo" element={<EPFOManagement />} />
+<Route path="/costing-calculator" element={<CostingCalculator />} />
+
 
 <Route
 path="/maintenance/water-filter"
