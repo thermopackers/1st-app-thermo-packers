@@ -457,8 +457,9 @@ const handleSubmit = async (e) => {
       const missingQuantity = !prod.quantity;
       const missingPrice = !prod.price;
       const missingFreight = !prod.freight;
-      const needsFreightAmount =
-        prod.freight === "To pay" || prod.freight === "Billed in Invoice";
+     const needsFreightAmount =
+  (prod.freight === "To pay" || prod.freight === "Billed in Invoice") && 
+  prod.freight !== "To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)";
       const missingFreightAmount = needsFreightAmount && !prod.freightAmount;
       return (
         missingProduct ||
@@ -482,10 +483,11 @@ const handleSubmit = async (e) => {
       ...prod,
       product: prod.product === "" ? prod.customProduct : prod.product,
       size: prod.size === "" ? prod.customSize : prod.size,
-      freightAmount:
-        prod.freight === "To pay" || prod.freight === "Billed in Invoice"
-          ? prod.freightAmount
-          : 0,
+     freightAmount:
+  (prod.freight === "To pay" || prod.freight === "Billed in Invoice") && 
+  prod.freight !== "To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)"
+    ? prod.freightAmount
+    : 0,
            narration: prod.narration || "", // ✅ Ensure narration is sent
   narrationImages: prod.narrationImages || [], // ✅ Ensure narrationImages are sent
     }));
@@ -1038,43 +1040,44 @@ if (loadingProducts || loadingCustomers) {
     {/* 🚚 Freight Type */}
     <div className="flex flex-col">
       <label className="mb-1 font-medium text-gray-700">Freight</label>
-      <select
-        value={prod.freight}
-        onChange={(e) =>
-          handleProductChange(index, "freight", e.target.value)
-        }
-        className="border border-gray-400 p-2 rounded"
-        required
-      >
-        <option value="">Select Freight</option>
-        <option value="To pay">To pay</option>
-        <option value="Self Dispatch">Self Pickup</option>
-        <option value="Freight Paid">Freight Paid</option>
-        <option value="Billed in Invoice">Billed in Invoice</option>
-      </select>
+     <select
+  value={prod.freight}
+  onChange={(e) =>
+    handleProductChange(index, "freight", e.target.value)
+  }
+  className="border border-gray-400 p-2 rounded"
+  required
+>
+  <option value="">Select Freight</option>
+  <option value="To pay">To pay</option>
+  <option value="Self Dispatch">Self Pickup</option>
+  <option value="Freight Paid">Freight Paid</option>
+  <option value="Billed in Invoice">Billed in Invoice</option>
+    <option value="To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)">To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)</option>
+</select>
     </div>
 
     {/* 💸 Freight Amount */}
-    {(prod.freight === "To pay" || prod.freight === "Billed in Invoice") && (
-      <div className="flex flex-col">
-        <label className="mb-1 font-medium text-gray-700">
-          {prod.freight === "To pay"
-            ? "Amount to pay"
-            : "Amount billed in invoice"}
-        </label>
-        <input
-          type="text"
-          value={prod.freightAmount}
-          onChange={(e) =>
-            handleProductChange(index, "freightAmount", e.target.value)
-          }
-          className="border border-gray-400 p-2 rounded"
-          min="0"
-          step="0.01"
-          required
-        />
-      </div>
-    )}
+   {(prod.freight === "To pay" || prod.freight === "Billed in Invoice") && prod.freight !== "To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)" && (
+  <div className="flex flex-col">
+    <label className="mb-1 font-medium text-gray-700">
+      {prod.freight === "To pay"
+        ? "Amount to pay"
+        : "Amount billed in invoice"}
+    </label>
+    <input
+      type="text"
+      value={prod.freightAmount}
+      onChange={(e) =>
+        handleProductChange(index, "freightAmount", e.target.value)
+      }
+      className="border border-gray-400 p-2 rounded"
+      min="0"
+      step="0.01"
+      required
+    />
+  </div>
+)}
 
     {/* 📝 Product Remarks */}
     <div className="col-span-2">

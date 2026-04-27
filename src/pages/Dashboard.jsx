@@ -2153,7 +2153,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                               <DashboardCard>
  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     <span className="text-5xl">🖩</span>
-                    Costing Calculator
+                   Thermocol Sheet or Packaging Costing Calculator
                   </h3>
   <div className="w-full">
     <button

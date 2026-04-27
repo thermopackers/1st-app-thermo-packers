@@ -1234,9 +1234,9 @@ const exportFormattedPDF = () => {
     pdf.setTextColor(255, 255, 255);
     pdf.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 148, 18, { align: 'center' });
 
-    // Table headers
-    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Location', 'Customers', 'City', 'Material Unloading Location', 'Sales Products', 'Fuel - Diesel(Ltrs)(To & Fro)', 'Driver Expenses (Kharcha)', 'Remarks'];
-    const columnWidths = [10, 14, 20, 20, 24, 28, 22, 28, 28, 28, 26, 27];
+    // Table headers - Updated order: Customers moved after Drivers
+    const headers = ['Sr No', 'Date', 'Vehicle', 'Driver', 'Customers', 'Address of Factory(Unloading Location)', 'City', 'Material Unloading Location', 'Sales Products', 'Fuel - Diesel(Ltrs)(To & Fro)', 'Driver Expenses (Kharcha)', 'Remarks'];
+    const columnWidths = [10, 14, 20, 20, 28, 24, 22, 28, 28, 28, 26, 27];
     
     let yPosition = 30;
     
@@ -1428,8 +1428,8 @@ const exportFormattedPDF = () => {
       // Calculate row height - FIXED: Include all text wrapping
       let maxLines = 1;
       
-      const locationLinesCount = pdf.splitTextToSize(locationText, columnWidths[4] - 4).length;
-      const customersLines = pdf.splitTextToSize(customersText, columnWidths[5] - 4).length;
+      const customersLines = pdf.splitTextToSize(customersText, columnWidths[4] - 4).length;
+      const locationLinesCount = pdf.splitTextToSize(locationText, columnWidths[5] - 4).length;
       const citiesLines = pdf.splitTextToSize(citiesText, columnWidths[6] - 4).length;
       const productsLines = pdf.splitTextToSize(productsText, columnWidths[8] - 4).length;
       const remarksLines = pdf.splitTextToSize(remarksText, columnWidths[11] - 4).length;
@@ -1437,7 +1437,7 @@ const exportFormattedPDF = () => {
       // For map lines, count each line
       const mapLinesCount = mapLines.length > 0 ? mapLines.length : 1;
       
-      maxLines = Math.max(1, locationLinesCount, customersLines, citiesLines, mapLinesCount, productsLines, remarksLines);
+      maxLines = Math.max(1, customersLines, locationLinesCount, citiesLines, mapLinesCount, productsLines, remarksLines);
       
       // Calculate row height based on max lines
       const rowHeight = Math.max(10, maxLines * 3.5 + 4);
@@ -1462,16 +1462,16 @@ const exportFormattedPDF = () => {
       pdf.text(driverText, currentX + 2, lineY);
       currentX += columnWidths[3];
       
-      // Location
-      const locationLines = pdf.splitTextToSize(locationText, columnWidths[4] - 4);
-      locationLines.forEach((line, lineIdx) => {
+      // Customers (moved here - after Driver)
+      const customerLines = pdf.splitTextToSize(customersText, columnWidths[4] - 4);
+      customerLines.forEach((line, lineIdx) => {
         pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
       });
       currentX += columnWidths[4];
       
-      // Customers
-      const customerLines = pdf.splitTextToSize(customersText, columnWidths[5] - 4);
-      customerLines.forEach((line, lineIdx) => {
+      // Location
+      const locationLines = pdf.splitTextToSize(locationText, columnWidths[5] - 4);
+      locationLines.forEach((line, lineIdx) => {
         pdf.text(line, currentX + 2, lineY + (lineIdx * 3.5));
       });
       currentX += columnWidths[5];
