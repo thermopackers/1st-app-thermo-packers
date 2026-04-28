@@ -98,33 +98,48 @@ const handleSubmit = async (e) => {
 
   try {
     const form = new FormData();
-    form.append(
-      "issuedTo",
-      typeof editAsset.issuedTo === "object" ? editAsset.issuedTo._id : ""
-    );
-    form.append(
-      "manualUser",
-      typeof editAsset.issuedTo === "string" ? editAsset.issuedTo : ""
-    );
+    
+    // ✅ FIXED: Properly handle issuedTo for both object and string cases
+    let issuedToValue = "";
+    let manualUserValue = "";
+    
+    if (editAsset.issuedTo && typeof editAsset.issuedTo === 'object') {
+      // System user (has _id)
+      issuedToValue = editAsset.issuedTo._id || editAsset.issuedTo;
+      manualUserValue = "";
+    } else if (editAsset.manualUser) {
+      // Manual user
+      issuedToValue = "manual";
+      manualUserValue = editAsset.manualUser;
+    } else if (typeof editAsset.issuedTo === 'string') {
+      // Manual user stored as string in issuedTo field
+      issuedToValue = "manual";
+      manualUserValue = editAsset.issuedTo;
+    } else {
+      issuedToValue = "";
+      manualUserValue = "";
+    }
+    
+    form.append("issuedTo", issuedToValue);
+    form.append("manualUser", manualUserValue);
 
-    // Clean assets but preserve addedAt dates
+    // Clean assets and preserve addedAt dates
     const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => {
-      // If this is an existing asset, keep its addedAt date
-      // If it's a new asset, don't send addedAt (will be set on server)
       return {
         assetName: a.assetName,
         assetDescription: a.assetDescription,
         images: a.images || [],
-        addedAt: a.addedAt // Preserve existing addedAt date
+        addedAt: a.addedAt || null // Preserve existing addedAt date
       };
     });
     
     form.append("assets", JSON.stringify(cleanedAssets));
 
+    // Append new files
     formData.assets.forEach((a, i) => {
-      if (a.newFiles) {
-        a.newFiles.forEach((f) => {
-          form.append("assetImages", f, `${i}_${f.name}`);
+      if (a.newFiles && a.newFiles.length > 0) {
+        a.newFiles.forEach((f, fileIdx) => {
+          form.append("assetImages", f, `${i}_${fileIdx}_${f.name}`);
         });
       }
     });
@@ -136,8 +151,17 @@ const handleSubmit = async (e) => {
       },
     };
 
-    await axiosInstance.put(`/assets/update-asset/${editAsset._id}`, form, config);
-    toast.success("Asset updated!");
+    console.log("Updating asset with ID:", editAsset._id);
+    console.log("Form data being sent:", {
+      issuedTo: issuedToValue,
+      manualUser: manualUserValue,
+      assetsCount: cleanedAssets.length
+    });
+
+    const response = await axiosInstance.put(`/assets/update-asset/${editAsset._id}`, form, config);
+    console.log("Update response:", response.data);
+    
+    toast.success("Asset updated successfully!");
 
     // Reset form
     setIsEdit(false);
@@ -145,27 +169,48 @@ const handleSubmit = async (e) => {
     setFormData({
       issuedTo: "",
       assets: [{ assetName: "", assetDescription: "", images: [] }],
+      images: [],
     });
 
-    const updated = await axiosInstance.get("/assets/all-assets", config);
+    // Refresh assets list
+    const updated = await axiosInstance.get("/assets/all-assets", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
     setAssets(updated.data);
+    
   } catch (err) {
     console.error("Error updating asset:", err);
-    toast.error("Failed to update asset.");
+    console.error("Error response:", err.response?.data);
+    toast.error(err.response?.data?.message || "Failed to update asset.");
   } finally {
     setIsLoading(false);
   }
 };
 
 const handleEdit = (asset) => {
+  console.log("Editing asset:", asset);
+  
   setIsEdit(true);
   setEditAsset(asset);
+  
+  // Determine who the asset is issued to
+  let issuedToValue = "";
+  if (asset.issuedTo && typeof asset.issuedTo === 'object') {
+    issuedToValue = asset.issuedTo; // Keep the full object for display
+  } else if (asset.manualUser) {
+    issuedToValue = asset.manualUser; // Store as string for manual user
+  } else if (typeof asset.issuedTo === 'string') {
+    issuedToValue = asset.issuedTo;
+  }
+  
   setFormData({
-    issuedTo: asset.issuedTo,
+    issuedTo: issuedToValue,
     assets: asset.assets.map(a => ({
-      ...a,
+      assetName: a.assetName || "",
+      assetDescription: a.assetDescription || "",
       images: a.images || [],
-      addedAt: a.addedAt // Preserve the addedAt date
+      addedAt: a.addedAt, // Preserve the addedAt date
+      newFiles: [] // Initialize empty array for new files
     })),
     images: [],
   });
