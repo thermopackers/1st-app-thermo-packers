@@ -24,6 +24,7 @@ export default function PlantMachineryMaintenance() {
         { name: "Factory Act Department", path: "/factory-act", color: "bg-indigo-600 hover:bg-indigo-700" }, // Add this
           { name: "Weighing Scale Calibration", path: "/weighing-scale", color: "bg-teal-600 hover:bg-teal-700" }, // Add this
           { name: "Pollution Department", path: "/pollution-department", color: "bg-gradient-to-r from-green-600 to-teal-600" },
+          { name: "Boiler Maintenance Report (Weekly Basis)", path: "/maintenance/boiler-maintenance-log", color: "bg-orange-600 hover:bg-orange-700" },
   { name: "Earthing", path: "/maintenance/earthing", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Softner", path: "/maintenance/water-softner", color: "bg-blue-600 hover:bg-blue-700" },
   { name: "Water Filter", path: "/maintenance/water-filter", color: "bg-blue-600 hover:bg-blue-700" },
@@ -212,6 +213,7 @@ if (s.type === "water-quality-grid") {
                              s.name === "Earthing" ||
                              s.name === "DG Set (Diesel Generator) - Main Electric Panel" ||
                              s.name === "Water Filter" ||
+                                              s.name === "Boiler Maintenance Report (Weekly Basis)" ||
                              s.name === "Fire Safety Check" || s.name === "Pollution Department";
             
             // Regular buttons

@@ -103,6 +103,7 @@ import AirPollutionCertificate from "../pages/AirPollutionCertificate";
 import WaterPollutionCertificate from "../pages/WaterPollutionCertificate";
 import EPFOManagement from "../pages/EPFOManagement";
 import CostingCalculator from "../components/CostingCalculator";
+import BoilerMaintenanceLog from "../pages/BoilerMaintenanceLog";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -671,6 +672,7 @@ export default function AppRoutes() {
 <Route path="/esic" element={<ESICManagement />} />
 <Route path="/epfo" element={<EPFOManagement />} />
 <Route path="/costing-calculator" element={<CostingCalculator />} />
+<Route path="/maintenance/boiler-maintenance-log" element={<BoilerMaintenanceLog />} />
 
 
 <Route
