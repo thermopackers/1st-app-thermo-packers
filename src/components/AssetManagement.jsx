@@ -449,33 +449,34 @@ useEffect(()=>{
           {typeof asset.issuedTo === 'object' ? asset.issuedTo?.role : '—'}
         </td>
 
-        <td className="py-3 px-4 text-sm">
-  {asset.assets?.map((a, i) => (
-    <div key={i} className="mb-1">
-      <div className="flex items-center gap-2 flex-wrap">
-        <strong>{a.assetName}:</strong> 
-        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-          Added: {a.addedAt ? new Date(a.addedAt).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-          }) : new Date(asset.createdAt).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-          })}
-        </span>
+<td className="py-3 px-4 text-sm">
+  {[...asset.assets]
+    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt)) // Newest first
+    .map((a, i) => (
+      <div key={i} className="mb-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <strong>{a.assetName}:</strong> 
+          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+            Added: {a.addedAt ? new Date(a.addedAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric"
+            }) : new Date(asset.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric"
+            })}
+          </span>
+        </div>
+        <div className="text-gray-600 text-sm ml-2">{a.assetDescription}</div>
+        <div className="flex gap-2 mt-1 flex-wrap">
+          {a.images?.map((imgUrl, idx) => (
+            <AssetImage key={idx} imgUrl={imgUrl} onClick={() => setModalImage(imgUrl)} />
+          ))}
+        </div>
       </div>
-      <div className="text-gray-600 text-sm ml-2">{a.assetDescription}</div>
-      <div className="flex gap-2 mt-1 flex-wrap">
-        {a.images?.map((imgUrl, idx) => (
-          <AssetImage key={idx} imgUrl={imgUrl} onClick={() => setModalImage(imgUrl)} />
-        ))}
-      </div>
-    </div>
-  ))}
+    ))}
 </td>
-
         <td className="py-3 px-4 text-sm">
           {typeof asset.issuedTo === 'object' ? asset.issuedTo?.email : '—'}
         </td>
