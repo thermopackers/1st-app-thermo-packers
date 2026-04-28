@@ -99,37 +99,57 @@ const handleSubmit = async (e) => {
   try {
     const form = new FormData();
     
-    // ✅ FIXED: Properly handle issuedTo for both object and string cases
+    // ✅ FIX: Clean the issuedTo value
     let issuedToValue = "";
     let manualUserValue = "";
     
-    if (editAsset.issuedTo && typeof editAsset.issuedTo === 'object') {
-      // System user (has _id)
-      issuedToValue = editAsset.issuedTo._id || editAsset.issuedTo;
-      manualUserValue = "";
-    } else if (editAsset.manualUser) {
-      // Manual user
-      issuedToValue = "manual";
-      manualUserValue = editAsset.manualUser;
-    } else if (typeof editAsset.issuedTo === 'string') {
-      // Manual user stored as string in issuedTo field
-      issuedToValue = "manual";
-      manualUserValue = editAsset.issuedTo;
-    } else {
-      issuedToValue = "";
-      manualUserValue = "";
+    // Check if editing an existing asset
+    if (editAsset) {
+      if (editAsset.manualUser) {
+        // This is a manual user
+        issuedToValue = "manual";
+        manualUserValue = editAsset.manualUser;
+      } else if (editAsset.issuedTo) {
+        if (typeof editAsset.issuedTo === 'object' && editAsset.issuedTo._id) {
+          // System user as object
+          issuedToValue = editAsset.issuedTo._id;
+        } else if (typeof editAsset.issuedTo === 'string') {
+          // System user as string ID
+          issuedToValue = editAsset.issuedTo;
+        } else if (editAsset.issuedTo.toString) {
+          // Convert ObjectId to string
+          issuedToValue = editAsset.issuedTo.toString();
+        }
+      }
     }
+    
+    // Use formData values if available (for new assets being added)
+    if (formData.issuedTo) {
+      if (typeof formData.issuedTo === 'object' && formData.issuedTo._id) {
+        issuedToValue = formData.issuedTo._id;
+      } else if (typeof formData.issuedTo === 'string') {
+        if (formData.issuedTo === "manual") {
+          issuedToValue = "manual";
+          manualUserValue = formData.manualUser || editAsset?.manualUser || "";
+        } else {
+          issuedToValue = formData.issuedTo;
+        }
+      }
+    }
+    
+    console.log("Sending with issuedTo:", issuedToValue);
+    console.log("Sending with manualUser:", manualUserValue);
     
     form.append("issuedTo", issuedToValue);
     form.append("manualUser", manualUserValue);
 
-    // Clean assets and preserve addedAt dates
+    // Clean assets - remove any circular references or invalid data
     const cleanedAssets = formData.assets.map(({ newFiles, ...a }) => {
       return {
-        assetName: a.assetName,
-        assetDescription: a.assetDescription,
-        images: a.images || [],
-        addedAt: a.addedAt || null // Preserve existing addedAt date
+        assetName: a.assetName || "",
+        assetDescription: a.assetDescription || "",
+        images: Array.isArray(a.images) ? a.images : [],
+        addedAt: a.addedAt || null
       };
     });
     
@@ -137,9 +157,11 @@ const handleSubmit = async (e) => {
 
     // Append new files
     formData.assets.forEach((a, i) => {
-      if (a.newFiles && a.newFiles.length > 0) {
+      if (a.newFiles && Array.isArray(a.newFiles) && a.newFiles.length > 0) {
         a.newFiles.forEach((f, fileIdx) => {
-          form.append("assetImages", f, `${i}_${fileIdx}_${f.name}`);
+          if (f instanceof File) {
+            form.append("assetImages", f, `${i}_${fileIdx}_${f.name}`);
+          }
         });
       }
     });
@@ -151,37 +173,40 @@ const handleSubmit = async (e) => {
       },
     };
 
-    console.log("Updating asset with ID:", editAsset._id);
-    console.log("Form data being sent:", {
-      issuedTo: issuedToValue,
-      manualUser: manualUserValue,
-      assetsCount: cleanedAssets.length
-    });
-
+    console.log("Making PUT request to:", `/assets/update-asset/${editAsset._id}`);
     const response = await axiosInstance.put(`/assets/update-asset/${editAsset._id}`, form, config);
-    console.log("Update response:", response.data);
     
-    toast.success("Asset updated successfully!");
+    console.log("Response status:", response.status);
+    console.log("Response data:", response.data);
+    
+    if (response.status === 200 || response.status === 201) {
+      toast.success("Asset updated successfully!");
+      
+      // Reset form
+      setIsEdit(false);
+      setEditAsset(null);
+      setFormData({
+        issuedTo: "",
+        assets: [{ assetName: "", assetDescription: "", images: [] }],
+        images: [],
+      });
 
-    // Reset form
-    setIsEdit(false);
-    setEditAsset(null);
-    setFormData({
-      issuedTo: "",
-      assets: [{ assetName: "", assetDescription: "", images: [] }],
-      images: [],
-    });
-
-    // Refresh assets list
-    const updated = await axiosInstance.get("/assets/all-assets", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    });
-    setAssets(updated.data);
+      // Refresh assets list
+      const updated = await axiosInstance.get("/assets/all-assets", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      setAssets(updated.data);
+    } else {
+      toast.error("Unexpected response from server");
+    }
     
   } catch (err) {
-    console.error("Error updating asset:", err);
-    console.error("Error response:", err.response?.data);
-    toast.error(err.response?.data?.message || "Failed to update asset.");
+    console.error("Error updating asset - Full error:", err);
+    console.error("Error response data:", err.response?.data);
+    console.error("Error status:", err.response?.status);
+    
+    const errorMessage = err.response?.data?.message || err.message || "Failed to update asset.";
+    toast.error(errorMessage);
   } finally {
     setIsLoading(false);
   }
