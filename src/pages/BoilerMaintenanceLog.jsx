@@ -3,7 +3,6 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import imageCompression from 'browser-image-compression';
 
 export default function BoilerMaintenanceLog() {
   const [records, setRecords] = useState([]);
@@ -60,24 +59,62 @@ export default function BoilerMaintenanceLog() {
     return `${year}-${month}-${day}`;
   };
 
-  // Compress image before upload
-  const compressImage = async (file) => {
-    const options = {
-      maxSizeMB: 1,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true,
-    };
-    
-    try {
-      if (file.type.startsWith('image/')) {
-        const compressedFile = await imageCompression(file, options);
-        return compressedFile;
+  // Compress image using native canvas API
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        resolve(file);
+        return;
       }
-      return file;
-    } catch (error) {
-      console.error("Compression error:", error);
-      return file;
-    }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimensions
+          const maxWidth = 1920;
+          const maxHeight = 1920;
+          
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Adjust quality based on file size
+          let quality = 0.7;
+          if (file.size > 3 * 1024 * 1024) quality = 0.5;
+          if (file.size > 5 * 1024 * 1024) quality = 0.3;
+          
+          canvas.toBlob((blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          }, file.type, quality);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
   };
 
   useEffect(() => {
@@ -108,33 +145,29 @@ export default function BoilerMaintenanceLog() {
   const uploadMultipleFiles = async (files, endpoint, setFiles, setUploading) => {
     if (!files || files.length === 0) return;
     
-    // Compress images first
-    const compressedFiles = await Promise.all(files.map(async (file) => {
-      if (file.type.startsWith('image/')) {
-        return await compressImage(file);
-      }
-      return file;
-    }));
-    
-    // Check file sizes after compression
-    for (const file of compressedFiles) {
-      if (file.size > 2 * 1024 * 1024) {
-        Swal.fire("Error", `${file.name} is still larger than 2MB after compression`, "error");
-        return;
-      }
-    }
-    
     setUploading(true);
-    const formData = new FormData();
-    for (const file of compressedFiles) {
-      formData.append("files", file);
-    }
     
     try {
+      // Compress images first
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            return await compressImage(file);
+          }
+          return file;
+        })
+      );
+      
+      const formData = new FormData();
+      for (const file of compressedFiles) {
+        formData.append("files", file);
+      }
+      
       const res = await axiosInstance.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 60000, // 60 seconds timeout
+        timeout: 120000, // 2 minutes timeout for large files
       });
+      
       if (res.data.success) {
         setFiles(prev => [...prev, ...res.data.files]);
         Swal.fire({
@@ -506,8 +539,7 @@ export default function BoilerMaintenanceLog() {
           </div>
         </div>
 
-        {/* Rest of the component remains the same... */}
-        {/* Add/Edit Form */}
+        {/* Add/Edit Form - Same as before */}
         <AnimatePresence>
           {showForm && (
             <motion.div
@@ -545,7 +577,7 @@ export default function BoilerMaintenanceLog() {
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">Activity</th>
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">Status</th>
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">File Upload (Multiple)</th>
-                      </td>
+                      </table>
                     </thead>
                     <tbody>
                       <tr className="hover:bg-gray-50">
@@ -673,7 +705,7 @@ export default function BoilerMaintenanceLog() {
           )}
         </AnimatePresence>
 
-        {/* Records Table (same as before) */}
+        {/* Records Table */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-20">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
