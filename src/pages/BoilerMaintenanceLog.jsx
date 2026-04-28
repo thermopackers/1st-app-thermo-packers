@@ -3,6 +3,7 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
+import imageCompression from 'browser-image-compression';
 
 export default function BoilerMaintenanceLog() {
   const [records, setRecords] = useState([]);
@@ -41,14 +42,13 @@ export default function BoilerMaintenanceLog() {
   const [serviceReportUploading, setServiceReportUploading] = useState(false);
 
   // Get today's date in YYYY-MM-DD format for max date attribute
-// Get today's date in YYYY-MM-DD format for max date attribute
-const getTodayDate = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Get date 5 years ago for min date (optional)
   const getMinDate = () => {
@@ -58,6 +58,26 @@ const getTodayDate = () => {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // Compress image before upload
+  const compressImage = async (file) => {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+    
+    try {
+      if (file.type.startsWith('image/')) {
+        const compressedFile = await imageCompression(file, options);
+        return compressedFile;
+      }
+      return file;
+    } catch (error) {
+      console.error("Compression error:", error);
+      return file;
+    }
   };
 
   useEffect(() => {
@@ -88,23 +108,32 @@ const getTodayDate = () => {
   const uploadMultipleFiles = async (files, endpoint, setFiles, setUploading) => {
     if (!files || files.length === 0) return;
     
-    // Check file sizes
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        Swal.fire("Error", `${file.name} is larger than 5MB`, "error");
+    // Compress images first
+    const compressedFiles = await Promise.all(files.map(async (file) => {
+      if (file.type.startsWith('image/')) {
+        return await compressImage(file);
+      }
+      return file;
+    }));
+    
+    // Check file sizes after compression
+    for (const file of compressedFiles) {
+      if (file.size > 2 * 1024 * 1024) {
+        Swal.fire("Error", `${file.name} is still larger than 2MB after compression`, "error");
         return;
       }
     }
     
     setUploading(true);
     const formData = new FormData();
-    for (const file of files) {
+    for (const file of compressedFiles) {
       formData.append("files", file);
     }
     
     try {
       const res = await axiosInstance.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000, // 60 seconds timeout
       });
       if (res.data.success) {
         setFiles(prev => [...prev, ...res.data.files]);
@@ -118,7 +147,7 @@ const getTodayDate = () => {
       }
     } catch (err) {
       console.error("Upload error:", err);
-      Swal.fire("Error", "Failed to upload files", "error");
+      Swal.fire("Error", "Failed to upload files. Please try again.", "error");
     } finally {
       setUploading(false);
     }
@@ -158,81 +187,75 @@ const getTodayDate = () => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (!date) {
-    Swal.fire("Error", "Please select date", "error");
-    return;
-  }
-
-  // Fix: Compare dates correctly without time component
-  const selectedDate = new Date(date);
-  const today = new Date();
-  
-  // Reset time to midnight for both dates to compare only the date part
-  selectedDate.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  
-  // Check if selected date is in the future (strictly greater than today)
-  if (selectedDate > today) {
-    Swal.fire("Error", "Cannot select future dates. Please select today or an earlier date.", "error");
-    return;
-  }
-
-  try {
-    setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    const submitData = {
-      date: date,
-      fdFanBearingGreasing: { 
-        value: fdFanValue,
-        files: fdFanFiles,
-        remarks: ""
-      },
-      idFanBearingGreasing: { 
-        value: idFanValue,
-        files: idFanFiles,
-        remarks: ""
-      },
-      tubesCleaned: { 
-        value: tubesValue,
-        files: tubesFiles,
-        remarks: ""
-      },
-      ashRemoved: { 
-        value: ashValue,
-        files: ashFiles,
-        remarks: ""
-      },
-      maintenanceActivity: {
-        description: maintenanceDesc,
-        serviceReports: serviceReports
-      },
-      generalRemarks: generalRemarks
-    };
-    
-    const res = await axiosInstance.post("/boiler-maintenance", submitData);
-    
-    if (res.data.success) {
-      Swal.fire({
-        title: "Success!",
-        text: editingId ? "Record updated successfully" : "Record added successfully",
-        icon: "success",
-        timer: 2000,
-        showConfirmButton: false
-      });
-      
-      resetForm();
-      fetchRecords();
+    if (!date) {
+      Swal.fire("Error", "Please select date", "error");
+      return;
     }
-  } catch (err) {
-    console.error("Submit error:", err);
-    Swal.fire("Error", err.response?.data?.message || "Failed to save record", "error");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    // Compare dates correctly without time component
+    const selectedDate = new Date(date);
+    const today = new Date();
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate > today) {
+      Swal.fire("Error", "Cannot select future dates. Please select today or an earlier date.", "error");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Only send file references (url, publicId, originalName) not the entire file objects
+      const submitData = {
+        date: date,
+        fdFanBearingGreasing: { 
+          value: fdFanValue,
+          files: fdFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+        },
+        idFanBearingGreasing: { 
+          value: idFanValue,
+          files: idFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+        },
+        tubesCleaned: { 
+          value: tubesValue,
+          files: tubesFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+        },
+        ashRemoved: { 
+          value: ashValue,
+          files: ashFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+        },
+        maintenanceActivity: {
+          description: maintenanceDesc,
+          serviceReports: serviceReports.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+        },
+        generalRemarks: generalRemarks
+      };
+      
+      const res = await axiosInstance.post("/boiler-maintenance", submitData);
+      
+      if (res.data.success) {
+        Swal.fire({
+          title: "Success!",
+          text: editingId ? "Record updated successfully" : "Record added successfully",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false
+        });
+        
+        resetForm();
+        fetchRecords();
+      }
+    } catch (err) {
+      console.error("Submit error:", err);
+      Swal.fire("Error", err.response?.data?.message || "Failed to save record", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEdit = (record) => {
     setEditingId(record._id);
@@ -295,7 +318,7 @@ const handleSubmit = async (e) => {
 
   // Function to view file/image in Swal modal
   const viewFileInSwal = (file) => {
-    const isImage = file.url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    const isImage = file.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
     
     if (isImage) {
       Swal.fire({
@@ -312,7 +335,6 @@ const handleSubmit = async (e) => {
         }
       });
     } else {
-      // For PDFs and other files, open in new tab
       window.open(file.url, "_blank");
     }
   };
@@ -330,7 +352,6 @@ const handleSubmit = async (e) => {
           
           return (
             <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg hover:bg-gray-100 transition-colors">
-              {/* Thumbnail for images */}
               {isImage ? (
                 <div 
                   className="w-10 h-10 rounded overflow-hidden cursor-pointer bg-gray-200 flex-shrink-0"
@@ -351,7 +372,6 @@ const handleSubmit = async (e) => {
                 </div>
               )}
               
-              {/* File info */}
               <div className="flex-1 min-w-0">
                 <button
                   onClick={() => viewFileInSwal(file)}
@@ -385,7 +405,7 @@ const handleSubmit = async (e) => {
       {uploading && (
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs text-blue-500">Uploading...</span>
+          <span className="text-xs text-blue-500">Compressing & Uploading...</span>
         </div>
       )}
       {files.length > 0 && !uploading && (
@@ -397,7 +417,6 @@ const handleSubmit = async (e) => {
             
             return (
               <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-                {/* Thumbnail preview */}
                 {isImage ? (
                   <div 
                     className="w-10 h-10 rounded overflow-hidden cursor-pointer bg-gray-200 flex-shrink-0"
@@ -418,7 +437,6 @@ const handleSubmit = async (e) => {
                   </div>
                 )}
                 
-                {/* File info */}
                 <div className="flex-1 min-w-0">
                   <button
                     onClick={() => viewFileInSwal(file)}
@@ -429,7 +447,6 @@ const handleSubmit = async (e) => {
                   </button>
                 </div>
                 
-                {/* Remove button */}
                 <button
                   type="button"
                   onClick={() => onRemove(idx)}
@@ -489,6 +506,7 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
+        {/* Rest of the component remains the same... */}
         {/* Add/Edit Form */}
         <AnimatePresence>
           {showForm && (
@@ -527,7 +545,7 @@ const handleSubmit = async (e) => {
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">Activity</th>
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">Status</th>
                         <th className="border p-3 text-left text-sm font-semibold text-gray-700">File Upload (Multiple)</th>
-                      </tr>
+                      </td>
                     </thead>
                     <tbody>
                       <tr className="hover:bg-gray-50">
@@ -566,7 +584,7 @@ const handleSubmit = async (e) => {
                             onRemove={(idx) => removeFile(setIdFanFiles, idx)}
                           />
                         </td>
-                       </tr>
+                      </tr>
                       
                       <tr className="hover:bg-gray-50">
                         <td className="border p-3 font-medium">Tubes Cleaned with Brush</td>
@@ -585,7 +603,7 @@ const handleSubmit = async (e) => {
                             onRemove={(idx) => removeFile(setTubesFiles, idx)}
                           />
                         </td>
-                       </tr>
+                      </tr>
                       
                       <tr className="hover:bg-gray-50">
                         <td className="border p-3 font-medium">Ash Removed</td>
@@ -604,7 +622,7 @@ const handleSubmit = async (e) => {
                             onRemove={(idx) => removeFile(setAshFiles, idx)}
                           />
                         </td>
-                       </tr>
+                      </tr>
                       
                       <tr className="hover:bg-gray-50">
                         <td className="border p-3 font-medium align-top">Type of Maintenance Activity Done</td>
@@ -626,7 +644,7 @@ const handleSubmit = async (e) => {
                             />
                           </div>
                         </td>
-                       </tr>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -655,7 +673,7 @@ const handleSubmit = async (e) => {
           )}
         </AnimatePresence>
 
-        {/* Records Table */}
+        {/* Records Table (same as before) */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-20">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -738,8 +756,8 @@ const handleSubmit = async (e) => {
                           <button onClick={() => handleEdit(record)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">Edit</button>
                           <button onClick={() => handleDelete(record._id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">Delete</button>
                         </div>
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
