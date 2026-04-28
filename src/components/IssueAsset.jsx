@@ -148,47 +148,57 @@ const IssueAsset = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    const form = new FormData();
-    form.append('issuedTo', formData.issuedTo || '');
-    form.append('manualUser', formData.manualUser || '');
+  const form = new FormData();
+  
+  // Log what's being sent
+  console.log("Submitting with:", {
+    issuedTo: formData.issuedTo,
+    manualUser: formData.manualUser,
+    assetsCount: formData.assets.length
+  });
+  
+  form.append('issuedTo', formData.issuedTo || '');
+  form.append('manualUser', formData.manualUser || '');
 
-    const assetsToSend = formData.assets.map((asset, index) => {
-      asset.images.forEach((file, fileIdx) => {
-        form.append('assetImages', file, `${index}_${fileIdx}_${file.name}`);
-      });
-      return {
-        assetName: asset.assetName,
-        assetDescription: asset.assetDescription,
-      };
+  const assetsToSend = formData.assets.map((asset, index) => {
+    asset.images.forEach((file, fileIdx) => {
+      form.append('assetImages', file, `${index}_${fileIdx}_${file.name}`);
+    });
+    return {
+      assetName: asset.assetName,
+      assetDescription: asset.assetDescription,
+    };
+  });
+
+  form.append('assets', JSON.stringify(assetsToSend));
+
+  try {
+    const res = await axiosInstance.post('/assets/issue', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    form.append('assets', JSON.stringify(assetsToSend));
-
-    try {
-      const res = await axiosInstance.post('/assets/issue', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      if (res.data?.success === false) {
-        toast.error(res.data.message || 'Asset issue failed.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      toast.success('Assets issued successfully!');
-      navigate('/asset-management');
-    } catch (error) {
-      const message = error.response?.data?.message || 'Failed to issue assets. Please try again.';
-      toast.error(message);
+    if (res.data?.success === false) {
+      toast.error(res.data.message || 'Asset issue failed.');
       setIsSubmitting(false);
+      return;
     }
-  };
+
+    toast.success('Assets issued successfully!');
+    navigate('/asset-management');
+  } catch (error) {
+    console.error("Full error:", error);
+    console.error("Error response:", error.response?.data);
+    const message = error.response?.data?.message || 'Failed to issue assets. Please try again.';
+    toast.error(message);
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <>
