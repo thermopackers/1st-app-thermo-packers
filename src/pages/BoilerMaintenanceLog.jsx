@@ -24,7 +24,7 @@ export default function BoilerMaintenanceLog() {
   const [maintenanceDesc, setMaintenanceDesc] = useState("");
   const [generalRemarks, setGeneralRemarks] = useState("");
   
-  // File upload states with multiple files
+  // File upload states with multiple files - store only file info, not the actual files
   const [fdFanFiles, setFdFanFiles] = useState([]);
   const [fdFanUploading, setFdFanUploading] = useState(false);
   
@@ -39,8 +39,10 @@ export default function BoilerMaintenanceLog() {
   
   const [serviceReports, setServiceReports] = useState([]);
   const [serviceReportUploading, setServiceReportUploading] = useState(false);
+  
+  // Track if any upload is in progress
+  const isAnyUploading = fdFanUploading || idFanUploading || tubesUploading || ashUploading || serviceReportUploading;
 
-  // Get today's date in YYYY-MM-DD format for max date attribute
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -49,7 +51,6 @@ export default function BoilerMaintenanceLog() {
     return `${year}-${month}-${day}`;
   };
 
-  // Get date 5 years ago for min date (optional)
   const getMinDate = () => {
     const today = new Date();
     today.setFullYear(today.getFullYear() - 5);
@@ -57,64 +58,6 @@ export default function BoilerMaintenanceLog() {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
-
-  // Compress image using native canvas API
-  const compressImage = (file) => {
-    return new Promise((resolve, reject) => {
-      if (!file.type.startsWith('image/')) {
-        resolve(file);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          // Max dimensions
-          const maxWidth = 1920;
-          const maxHeight = 1920;
-          
-          if (width > height) {
-            if (width > maxWidth) {
-              height = (height * maxWidth) / width;
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width = (width * maxHeight) / height;
-              height = maxHeight;
-            }
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Adjust quality based on file size
-          let quality = 0.7;
-          if (file.size > 3 * 1024 * 1024) quality = 0.5;
-          if (file.size > 5 * 1024 * 1024) quality = 0.3;
-          
-          canvas.toBlob((blob) => {
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          }, file.type, quality);
-        };
-        img.onerror = reject;
-      };
-      reader.onerror = reject;
-    });
   };
 
   useEffect(() => {
@@ -145,29 +88,25 @@ export default function BoilerMaintenanceLog() {
   const uploadMultipleFiles = async (files, endpoint, setFiles, setUploading) => {
     if (!files || files.length === 0) return;
     
+    // Check file sizes
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        Swal.fire("Error", `${file.name} is larger than 5MB`, "error");
+        return;
+      }
+    }
+    
     setUploading(true);
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
     
     try {
-      // Compress images first
-      const compressedFiles = await Promise.all(
-        files.map(async (file) => {
-          if (file.type.startsWith('image/')) {
-            return await compressImage(file);
-          }
-          return file;
-        })
-      );
-      
-      const formData = new FormData();
-      for (const file of compressedFiles) {
-        formData.append("files", file);
-      }
-      
       const res = await axiosInstance.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 120000, // 2 minutes timeout for large files
+        timeout: 30000 // 30 second timeout
       });
-      
       if (res.data.success) {
         setFiles(prev => [...prev, ...res.data.files]);
         Swal.fire({
@@ -180,7 +119,7 @@ export default function BoilerMaintenanceLog() {
       }
     } catch (err) {
       console.error("Upload error:", err);
-      Swal.fire("Error", "Failed to upload files. Please try again.", "error");
+      Swal.fire("Error", "Failed to upload files", "error");
     } finally {
       setUploading(false);
     }
@@ -228,6 +167,12 @@ export default function BoilerMaintenanceLog() {
       return;
     }
 
+    // Check if any upload is in progress
+    if (isAnyUploading) {
+      Swal.fire("Error", "Please wait for all file uploads to complete", "error");
+      return;
+    }
+
     // Compare dates correctly without time component
     const selectedDate = new Date(date);
     const today = new Date();
@@ -242,31 +187,55 @@ export default function BoilerMaintenanceLog() {
     try {
       setLoading(true);
       
-      // Only send file references (url, publicId, originalName) not the entire file objects
+      // Prepare clean data without undefined values
       const submitData = {
         date: date,
-        fdFanBearingGreasing: { 
-          value: fdFanValue,
-          files: fdFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
-        },
-        idFanBearingGreasing: { 
-          value: idFanValue,
-          files: idFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
-        },
-        tubesCleaned: { 
-          value: tubesValue,
-          files: tubesFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
-        },
-        ashRemoved: { 
-          value: ashValue,
-          files: ashFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
-        },
-        maintenanceActivity: {
-          description: maintenanceDesc,
-          serviceReports: serviceReports.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
-        },
-        generalRemarks: generalRemarks
+        generalRemarks: generalRemarks || ""
       };
+      
+      // Add fdFan data only if value is selected or files exist
+      if (fdFanValue || fdFanFiles.length > 0) {
+        submitData.fdFanBearingGreasing = { 
+          value: fdFanValue || "",
+          files: fdFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+          remarks: ""
+        };
+      }
+      
+      // Add idFan data only if value is selected or files exist
+      if (idFanValue || idFanFiles.length > 0) {
+        submitData.idFanBearingGreasing = { 
+          value: idFanValue || "",
+          files: idFanFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+          remarks: ""
+        };
+      }
+      
+      // Add tubes data only if value is selected or files exist
+      if (tubesValue || tubesFiles.length > 0) {
+        submitData.tubesCleaned = { 
+          value: tubesValue || "",
+          files: tubesFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+          remarks: ""
+        };
+      }
+      
+      // Add ash data only if value is selected or files exist
+      if (ashValue || ashFiles.length > 0) {
+        submitData.ashRemoved = { 
+          value: ashValue || "",
+          files: ashFiles.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName })),
+          remarks: ""
+        };
+      }
+      
+      // Add maintenance activity data
+      if (maintenanceDesc || serviceReports.length > 0) {
+        submitData.maintenanceActivity = {
+          description: maintenanceDesc || "",
+          serviceReports: serviceReports.map(f => ({ url: f.url, publicId: f.publicId, originalName: f.originalName }))
+        };
+      }
       
       const res = await axiosInstance.post("/boiler-maintenance", submitData);
       
@@ -281,6 +250,8 @@ export default function BoilerMaintenanceLog() {
         
         resetForm();
         fetchRecords();
+      } else {
+        Swal.fire("Error", res.data.message || "Failed to save record", "error");
       }
     } catch (err) {
       console.error("Submit error:", err);
@@ -349,7 +320,6 @@ export default function BoilerMaintenanceLog() {
     return new Date(date).toLocaleDateString('en-GB');
   };
 
-  // Function to view file/image in Swal modal
   const viewFileInSwal = (file) => {
     const isImage = file.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
     
@@ -372,7 +342,6 @@ export default function BoilerMaintenanceLog() {
     }
   };
 
-  // Function to render file/image list with thumbnails
   const renderFileList = (files, label) => {
     if (!files || files.length === 0) return null;
     
@@ -384,38 +353,19 @@ export default function BoilerMaintenanceLog() {
           const shortName = fileName.length > 20 ? fileName.substring(0, 20) + '...' : fileName;
           
           return (
-            <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => viewFileInSwal(file)}>
               {isImage ? (
-                <div 
-                  className="w-10 h-10 rounded overflow-hidden cursor-pointer bg-gray-200 flex-shrink-0"
-                  onClick={() => viewFileInSwal(file)}
-                >
-                  <img 
-                    src={file.url} 
-                    alt={shortName}
-                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
-                  />
+                <div className="w-10 h-10 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                  <img src={file.url} alt={shortName} className="w-full h-full object-cover" />
                 </div>
               ) : (
-                <div 
-                  className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center cursor-pointer flex-shrink-0"
-                  onClick={() => viewFileInSwal(file)}
-                >
+                <div className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
                   <span className="text-xl">📄</span>
                 </div>
               )}
-              
               <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => viewFileInSwal(file)}
-                  className="text-blue-600 hover:text-blue-800 text-xs font-medium truncate block w-full text-left"
-                  title={fileName}
-                >
-                  {shortName}
-                </button>
-                <span className="text-gray-400 text-xs">
-                  {isImage ? 'Image' : 'Document'}
-                </span>
+                <p className="text-blue-600 text-xs font-medium truncate" title={fileName}>{shortName}</p>
+                <span className="text-gray-400 text-xs">{isImage ? 'Image' : 'Document'}</span>
               </div>
             </div>
           );
@@ -424,7 +374,6 @@ export default function BoilerMaintenanceLog() {
     );
   };
 
-  // File upload cell component with preview
   const FileUploadCell = ({ files, uploading, onUpload, onRemove, label }) => (
     <div className="flex flex-col gap-2">
       <input
@@ -438,7 +387,7 @@ export default function BoilerMaintenanceLog() {
       {uploading && (
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs text-blue-500">Compressing & Uploading...</span>
+          <span className="text-xs text-blue-500">Uploading...</span>
         </div>
       )}
       {files.length > 0 && !uploading && (
@@ -451,35 +400,17 @@ export default function BoilerMaintenanceLog() {
             return (
               <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
                 {isImage ? (
-                  <div 
-                    className="w-10 h-10 rounded overflow-hidden cursor-pointer bg-gray-200 flex-shrink-0"
-                    onClick={() => viewFileInSwal(file)}
-                  >
-                    <img 
-                      src={file.url} 
-                      alt={shortName}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-10 h-10 rounded overflow-hidden bg-gray-200 flex-shrink-0 cursor-pointer" onClick={() => viewFileInSwal(file)}>
+                    <img src={file.url} alt={shortName} className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  <div 
-                    className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center cursor-pointer flex-shrink-0"
-                    onClick={() => viewFileInSwal(file)}
-                  >
+                  <div className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center flex-shrink-0 cursor-pointer" onClick={() => viewFileInSwal(file)}>
                     <span className="text-lg">📄</span>
                   </div>
                 )}
-                
                 <div className="flex-1 min-w-0">
-                  <button
-                    onClick={() => viewFileInSwal(file)}
-                    className="text-green-600 hover:text-green-700 text-xs font-medium truncate block w-full text-left"
-                    title={fileName}
-                  >
-                    ✓ {shortName}
-                  </button>
+                  <p className="text-green-600 text-xs font-medium truncate" title={fileName}>✓ {shortName}</p>
                 </div>
-                
                 <button
                   type="button"
                   onClick={() => onRemove(idx)}
@@ -499,296 +430,94 @@ export default function BoilerMaintenanceLog() {
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
       <InternalNavbar />
       <div className="max-w-full mx-auto p-4 md:p-6">
-        {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              Boiler Maintenance Report (Monthly Basis)
+              Boiler Maintenance Report
             </h1>
             <p className="text-gray-500 text-sm mt-1">
               Total Records: <span className="font-semibold">{totalRecords}</span> | Page {currentPage} of {totalPages}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              max={getTodayDate()}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              max={getTodayDate()}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => { setStartDate(""); setEndDate(""); setCurrentPage(1); }}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-all"
-            >
-              Clear Filter
-            </button>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
-            >
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} max={getTodayDate()} className="border rounded-lg px-3 py-2 text-sm" />
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} max={getTodayDate()} className="border rounded-lg px-3 py-2 text-sm" />
+            <button onClick={() => { setStartDate(""); setEndDate(""); setCurrentPage(1); }} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">Clear Filter</button>
+            <button onClick={() => setShowForm(!showForm)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md">
               {showForm ? "✕ Cancel" : "+ Add Record"}
             </button>
           </div>
         </div>
 
-        {/* Add/Edit Form - Same as before */}
         <AnimatePresence>
           {showForm && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-2xl shadow-xl mb-6 overflow-hidden"
-            >
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white rounded-2xl shadow-xl mb-6 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-                <h2 className="text-xl font-bold text-white">
-                  {editingId ? "Edit Record" : "Add New Record"}
-                </h2>
+                <h2 className="text-xl font-bold text-white">{editingId ? "Edit Record" : "Add New Record"}</h2>
               </div>
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Date *</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    max={getTodayDate()}
-                    min={getMinDate()}
-                    className="border border-gray-300 rounded-lg p-2.5 w-full md:w-64 focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    * Only past and today's dates are allowed
-                  </p>
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} max={getTodayDate()} min={getMinDate()} className="border rounded-lg p-2.5 w-full md:w-64" required />
+                  <p className="text-xs text-gray-500 mt-1">* Only past and today's dates are allowed</p>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-collapse">
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-100 to-gray-200">
-                        <th className="border p-3 text-left text-sm font-semibold text-gray-700">Activity</th>
-                        <th className="border p-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="border p-3 text-left text-sm font-semibold text-gray-700">File Upload (Multiple)</th>
-                      </table>
+                        <th className="border p-3 text-left text-sm font-semibold">Activity</th>
+                        <th className="border p-3 text-left text-sm font-semibold">Status</th>
+                        <th className="border p-3 text-left text-sm font-semibold">File Upload (Multiple)</th>
+                      </tr>
                     </thead>
                     <tbody>
-                      <tr className="hover:bg-gray-50">
-                        <td className="border p-3 font-medium">FD Fan Bearing Greasing Done</td>
-                        <td className="border p-3">
-                          <select value={fdFanValue} onChange={(e) => setFdFanValue(e.target.value)} className="border rounded-lg p-2 w-32">
-                            <option value="">-- Select --</option>
-                            <option value="YES">✅ YES</option>
-                            <option value="NO">❌ NO</option>
-                          </select>
-                        </td>
-                        <td className="border p-3">
-                          <FileUploadCell
-                            files={fdFanFiles}
-                            uploading={fdFanUploading}
-                            onUpload={handleFdFanFiles}
-                            onRemove={(idx) => removeFile(setFdFanFiles, idx)}
-                          />
-                        </td>
-                      </tr>
-                      
-                      <tr className="hover:bg-gray-50">
-                        <td className="border p-3 font-medium">ID Fan Bearing Greasing Done</td>
-                        <td className="border p-3">
-                          <select value={idFanValue} onChange={(e) => setIdFanValue(e.target.value)} className="border rounded-lg p-2 w-32">
-                            <option value="">-- Select --</option>
-                            <option value="YES">✅ YES</option>
-                            <option value="NO">❌ NO</option>
-                          </select>
-                        </td>
-                        <td className="border p-3">
-                          <FileUploadCell
-                            files={idFanFiles}
-                            uploading={idFanUploading}
-                            onUpload={handleIdFanFiles}
-                            onRemove={(idx) => removeFile(setIdFanFiles, idx)}
-                          />
-                        </td>
-                      </tr>
-                      
-                      <tr className="hover:bg-gray-50">
-                        <td className="border p-3 font-medium">Tubes Cleaned with Brush</td>
-                        <td className="border p-3">
-                          <select value={tubesValue} onChange={(e) => setTubesValue(e.target.value)} className="border rounded-lg p-2 w-32">
-                            <option value="">-- Select --</option>
-                            <option value="YES">✅ YES</option>
-                            <option value="NO">❌ NO</option>
-                          </select>
-                        </td>
-                        <td className="border p-3">
-                          <FileUploadCell
-                            files={tubesFiles}
-                            uploading={tubesUploading}
-                            onUpload={handleTubesFiles}
-                            onRemove={(idx) => removeFile(setTubesFiles, idx)}
-                          />
-                        </td>
-                      </tr>
-                      
-                      <tr className="hover:bg-gray-50">
-                        <td className="border p-3 font-medium">Ash Removed</td>
-                        <td className="border p-3">
-                          <select value={ashValue} onChange={(e) => setAshValue(e.target.value)} className="border rounded-lg p-2 w-32">
-                            <option value="">-- Select --</option>
-                            <option value="YES">✅ YES</option>
-                            <option value="NO">❌ NO</option>
-                          </select>
-                        </td>
-                        <td className="border p-3">
-                          <FileUploadCell
-                            files={ashFiles}
-                            uploading={ashUploading}
-                            onUpload={handleAshFiles}
-                            onRemove={(idx) => removeFile(setAshFiles, idx)}
-                          />
-                        </td>
-                      </tr>
-                      
-                      <tr className="hover:bg-gray-50">
-                        <td className="border p-3 font-medium align-top">Type of Maintenance Activity Done</td>
-                        <td colSpan="2" className="border p-3">
-                          <textarea
-                            value={maintenanceDesc}
-                            onChange={(e) => setMaintenanceDesc(e.target.value)}
-                            className="border border-gray-300 rounded-lg p-2 w-full"
-                            rows="3"
-                            placeholder="Describe maintenance activity..."
-                          />
-                          <div className="mt-3 pt-3 border-t">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Service Report Files (Multiple)</label>
-                            <FileUploadCell
-                              files={serviceReports}
-                              uploading={serviceReportUploading}
-                              onUpload={handleServiceReports}
-                              onRemove={(idx) => removeFile(setServiceReports, idx)}
-                            />
-                          </div>
-                        </td>
-                      </tr>
+                      <tr><td className="border p-3 font-medium">FD Fan Bearing Greasing Done</td><td className="border p-3"><select value={fdFanValue} onChange={(e) => setFdFanValue(e.target.value)} className="border rounded-lg p-2 w-32"><option value="">-- Select --</option><option value="YES">✅ YES</option><option value="NO">❌ NO</option></select></td><td className="border p-3"><FileUploadCell files={fdFanFiles} uploading={fdFanUploading} onUpload={handleFdFanFiles} onRemove={(idx) => removeFile(setFdFanFiles, idx)} /></td></tr>
+                      <tr><td className="border p-3 font-medium">ID Fan Bearing Greasing Done</td><td className="border p-3"><select value={idFanValue} onChange={(e) => setIdFanValue(e.target.value)} className="border rounded-lg p-2 w-32"><option value="">-- Select --</option><option value="YES">✅ YES</option><option value="NO">❌ NO</option></select></td><td className="border p-3"><FileUploadCell files={idFanFiles} uploading={idFanUploading} onUpload={handleIdFanFiles} onRemove={(idx) => removeFile(setIdFanFiles, idx)} /></td></tr>
+                      <tr><td className="border p-3 font-medium">Tubes Cleaned with Brush</td><td className="border p-3"><select value={tubesValue} onChange={(e) => setTubesValue(e.target.value)} className="border rounded-lg p-2 w-32"><option value="">-- Select --</option><option value="YES">✅ YES</option><option value="NO">❌ NO</option></select></td><td className="border p-3"><FileUploadCell files={tubesFiles} uploading={tubesUploading} onUpload={handleTubesFiles} onRemove={(idx) => removeFile(setTubesFiles, idx)} /></td></tr>
+                      <tr><td className="border p-3 font-medium">Ash Removed</td><td className="border p-3"><select value={ashValue} onChange={(e) => setAshValue(e.target.value)} className="border rounded-lg p-2 w-32"><option value="">-- Select --</option><option value="YES">✅ YES</option><option value="NO">❌ NO</option></select></td><td className="border p-3"><FileUploadCell files={ashFiles} uploading={ashUploading} onUpload={handleAshFiles} onRemove={(idx) => removeFile(setAshFiles, idx)} /></td></tr>
+                      <tr><td className="border p-3 font-medium align-top">Type of Maintenance Activity Done</td><td colSpan="2" className="border p-3"><textarea value={maintenanceDesc} onChange={(e) => setMaintenanceDesc(e.target.value)} className="border rounded-lg p-2 w-full" rows="3" placeholder="Describe maintenance activity..." /><div className="mt-3 pt-3 border-t"><label className="block text-sm font-medium text-gray-700 mb-2">Service Report Files (Multiple)</label><FileUploadCell files={serviceReports} uploading={serviceReportUploading} onUpload={handleServiceReports} onRemove={(idx) => removeFile(setServiceReports, idx)} /></div></td></tr>
                     </tbody>
                   </table>
                 </div>
 
                 <div className="mt-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">General Remarks</label>
-                  <textarea
-                    value={generalRemarks}
-                    onChange={(e) => setGeneralRemarks(e.target.value)}
-                    className="border border-gray-300 rounded-lg p-3 w-full"
-                    rows="3"
-                    placeholder="Enter any general remarks..."
-                  />
+                  <textarea value={generalRemarks} onChange={(e) => setGeneralRemarks(e.target.value)} className="border rounded-lg p-3 w-full" rows="3" placeholder="Enter any general remarks..." />
                 </div>
                 
                 <div className="flex gap-3 mt-6 pt-4 border-t">
-                  <button type="submit" disabled={loading} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 flex items-center gap-2 shadow-md">
-                    {loading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Saving...</> : (editingId ? "Update Record" : "Save Record")}
+                  <button type="submit" disabled={loading || isAnyUploading} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 flex items-center gap-2 shadow-md">
+                    {(loading || isAnyUploading) ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Saving...</> : (editingId ? "Update Record" : "Save Record")}
                   </button>
-                  <button type="button" onClick={resetForm} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2.5 rounded-lg font-medium">
-                    Cancel
-                  </button>
+                  <button type="button" onClick={resetForm} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2.5 rounded-lg font-medium">Cancel</button>
                 </div>
               </form>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Records Table */}
         {loading ? (
-          <div className="flex flex-col justify-center items-center py-20">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500">Loading records...</p>
-          </div>
+          <div className="flex flex-col justify-center items-center py-20"><div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div><p className="text-gray-500">Loading records...</p></div>
         ) : (
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse">
                 <thead className="bg-gradient-to-r from-gray-100 to-gray-200">
-                  <tr>
-                    <th className="border p-3 text-left text-xs font-semibold">S.No</th>
-                    <th className="border p-3 text-left text-xs font-semibold">Date</th>
-                    <th className="border p-3 text-left text-xs font-semibold">FD Fan</th>
-                    <th className="border p-3 text-left text-xs font-semibold">ID Fan</th>
-                    <th className="border p-3 text-left text-xs font-semibold">Tubes</th>
-                    <th className="border p-3 text-left text-xs font-semibold">Ash</th>
-                    <th className="border p-3 text-left text-xs font-semibold">Maintenance Activity</th>
-                    <th className="border p-3 text-left text-xs font-semibold">General Remarks</th>
-                    <th className="border p-3 text-left text-xs font-semibold">Actions</th>
-                  </tr>
+                  <tr><th className="border p-3 text-left text-xs font-semibold">S.No</th><th className="border p-3 text-left text-xs font-semibold">Date</th><th className="border p-3 text-left text-xs font-semibold">FD Fan</th><th className="border p-3 text-left text-xs font-semibold">ID Fan</th><th className="border p-3 text-left text-xs font-semibold">Tubes</th><th className="border p-3 text-left text-xs font-semibold">Ash</th><th className="border p-3 text-left text-xs font-semibold">Maintenance Activity</th><th className="border p-3 text-left text-xs font-semibold">General Remarks</th><th className="border p-3 text-left text-xs font-semibold">Actions</th></tr>
                 </thead>
                 <tbody>
                   {records.map((record, index) => (
                     <tr key={record._id} className="hover:bg-gray-50">
                       <td className="border p-2 text-xs text-center">{(currentPage - 1) * 20 + index + 1}</td>
                       <td className="border p-2 text-xs font-medium">{formatDate(record.date)}</td>
-                      
-                      <td className="border p-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          record.fdFanBearingGreasing?.value === "YES" ? "bg-green-100 text-green-700" : 
-                          record.fdFanBearingGreasing?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
-                        }`}>
-                          {record.fdFanBearingGreasing?.value || "-"}
-                        </span>
-                        {renderFileList(record.fdFanBearingGreasing?.files, "File")}
-                      </td>
-                      
-                      <td className="border p-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          record.idFanBearingGreasing?.value === "YES" ? "bg-green-100 text-green-700" : 
-                          record.idFanBearingGreasing?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
-                        }`}>
-                          {record.idFanBearingGreasing?.value || "-"}
-                        </span>
-                        {renderFileList(record.idFanBearingGreasing?.files, "File")}
-                      </td>
-                      
-                      <td className="border p-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          record.tubesCleaned?.value === "YES" ? "bg-green-100 text-green-700" : 
-                          record.tubesCleaned?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
-                        }`}>
-                          {record.tubesCleaned?.value || "-"}
-                        </span>
-                        {renderFileList(record.tubesCleaned?.files, "File")}
-                      </td>
-                      
-                      <td className="border p-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          record.ashRemoved?.value === "YES" ? "bg-green-100 text-green-700" : 
-                          record.ashRemoved?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
-                        }`}>
-                          {record.ashRemoved?.value || "-"}
-                        </span>
-                        {renderFileList(record.ashRemoved?.files, "File")}
-                      </td>
-                      
-                      <td className="border p-2 text-xs max-w-xs">
-                        <p className="break-words">{record.maintenanceActivity?.description || "-"}</p>
-                        {renderFileList(record.maintenanceActivity?.serviceReports, "Service Report")}
-                      </td>
-                      
-                      <td className="border p-2 text-xs max-w-xs">
-                        <p className="break-words">{record.generalRemarks || "-"}</p>
-                      </td>
-                      
-                      <td className="border p-2 whitespace-nowrap">
-                        <div className="flex gap-1">
-                          <button onClick={() => handleEdit(record)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">Edit</button>
-                          <button onClick={() => handleDelete(record._id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">Delete</button>
-                        </div>
-                      </td>
+                      <td className="border p-2"><span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${record.fdFanBearingGreasing?.value === "YES" ? "bg-green-100 text-green-700" : record.fdFanBearingGreasing?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>{record.fdFanBearingGreasing?.value || "-"}</span>{renderFileList(record.fdFanBearingGreasing?.files, "File")}</td>
+                      <td className="border p-2"><span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${record.idFanBearingGreasing?.value === "YES" ? "bg-green-100 text-green-700" : record.idFanBearingGreasing?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>{record.idFanBearingGreasing?.value || "-"}</span>{renderFileList(record.idFanBearingGreasing?.files, "File")}</td>
+                      <td className="border p-2"><span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${record.tubesCleaned?.value === "YES" ? "bg-green-100 text-green-700" : record.tubesCleaned?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>{record.tubesCleaned?.value || "-"}</span>{renderFileList(record.tubesCleaned?.files, "File")}</td>
+                      <td className="border p-2"><span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${record.ashRemoved?.value === "YES" ? "bg-green-100 text-green-700" : record.ashRemoved?.value === "NO" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>{record.ashRemoved?.value || "-"}</span>{renderFileList(record.ashRemoved?.files, "File")}</td>
+                      <td className="border p-2 text-xs max-w-xs"><p className="break-words">{record.maintenanceActivity?.description || "-"}</p>{renderFileList(record.maintenanceActivity?.serviceReports, "Service Report")}</td>
+                      <td className="border p-2 text-xs max-w-xs"><p className="break-words">{record.generalRemarks || "-"}</p></td>
+                      <td className="border p-2 whitespace-nowrap"><div className="flex gap-1"><button onClick={() => handleEdit(record)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">Edit</button><button onClick={() => handleDelete(record._id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">Delete</button></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -797,16 +526,11 @@ export default function BoilerMaintenanceLog() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-6">
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50">
-              ← Previous
-            </button>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50">← Previous</button>
             <span className="text-sm">Page {currentPage} of {totalPages}</span>
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50">
-              Next →
-            </button>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50">Next →</button>
           </div>
         )}
       </div>
