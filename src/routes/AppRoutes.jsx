@@ -71,6 +71,7 @@ import LeaveManagement from "../components/LeaveManagement";
 import GateInwardPrintout from "../components/GateInwardPrintout";
 import GateOutwardForm from "../components/GateOutwardForm";
 import GateOutwardsView from "../pages/GateOutwardsView";
+import AllCaremaxProducts from "../pages/AllCaremaxProducts";
 import GateOutwardPrintout from "../components/GateOutwardPrintout";
 import WaterFilterMaintenance from "../pages/WaterFilterMaintenance";
 import FireSafetyMaintenance from "../pages/FireSafetyMaintenance";
@@ -104,6 +105,17 @@ import WaterPollutionCertificate from "../pages/WaterPollutionCertificate";
 import EPFOManagement from "../pages/EPFOManagement";
 import CostingCalculator from "../components/CostingCalculator";
 import BoilerMaintenanceLog from "../pages/BoilerMaintenanceLog";
+import ViewProduct from "../pages/ViewProduct";
+import CaremaxImpex from "../pages/CaremaxImpex";
+import AddCaremaxProduct from "../pages/AddCaremaxProduct";
+import EditCaremaxProduct from "../pages/EditCaremaxProduct";
+import AddCaremaxCustomer from "../pages/AddCaremaxCustomer";
+import AllCaremaxCustomers from "../pages/AllCaremaxCustomers";
+import ViewCaremaxCustomer from "../pages/ViewCaremaxCustomer";
+import EditCaremaxCustomer from "../pages/EditCaremaxCustomer";
+import AddCaremaxQuotation from "../pages/AddCaremaxQuotation";
+import AllCaremaxQuotations from "../pages/AllCaremaxQuotations";
+import EditCaremaxQuotation from "../pages/EditCaremaxQuotation";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -673,7 +685,19 @@ export default function AppRoutes() {
 <Route path="/epfo" element={<EPFOManagement />} />
 <Route path="/costing-calculator" element={<CostingCalculator />} />
 <Route path="/maintenance/boiler-maintenance-log" element={<BoilerMaintenanceLog />} />
-
+<Route path="/all-caremax-products" element={<AllCaremaxProducts />} />
+<Route path="/view-product/:id" element={<ViewProduct />} />
+<Route path="/caremax-impex" element={<CaremaxImpex />} />
+<Route path="/caremax-impex/edit-product/:id" element={<EditCaremaxProduct />} />
+<Route path="/caremax-impex/add-product" element={<AddCaremaxProduct />} />
+<Route path="/caremax-impex/all-products" element={<AllCaremaxProducts />} />
+<Route path="/caremax-impex/add-customer" element={<AddCaremaxCustomer />} />
+<Route path="/caremax-impex/all-customers" element={<AllCaremaxCustomers />} />
+<Route path="/caremax-impex/view-customer/:id" element={<ViewCaremaxCustomer />} />
+<Route path="/caremax-impex/edit-customer/:id" element={<EditCaremaxCustomer />} />
+<Route path="/caremax-impex/add-quotation" element={<AddCaremaxQuotation />} />
+<Route path="/caremax-impex/all-quotations" element={<AllCaremaxQuotations />} />
+<Route path="/caremax-impex/edit-quotation/:id" element={<EditCaremaxQuotation />} />
 
 <Route
 path="/maintenance/water-filter"

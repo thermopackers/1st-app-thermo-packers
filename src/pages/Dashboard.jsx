@@ -2005,6 +2005,27 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 </div>
               </DashboardCard>
 
+
+{/* Alternative: Smaller button that fits in the existing button row */}
+{(userRoles.some((role) => ["admin", "accounts"].includes(role))) && (
+  <DashboardCard>
+ <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                    <span className="text-2xl">🏢</span>
+                  Go To Caremax Impex Page
+                  </h3>
+                  <div className="flex items-center justify-center">
+  <motion.button
+    onClick={() => navigate("/caremax-impex")}
+    className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+  >
+    Caremax Impex
+  </motion.button>
+  </div>
+  </DashboardCard>
+)}
+
               {/* Enhanced Assets Section */}
               <DashboardCard>
                 <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
