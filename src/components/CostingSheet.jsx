@@ -439,19 +439,36 @@ const fetchRMRate = async () => {
     }
   };
 
-  const handleConversionRateChange = (productId, value) => {
-    const rate = parseFloat(value) || 0;
-    setConversionRates(prev => ({ ...prev, [productId]: rate }));
-    calculateProductPrice(productId, rate, rmRate, inPcsMode[productId], freightOutward[productId], customWeights[productId]);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+const handleConversionRateChange = (productId, value) => {
+  const rate = parseFloat(value) || 0;
+  
+  // Get the product to check its unit
+  const product = rawMaterials.find(p => p._id === productId);
+  const isKg = isUnitKg(product?.unit || "");
+  // For non-kg units, force isInPcs to true
+  const forceInPcs = !isKg;
+  
+  // Use forced value if non-kg, otherwise use stored mode
+  const actualInPcs = forceInPcs ? true : inPcsMode[productId];
+  
+  setConversionRates(prev => ({ ...prev, [productId]: rate }));
+  calculateProductPrice(productId, rate, rmRate, actualInPcs, freightOutward[productId], customWeights[productId]);
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+};
 
-  const handleFreightChange = (productId, value) => {
-    const freight = parseFloat(value) || 0;
-    setFreightOutward(prev => ({ ...prev, [productId]: freight }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freight, customWeights[productId]);
-    setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
-  };
+const handleFreightChange = (productId, value) => {
+  const freight = parseFloat(value) || 0;
+  
+  // Get the product to check its unit
+  const product = rawMaterials.find(p => p._id === productId);
+  const isKg = isUnitKg(product?.unit || "");
+  const forceInPcs = !isKg;
+  const actualInPcs = forceInPcs ? true : inPcsMode[productId];
+  
+  setFreightOutward(prev => ({ ...prev, [productId]: freight }));
+  calculateProductPrice(productId, conversionRates[productId], rmRate, actualInPcs, freight, customWeights[productId]);
+  setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
+};
 
   const handleInPcsToggle = (productId, checked) => {
     setInPcsMode(prev => ({ ...prev, [productId]: checked }));
@@ -461,7 +478,6 @@ const fetchRMRate = async () => {
   
 // Handle custom weight change (weight is in kg)
 const handleWeightChange = (productId, value) => {
-  // If value is empty string, treat as 0 for now
   if (value === '') {
     setCustomWeights(prev => ({ ...prev, [productId]: 0 }));
     return;
@@ -470,7 +486,14 @@ const handleWeightChange = (productId, value) => {
   const weight = parseFloat(value);
   if (!isNaN(weight) && weight >= 0) {
     setCustomWeights(prev => ({ ...prev, [productId]: weight }));
-    calculateProductPrice(productId, conversionRates[productId], rmRate, inPcsMode[productId], freightOutward[productId], weight);
+    
+    // Get the product to check its unit
+    const product = rawMaterials.find(p => p._id === productId);
+    const isKg = isUnitKg(product?.unit || "");
+    const forceInPcs = !isKg;
+    const actualInPcs = forceInPcs ? true : inPcsMode[productId];
+    
+    calculateProductPrice(productId, conversionRates[productId], rmRate, actualInPcs, freightOutward[productId], weight);
     setSavedCostingSheets(prev => prev.filter(sheet => sheet.productId !== productId));
   }
 };
@@ -548,19 +571,22 @@ const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs
 };
 
   const saveCostingSheet = async (productId) => {
-    const product = rawMaterials.find(p => p._id === productId);
-    const calculation = calculatedPrices[productId];
-    const conversionRate = conversionRates[productId];
-    const freight = freightOutward[productId];
-    const isInPcs = inPcsMode[productId];
-    const customWeight = customWeights[productId];
-     const internalNote = internalNotes[productId] || "";
+     const product = rawMaterials.find(p => p._id === productId);
+  const calculation = calculatedPrices[productId];
+  const conversionRate = conversionRates[productId];
+  const freight = freightOutward[productId];
+  const customWeight = customWeights[productId];
+  const internalNote = internalNotes[productId] || "";
   const remark = remarks[productId] || "";
   
-    if (!calculation || !conversionRate || conversionRate <= 0) {
-      toast.error("Please enter conversion rate first");
-      return;
-    }
+  // Get the correct isInPcs value based on unit
+  const isKg = isUnitKg(product?.unit || "");
+  const isInPcs = !isKg ? true : inPcsMode[productId];
+  
+  if (!calculation || !conversionRate || conversionRate <= 0) {
+    toast.error("Please enter conversion rate first");
+    return;
+  }
 
     try {
       const res = await axiosInstance.post(`/customers/${customerId}/costing-sheets`, {
@@ -1136,7 +1162,7 @@ const deleteCostingSheet = async (productId, sheetId) => {
                       </div>
                       <p className="text-xs text-gray-500">Unit: {unit || 'kg'}</p>
                       
-                      {/* {showCheckbox && ( */}
+                      {showCheckbox && (
                         <label className="items-center gap-2 mt-2 text-xs cursor-pointer hidden">
                           <input
                             type="checkbox"
@@ -1146,7 +1172,7 @@ const deleteCostingSheet = async (productId, sheetId) => {
                           />
                           <span className="text-gray-600">Calculate per piece (with product weight)</span>
                         </label>
-                      {/* )} */}
+                      )}
                     </div>
 
                     <div className="p-3 space-y-2">
