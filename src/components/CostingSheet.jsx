@@ -33,7 +33,6 @@ const [remarks, setRemarks] = useState({});              // 🆕 Store remarks p
     rmRateRef.current = rmRate;
   }, [rmRate]);
 
-  // Add this useEffect after the other useEffects
 useEffect(() => {
   // When RM rate changes and we have products, recalculate all prices
   if (rmRate > 0 && rawMaterials.length > 0) {
@@ -43,7 +42,9 @@ useEffect(() => {
       const productId = product._id;
       const conversionRate = conversionRates[productId] || 0;
       const freight = freightOutward[productId] || 0;
-      const isInPcs = inPcsMode[productId] || false;
+      // ✅ Get the correct isInPcs value based on unit
+      const isKg = isUnitKg(product.unit || "");
+      const isInPcs = !isKg;
       const customWeight = customWeights[productId];
       
       if (conversionRate > 0) {
@@ -51,7 +52,7 @@ useEffect(() => {
       }
     });
   }
-}, [rmRate, rawMaterials]); // Re-run when rmRate changes or rawMaterials loads
+}, [rmRate, rawMaterials]);
   
   useEffect(() => {
     savedSheetsRef.current = savedCostingSheets;
@@ -249,13 +250,16 @@ const initialRemarks = {};
       products.forEach(product => {
         // Check if there's a saved sheet for this product
         const savedSheet = getLatestSheetForProduct(product._id);
-        
+  const isKg = isUnitKg(product.unit || "");
+  // For non-kg units, force per-piece mode regardless of saved data
+  const defaultInPcs = !isKg;
+
         if (savedSheet) {
           console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
   // Load saved values
   initialRates[product._id] = savedSheet.conversionRate || 0;
   initialFreight[product._id] = savedSheet.freight || 0;
-  initialInPcs[product._id] = savedSheet.isInPcs || false;
+    initialInPcs[product._id] = !isKg ? true : (savedSheet.isInPcs || false);
     initialInternalNotes[product._id] = savedSheet.internalNotes || "";
   initialRemarks[product._id] = savedSheet.remarks || "";
   // ✅ Load custom weight if saved
@@ -348,21 +352,19 @@ const fetchRMRate = async () => {
       if (rawMaterials.length > 0) {
         console.log("Recalculating all product prices with new RM rate...");
         
-        // Get current values for all products
-        const updatedConversionRates = { ...conversionRates };
-        const updatedFreightOutward = { ...freightOutward };
-        const updatedInPcsMode = { ...inPcsMode };
-        const updatedCustomWeights = { ...customWeights };
-        
-        // Recalculate each product's price
+        // Recalculate each product's price with the correct isInPcs value
         rawMaterials.forEach(product => {
           const productId = product._id;
-          const conversionRate = updatedConversionRates[productId] || 0;
-          const freight = updatedFreightOutward[productId] || 0;
-          const isInPcs = updatedInPcsMode[productId] || false;
-          const customWeight = updatedCustomWeights[productId];
+          const conversionRate = conversionRates[productId] || 0;
+          const freight = freightOutward[productId] || 0;
+          // ✅ Get the correct isInPcs value based on unit
+          const isKg = isUnitKg(product.unit || "");
+          const isInPcs = !isKg; // For non-kg units, force per-piece mode
+          const customWeight = customWeights[productId];
           
-          calculateProductPrice(productId, conversionRate, newRate, isInPcs, freight, customWeight);
+          if (conversionRate > 0) {
+            calculateProductPrice(productId, conversionRate, newRate, isInPcs, freight, customWeight);
+          }
         });
       }
       
@@ -503,27 +505,27 @@ const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs
   let totalPerKg = currentRmRate + conversionRate;
   
   if (isInPcs) {
-    // Use custom weight if provided, otherwise use product weight
-    if (customWeight !== undefined && customWeight > 0) {
-      productWeight = customWeight;
-      console.log(`Using custom weight: ${productWeight} kg`);
-    } else {
-      const weightStr = product.weight || "";
-      if (weightStr.toLowerCase().includes("kg")) {
-        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-        if (match) productWeight = parseFloat(match[1]);
-      } else if (weightStr.toLowerCase().includes("g")) {
-        const match = weightStr.match(/(\d+(?:\.\d+)?)/);
-        if (match) productWeight = parseFloat(match[1]) / 1000;
-      } else {
-        productWeight = parseFloat(weightStr) || 0;
-      }
-      console.log(`Using product weight: ${productWeight} kg from "${weightStr}"`);
-    }
-    
-    basePrice = totalPerKg * productWeight;
-    console.log(`Total/kg: ${totalPerKg}, Product Weight: ${productWeight} kg, Base Price: ${basePrice}`);
+  if (customWeight !== undefined && customWeight > 0) {
+    productWeight = customWeight;
   } else {
+    const weightStr = product.weight || "";
+    if (weightStr.toLowerCase().includes("kg")) {
+      const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+      if (match) productWeight = parseFloat(match[1]);
+    } else if (weightStr.toLowerCase().includes("g")) {
+      const match = weightStr.match(/(\d+(?:\.\d+)?)/);
+      if (match) productWeight = parseFloat(match[1]) / 1000;
+    } else if (weightStr && !isNaN(parseFloat(weightStr))) {
+      // If it's just a number, assume it's in kg
+      productWeight = parseFloat(weightStr);
+    } else {
+      // ✅ If no weight is set, try to get from custom weight or use a default message
+      console.warn(`No weight set for product: ${product.name}`);
+      productWeight = 1; // Fallback to 1kg for calculation
+    }
+  }
+  basePrice = totalPerKg * productWeight;
+} else {
     basePrice = totalPerKg;
   }
   
