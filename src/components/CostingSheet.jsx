@@ -998,26 +998,29 @@ const generatePDF = async (product, calculation, remarks) => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
              {rawMaterials.map((product) => {
-  const savedSheet = getLatestSheetForProduct(product._id);
-  const hasSavedSheet = !!savedSheet;
-  const unit = product.unit || "";
-  const isKg = isUnitKg(unit);
-  
-  let showCheckbox = false;
-  let isInPcs = false;
-  
+ // Update this section in your map function:
+const savedSheet = getLatestSheetForProduct(product._id);
+const hasSavedSheet = !!savedSheet;
+const unit = product.unit || "";
+const isKg = isUnitKg(unit);
+
+let showCheckbox = false;
+let isInPcs = false;
+
+// For non-kg units, force per-piece mode
+if (!isKg) {
+  // Non-kg units: always per-piece mode, no checkbox needed
+  isInPcs = true;
+  showCheckbox = false;
+} else {
+  // kg/kgs units: per-kg mode by default, but can be toggled if there's a saved sheet with per-piece mode
   if (hasSavedSheet) {
     isInPcs = inPcsMode[product._id] !== undefined ? inPcsMode[product._id] : (savedSheet?.isInPcs || false);
-    showCheckbox = !isKg;
   } else {
-    if (isKg) {
-      showCheckbox = false;
-      isInPcs = false;
-    } else {
-      showCheckbox = true;
-      isInPcs = true;
-    }
+    isInPcs = false;
   }
+  showCheckbox = true; // Show checkbox only for kg units to allow per-piece mode
+}
   
   const savedConversionRate = savedSheet?.conversionRate || 0;
   const savedFreight = savedSheet?.freight || 0;
@@ -1154,95 +1157,92 @@ const deleteCostingSheet = async (productId, sheetId) => {
                         <span className="text-green-600">₹{calculation.totalPerKg.toFixed(2)}</span>
                       </div>
 
-                      {isInPcs && (
-                        <>
-                          {/* Editable Product Weight */}
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Product Weight (Enter wt. in grams):</span>
-                            <div className="flex items-center gap-1">
-                           {isEditing ? (
+                    {isInPcs && isKg === false && (
   <>
-    <input
-      type="text"
-      value={effectiveWeightInGrams}  // Show in grams
-      onChange={(e) => {
-        const value = e.target.value;
-        // Allow numbers, decimal point, and delete/backspace
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-          // Convert grams to kg for storage
-          const grams = parseFloat(value);
-          if (!isNaN(grams)) {
-            const kgValue = grams / 1000;
-            handleWeightChange(product._id, kgValue);
-          } else if (value === '') {
-            handleWeightChange(product._id, '');
-          }
-        }
-      }}
-      className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-      autoFocus
-      onBlur={() => {
-        // Convert to number and validate on blur
-        const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-        if (currentWeight <= 0) {
-          handleWeightChange(product._id, 0);
-        }
-        setEditingWeightId(null);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
-          if (currentWeight <= 0) {
-            handleWeightChange(product._id, 0);
-          }
-          setEditingWeightId(null);
-        }
-        if (e.key === 'Escape') {
-          setEditingWeightId(null);
-        }
-      }}
-    />
-    <span className="text-xs text-gray-500">g</span>
-    <button
-      onClick={() => setEditingWeightId(null)}
-      className="text-gray-400 hover:text-gray-600 text-xs"
-    >
-      Cancel
-    </button>
-  </>
-) : (
-  <>
-    <span className="font-medium">
-      {formatWeightDisplay(effectiveWeight)}
-    </span>
-    <button
-      onClick={() => setEditingWeightId(product._id)}
-      className="text-blue-500 hover:text-blue-700"
-      title="Edit weight for this costing sheet"
-    >
-      <Edit2 size={12} />
-    </button>
+    {/* Editable Product Weight - Only show for non-kg units */}
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-gray-600">Product Weight (Enter wt. in grams):</span>
+      <div className="flex items-center gap-1">
+        {isEditing ? (
+          <>
+            <input
+              type="text"
+              value={effectiveWeightInGrams}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                  const grams = parseFloat(value);
+                  if (!isNaN(grams)) {
+                    const kgValue = grams / 1000;
+                    handleWeightChange(product._id, kgValue);
+                  } else if (value === '') {
+                    handleWeightChange(product._id, '');
+                  }
+                }
+              }}
+              className="w-24 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              autoFocus
+              onBlur={() => {
+                const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+                if (currentWeight <= 0) {
+                  handleWeightChange(product._id, 0);
+                }
+                setEditingWeightId(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const currentWeight = customWeights[product._id] !== undefined ? customWeights[product._id] : getEffectiveWeight(product._id);
+                  if (currentWeight <= 0) {
+                    handleWeightChange(product._id, 0);
+                  }
+                  setEditingWeightId(null);
+                }
+                if (e.key === 'Escape') {
+                  setEditingWeightId(null);
+                }
+              }}
+            />
+            <span className="text-xs text-gray-500">g</span>
+            <button
+              onClick={() => setEditingWeightId(null)}
+              className="text-gray-400 hover:text-gray-600 text-xs"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="font-medium">
+              {formatWeightDisplay(effectiveWeight)}
+            </span>
+            <button
+              onClick={() => setEditingWeightId(product._id)}
+              className="text-blue-500 hover:text-blue-700"
+              title="Edit weight for this costing sheet"
+            >
+              <Edit2 size={12} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+    <div className="border-t border-gray-200 my-2"></div>
+    <div className="flex justify-between items-center">
+      <span className="text-sm font-semibold text-gray-700">Price/Piece:</span>
+      <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
+    </div>
   </>
 )}
-                            </div>
-                          </div>
-                          <div className="border-t border-gray-200 my-2"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-gray-700">Price/Piece:</span>
-                            <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
-                          </div>
-                        </>
-                      )}
 
-                      {!isInPcs && (
-                        <>
-                          <div className="border-t border-gray-200 my-2"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-gray-700">Price/kg:</span>
-                            <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
-                          </div>
-                        </>
-                      )}
+{!isInPcs && (
+  <>
+    <div className="border-t border-gray-200 my-2"></div>
+    <div className="flex justify-between items-center">
+      <span className="text-sm font-semibold text-gray-700">Price/kg:</span>
+      <span className="text-lg font-bold text-purple-600">₹{calculation.pricePerPiece}</span>
+    </div>
+  </>
+)}
 
                       {/* Freight Outward Field */}
                       <div className="flex items-center gap-2 mt-2">
