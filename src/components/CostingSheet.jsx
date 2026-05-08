@@ -1136,7 +1136,7 @@ const deleteCostingSheet = async (productId, sheetId) => {
                       </div>
                       <p className="text-xs text-gray-500">Unit: {unit || 'kg'}</p>
                       
-                      {showCheckbox && (
+                      {/* {showCheckbox && ( */}
                         <label className="items-center gap-2 mt-2 text-xs cursor-pointer hidden">
                           <input
                             type="checkbox"
@@ -1146,7 +1146,7 @@ const deleteCostingSheet = async (productId, sheetId) => {
                           />
                           <span className="text-gray-600">Calculate per piece (with product weight)</span>
                         </label>
-                      )}
+                      {/* )} */}
                     </div>
 
                     <div className="p-3 space-y-2">
