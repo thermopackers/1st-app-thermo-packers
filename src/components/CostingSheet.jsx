@@ -146,9 +146,15 @@ const getEffectiveWeight = (productId) => {
   const product = rawMaterials.find(p => p._id === productId);
   if (!product) return 0;
   
-  // ✅ First check customWeights state (this is the live state)
+  console.log(`getEffectiveWeight for ${product.name}:`, {
+    customWeight: customWeights[productId],
+    savedCustomWeight: getLatestSheetForProduct(productId)?.customWeight,
+    productWeight: product.weight
+  });
+  
+  // First check customWeights state (this is the live state)
   if (customWeights[productId] !== undefined && customWeights[productId] !== null && customWeights[productId] !== 0) {
-    return customWeights[productId]; // Use the custom weight from state
+    return customWeights[productId];
   }
   
   // Then check if there's a saved sheet with custom weight
@@ -157,7 +163,7 @@ const getEffectiveWeight = (productId) => {
     return savedSheet.customWeight;
   }
   
-  // Otherwise use product's original weight (convert from grams to kg if needed)
+  // Otherwise use product's original weight
   const weightStr = product.weight || "";
   if (weightStr.toLowerCase().includes("kg")) {
     const match = weightStr.match(/(\d+(?:\.\d+)?)/);
@@ -480,9 +486,17 @@ const handleRemarksChange = (productId, value) => {
 };
 
 const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs, freight, customWeight) => {
-  // Use rawMaterials from state, but ensure we have the latest
   const product = rawMaterials.find(p => p._id === productId);
   if (!product) return;
+  
+  console.log(`CALCULATING for ${product.name}:`, {
+    isInPcs,
+    conversionRate,
+    currentRmRate,
+    freight,
+    customWeight,
+    productWeight: product.weight
+  });
   
   let basePrice = 0;
   let productWeight = 0;
@@ -492,6 +506,7 @@ const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs
     // Use custom weight if provided, otherwise use product weight
     if (customWeight !== undefined && customWeight > 0) {
       productWeight = customWeight;
+      console.log(`Using custom weight: ${productWeight} kg`);
     } else {
       const weightStr = product.weight || "";
       if (weightStr.toLowerCase().includes("kg")) {
@@ -503,9 +518,11 @@ const calculateProductPrice = (productId, conversionRate, currentRmRate, isInPcs
       } else {
         productWeight = parseFloat(weightStr) || 0;
       }
+      console.log(`Using product weight: ${productWeight} kg from "${weightStr}"`);
     }
     
     basePrice = totalPerKg * productWeight;
+    console.log(`Total/kg: ${totalPerKg}, Product Weight: ${productWeight} kg, Base Price: ${basePrice}`);
   } else {
     basePrice = totalPerKg;
   }
