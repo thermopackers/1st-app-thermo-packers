@@ -9,12 +9,15 @@ export default function DailyTodoList({ userId }) {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
   const [loading, setLoading] = useState(false);
+const [datesWithTasks, setDatesWithTasks] = useState([]);
+const [loadingDates, setLoadingDates] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const MAX_CHARS = 500; // Match the model limit
 
   useEffect(() => {
     if (isExpanded) {
       fetchTasks();
+          fetchDatesWithTasks(); // Add this line
     }
   }, [selectedDate, isExpanded]);
 
@@ -40,6 +43,20 @@ export default function DailyTodoList({ userId }) {
       setLoading(false);
     }
   };
+
+  // Add this new function after fetchTasks function
+const fetchDatesWithTasks = async () => {
+  setLoadingDates(true);
+  try {
+    const response = await axiosInstance.get('/daily-todos/dates');
+    setDatesWithTasks(response.data.dates || []);
+  } catch (err) {
+    console.error('Error fetching dates with tasks:', err);
+    // Silent fail - don't show error toast for this
+  } finally {
+    setLoadingDates(false);
+  }
+};
 
   const addTask = async (e) => {
     e.preventDefault();
@@ -255,6 +272,48 @@ export default function DailyTodoList({ userId }) {
                   className="w-full text-xs px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Add this entire block after the date selector input and before the Progress Bar */}
+{/* Dates with Tasks - Quick Select */}
+{datesWithTasks.length > 0 && (
+  <div className="mb-6">
+    <p className="text-xs font-medium text-gray-700 mb-2">
+      📅 Dates with tasks ({datesWithTasks.length})
+    </p>
+    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+      {loadingDates ? (
+        <div className="w-full text-center py-2">
+          <div className="inline-block w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        </div>
+      ) : (
+        datesWithTasks.map((date, idx) => {
+          const dateObj = new Date(date);
+          const formattedDate = dateObj.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          });
+          const isSelected = selectedDate === date;
+          
+          return (
+            <motion.button
+              key={idx}
+              onClick={() => setSelectedDate(date)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                isSelected
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {formattedDate}
+            </motion.button>
+          );
+        })
+      )}
+    </div>
+  </div>
+)}
 
               {/* Progress Bar */}
               {tasks.length > 0 && (

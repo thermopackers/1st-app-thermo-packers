@@ -25,6 +25,8 @@ export default function App() {
     "/caremax-impex",
     "/pollution",
     "/maintenance",
+    "/admin/leads",
+    "/task-assignments",
     "/esic",
     "/epfo",
     "/costing-calculator",

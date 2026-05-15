@@ -48,9 +48,11 @@ const [limit] = useState(10); // You can make this configurable if needed
   const [name, setName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
+  const [gender, setGender] = useState('male');
   const [resetTrigger, setResetTrigger] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [existingFrontFace, setExistingFrontFace] = useState([]);
+  const [drivingLicence, setDrivingLicence] = useState([]); // ✅ ADD THIS LINE
   const [existingAadharCard, setExistingAadharCard] = useState([]);
   const [existingPanCard, setExistingPanCard] = useState([]);
   const [existingPassbookCheque, setExistingPassbookCheque] = useState([]);
@@ -95,6 +97,7 @@ const [role, setRole] = useState([]);
     const [loading, setLoading] = useState(true);
   const [personalPhone, setPersonalPhone] = useState('');
     const [user, setUser] = useState(null);
+    const [existingDrivingLicence, setExistingDrivingLicence] = useState([]); // ✅ ADD THIS LINE
   const [miscDocuments, setMiscDocuments] = useState([]);
   const [filesToRemove, setFilesToRemove] = useState({
     aadharCard: [],
@@ -102,6 +105,7 @@ const [role, setRole] = useState([]);
     passbookCheque: [],
     esicCopy: [],
     epfoCopy: [],
+        drivingLicence: [], // ✅ ADD THIS LINE
     miscDocuments: [],
     frontFacePicture: false
   });
@@ -199,6 +203,7 @@ formData.append('allowIncomingPayments', allowIncomingPayments); // Add this lin
 formData.append('allowQuotation', allowQuotation); // Add this line 
 formData.append('allowDanaBeads', allowDanaBeads);     
 formData.append("dob", dob);
+formData.append('gender', gender);
       formData.append("address", address);
 formData.append("emergencyNumber", emergencyNumber);
 formData.append("personalPhone", personalPhone);
@@ -215,6 +220,7 @@ formData.append("personalPhone", personalPhone);
         { field: passbookCheque, name: "passbookCheque" },
         { field: esicCopy, name: "esicCopy" },
         { field: epfoCopy, name: "epfoCopy" },
+            { field: drivingLicence, name: "drivingLicence" }, // ✅ ADD THIS LINE
         { field: miscDocuments, name: "miscDocuments" }
       ];
 
@@ -391,12 +397,14 @@ const fetchUsers = async (page = 1, query = "") => {
     setExistingPassbookCheque(user.passbookCheque || []);
     setExistingEsicCopy(user.esicCopy || []);
     setExistingEpfoCopy(user.epfoCopy || []);
+    setExistingDrivingLicence(user.drivingLicence || []); // ✅ ADD THIS LINE
     setExistingMiscDocuments(user.miscDocuments || []);
 
     setName(user.name || "");
     setEmail(user.email || "");
     setPhone(user.phone?.replace('+91', '') || "");
-setRole(Array.isArray(user.role) ? user.role : [user.role || "sales"]);    setProductionSection(user.productionSection || []);
+setRole(Array.isArray(user.role) ? user.role : [user.role || "sales"]);    
+setProductionSection(user.productionSection || []);
 setAllowAttendance(user.allowAttendance || false);
 setAllowVehiclesManagement(user.allowVehiclesManagement || false);
 setAllowHR(user.allowHR || false);
@@ -406,6 +414,7 @@ setAllowIncomingPayments(user.allowIncomingPayments || false); // Add this line
 setAllowQuotation(user.allowQuotation || false); // Add this line    
 setAllowDanaBeads(user.allowDanaBeads || false);
 setDob(user.dob ? formatDateForInput(user.dob) : "");
+setGender(user.gender || 'male');
     setAddress(user.address || "");
     setEmergencyNumber(user.emergencyNumber || "");
     setPersonalPhone(user.personalPhone || "");
@@ -457,6 +466,7 @@ setAllowQuotation(false); // Add this line
     setExistingPassbookCheque([]);
     setExistingEsicCopy([]);
     setExistingEpfoCopy([]);
+    setExistingDrivingLicence([]); // ✅ ADD THIS LINE
     setExistingMiscDocuments([]);
 
     // Reset files to remove
@@ -473,6 +483,7 @@ setAllowQuotation(false); // Add this line
     setResetTrigger(prev => prev + 1);
 
     setDob("");
+    setGender('male');
     setAddress("");
     setEmergencyNumber("");
     setPersonalPhone("");
@@ -796,6 +807,42 @@ setAllowQuotation(false); // Add this line
         <input type="date" lang="en-GB" value={dob} onChange={e => setDob(e.target.value)} className="w-full border p-2 rounded" />
       </div>
 
+      <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+  <div className="flex gap-6">
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        value="male"
+        checked={gender === 'male'}
+        onChange={(e) => setGender(e.target.value)}
+        className="w-4 h-4 text-blue-600"
+      />
+      <span className="text-sm">Male</span>
+    </label>
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        value="female"
+        checked={gender === 'female'}
+        onChange={(e) => setGender(e.target.value)}
+        className="w-4 h-4 text-blue-600"
+      />
+      <span className="text-sm">Female</span>
+    </label>
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        value="other"
+        checked={gender === 'other'}
+        onChange={(e) => setGender(e.target.value)}
+        className="w-4 h-4 text-blue-600"
+      />
+      <span className="text-sm">Other</span>
+    </label>
+  </div>
+</div>
+
      <div>
   <label className="block text-sm">Designation <span className="text-red-500">*</span></label>
   <select 
@@ -1002,6 +1049,16 @@ setAllowQuotation(false); // Add this line
         initialFiles={existingEpfoCopy}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('epfoCopy', fileUrl)}
       />
+
+      <FileInput
+    label="Driving Licence"
+    name="drivingLicence"
+    onChange={setDrivingLicence}
+    multiple
+    resetTrigger={resetTrigger}
+    initialFiles={existingDrivingLicence}
+    onRemoveExisting={(fileUrl) => handleRemoveExistingFile('drivingLicence', fileUrl)}
+/>
 
       <FileInput
         label="Misc Documents"
@@ -1283,6 +1340,7 @@ setAllowQuotation(false); // Add this line
                 <th className="px-4 py-2">Phone</th>
                 <th className="px-4 py-2">Attendance</th>
                 <th className="px-4 py-2">DOB</th>
+                <th className="px-4 py-2">Gender</th>
                 <th className="px-4 py-2">Address</th>
                 <th className="px-4 py-2">Emergency No.</th>
                 <th className="px-4 py-2">Designation</th>
@@ -1373,6 +1431,7 @@ setAllowQuotation(false); // Add this line
                   </td>
 
                   <td className="px-4 py-2">{u.dob ? new Date(u.dob).toLocaleDateString() : "-"}</td>
+                  <td className="px-4 py-2 capitalize">{u.gender || 'male'}</td>
                   <td className="px-4 py-2">{u.address || "-"}</td>
                   <td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
                   <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
@@ -1431,6 +1490,16 @@ setAllowQuotation(false); // Add this line
                           EPFO {idx + 1}
                         </button>
                       ))}
+
+                      {u.drivingLicence?.map((url, idx) => (
+    <button
+        key={idx}
+        onClick={() => showDocument(url, `Driving Licence ${idx + 1}`)}
+        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+    >
+        Driving Licence {idx + 1}
+    </button>
+))}
 
                       {u.miscDocuments?.map((url, idx) => (
                         <button

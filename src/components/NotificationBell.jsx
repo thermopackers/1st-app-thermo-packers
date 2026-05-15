@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, User, ChevronRight } from 'lucide-react';
+import { Bell, Check, X, Calendar, User, ChevronRight, Briefcase } from 'lucide-react';
 import axiosInstance from '../axiosInstance';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -15,10 +15,22 @@ const NotificationBell = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get('/leave/notifications');
-      setNotifications(res.data.notifications || []);
-      setUnreadCount(res.data.unreadCount || 0);
-      setIsAccounts(res.data.isAccounts || false);
+      const [leaveRes, taskRes] = await Promise.all([
+        axiosInstance.get('/leave/notifications'),
+        axiosInstance.get('/task-assignment/notifications')
+      ]);
+      
+      const leaveNotifications = leaveRes.data.notifications || [];
+      const taskNotifications = taskRes.data.notifications || [];
+      
+      const allNotifications = [...leaveNotifications, ...taskNotifications].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      
+      setNotifications(allNotifications);
+      const totalUnread = allNotifications.filter(n => !n.read).length;
+      setUnreadCount(totalUnread);
+      setIsAccounts(leaveRes.data.isAccounts || false);
     } catch (err) {
       console.error('Error fetching notifications:', err);
     } finally {
@@ -28,7 +40,6 @@ const NotificationBell = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Refresh notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -36,8 +47,16 @@ const NotificationBell = () => {
   const markAsRead = async (notificationId, e) => {
     e.stopPropagation();
     try {
-      await axiosInstance.put(`/leave/notifications/${notificationId}/read`);
-      // Update locally without refetching
+      const notification = notifications.find(n => n._id === notificationId);
+      const isTask = notification?.type === 'task_assigned' || 
+                     (notification?.link && notification.link.startsWith('/my-tasks/'));
+      
+      if (isTask) {
+        await axiosInstance.put(`/task-assignment/notifications/${notificationId}/read`);
+      } else {
+        await axiosInstance.put(`/leave/notifications/${notificationId}/read`);
+      }
+      
       setNotifications(prev => 
         prev.map(n => n._id === notificationId ? { ...n, read: true } : n)
       );
@@ -50,14 +69,34 @@ const NotificationBell = () => {
   const markAllAsRead = async (e) => {
     e.stopPropagation();
     try {
-      await axiosInstance.put('/leave/notifications/read-all');
-      fetchNotifications(); // Refresh notifications
+      await Promise.all([
+        axiosInstance.put('/leave/notifications/read-all'),
+        axiosInstance.put('/task-assignment/notifications/read-all')
+      ]);
+      await fetchNotifications();
     } catch (err) {
       console.error('Error marking all notifications as read:', err);
     }
   };
 
-  const getNotificationIcon = (type) => {
+  const getNotificationType = (notification) => {
+    if (!notification) return 'general';
+    
+    if ((notification.link && notification.link.startsWith('/my-tasks/')) ||
+        notification.link === '/task-assignments' ||
+        notification.type === 'task_assigned' ||
+        (notification.message && (
+          notification.message.includes('assigned') ||
+          notification.message.includes('follow-up') ||
+          notification.message.includes('task')
+        ))) {
+      return 'task_assigned';
+    }
+    return notification.type || 'general';
+  };
+
+  const getNotificationIcon = (notification) => {
+    const type = getNotificationType(notification);
     switch (type) {
       case 'approved':
         return <Check className="w-4 h-4 text-green-600" />;
@@ -67,12 +106,15 @@ const NotificationBell = () => {
         return <Calendar className="w-4 h-4 text-blue-600" />;
       case 'cancelled':
         return <X className="w-4 h-4 text-gray-600" />;
+      case 'task_assigned':
+        return <Briefcase className="w-4 h-4 text-purple-600" />;
       default:
         return <Bell className="w-4 h-4 text-gray-600" />;
     }
   };
 
-  const getNotificationColor = (type) => {
+  const getNotificationColor = (notification) => {
+    const type = getNotificationType(notification);
     switch (type) {
       case 'approved':
         return 'bg-green-50 border-green-200';
@@ -82,12 +124,15 @@ const NotificationBell = () => {
         return 'bg-blue-50 border-blue-200';
       case 'cancelled':
         return 'bg-gray-50 border-gray-200';
+      case 'task_assigned':
+        return 'bg-purple-50 border-purple-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
   };
 
-  const getNotificationTypeLabel = (type) => {
+  const getNotificationTypeLabel = (notification) => {
+    const type = getNotificationType(notification);
     switch (type) {
       case 'approved':
         return 'Approved';
@@ -97,6 +142,8 @@ const NotificationBell = () => {
         return 'Submitted';
       case 'cancelled':
         return 'Cancelled';
+      case 'task_assigned':
+        return 'Task Assigned';
       default:
         return 'Notification';
     }
@@ -104,19 +151,20 @@ const NotificationBell = () => {
 
   const handleNotificationClick = (notification) => {
     setIsOpen(false);
-    // Navigate to leave management page with focus on the specific application
-    navigate('/leave-management');
-    // You could add logic to highlight the specific leave application
+    const type = getNotificationType(notification);
+    if (type === 'task_assigned') {
+      navigate('/task-assignments');
+    } else {
+      navigate('/leave-management');
+    }
   };
 
-  // Filter notifications - show all for accounts, only own for others
   const displayNotifications = isAccounts 
     ? notifications 
     : notifications.filter(n => n.userId && n.userId.toString() === localStorage.getItem('userId'));
 
   return (
     <div className="relative">
-      {/* Notification Bell */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-700 hover:text-blue-600 cursor-pointer hover:bg-blue-50 rounded-lg transition-colors border border-gray-300"
@@ -129,36 +177,38 @@ const NotificationBell = () => {
         )}
       </button>
 
-      {/* Notification Dropdown */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute right-0 mt-2 w-76 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden"
+            className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-[500px] overflow-hidden"
           >
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                   <Bell className="w-4 h-4" />
-                  Leave Notifications {isAccounts && '(All Users)'}
+                  Notifications {isAccounts && '(All Users)'}
                 </h3>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      await fetchNotifications();
+                    }}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                    title="Refresh notifications"
+                  >
+                    🔄
+                  </button>
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
                     >
                       Mark all read
                     </button>
                   )}
-                  <button
-                    onClick={() => navigate('/leave-management')}
-                    className="text-sm text-green-600 hover:text-green-800 flex items-center gap-1"
-                  >
-                    Manage <ChevronRight className="w-3 h-3" />
-                  </button>
                 </div>
               </div>
             </div>
@@ -172,21 +222,18 @@ const NotificationBell = () => {
               ) : displayNotifications.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   <Bell className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p>No leave notifications</p>
+                  <p>No notifications</p>
                 </div>
               ) : (
                 displayNotifications.slice(0, 10).map((notification) => (
                   <div
                     key={notification._id}
-                    className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${getNotificationColor(
-                      notification.type
-                    )} ${!notification.read ? 'border-l-4 border-l-blue-500' : ''}`}
+                    className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${getNotificationColor(notification)} ${!notification.read ? 'border-l-4 border-l-blue-500' : ''}`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start gap-3">
-                      {getNotificationIcon(notification.type)}
+                      {getNotificationIcon(notification)}
                       <div className="flex-1 min-w-0">
-                        {/* Show user info for accounts role */}
                         {isAccounts && notification.userName && (
                           <div className="flex items-center gap-2 mb-1">
                             <User className="w-3 h-3 text-gray-500" />
@@ -211,51 +258,35 @@ const NotificationBell = () => {
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              notification.type === 'approved' ? 'bg-green-100 text-green-800' :
-                              notification.type === 'rejected' ? 'bg-red-100 text-red-800' :
-                              notification.type === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {getNotificationTypeLabel(notification.type)}
-                            </span>
-                            
-                            {!notification.read && (
-                              <button
-                                onClick={(e) => markAsRead(notification._id, e)}
-                                className="text-xs text-blue-600 hover:text-blue-800"
-                              >
-                                ✓
-                              </button>
-                            )}
-                          </div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            getNotificationType(notification) === 'approved' ? 'bg-green-100 text-green-800' :
+                            getNotificationType(notification) === 'rejected' ? 'bg-red-100 text-red-800' :
+                            getNotificationType(notification) === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                            getNotificationType(notification) === 'task_assigned' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {getNotificationTypeLabel(notification)}
+                          </span>
+                          
+                          {!notification.read && (
+                            <button
+                              onClick={(e) => markAsRead(notification._id, e)}
+                              className="text-xs text-blue-600 hover:text-blue-800 ml-2"
+                            >
+                              ✓
+                            </button>
+                          )}
                         </div>
                         
-                        {/* Show leave dates */}
-                        {notification.leaveDates && (
+                        {getNotificationType(notification) === 'task_assigned' && notification.absentUserName && (
                           <div className="mt-1 text-xs text-gray-600">
-                            📅 {notification.leaveDates}
+                            👤 Absent: {notification.absentUserName}
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))
-              )}
-              
-              {displayNotifications.length > 10 && (
-                <div className="p-3 text-center border-t border-gray-200 bg-gray-50">
-                  <button
-                    onClick={() => {
-                      setIsOpen(false);
-                      navigate('/leave-management');
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    View all {displayNotifications.length} notifications →
-                  </button>
-                </div>
               )}
             </div>
 

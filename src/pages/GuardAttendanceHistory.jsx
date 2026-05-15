@@ -522,6 +522,9 @@ const handleDateRangeSearch = async () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Designation
                         </th>
+                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          Gender
+                        </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Shift
                         </th>
@@ -559,6 +562,9 @@ const handleDateRangeSearch = async () => {
                           </td>
                           <td className="px-4 py-3 text-sm capitalize">
                             {record.user?.designation || "N/A"}
+                          </td>
+                           <td className="px-4 py-3 text-sm capitalize">
+                            {record.user?.gender}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-1 rounded-full text-xs ${

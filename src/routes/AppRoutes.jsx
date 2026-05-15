@@ -116,6 +116,8 @@ import EditCaremaxCustomer from "../pages/EditCaremaxCustomer";
 import AddCaremaxQuotation from "../pages/AddCaremaxQuotation";
 import AllCaremaxQuotations from "../pages/AllCaremaxQuotations";
 import EditCaremaxQuotation from "../pages/EditCaremaxQuotation";
+import LeadDashboard from '../components/LeadDashboard';
+import TaskAssignmentsList from '../pages/TaskAssignmentsList';
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -698,6 +700,8 @@ export default function AppRoutes() {
 <Route path="/caremax-impex/add-quotation" element={<AddCaremaxQuotation />} />
 <Route path="/caremax-impex/all-quotations" element={<AllCaremaxQuotations />} />
 <Route path="/caremax-impex/edit-quotation/:id" element={<EditCaremaxQuotation />} />
+<Route path="/admin/leads" element={<LeadDashboard />} />
+<Route path="/task-assignments" element={<TaskAssignmentsList />} />
 
 <Route
 path="/maintenance/water-filter"

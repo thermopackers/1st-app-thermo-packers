@@ -15,6 +15,8 @@ import AttendanceNotification from "../components/AttendanceNotification";
 import DailyTodoList from "../components/DailyTodoList";
 import { Calendar } from "lucide-react"; // Add Calendar icon to existing imports
 import UserGoogleCalendar from "../components/UserGoogleCalendar";
+import TaskAssignmentModal from "../components/TaskAssignmentModal";
+import ViewAllUsersModal from "../components/ViewAllUsersModal";
 
 
 export default function Dashboard() {
@@ -67,8 +69,10 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [driverVehicle, setDriverVehicle] = useState(null);
+  const [showAllUsersModal, setShowAllUsersModal] = useState(false);
   const [docNotifCount, setDocNotifCount] = useState(0);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showTaskAssignment, setShowTaskAssignment] = useState(false);
   // Add this new state variable with your other useState declarations
 const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
@@ -1869,6 +1873,28 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
     </DashboardSection>
     )}
 
+ {userRoles.some(role => ["guard"].includes(role)) && (
+    <DashboardSection>
+      <DashboardCard>
+         <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+          <span className="text-3xl">👥</span>
+          View all employees with photos
+        </h3>
+<ActionButton 
+            onClick={() => setShowAllUsersModal(true)}
+            variant="purple" 
+            icon="👥"
+          >
+            <div className="text-xl font-semibold mb-2">
+              View All Employees
+            </div>
+            <div className="text-purple-100 text-sm opacity-90">
+              See all employees with photos
+            </div>
+          </ActionButton>
+          </DashboardCard>
+ </DashboardSection>)}
+
               {userRoles.some(role => ["guard"].includes(role)) && (
   <DashboardSection>
     <DashboardCard>
@@ -2002,6 +2028,30 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
       Assign / View / Edit / Delete Task
     </div>
   </ActionButton>
+    <ActionButton
+      onClick={() => setShowTaskAssignment(true)}
+      variant="purple"
+      icon="👤➡️👥"
+    >
+      <div className="text-lg font-semibold mb-2">
+        Roaster
+      </div>
+      <div className="text-purple-100 text-sm opacity-90">
+        Assign tasks when someone is absent
+      </div>
+    </ActionButton>
+    <ActionButton
+  to="/task-assignments"
+  variant="teal"
+  icon="📋"
+>
+  <div className="text-lg font-semibold mb-2">
+    View Roaster
+  </div>
+  <div className="text-teal-100 text-sm opacity-90">
+    See all assigned jobs for absent users
+  </div>
+</ActionButton>
                 </div>
               </DashboardCard>
 
@@ -2873,6 +2923,15 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />
         )}
       </main>
+         <TaskAssignmentModal 
+        isOpen={showTaskAssignment} 
+        onClose={() => setShowTaskAssignment(false)}
+        currentUser={user}
+      />
+            {/* View All Users Modal */}
+      {showAllUsersModal && (
+        <ViewAllUsersModal onClose={() => setShowAllUsersModal(false)} />
+      )}
     </>
   );
 }

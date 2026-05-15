@@ -29,6 +29,7 @@ const FactoryAttendanceLogs = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [employees, setEmployees] = useState([]);
   const limit = 20;
+console.log("loggss", logs);
 
   // Parse user roles
   const parseUserRoles = (user) => {
@@ -324,6 +325,7 @@ const clearFilters = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Employee</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Designation</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Gender</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Shift</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Check In</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Check Out</th>
@@ -338,6 +340,7 @@ const clearFilters = () => {
                           <td className="px-4 py-3 text-sm">{formatDate(entry.date)}</td>
                           <td className="px-4 py-3 text-sm font-medium">{entry.user?.name || "N/A"}</td>
                           <td className="px-4 py-3 text-sm capitalize">{entry.user?.designation || "N/A"}</td>
+                                                    <td className="px-4 py-3 text-sm capitalize">{entry.user?.gender}</td>
                          <td className="px-4 py-3">
   <span className={`px-2 py-1 rounded-full text-xs ${
     entry.shift === "shift1" 

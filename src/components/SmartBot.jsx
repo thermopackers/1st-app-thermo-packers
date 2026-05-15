@@ -152,7 +152,7 @@ const SmartBot = () => {
   return (
     <>
       {!visible && (
-        <div className="fixed bottom-28 right-5 z-50 flex items-center">
+        <div className="fixed bottom-28 right-5 z-10 flex items-center">
           <motion.div
             animate={{ x: [0, -10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}

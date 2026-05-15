@@ -112,13 +112,14 @@ export default function FactoryMonthlyReports() {
   };
 
   // Add this helper function near the top of your component (after other helper functions)
-const calculateOvertime = (detail, userDesignation) => {
+const calculateOvertime = (detail, userDesignation, userGender) => {
   if (!detail.checkInTime || !detail.checkOutTime) return { isOvertime: false, hours: 0 };
   
   const checkIn = new Date(detail.checkInTime);
   const checkOut = new Date(detail.checkOutTime);
   const dateKey = detail.date;
   const isDriver = userDesignation?.toLowerCase() === "driver";
+  const isFemale = userGender?.toLowerCase() === "female";
   
   // Calculate total hours worked
   const diffMs = checkOut - checkIn;
@@ -129,7 +130,6 @@ const calculateOvertime = (detail, userDesignation) => {
   
   if (isDriver) {
     // Drivers: Regular hours = 18 hours (4 AM to 10 PM)
-    // Anything beyond 18 hours is overtime
     regularHours = 18;
     if (totalHours > regularHours) {
       overtimeHours = totalHours - regularHours;
@@ -137,8 +137,9 @@ const calculateOvertime = (detail, userDesignation) => {
   } else {
     // Operators/Helpers
     if (detail.shift === "shift1") {
-      // Shift 1: Regular hours = 12.5 hours (8 AM to 8:30 PM)
-      regularHours = 12.5;
+      // For lady workers: expected check-out at 4:30 PM = 8.5 hours (from 8 AM)
+      // For men workers: expected check-out at 8:30 PM = 12.5 hours (from 8 AM)
+      regularHours = isFemale ? 8.5 : 12.5;
       if (totalHours > regularHours) {
         overtimeHours = totalHours - regularHours;
       }
@@ -880,12 +881,10 @@ let attendanceType = "Full Day";
 let attendanceColor = "bg-green-100 text-green-800";
 
 if (isSunday) {
-  // Check if it's a Sunday - show as Weekly Off regardless of user type
   attendanceType = "Weekly Off";
   attendanceColor = "bg-orange-100 text-orange-800";
 } else if (isDriverUser) {
   // For drivers, check if it was a half day
-  // Check if only one entry exists
   const hasOnlyCheckIn = detail.checkInTime && !detail.checkOutTime;
   const hasOnlyCheckOut = !detail.checkInTime && detail.checkOutTime;
   
@@ -907,10 +906,13 @@ if (isSunday) {
     }
   }
 } else if (!isDriverUser && detail.shift === "shift1") {
+  // Get user details to check gender
+  const isFemale = employeeData.user?.gender?.toLowerCase() === "female";
+  
   // Check if incomplete (only check-in)
   const isIncomplete = detail.checkInTime && !detail.checkOutTime;
   
-  // Check if half day due to late check-in (after 8:31 AM)
+  // Check if half day due to late check-in (after 8:31 AM for all, or after 8:00 AM for lady workers? Keep consistent)
   let isLateHalfDay = false;
   if (detail.checkInTime) {
     const checkInDate = new Date(detail.checkInTime);
@@ -918,15 +920,19 @@ if (isSunday) {
     isLateHalfDay = checkInDate > halfDayThreshold;
   }
   
-  // Check if half day due to early checkout (before 8:30 PM)
+  // Check if half day due to early checkout
   let isEarlyHalfDay = false;
   if (detail.checkOutTime) {
     const checkOutDate = new Date(detail.checkOutTime);
-    const expectedTime = new Date(detail.date + "T20:30:00+05:30");
+    // For lady workers: expected check-out is 4:30 PM (16:30)
+    // For men workers: expected check-out is 8:30 PM (20:30)
+    let expectedHour = isFemale ? 16 : 20;
+    let expectedMinute = isFemale ? 30 : 30;
+    const expectedTime = new Date(detail.date);
+    expectedTime.setHours(expectedHour, expectedMinute, 0, 0);
     isEarlyHalfDay = checkOutDate < expectedTime;
   }
   
-  // Half day if incomplete OR late check-in OR early checkout
   if (isIncomplete || isLateHalfDay || isEarlyHalfDay) {
     attendanceType = "Half Day";
     attendanceColor = "bg-amber-100 text-amber-800";
@@ -1141,6 +1147,9 @@ if (isSunday) {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Designation
                 </th>
+                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  gender
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Present
                 </th>
@@ -1196,6 +1205,9 @@ if (isSunday) {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 capitalize">
                         {item.user.designation || "N/A"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                        {item.user.gender}
                       </td>
                       <td className="px-4 py-3 text-sm text-green-600 font-medium">
                         {item.presentDays}
