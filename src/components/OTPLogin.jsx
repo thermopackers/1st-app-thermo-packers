@@ -94,7 +94,7 @@ export default function OTPLogin({ setLoading, supplierMode = false }) {
         }
         navigate("/dashboard");
       } else {
-        const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging', 'driver'];
+        const validRoles = ['admin', 'sales', 'accounts', 'production', 'dispatch', 'packaging', 'driver', 'guard'];
         const hasValidRole = userRoles.some(role => validRoles.includes(role));
         
         if (!hasValidRole) {
