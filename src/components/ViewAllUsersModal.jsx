@@ -4,24 +4,43 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function ViewAllUsersModal({ onClose }) {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [enlargedImage, setEnlargedImage] = useState(null);
   const [currentUserImage, setCurrentUserImage] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchAllUsers();
   }, []);
+
+  useEffect(() => {
+    // Filter users based on search term
+    if (searchTerm.trim() === "") {
+      setFilteredUsers(users);
+    } else {
+      const term = searchTerm.toLowerCase();
+      const filtered = users.filter(user => 
+        (user.name && user.name.toLowerCase().includes(term)) ||
+        (user.email && user.email.toLowerCase().includes(term)) ||
+        (user.phone && user.phone.toLowerCase().includes(term)) ||
+        (user.designation && user.designation.toLowerCase().includes(term)) ||
+        (user.role && Array.isArray(user.role) && user.role.some(r => r.toLowerCase().includes(term))) ||
+        (user.role && typeof user.role === 'string' && user.role.toLowerCase().includes(term))
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchTerm, users]);
 
   const fetchAllUsers = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      // First try to get all users without pagination
       let allUsers = [];
       
-      // Try the /all endpoint first (might have all users)
+      // Try the /all endpoint first
       try {
         const response = await axiosInstance.get("/users/all", {
           headers: { Authorization: `Bearer ${token}` },
@@ -60,8 +79,7 @@ export default function ViewAllUsersModal({ onClose }) {
         }
       }
       
-      // Filter users that have at least one image (profile or front face)
-      // But also include users without images, just mark them differently
+      // Process users with image info
       const usersWithInfo = allUsers.map(user => ({
         ...user,
         hasImages: !!(user.profilePicture || user.frontFacePicture)
@@ -76,6 +94,7 @@ export default function ViewAllUsersModal({ onClose }) {
       });
       
       setUsers(usersWithInfo);
+      setFilteredUsers(usersWithInfo);
     } catch (err) {
       console.error("Error fetching users:", err);
       setError("Failed to load users. Please try again.");
@@ -96,8 +115,12 @@ export default function ViewAllUsersModal({ onClose }) {
     setCurrentUserImage(null);
   };
 
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
+
   // Count users with images
-  const usersWithImages = users.filter(u => u.hasImages).length;
+  const usersWithImages = filteredUsers.filter(u => u.hasImages).length;
 
   return (
     <>
@@ -105,13 +128,44 @@ export default function ViewAllUsersModal({ onClose }) {
         <div className="users-modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h2>
-              👥 All Employees ({users.length} total)
+              👥 All Employees ({filteredUsers.length} {filteredUsers.length !== users.length ? `of ${users.length}` : "total"})
             </h2>
             <button className="close-modal" onClick={onClose}>
               ×
             </button>
           </div>
           <div className="modal-body">
+            {/* Search Bar */}
+            <div className="mb-4 sticky top-0 bg-white z-10 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="🔍 Search by name, email, phone, designation, or role..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 pr-10 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  🔍
+                </div>
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              
+              {/* Search stats */}
+              {searchTerm && filteredUsers.length !== users.length && (
+                <div className="mt-2 text-sm text-gray-500">
+                  Found {filteredUsers.length} result{filteredUsers.length !== 1 ? 's' : ''} for "{searchTerm}"
+                </div>
+              )}
+            </div>
+
             {loading ? (
               <div className="loading-users">
                 <div className="flex flex-col items-center gap-3">
@@ -129,19 +183,27 @@ export default function ViewAllUsersModal({ onClose }) {
                   Try Again
                 </button>
               </div>
-            ) : users.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">No employees found.</p>
+                <p className="text-gray-500 mb-2">No employees found matching "{searchTerm}"</p>
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="text-blue-500 hover:text-blue-600 underline"
+                  >
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
               <>
-                {usersWithImages < users.length && (
+                {usersWithImages < filteredUsers.length && (
                   <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-                    ℹ️ Showing {usersWithImages} employees with photos out of {users.length} total employees
+                    ℹ️ Showing {usersWithImages} employee{usersWithImages !== 1 ? 's' : ''} with photos out of {filteredUsers.length} {filteredUsers.length !== users.length ? "matching" : "total"} employee{filteredUsers.length !== 1 ? 's' : ''}
                   </div>
                 )}
                 <div className="users-grid">
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <motion.div
                       key={user._id}
                       className={`user-card ${!user.hasImages ? 'opacity-60' : ''}`}
@@ -150,36 +212,6 @@ export default function ViewAllUsersModal({ onClose }) {
                       transition={{ duration: 0.3 }}
                     >
                       <div className="user-images">
-                        {/* Profile Picture */}
-                        <div
-                          className="profile-image-container"
-                          onClick={() =>
-                            user.profilePicture &&
-                            handleImageClick(
-                              user.profilePicture,
-                              user.name,
-                              "Profile Picture"
-                            )
-                          }
-                          style={{ cursor: user.profilePicture ? 'pointer' : 'default' }}
-                        >
-                          {user.profilePicture ? (
-                            <>
-                              <img
-                                src={user.profilePicture}
-                                alt={`${user.name} profile`}
-                                className="user-image"
-                              />
-                              <span className="image-label">Profile</span>
-                            </>
-                          ) : (
-                            <div className="no-images flex flex-col items-center justify-center">
-                              <span className="text-2xl mb-1">📷</span>
-                              <span className="text-xs">No Profile</span>
-                            </div>
-                          )}
-                        </div>
-
                         {/* Front Face Picture */}
                         <div
                           className="front-face-container"
@@ -226,6 +258,15 @@ export default function ViewAllUsersModal({ onClose }) {
                           <p className="text-xs text-gray-400 mt-1">
                             {user.phone}
                           </p>
+                        )}
+                        {user.role && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {(Array.isArray(user.role) ? user.role : [user.role]).map((r, idx) => (
+                              <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                {r}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </motion.div>

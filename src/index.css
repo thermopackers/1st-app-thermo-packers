@@ -479,3 +479,33 @@ select[multiple] option:checked {
   background: #fef2f2;
   border-radius: 12px;
 }
+
+/* Search bar enhancements */
+.search-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-clear-btn {
+  transition: transform 0.2s;
+}
+
+.search-clear-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Sticky search bar */
+.sticky-search {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Highlight search matches (optional - add if you want highlighting) */
+.search-highlight {
+  background-color: #fef08a;
+  border-radius: 2px;
+  padding: 0 2px;
+}

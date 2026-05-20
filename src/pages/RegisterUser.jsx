@@ -72,6 +72,8 @@ const [allowQuotation, setAllowQuotation] = useState(false);
 // Add this line with other allow states
 const [allowDanaBeads, setAllowDanaBeads] = useState(false);
 const [role, setRole] = useState([]);
+const [isDeletingProfilePic, setIsDeletingProfilePic] = useState(false);
+const [isDeletingVisitingCard, setIsDeletingVisitingCard] = useState(false);
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
@@ -736,6 +738,52 @@ setAllowQuotation(false); // Add this line
     }
   };
 
+  // Handle profile picture deletion
+const handleDeleteProfilePicture = async () => {
+  if (!isEditing || !editUserId) {
+    toast.error('Only available in edit mode');
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete the profile picture?')) return;
+  
+  setIsDeletingProfilePic(true);
+  try {
+    await axiosInstance.delete(`/users/delete-profile-picture/${editUserId}`);
+    setProfilePicturePreview('');
+    setProfilePicture(null);
+    toast.success('Profile picture deleted successfully');
+    fetchUsers(); // Refresh the list
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to delete profile picture');
+  } finally {
+    setIsDeletingProfilePic(false);
+  }
+};
+
+// Handle visiting card deletion
+const handleDeleteVisitingCard = async () => {
+  if (!isEditing || !editUserId) {
+    toast.error('Only available in edit mode');
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete the visiting card?')) return;
+  
+  setIsDeletingVisitingCard(true);
+  try {
+    await axiosInstance.delete(`/users/delete-visiting-card/${editUserId}`);
+    setVisitingCardPreview('');
+    setVisitingCard(null);
+    toast.success('Visiting card deleted successfully');
+    fetchUsers(); // Refresh the list
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to delete visiting card');
+  } finally {
+    setIsDeletingVisitingCard(false);
+  }
+};
+
   return (
     <>
       <InternalNavbar />
@@ -933,56 +981,78 @@ setAllowQuotation(false); // Add this line
         </div>
       </div>
 
-      {/* Profile Pictures */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture (optional)</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files[0]) {
-                setProfilePicture(e.target.files[0]);
-                setProfilePicturePreview(URL.createObjectURL(e.target.files[0]));
-              }
-            }}
-            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
-          />
-          {profilePicturePreview && (
-            <div className="mt-2">
-              <img
-                src={profilePicturePreview}
-                alt="Preview"
-                className="h-16 w-16 rounded-full object-cover"
-              />
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files[0]) {
-                setVisitingCard(e.target.files[0]);
-                setVisitingCardPreview(URL.createObjectURL(e.target.files[0]));
-              }
-            }}
-            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
-          />
-          {visitingCardPreview && (
-            <div className="mt-2">
-              <img
-                src={visitingCardPreview}
-                alt="Visiting Card Preview"
-                className="h-16 w-16 rounded-md object-cover border"
-              />
-            </div>
-          )}
-        </div>
+  {/* Profile Pictures */}
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture (optional)</label>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        if (e.target.files[0]) {
+          setProfilePicture(e.target.files[0]);
+          setProfilePicturePreview(URL.createObjectURL(e.target.files[0]));
+        }
+      }}
+      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
+    />
+    {profilePicturePreview && (
+      <div className="mt-2 relative inline-block">
+        <img
+          src={profilePicturePreview}
+          alt="Preview"
+          className="h-16 w-16 rounded-full object-cover"
+        />
+        {isEditing && (
+          <button
+            type="button"
+            onClick={handleDeleteProfilePicture}
+            disabled={isDeletingProfilePic}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition disabled:opacity-50"
+            title="Delete profile picture"
+          >
+            ✕
+          </button>
+        )}
       </div>
+    )}
+  </div>
+
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        if (e.target.files[0]) {
+          setVisitingCard(e.target.files[0]);
+          setVisitingCardPreview(URL.createObjectURL(e.target.files[0]));
+        }
+      }}
+      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
+    />
+    {visitingCardPreview && (
+      <div className="mt-2 relative inline-block">
+        <img
+          src={visitingCardPreview}
+          alt="Visiting Card Preview"
+          className="h-16 w-16 rounded-md object-cover border"
+        />
+        {isEditing && (
+          <button
+            type="button"
+            onClick={handleDeleteVisitingCard}
+            disabled={isDeletingVisitingCard}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition disabled:opacity-50"
+            title="Delete visiting card"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    )}
+  </div>
+</div>
     </div>
   </div>
 

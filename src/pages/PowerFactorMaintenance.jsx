@@ -32,6 +32,7 @@ export default function MainElectricPanelPage() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const limit = 10;
+  const [isVideoExpanded, setIsVideoExpanded] = useState(true); // true means expanded by default
 
   // 👇 Ref for last row
   const lastRowRef = useRef(null);
@@ -377,307 +378,340 @@ const openFilePreview = (file) => {
   });
 };
 
-  return (
-    <>
-      <InternalNavbar />
-        {/* Add this unit switcher section */}
-  <div className="bg-gray-100 py-2 border-b">
-    <div className="max-w-6xl mx-auto px-4">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <span className="text-sm font-medium text-gray-700">Switch Unit:</span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor"}
-            className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
-          >
-            Unit 1 (Current)
-          </button>
-          <button
-            onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit2"}
-            className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
-          >
-            Unit 2
-          </button>
-          <button
-            onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit3"}
-            className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
-          >
-            Unit 3
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-      <div className="p-2 sm:p-4 relative">
-        <h1 className="text-xl font-bold mb-4 text-center sm:text-left">
-          THERMO PACKERS - Unit 1 - Daily Electricity PF (Power Factor Report)
-        </h1>
-<h2 className="text-xl bg-red-200 p-1 rounded font-bold mb-4 text-center sm:text-left">
-PSPCL Account No: 3002811256
-        </h2>
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
-          <h2 className="text-lg font-semibold">Main Electric Panel - Unit 1</h2>
-          <button
-            onClick={addNewRow}
-            className="bg-green-500 text-white px-3 py-1 rounded w-full sm:w-auto"
-          >
-            + Add New Row
-          </button>
-        </div>
-  <div className="flex flex-col sm:flex-row justify-between items-center">
-    <div>
-      <h3 className="text-sm font-medium text-gray-700">Weekly Power Factor Average (Last 7 Days)</h3>
-      <div className="flex items-center mt-1">
-        <div className={`text-2xl font-bold ${weeklyAverage >= 0.95 ? 'text-green-600' : weeklyAverage >= 0.90 ? 'text-yellow-600' : 'text-red-600'}`}>
-          {loadingAverage ? "Calculating..." : weeklyAverage.toFixed(3)}
-        </div>
-        <div className="ml-2">
-          {weeklyAverage >= 0.95 ? (
-            <span className="text-green-600 text-sm">✓ Good</span>
-          ) : weeklyAverage >= 0.90 ? (
-            <span className="text-yellow-600 text-sm">⚠️ Needs Attention</span>
-          ) : (
-            <span className="text-red-600 text-sm">✗ Poor</span>
-          )}
-        </div>
-      </div>
-    </div>
-    <button
-      onClick={fetchWeeklyAverage}
-      className="mt-2 sm:mt-0 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-      disabled={loadingAverage}
-    >
-      {loadingAverage ? "Refreshing..." : "Refresh Average"}
-    </button>
-  </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-300 text-xs sm:text-sm">
-           <thead className="bg-gray-200">
-  <tr>
-    <th className="border px-2 py-1">Date</th>
-   <th className="border px-2 py-1">
-  <div className="flex flex-col items-center">
-    <span>KWH</span>
-    <img 
-      src="/images/po2.jpg" // Adjust filename as needed
-      alt="KWH Example" 
-      className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
-      onClick={() => openExampleImage("KWH")}
-      title="Click to view larger example"
-    />
-  </div>
-</th>
-<th className="border px-2 py-1">
-  <div className="flex flex-col items-center">
-    <span>KVAH</span>
-    <img 
-      src="/images/po1.jpg" // Adjust filename as needed
-      alt="KVAH Example" 
-      className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
-      onClick={() => openExampleImage("KVAH")}
-      title="Click to view larger example"
-    />
-  </div>
-</th>
-    <th className="border px-2 py-1">Net KWH (New KWH - Old KWH)</th>
-    <th className="border px-2 py-1">Net KVAH (New KVAH - Old KVAH)</th>
-    <th className="border px-2 py-1">Power Factor (Net KWH/Net KVAH)(Should be near to 0.99)</th>
-    {/* <th className="border px-2 py-1">Sign of Plant Manager</th> */}
-    <th className="border px-2 py-1">Remarks</th>
-    <th className="border px-2 py-1">Attachments</th>
-    <th className="border px-2 py-1">Actions</th>
-  </tr>
-</thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr
-                  key={i}
-                  ref={i === rows.length - 1 ? lastRowRef : null} // 👈 attach ref to last row
-                >
-                <td className="border px-2 py-1">
-  <input
-    type="date"
-    value={new Date(r.date || new Date()).toISOString().split('T')[0]}
-    onChange={(e) => handleInputChange(i, "date", new Date(e.target.value))}
-    max={new Date().toISOString().split('T')[0]} // This restricts future dates
-    className="w-28 sm:w-32 border p-1 text-xs"
-  />
-</td>
-                  <td className="border px-2 py-1">
-               <input
-  type="number"
-  step="0.01"
-  value={r.kwh || ""}
-  onChange={(e) =>
-    handleInputChange(i, "kwh", e.target.value)
-  }
-  className="w-20 sm:w-24 border p-1"
-/>
-                  </td>
-                  <td className="border px-2 py-1">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={r.kvah || ""}
-                      onChange={(e) =>
-                        handleInputChange(i, "kvah", e.target.value)
-                      }
-                      className="w-20 sm:w-24 border p-1"
-                    />
-                  </td>
-                 <td className="border px-2 py-1">
-  {typeof r.netKwh === 'number' ? r.netKwh.toFixed(2) : "-"}
-</td>
-<td className="border px-2 py-1">
-  {typeof r.netKvah === 'number' ? r.netKvah.toFixed(2) : "-"}
-</td>
-                  <td
-                 className={`border px-2 py-1 ${
-  r.powerFactor >= 0.95 && r.powerFactor <= 1
-    ? "bg-green-200"
-    : "bg-red-200"
-}`}
-                  >
-                    {r.powerFactor || "-"}
-                  </td>
-                  {/* <td className="border px-2 py-1">
-{(Array.isArray(user.role) ? user.role.some(role => ["accounts", "admin"].includes(role)) : ["accounts", "admin"].includes(user.role)) ? (
-                        <>
-                        <input
-                          type="checkbox"
-                          checked={r.checked || false}
-                          onChange={() =>
-                            handleInputChange(i, "checked", !r.checked)
-                          }
-                        />
-                        {r.checked && (
-                          <span className="ml-1 text-xs sm:text-sm">
-                            {user.name}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      "-"
-                    )}
-                  </td> */}
-                  <td className="border px-2 py-1">
-                    <textarea
-                      value={r.remarks || ""}
-                      onChange={(e) =>
-                        handleInputChange(i, "remarks", e.target.value)
-                      }
-                      className="w-32 sm:w-48 border p-1 resize-y"
-                      rows={2}
-                    />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleFileUpload(e, i)}
-    className="text-xs mb-1 bg-amber-200 p-2"
-                        disabled={uploading}
-                      />
-                     {/* In your attachment rendering code */}
-{r.attachments && r.attachments.map((file, idx) => {
-  const isImage = file.format
-    ? ["jpg", "jpeg", "png", "gif", "webp"].includes(file.format.toLowerCase())
-    : /\.(jpg|jpeg|png|gif|webp)$/i.test(file.url);
-  const isPDF = file.format
-    ? file.format.toLowerCase() === "pdf"
-    : /\.pdf$/i.test(file.url);
-
-  return (
-    <div key={idx} className="relative group flex items-center gap-2">
-      <button
-        onClick={() => openFilePreview(file)}
-        className="flex items-center gap-1 text-left"
-        title={file.original_filename}
-      >
-        {isImage ? (
-          <img
-            src={file.url}
-            alt={file.original_filename}
-            className="w-15 h-15 object-cover border rounded"
-          />
-        ) : isPDF ? (
-          <div className="w-15 h-15 flex items-center justify-center border rounded bg-gray-100 text-red-600 font-bold">
-            PDF
-          </div>
-        ) : (
-          <div className="w-15 h-15 flex items-center justify-center border rounded bg-gray-100 text-gray-600 text-xs">
-            FILE
-          </div>
-        )}
-       
-      </button>
-
-      {/* delete button */}
-      <button
-        onClick={() => handleDeleteAttachment(i, idx, file)}
-className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-xs"
-      >
-        ×
-      </button>
-    </div>
-  );
-})}
-
-                    </div>
-                  </td>
-                  <td className="border px-2 py-1 text-center">
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => handleSave(r)}
-                        className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm"
-                        disabled={saving}
-                      >
-                        Save
-                      </button>
-                      {r._id && (
-                        <button
-                          onClick={() => handleDeleteRow(r)}
-                          className="bg-red-500 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm"
-                          disabled={deleting}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-wrap justify-center mt-4 gap-2">
-          {[...Array(totalPages).keys()].map((n) => (
+return (
+  <>
+    <InternalNavbar />
+    
+    {/* Add this unit switcher section */}
+    <div className="bg-gray-100 py-2 border-b">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Switch Unit:</span>
+          <div className="flex gap-2">
             <button
-              key={n}
-              onClick={() => fetchData(n + 1)}
-              className={`px-2 sm:px-3 py-1 rounded text-xs sm:text-sm ${
-                page === n + 1 ? "bg-blue-500 text-white" : "bg-gray-200"
-              }`}
+              onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor"}
+              className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
             >
-              {n + 1}
+              Unit 1 (Current)
             </button>
-          ))}
-        </div>
-
-      
-        {(saving || uploading || deleting) && (
-          <div className="fixed inset-0 bg-[#000000ad] bg-opacity-40 flex items-center justify-center z-50">
-            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+            <button
+              onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit2"}
+              className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
+            >
+              Unit 2
+            </button>
+            <button
+              onClick={() => window.location.href = "/plant-machinery-maintenance-power-factor-unit3"}
+              className="bg-gray-300 text-gray-800 px-4 py-1 rounded hover:bg-gray-400 text-sm"
+            >
+              Unit 3
+            </button>
           </div>
-        )}
+        </div>
       </div>
-        <YouTubeGuide 
-             videoId="TcpRSScCcXU" 
-             title="Learn How to take Power Factor Readings - Unit 1"
-           />
-    </>
-  );
+    </div>
+    
+    <div className="p-2 sm:p-4 relative">
+      <h1 className="text-xl font-bold mb-4 text-center sm:text-left">
+        THERMO PACKERS - Unit 1 - Daily Electricity PF (Power Factor Report)
+      </h1>
+      <h2 className="text-xl bg-red-200 p-1 rounded font-bold mb-4 text-center sm:text-left">
+        PSPCL Account No: 3002811256
+      </h2>
+
+      {/* YouTube Instruction Video - Collapsible Section */}
+      <div className="bg-white shadow-lg rounded-lg mb-6 overflow-hidden">
+        {/* Header - Always visible, click to toggle */}
+        <button
+          onClick={() => setIsVideoExpanded(!isVideoExpanded)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-red-100 p-2 rounded-lg">
+              <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </div>
+            <div className="text-left">
+              <h3 className="text-xs font-semibold text-gray-900">
+                📺 How to Take Power Factor Readings - Instruction Video
+              </h3>
+              <p className="text-xs text-gray-600">
+                {isVideoExpanded ? 'Click to collapse' : 'Click to expand and watch the tutorial'}
+              </p>
+            </div>
+          </div>
+          
+          {/* Expand/Collapse Icon */}
+          <div className="ml-4">
+            <svg 
+              className={`w-5 h-5 text-gray-500 transform transition-transform duration-300 ${isVideoExpanded ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Collapsible Content */}
+        <div 
+          className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            isVideoExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-3">
+                  Watch this video to learn how to take correct KWH and KVAH readings from the meter,
+                  calculate power factor, and maintain optimal power factor above 0.95.
+                </p>
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg border border-gray-200">
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full"
+                    src="https://www.youtube.com/embed/TcpRSScCcXU"
+                    title="Power Factor Reading Instruction Video"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+                <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">💡 Tip</span>
+                  <span>You can pause the video anytime and follow along with the instructions</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2">
+        <h2 className="text-lg font-semibold">Main Electric Panel - Unit 1</h2>
+        <button
+          onClick={addNewRow}
+          className="bg-green-500 text-white px-3 py-1 rounded w-full sm:w-auto"
+        >
+          + Add New Row
+        </button>
+      </div>
+      
+      <div className="flex flex-col sm:flex-row justify-between items-center">
+        <div>
+          <h3 className="text-sm font-medium text-gray-700">Weekly Power Factor Average (Last 7 Days)</h3>
+          <div className="flex items-center mt-1">
+            <div className={`text-2xl font-bold ${weeklyAverage >= 0.95 ? 'text-green-600' : weeklyAverage >= 0.90 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {loadingAverage ? "Calculating..." : weeklyAverage.toFixed(3)}
+            </div>
+            <div className="ml-2">
+              {weeklyAverage >= 0.95 ? (
+                <span className="text-green-600 text-sm">✓ Good</span>
+              ) : weeklyAverage >= 0.90 ? (
+                <span className="text-yellow-600 text-sm">⚠️ Needs Attention</span>
+              ) : (
+                <span className="text-red-600 text-sm">✗ Poor</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={fetchWeeklyAverage}
+          className="mt-2 sm:mt-0 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+          disabled={loadingAverage}
+        >
+          {loadingAverage ? "Refreshing..." : "Refresh Average"}
+        </button>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-300 text-xs sm:text-sm">
+          <thead className="bg-gray-200">
+            <tr>
+              <th className="border px-2 py-1">Date</th>
+              <th className="border px-2 py-1">
+                <div className="flex flex-col items-center">
+                  <span>KWH</span>
+                  <img 
+                    src="/images/po2.jpg"
+                    alt="KWH Example" 
+                    className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
+                    onClick={() => openExampleImage("KWH")}
+                    title="Click to view larger example"
+                  />
+                </div>
+              </th>
+              <th className="border px-2 py-1">
+                <div className="flex flex-col items-center">
+                  <span>KVAH</span>
+                  <img 
+                    src="/images/po1.jpg"
+                    alt="KVAH Example" 
+                    className="w-10 h-10 object-cover border rounded cursor-pointer mt-1"
+                    onClick={() => openExampleImage("KVAH")}
+                    title="Click to view larger example"
+                  />
+                </div>
+              </th>
+              <th className="border px-2 py-1">Net KWH (New KWH - Old KWH)</th>
+              <th className="border px-2 py-1">Net KVAH (New KVAH - Old KVAH)</th>
+              <th className="border px-2 py-1">Power Factor (Net KWH/Net KVAH)(Should be near to 0.99)</th>
+              <th className="border px-2 py-1">Remarks</th>
+              <th className="border px-2 py-1">Attachments</th>
+              <th className="border px-2 py-1">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr
+                key={i}
+                ref={i === rows.length - 1 ? lastRowRef : null}
+              >
+                <td className="border px-2 py-1">
+                  <input
+                    type="date"
+                    value={new Date(r.date || new Date()).toISOString().split('T')[0]}
+                    onChange={(e) => handleInputChange(i, "date", new Date(e.target.value))}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-28 sm:w-32 border p-1 text-xs"
+                  />
+                </td>
+                <td className="border px-2 py-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={r.kwh || ""}
+                    onChange={(e) => handleInputChange(i, "kwh", e.target.value)}
+                    className="w-20 sm:w-24 border p-1"
+                  />
+                </td>
+                <td className="border px-2 py-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={r.kvah || ""}
+                    onChange={(e) => handleInputChange(i, "kvah", e.target.value)}
+                    className="w-20 sm:w-24 border p-1"
+                  />
+                </td>
+                <td className="border px-2 py-1">
+                  {typeof r.netKwh === 'number' ? r.netKwh.toFixed(2) : "-"}
+                </td>
+                <td className="border px-2 py-1">
+                  {typeof r.netKvah === 'number' ? r.netKvah.toFixed(2) : "-"}
+                </td>
+                <td className={`border px-2 py-1 ${r.powerFactor >= 0.95 && r.powerFactor <= 1 ? "bg-green-200" : "bg-red-200"}`}>
+                  {r.powerFactor || "-"}
+                </td>
+                <td className="border px-2 py-1">
+                  <textarea
+                    value={r.remarks || ""}
+                    onChange={(e) => handleInputChange(i, "remarks", e.target.value)}
+                    className="w-32 sm:w-48 border p-1 resize-y"
+                    rows={2}
+                  />
+                </td>
+                <td className="border px-2 py-1">
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf"
+                      onChange={(e) => handleFileUpload(e, i)}
+                      className="text-xs mb-1 bg-amber-200 p-2"
+                      disabled={uploading}
+                    />
+                    {r.attachments && r.attachments.map((file, idx) => {
+                      const isImage = file.format
+                        ? ["jpg", "jpeg", "png", "gif", "webp"].includes(file.format.toLowerCase())
+                        : /\.(jpg|jpeg|png|gif|webp)$/i.test(file.url);
+                      const isPDF = file.format
+                        ? file.format.toLowerCase() === "pdf"
+                        : /\.pdf$/i.test(file.url);
+
+                      return (
+                        <div key={idx} className="relative group flex items-center gap-2">
+                          <button
+                            onClick={() => openFilePreview(file)}
+                            className="flex items-center gap-1 text-left"
+                            title={file.original_filename}
+                          >
+                            {isImage ? (
+                              <img
+                                src={file.url}
+                                alt={file.original_filename}
+                                className="w-15 h-15 object-cover border rounded"
+                              />
+                            ) : isPDF ? (
+                              <div className="w-15 h-15 flex items-center justify-center border rounded bg-gray-100 text-red-600 font-bold">
+                                PDF
+                              </div>
+                            ) : (
+                              <div className="w-15 h-15 flex items-center justify-center border rounded bg-gray-100 text-gray-600 text-xs">
+                                FILE
+                              </div>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAttachment(i, idx, file)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="border px-2 py-1 text-center">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => handleSave(r)}
+                      className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm"
+                      disabled={saving}
+                    >
+                      Save
+                    </button>
+                    {r._id && (
+                      <button
+                        onClick={() => handleDeleteRow(r)}
+                        className="bg-red-500 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm"
+                        disabled={deleting}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap justify-center mt-4 gap-2">
+        {[...Array(totalPages).keys()].map((n) => (
+          <button
+            key={n}
+            onClick={() => fetchData(n + 1)}
+            className={`px-2 sm:px-3 py-1 rounded text-xs sm:text-sm ${
+              page === n + 1 ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+          >
+            {n + 1}
+          </button>
+        ))}
+      </div>
+
+      {(saving || uploading || deleting) && (
+        <div className="fixed inset-0 bg-[#000000ad] bg-opacity-40 flex items-center justify-center z-50">
+          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+    </div>
+    
+   
+  </>
+);
 }

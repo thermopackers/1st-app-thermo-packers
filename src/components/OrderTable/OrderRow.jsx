@@ -334,18 +334,6 @@ const OrderRow = ({
 {`${remainingBalance} balance`}
         </span>
       </OrderCell>
-
-      {/* Stock */}
-      {/* <OrderCell>{getStockForProduct(order.product)}</OrderCell> */}
-      
-      {/* Remaining to Produce */}
-      {/* <OrderCell>
-        {Math.max(order.quantity - getStockForProduct(order.product), 0)}
-      </OrderCell> */}
-      
-     
-      
-   
       
       {/* Continue with other cells */}
       <OrderCell>₹{order.price}</OrderCell>
@@ -355,27 +343,78 @@ const OrderRow = ({
       <OrderCell>{`${order.freight}: ₹${order.freightAmount}`}</OrderCell>
       <OrderCell>{order.paymentTerms || "—"}</OrderCell>
 
-      <OrderCell>
-        {(() => {
-          if (!order.date) return "N/A";
-          const today = new Date();
-          const deliveryDate = new Date(order.date);
-          today.setHours(0, 0, 0, 0);
-          deliveryDate.setHours(0, 0, 0, 0);
-          const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
-          
-          if (diffDays <= 7) return "Within 1 Week";
-          if (diffDays <= 14) return "Within 2 Weeks";
-          if (diffDays <= 20) return "Within 20 Days";
-          
-          return deliveryDate.toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          });
-        })()}
-      </OrderCell>
-
+     <OrderCell>
+  {(() => {
+    if (!order.date) return "N/A";
+    const today = new Date();
+    const deliveryDate = new Date(order.date);
+    today.setHours(0, 0, 0, 0);
+    deliveryDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
+    
+    // Check if order has deliveryOption field (from new system)
+    const deliveryOption = order.deliveryOption;
+    
+    if (deliveryOption === "1week") {
+      return (
+        <div>
+          <span className="font-medium text-blue-600">Within 1 Week</span>
+          <br />
+          <span className="text-xs text-gray-500">
+            Delivery by: {deliveryDate.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+        </div>
+      );
+    }
+    
+    if (deliveryOption === "2weeks") {
+      return (
+        <div>
+          <span className="font-medium text-blue-600">Within 2 Weeks</span>
+          <br />
+          <span className="text-xs text-gray-500">
+            Delivery by: {deliveryDate.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+        </div>
+      );
+    }
+    
+    if (deliveryOption === "particular") {
+      return (
+        <div>
+          <span className="font-medium text-green-600">Particular Date</span>
+          <br />
+          <span className="text-xs text-gray-700 font-medium">
+            {deliveryDate.toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+        </div>
+      );
+    }
+    
+    // Fallback for old orders without deliveryOption
+    if (diffDays <= 7) return "Within 1 Week";
+    if (diffDays <= 14) return "Within 2 Weeks";
+    if (diffDays <= 20) return "Within 20 Days";
+    
+    return deliveryDate.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  })()}
+</OrderCell>
       <OrderCell>{order.remarks || "N/A"}</OrderCell>
 
       <OrderCell>

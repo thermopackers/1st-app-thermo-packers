@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Calculator, Truck, Package, DollarSign, Share2 } from "lucide-react";
 import pdfMake from 'pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
+import PipeSectionCalculator from "./PipeSectionCalculator";
 
 // Configure pdfmake
 pdfMake.vfs = pdfFonts.vfs;
@@ -423,6 +424,17 @@ const handleSharePDF = async () => {
                 <h2 className="text-xl font-bold text-gray-800 mb-2">Thermocol Sheet Costing Calculator</h2>
                 <p className="text-gray-500 text-sm">Calculate costing for thermocol sheets based on dimensions, density, and more</p>
               </button>
+                {/* New Calculator Button */}
+  <button
+    onClick={() => setActiveCalculator("pipeSection")}
+    className="bg-white rounded-2xl shadow-xl p-8 text-center hover:shadow-2xl transition-all duration-200 border-2 border-transparent hover:border-purple-500"
+  >
+    <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <Package size={40} className="text-purple-600" />
+    </div>
+    <h2 className="text-xl font-bold text-gray-800 mb-2">EPS/Thermocol Tongue & Groove Pipe-section Calculator</h2>
+    <p className="text-gray-500 text-sm">Calculate pipe section meters based on pipe size and thermocol thickness</p>
+  </button>
             </div>
             
             <div className="mt-8 text-center">
@@ -439,269 +451,297 @@ const handleSharePDF = async () => {
     );
   }
 
-  return (
-    <>
-      <InternalNavbar />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <button
-              onClick={() => setActiveCalculator(null)}
-              className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
-            >
-              ← Back to Calculators
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800">Thermocol Sheet Costing Calculator</h1>
-            <div className="w-20"></div>
-          </div>
-          
-          {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Calculator size={24} />
-                Enter Dimensions & Details
-              </h2>
+    if (activeCalculator === "thermocol") {
+    return (
+      <>
+        <InternalNavbar />
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={() => setActiveCalculator(null)}
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+              >
+                ← Back to Calculators
+              </button>
+              <h1 className="text-2xl font-bold text-gray-800">Thermocol Sheet Costing Calculator</h1>
+              <div className="w-20"></div>
             </div>
             
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                {/* Dimension inputs - same as before */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Length of EPS/Thermocol Sheet</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      name="length"
-                      value={formData.length}
-                      onChange={handleChange}
-                      placeholder="Enter length"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center justify-center flex-col">
-                      <p className="text-xs">Check Unit</p>
-                      <select
-                        name="lengthUnit"
-                        value={formData.lengthUnit}
-                        onChange={handleChange}
-                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                        <option value="feet">feet</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Breadth/Width of EPS/Thermocol Sheet</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      name="breadth"
-                      value={formData.breadth}
-                      onChange={handleChange}
-                      placeholder="Enter breadth"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center justify-center flex-col">
-                      <p className="text-xs">Check Unit</p>
-                      <select
-                        name="breadthUnit"
-                        value={formData.breadthUnit}
-                        onChange={handleChange}
-                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                        <option value="feet">feet</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Height/Thickness of EPS/Thermocol Sheet</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      name="height"
-                      value={formData.height}
-                      onChange={handleChange}
-                      placeholder="Enter height"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center justify-center flex-col">
-                      <p className="text-xs">Check Unit</p>
-                      <select
-                        name="heightUnit"
-                        value={formData.heightUnit}
-                        onChange={handleChange}
-                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                        <option value="feet">feet</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Required Density (kg/m³)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    name="density"
-                    value={formData.density}
-                    onChange={handleChange}
-                    placeholder="Enter density"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    RM Rate (₹/kg)
-                    <span className="text-xs text-gray-500 ml-1">(Current: ₹{rmRate.toFixed(2)}/kg)</span>
-                    <span className="text-xs text-gray-500 ml-1">(Can edit if needed)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="customRmRate"
-                    value={formData.customRmRate}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="conversionRate"
-                    value={formData.conversionRate}
-                    onChange={handleChange}
-                    placeholder="Enter conversion rate"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={handleCalculate}
-                  disabled={loading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50"
-                >
-                  {loading ? "Calculating..." : "Calculate Costing"}
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition-all duration-200"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {/* Results Card */}
-          {result && (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-4 flex justify-between items-center">
+            {/* Form Card */}
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  Calculation Results
+                  <Calculator size={24} />
+                  Enter Dimensions & Details
                 </h2>
-                <button
-                  onClick={handleSharePDF}
-                  disabled={sharing}
-                  className="flex items-center gap-2 bg-white text-green-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
-                >
-                  <Share2 size={18} />
-                  {sharing ? "Sharing..." : "Share PDF"}
-                </button>
               </div>
               
-              <div className="p-6 space-y-4">
-                {/* Outer Dimensions */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">📏 Outer Dimensions of Thermocol Sheet</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <p><span className="text-gray-600">Length:</span> {result.outerDimensions.displayLength} ({result.outerDimensions.length} m)</p>
-                    <p><span className="text-gray-600">Breadth:</span> {result.outerDimensions.displayBreadth} ({result.outerDimensions.breadth} m)</p>
-                    <p><span className="text-gray-600">Height:</span> {result.outerDimensions.displayHeight} ({result.outerDimensions.height} m)</p>
-                    <p><span className="text-gray-600">Volume:</span> {result.outerDimensions.volume} m³</p>
-                  </div>
-                </div>
-                
-                {/* Costing Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-800 mb-2">💰 Costing Details (Raw Block size: 6100x1220x620 mm)</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="text-gray-600">Density:</span> {result.density} kg/m³</p>
-                      <p><span className="text-gray-600">Raw Block Volume:</span> {result.blockVolume} m³</p>
-                      <p><span className="text-gray-600">Weight per Block:</span> {result.weightPerBlock} kg</p>
-                      <p><span className="text-gray-600">RM Rate:</span> ₹{result.rmRate}/kg</p>
-                      <p><span className="text-gray-600">Conversion Rate:</span> ₹{result.conversionRate}/kg</p>
-                      <p><span className="text-gray-600">Total/kg:</span> ₹{result.totalPerKg}</p>
-                      <p><span className="text-gray-600">Cost per Block:</span> ₹{result.costPerBlock}</p>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  {/* Dimension inputs - same as before */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Length of EPS/Thermocol Sheet</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        step="any"
+                        name="length"
+                        value={formData.length}
+                        onChange={handleChange}
+                        placeholder="Enter length"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center justify-center flex-col">
+                        <p className="text-xs">Check Unit</p>
+                        <select
+                          name="lengthUnit"
+                          value={formData.lengthUnit}
+                          onChange={handleChange}
+                          className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="mm">mm</option>
+                          <option value="cm">cm</option>
+                          <option value="inch">inch</option>
+                          <option value="feet">feet</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-800 mb-2">📦 Pieces Calculation</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="text-gray-600">Best Orientation:</span> {result.piecesFromBlock.orientation}</p>
-                      <p><span className="text-gray-600">Pieces Layout:</span> {result.piecesFromBlock.piecesL} x {result.piecesFromBlock.piecesB} x {result.piecesFromBlock.piecesH}</p>
-                      <p><span className="text-gray-600 font-bold text-green-600">Total Pieces from Block:</span> {result.piecesFromBlock.count} pcs</p>
-                      <p><span className="text-lg font-bold text-purple-600">Final Price per Piece:</span> ₹{result.pricePerPiece}</p>
-                      <p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Breadth/Width of EPS/Thermocol Sheet</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        step="any"
+                        name="breadth"
+                        value={formData.breadth}
+                        onChange={handleChange}
+                        placeholder="Enter breadth"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center justify-center flex-col">
+                        <p className="text-xs">Check Unit</p>
+                        <select
+                          name="breadthUnit"
+                          value={formData.breadthUnit}
+                          onChange={handleChange}
+                          className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="mm">mm</option>
+                          <option value="cm">cm</option>
+                          <option value="inch">inch</option>
+                          <option value="feet">feet</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Height/Thickness of EPS/Thermocol Sheet</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        step="any"
+                        name="height"
+                        value={formData.height}
+                        onChange={handleChange}
+                        placeholder="Enter height"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center justify-center flex-col">
+                        <p className="text-xs">Check Unit</p>
+                        <select
+                          name="heightUnit"
+                          value={formData.heightUnit}
+                          onChange={handleChange}
+                          className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="mm">mm</option>
+                          <option value="cm">cm</option>
+                          <option value="inch">inch</option>
+                          <option value="feet">feet</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* Transport Details */}
-                <div>
-                  <span className="bg-yellow-200 text-sm font-bold p-2 rounded">Material Loading Estimate in Tempo/Truck</span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                        <Truck size={18} /> Tempo (12m³)
-                      </h3>
-                      <p className="text-sm">Outer Dimension per piece: {result.outerDimensionM3} m³</p>
-                      <p className="text-lg font-bold text-blue-700">Approximate Pieces per Tempo: {result.piecesInTempo} pcs</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Required Density (kg/m³)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      name="density"
+                      value={formData.density}
+                      onChange={handleChange}
+                      placeholder="Enter density"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      RM Rate (₹/kg)
+                      <span className="text-xs text-gray-500 ml-1">(Current: ₹{rmRate.toFixed(2)}/kg)</span>
+                      <span className="text-xs text-gray-500 ml-1">(Can edit if needed)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="customRmRate"
+                      value={formData.customRmRate}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="conversionRate"
+                      value={formData.conversionRate}
+                      onChange={handleChange}
+                      placeholder="Enter conversion rate"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleCalculate}
+                    disabled={loading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50"
+                  >
+                    {loading ? "Calculating..." : "Calculate Costing"}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition-all duration-200"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Results Card */}
+            {result && (
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-4 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    Calculation Results
+                  </h2>
+                  <button
+                    onClick={handleSharePDF}
+                    disabled={sharing}
+                    className="flex items-center gap-2 bg-white text-green-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
+                  >
+                    <Share2 size={18} />
+                    {sharing ? "Sharing..." : "Share PDF"}
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-4">
+                  {/* Outer Dimensions */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2">📏 Outer Dimensions of Thermocol Sheet</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <p><span className="text-gray-600">Length:</span> {result.outerDimensions.displayLength} ({result.outerDimensions.length} m)</p>
+                      <p><span className="text-gray-600">Breadth:</span> {result.outerDimensions.displayBreadth} ({result.outerDimensions.breadth} m)</p>
+                      <p><span className="text-gray-600">Height:</span> {result.outerDimensions.displayHeight} ({result.outerDimensions.height} m)</p>
+                      <p><span className="text-gray-600">Volume:</span> {result.outerDimensions.volume} m³</p>
+                    </div>
+                  </div>
+                  
+                  {/* Costing Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">💰 Costing Details (Raw Block size: 6100x1220x620 mm)</h3>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="text-gray-600">Density:</span> {result.density} kg/m³</p>
+                        <p><span className="text-gray-600">Raw Block Volume:</span> {result.blockVolume} m³</p>
+                        <p><span className="text-gray-600">Weight per Block:</span> {result.weightPerBlock} kg</p>
+                        <p><span className="text-gray-600">RM Rate:</span> ₹{result.rmRate}/kg</p>
+                        <p><span className="text-gray-600">Conversion Rate:</span> ₹{result.conversionRate}/kg</p>
+                        <p><span className="text-gray-600">Total/kg:</span> ₹{result.totalPerKg}</p>
+                        <p><span className="text-gray-600">Cost per Block:</span> ₹{result.costPerBlock}</p>
+                      </div>
                     </div>
                     
-                    <div className="bg-orange-50 rounded-lg p-4">
-                      <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                        <Truck size={18} /> Truck (40m³)
-                      </h3>
-                      <p className="text-sm">Outer Dimension per piece: {result.outerDimensionM3} m³</p>
-                      <p className="text-lg font-bold text-orange-700">Approximate Pieces per Truck: {result.piecesInTruck} pcs</p>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">📦 Pieces Calculation</h3>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="text-gray-600">Best Orientation:</span> {result.piecesFromBlock.orientation}</p>
+                        <p><span className="text-gray-600">Pieces Layout:</span> {result.piecesFromBlock.piecesL} x {result.piecesFromBlock.piecesB} x {result.piecesFromBlock.piecesH}</p>
+                        <p><span className="text-gray-600 font-bold text-green-600">Total Pieces from Block:</span> {result.piecesFromBlock.count} pcs</p>
+                        <p><span className="text-lg font-bold text-purple-600">Final Price per Piece:</span> ₹{result.pricePerPiece}</p>
+                        <p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Transport Details */}
+                  <div>
+                    <span className="bg-yellow-200 text-sm font-bold p-2 rounded">Material Loading Estimate in Tempo/Truck</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                          <Truck size={18} /> Tempo (12m³)
+                        </h3>
+                        <p className="text-sm">Outer Dimension per piece: {result.outerDimensionM3} m³</p>
+                        <p className="text-lg font-bold text-blue-700">Approximate Pieces per Tempo: {result.piecesInTempo} pcs</p>
+                      </div>
+                      
+                      <div className="bg-orange-50 rounded-lg p-4">
+                        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                          <Truck size={18} /> Truck (40m³)
+                        </h3>
+                        <p className="text-sm">Outer Dimension per piece: {result.outerDimensionM3} m³</p>
+                        <p className="text-lg font-bold text-orange-700">Approximate Pieces per Truck: {result.piecesInTruck} pcs</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  }
+
+  if (activeCalculator === "pipeSection") {
+    return (
+      <>
+        <InternalNavbar />
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={() => setActiveCalculator(null)}
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+              >
+                ← Back to Calculators
+              </button>
+              <h1 className="text-2xl font-bold text-gray-800">EPS/Thermocol Tongue & Groove Pipe-section Calculator</h1>
+              <div className="w-20"></div>
+            </div>
+            
+            <PipeSectionCalculator onBack={() => setActiveCalculator(null)} />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return null;
 }

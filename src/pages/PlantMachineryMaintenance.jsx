@@ -19,7 +19,7 @@ export default function PlantMachineryMaintenance() {
     type: "water-quality-grid", // Updated type
     color: "bg-gradient-to-r from-blue-600 via-green-600 to-purple-600" 
   },
-    { name: "Transformer 300KW (Weekly Maintenance Log Book)", path: "/maintenance/transformer", color: "bg-orange-600 hover:bg-orange-700" }, // Add this line
+    { name: "Transformer 300KW Maintenance Log Book (Check every 15 Days - Twice a Month)", path: "/maintenance/transformer", color: "bg-orange-600 hover:bg-orange-700" }, // Add this line
       { name: "Boiler Yearly Certificate", path: "/maintenance/boiler-certificate", color: "bg-red-600 hover:bg-red-700" }, // Add this
         { name: "Factory Act Department", path: "/factory-act", color: "bg-indigo-600 hover:bg-indigo-700" }, // Add this
           { name: "Weighing Scale Calibration", path: "/weighing-scale", color: "bg-teal-600 hover:bg-teal-700" }, // Add this
@@ -206,7 +206,7 @@ if (s.type === "water-quality-grid") {
             
             // Check if other sections are enabled
             const isEnabled = s.name === "Air Compressors" || 
-                             s.name === "Transformer 300KW (Weekly Maintenance Log Book)" || // Add this
+                             s.name === "Transformer 300KW Maintenance Log Book (Check every 15 Days - Twice a Month)" || // Add this
                                               s.name === "Boiler Yearly Certificate" || // Add this
                                                                s.name === "Factory Act Department" || // Add this
                                                                                 s.name === "Weighing Scale Calibration" || // Add this

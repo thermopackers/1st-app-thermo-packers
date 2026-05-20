@@ -27,6 +27,7 @@ const [customPaymentTerms, setCustomPaymentTerms] = useState("");
     po: "",
   poCopy: [], // ✅ now an array
     deliveryRange: "",
+      deliveryOption: "", // Add this for tracking the selected option
     date: "",
     remarks: "",
      billTo: "",
@@ -122,17 +123,18 @@ useEffect(() => {
 
     const customer = allCustomers.find(c => c.name === invoice.customerName);
 
-    setClientDetails((prev) => ({
-      ...prev,
-            customerId: customer?._id || "", // Set customerId if found
-      customerName: invoice.customerName || "",
-      billTo: invoice.billTo || "",
-      shipTo: invoice.shipTo || "",
-      sameAsBillTo: invoice.billTo === invoice.shipTo,
-      po: invoice.invoiceNo || "",
-      date: new Date().toISOString().split("T")[0],
-      remarks: invoice.remarks || "",
-    }));
+   setClientDetails((prev) => ({
+  ...prev,
+  customerId: customer?._id || "",
+  customerName: invoice.customerName || "",
+  billTo: invoice.billTo || "",
+  shipTo: invoice.shipTo || "",
+  sameAsBillTo: invoice.billTo === invoice.shipTo,
+  po: invoice.invoiceNo || "",
+  deliveryOption: "", // Reset delivery option
+  date: new Date().toISOString().split("T")[0],
+  remarks: invoice.remarks || "",
+}));
 // ✅ Auto-map payment terms from Proforma
 // ✅ Auto-map payment terms from Proforma
 if (invoice.paymentTerms || invoice.customPaymentTerm) {
@@ -262,87 +264,104 @@ const productOptions = useMemo(() => {
 }, [allProducts, loadingProducts]);
 
 
-  const handleClientChange = (e) => {
+const handleClientChange = (e) => {
   const { name, value, type, files, checked } = e.target;
 
   if (type === "file") {
-  const file = files[0];
-  const acceptedTypes = [
-    "application/pdf",
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-  ];
+    const file = files[0];
+    const acceptedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ];
 
-  if (!acceptedTypes.includes(file.type)) {
-    toast.error("Only PDF or image files (JPG, PNG) are allowed.");
-    return;
-  }
+    if (!acceptedTypes.includes(file.type)) {
+      toast.error("Only PDF or image files (JPG, PNG) are allowed.");
+      return;
+    }
 
-  if (file.size === 0 || file.size < 1000) {
-    toast.error("File is empty or corrupted. Please upload a valid file.");
-    return;
-  }
+    if (file.size === 0 || file.size < 1000) {
+      toast.error("File is empty or corrupted. Please upload a valid file.");
+      return;
+    }
 
-   setClientDetails({ ...clientDetails, [name]: file });
-} else if (name === "deliveryRange") {
-    const days =
-      value === "1week"
-        ? 7
-        : value === "2weeks"
-        ? 14
-        : value === "20days"
-        ? 20
-        : 0;
-    const today = new Date();
-    today.setDate(today.getDate() + days);
+    setClientDetails({ ...clientDetails, [name]: file });
+  } 
+  else if (name === "deliveryOption") {
+    let deliveryDate = "";
+    
+    if (value === "1week") {
+      deliveryDate = getLastWorkingDay(7);
+    } 
+    else if (value === "2weeks") {
+      deliveryDate = getLastWorkingDay(14);
+    }
+    else if (value === "particular") {
+      deliveryDate = "";
+    }
+    
     setClientDetails({
       ...clientDetails,
+      deliveryOption: value,
       deliveryRange: value,
-      date: today.toISOString().split("T")[0],
+      date: deliveryDate,
     });
   }
-  // ✅ Checkbox: Same as Bill To
-else if (name === "sameAsBillTo") {
-  const selectedCustomer = allCustomers.find(
-    (c) => c.name === clientDetails.customerName
-  );
-
-  const updatedDetails = {
-    ...clientDetails,
-    sameAsBillTo: checked,
-  };
-
-  // If checkbox is checked, set both addresses to customer address
-  if (checked && selectedCustomer) {
-    updatedDetails.billTo = selectedCustomer.address;
-    updatedDetails.shipTo = selectedCustomer.address;
+  else if (name === "date" && clientDetails.deliveryOption === "particular") {
+    setClientDetails({
+      ...clientDetails,
+      date: value,
+    });
   }
-  // If checkbox is unchecked, keep billTo but clear shipTo
-  else if (!checked) {
-    updatedDetails.shipTo = "";
+  else if (name === "sameAsBillTo") {
+    const selectedCustomer = allCustomers.find(
+      (c) => c.name === clientDetails.customerName
+    );
+
+    const updatedDetails = {
+      ...clientDetails,
+      sameAsBillTo: checked,
+    };
+
+    if (checked && selectedCustomer) {
+      updatedDetails.billTo = selectedCustomer.address;
+      updatedDetails.shipTo = selectedCustomer.address;
+    }
+    else if (!checked) {
+      updatedDetails.shipTo = "";
+    }
+
+    setClientDetails(updatedDetails);
   }
-
-  setClientDetails(updatedDetails);
-}
-
-
-  // ✅ Bill To change should update Ship To if checkbox is checked
-else if (name === "billTo") {
-  const updatedDetails = {
-    ...clientDetails,
-    billTo: value,
-  };
-  
-  // Only update shipTo if checkbox is checked AND we're not clearing the field
-  if (clientDetails.sameAsBillTo && value) {
-    updatedDetails.shipTo = value;
+  else if (name === "billTo") {
+    const updatedDetails = {
+      ...clientDetails,
+      billTo: value,
+    };
+    
+    if (clientDetails.sameAsBillTo && value) {
+      updatedDetails.shipTo = value;
+    }
+    
+    setClientDetails(updatedDetails);
   }
-  
-  setClientDetails(updatedDetails);
-} else {
+  else {
     setClientDetails({ ...clientDetails, [name]: value });
   }
+};
+
+// Helper function to get last working day (excluding Sunday)
+const getLastWorkingDay = (daysFromNow) => {
+  let date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  
+  // If the calculated date is Sunday (0), go back to Saturday (6)
+  if (date.getDay() === 0) {
+    date.setDate(date.getDate() - 1);
+  }
+  
+  return date.toISOString().split("T")[0];
 };
 
 const handleProductChange = async (index, field, value) => {
@@ -865,20 +884,40 @@ if (loadingProducts || loadingCustomers) {
 
 
 
-            <select
-              name="deliveryRange"
-              value={clientDetails.deliveryRange}
-              onChange={handleClientChange}
-              className="p-2 border border-gray-400 rounded"
-            >
-              <option value="">Delivery Time</option>
-              <option value="1week">Within 1 Week</option>
-              <option value="2weeks">Within 2 Weeks</option>
-              <option value="20days">Within 20 Days</option>
-            </select>
+           <div className="flex flex-col col-span-2">
+  <label className="mb-1 font-medium text-gray-700">Delivery Time (Material required by Customer on Date?)</label>
+  <select
+    name="deliveryOption"
+    value={clientDetails.deliveryOption || ""}
+    onChange={handleClientChange}
+    className="p-2 border border-gray-400 rounded mb-2"
+  >
+    <option value="">Select Delivery Option</option>
+    <option value="1week">Within 1 Week (Last Working Day)</option>
+    <option value="2weeks">Within 2 Weeks (Last Working Day)</option>
+    <option value="particular">Particular Date (Select a Particular Date)</option>
+  </select>
+  
+  {clientDetails.deliveryOption === "particular" && (
+    <input
+      type="date"
+      name="date"
+      value={clientDetails.date}
+      onChange={handleClientChange}
+      min={new Date().toISOString().split("T")[0]}
+      className="border border-gray-400 p-2 rounded"
+      required
+    />
+  )}
+  
+  {clientDetails.deliveryOption && clientDetails.deliveryOption !== "particular" && (
+    <div className="text-sm text-green-600 mt-1">
+      Delivery Date: {clientDetails.date || "Calculating..."}
+    </div>
+  )}
+</div>
             <textarea
               name="remarks"
-              required
               placeholder="Remarks"
               value={clientDetails.remarks}
               onChange={handleClientChange}

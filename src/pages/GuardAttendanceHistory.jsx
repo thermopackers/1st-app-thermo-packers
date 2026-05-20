@@ -316,19 +316,7 @@ const handleDateRangeSearch = async () => {
                 </p>
               </div>
               
-              {/* Export Button */}
-              <button
-                onClick={exportToCSV}
-                disabled={filteredData.length === 0}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
-                  filteredData.length === 0
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-green-600 text-white hover:bg-green-700"
-                }`}
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
+             
             </div>
 
             {/* Stats Cards */}

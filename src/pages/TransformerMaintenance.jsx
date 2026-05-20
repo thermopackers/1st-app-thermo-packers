@@ -13,7 +13,8 @@ export default function TransformerMaintenance() {
   
   // Reference image for transformer oil level guide
   const transformerImageUrl = "https://res.cloudinary.com/dcr8k5amk/image/upload/v1774945892/psjzzcj38zw4lzvnisaq_clqh45.jpg";
-  
+    const transformerOilImageUrl = "https://res.cloudinary.com/dcr8k5amk/image/upload/v1779258825/new_image_hrycr6.jpg";
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -707,9 +708,25 @@ export default function TransformerMaintenance() {
                       </div>
                     </th>
                     <th className="border p-3 text-left text-xs">
-                      Transformer Oil Temperature<br/>
-                      <span className="font-normal text-gray-500">(Should not exceed 65-70°C)</span>
-                    </th>
+  <div className="space-y-2">
+    <div>Transformer Oil Temperature<br/>
+    <span className="font-normal text-gray-500">(Should not exceed 65-70°C)</span>
+    </div>
+    {/* Add the reference image here in the header */}
+    <div className="mt-2">
+      <img 
+        src={transformerOilImageUrl} 
+        alt="Transformer Oil Temperature Guide"
+        className="max-w-full h-auto rounded-lg border border-gray-300 cursor-pointer"
+        style={{ maxHeight: "150px" }}
+        onClick={() => openFilePreview(transformerOilImageUrl, "Transformer Oil Temperature Guide")}
+      />
+      <p className="text-xs text-gray-500 mt-1">
+        Click image to enlarge
+      </p>
+    </div>
+  </div>
+</th>
                     <th className="border p-3 text-left text-xs w-48">Remarks</th>
                     <th className="border p-3 text-left text-xs w-24">Actions</th>
                   </tr>
