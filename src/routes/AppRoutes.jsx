@@ -118,6 +118,7 @@ import AllCaremaxQuotations from "../pages/AllCaremaxQuotations";
 import EditCaremaxQuotation from "../pages/EditCaremaxQuotation";
 import LeadDashboard from '../components/LeadDashboard';
 import TaskAssignmentsList from '../pages/TaskAssignmentsList';
+import FullyKioskWrapper from "../components/FullyKioskWrapper";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -685,7 +686,9 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
       <PageWrapper>
-        <GuardAttendance />
+       <FullyKioskWrapper>
+          <GuardAttendance />
+        </FullyKioskWrapper>
       </PageWrapper>
     </ProtectedRoute>
   } 
