@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 
 const DOCUMENT_TYPES = {
   insurance_renewal: "Insurance Renewal",
-  registration_tax_renewal: "Registration Tax Renewal",
+  rto_tax_receipt_renewal: 'RTO Tax Receipt(Renewal)',
   pollution_renewal: "Pollution Renewal",
   fitness_renewal: "Fitness Renewal",
   all_india_permit_renewal: "All India Permit Renewal",
@@ -14,6 +14,8 @@ const DOCUMENT_TYPES = {
   vehicle_images: "Vehicle Front And Rear Side Image (Non Loaded)",
   tempo_challan_copy: "(Himachal/Haryana/Jammu/UP Tax)",
   payment_receipts: "Tempo Challan Copy & Payment Receipts",
+   vin_chassis_photo: "VIN - Chassis Number Photo", // Add this line
+      punjab_permit: "Punjab Permit (Goods Permit)", // Add this new option
 };
 
 export default function DocumentNotifications({ setDocNotifCount }) {
@@ -67,9 +69,13 @@ const openDocument = (doc) => {
   // Create content for ALL documents
   let contentHtml = `
     <div class="space-y-4 max-h-[70vh] overflow-y-auto">
-      <div class="text-center mb-4">
-        <p class="text-sm text-gray-600"><strong>Vehicle:</strong> ${doc.vehicleNumber}</p>
-        <p class="text-sm text-gray-600"><strong>Type:</strong> ${DOCUMENT_TYPES[doc.documentType]}</p>
+      <div class="text-center mb-4 p-3 bg-blue-50 rounded-lg">
+        <p class="text-sm text-gray-700"><strong>🚗 Vehicle:</strong> ${doc.vehicleNumber}</p>
+        <p class="text-sm text-gray-700"><strong>📄 Type:</strong> ${DOCUMENT_TYPES[doc.documentType]}</p>
+        ${doc.documentNumber ? `<p class="text-sm text-gray-700"><strong>🔢 Doc Number:</strong> ${doc.documentNumber}</p>` : ''}
+        ${doc.issueDate ? `<p class="text-sm text-gray-700"><strong>📅 Issue Date:</strong> ${new Date(doc.issueDate).toLocaleDateString('en-GB')}</p>` : ''}
+        ${doc.expiryDate ? `<p class="text-sm text-gray-700"><strong>⚠️ Expiry Date:</strong> ${new Date(doc.expiryDate).toLocaleDateString('en-GB')}</p>` : ''}
+        ${doc.notes ? `<p class="text-sm text-gray-700"><strong>📝 Notes:</strong> ${doc.notes}</p>` : ''}
       </div>
   `;
 
@@ -82,7 +88,6 @@ const openDocument = (doc) => {
       <div class="border border-gray-200 rounded-lg p-4 bg-white">
         <div class="flex justify-between items-center mb-3">
           <h4 class="font-semibold text-gray-800">Document ${index + 1}</h4>
-          
         </div>
     `;
 
@@ -118,18 +123,20 @@ const openDocument = (doc) => {
       contentHtml += `
         <div class="text-center p-6 bg-gray-100 rounded-lg">
           <p class="text-gray-600 mb-3">This file type cannot be previewed in the browser</p>
-         
+          <a href="${url}" target="_blank" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            📥 Download / Open File
+          </a>
         </div>
       `;
     }
 
-    contentHtml += `</div>`; // Close the document container
+    contentHtml += `</div>`;
   });
 
-  contentHtml += `</div>`; // Close the main container
+  contentHtml += `</div>`;
 
   Swal.fire({
-    title: `${DOCUMENT_TYPES[doc.documentType]} - All Documents`,
+    title: `${DOCUMENT_TYPES[doc.documentType]}`,
     html: contentHtml,
     width: "90%",
     showCloseButton: true,
