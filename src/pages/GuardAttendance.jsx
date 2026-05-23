@@ -54,46 +54,50 @@ useEffect(() => {
   }
 }, []);
 
-// Add this useEffect to cache the voice
+// Safe voice loading for Fully Kiosk
 useEffect(() => {
-  if ('speechSynthesis' in window) {
-    // Wait for voices to load
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      // Cache the default voice or a specific one
-      if (voices.length > 0) {
-        setCachedVoice(voices[0]); // Cache the first/default voice
-        console.log("Voice cached:", voices[0].name);
+  const loadVoicesSafely = () => {
+    try {
+      // Check if speechSynthesis exists (Fully Kiosk may not have it)
+      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.getVoices) {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length > 0) {
+          // Try to find a Hindi voice first
+          const hindiVoice = voices.find(v => v.lang === 'hi-IN' || v.lang === 'hi');
+          setCachedVoice(hindiVoice || voices[0]);
+          setVoicesLoaded(true);
+          console.log("✅ Voice loaded:", (hindiVoice || voices[0])?.name);
+        } else if (voices && voices.length === 0) {
+          // Voices might load asynchronously
+          console.log("Waiting for voices to load...");
+          setTimeout(loadVoicesSafely, 200);
+        } else {
+          setVoicesLoaded(true);
+        }
+      } else {
+        console.log("Speech synthesis not supported");
+        setVoicesLoaded(true);
       }
-    };
-    
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }
-}, []);
-// Load available voices
-useEffect(() => {
-  const loadVoices = () => {
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      console.log("✅ Voices loaded:", voices.length);
+    } catch (err) {
+      console.warn("Error loading voices:", err);
       setVoicesLoaded(true);
     }
   };
 
-  loadVoices();
+  loadVoicesSafely();
   
-  // For Chrome, voices are loaded asynchronously
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+  // Set up voices changed event if available
+  if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = loadVoicesSafely;
+    
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
   }
-
-  return () => {
-    window.speechSynthesis.onvoiceschanged = null;
-  };
 }, []);
+
   // Parse user roles
   const parseUserRoles = (user) => {
     if (!user || !user.role) return [];
@@ -178,6 +182,38 @@ useEffect(() => {
 
     initialize();
   }, []);
+
+  // Enable audio context for Fully Kiosk (needs user interaction)
+useEffect(() => {
+  const enableAudioOnFirstTouch = async () => {
+    try {
+      if (window.AudioContext || window.webkitAudioContext) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+          console.log("Audio context resumed for Fully Kiosk");
+        }
+      }
+    } catch (err) {
+      console.log("Audio enable error:", err);
+    }
+  };
+  
+  // Add one-time click/touch listener to enable audio
+  const handleFirstInteraction = () => {
+    enableAudioOnFirstTouch();
+    document.body.removeEventListener('click', handleFirstInteraction);
+    document.body.removeEventListener('touchstart', handleFirstInteraction);
+  };
+  
+  document.body.addEventListener('click', handleFirstInteraction);
+  document.body.addEventListener('touchstart', handleFirstInteraction);
+  
+  return () => {
+    document.body.removeEventListener('click', handleFirstInteraction);
+    document.body.removeEventListener('touchstart', handleFirstInteraction);
+  };
+}, []);
 
   // Check camera permissions on mount
 useEffect(() => {
@@ -439,9 +475,7 @@ const result = await Swal.fire({
 };
 
 const playSuccessWithVoice = () => {
-  // Play beep and voice in parallel for maximum speed
-  
-  // Beep sound
+  // Play beep sound
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     if (audioContext.state === 'suspended') audioContext.resume();
@@ -452,31 +486,37 @@ const playSuccessWithVoice = () => {
     oscillator.frequency.value = 800;
     gainNode.gain.value = 0.5;
     oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.15); // Slightly shorter beep
+    oscillator.stop(audioContext.currentTime + 0.15);
   } catch (err) {
     console.log("Beep error:", err);
   }
 
-  // Voice - play immediately without any delay
-  if ('speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel(); // Stop any previous speech
+  // Voice - with safety checks for Fully Kiosk
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+      window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance('अटेंडेंस लग गया');
       utterance.volume = 1;
-      utterance.rate = 1.3; // Faster speech
+      utterance.rate = 1.1;
       utterance.pitch = 1;
       utterance.lang = 'hi-IN';
       
-      // Use the cached voice if available
       if (cachedVoice) {
         utterance.voice = cachedVoice;
       }
       
+      // For Fully Kiosk, handle errors gracefully
+      utterance.onerror = (event) => {
+        console.log("Speech error (non-critical):", event);
+      };
+      
       window.speechSynthesis.speak(utterance);
-    } catch (err) {
-      console.log("Voice error:", err);
+    } else {
+      console.log("Speech synthesis not available - beep only");
     }
+  } catch (err) {
+    console.log("Voice error (continuing with beep only):", err);
   }
 };
 
