@@ -44,6 +44,16 @@ const [voicesLoaded, setVoicesLoaded] = useState(false);
 // Add this state
 const [cachedVoice, setCachedVoice] = useState(null);
 
+// Add at the very top of GuardAttendance component
+useEffect(() => {
+  // Fix for Fully Kiosk browser
+  if (window.FullyKiosk) {
+    console.log("Running in Fully Kiosk");
+    // Disable strict mode features that cause white page
+    document.body.style.backgroundColor = "#f3f4f6";
+  }
+}, []);
+
 // Add this useEffect to cache the voice
 useEffect(() => {
   if ('speechSynthesis' in window) {
