@@ -680,8 +680,26 @@ export default function AppRoutes() {
 />
 
 <Route path="/maintenance/fire-safety" element={<FireSafetyMaintenance />} />
-<Route path="/guard-attendance" element={<GuardAttendance />} />
-<Route path="/guard-attendance-history" element={<GuardAttendanceHistory />} />
+<Route 
+  path="/guard-attendance" 
+  element={
+    <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
+      <PageWrapper>
+        <GuardAttendance />
+      </PageWrapper>
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/guard-attendance-history" 
+  element={
+    <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
+      <PageWrapper>
+        <GuardAttendanceHistory />
+      </PageWrapper>
+    </ProtectedRoute>
+  } 
+/>
 <Route path="/password-manager" element={<PasswordManager />} />
 <Route path="/esic" element={<ESICManagement />} />
 <Route path="/epfo" element={<EPFOManagement />} />
