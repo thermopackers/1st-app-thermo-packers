@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../axiosInstance';
 import { useUserContext } from '../context/UserContext';
+import { useState, useEffect } from 'react';
 
 // Helper function to parse roles properly
 const parseUserRoles = (user) => {
@@ -34,6 +35,17 @@ const parseUserRoles = (user) => {
 const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
   const navigate = useNavigate();
   const { setUser } = useUserContext();
+  const [isFullyKiosk, setIsFullyKiosk] = useState(false);
+
+  // Detect if running in Fully Kiosk
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const isFully = userAgent.includes('FullyKiosk') || window.FullyKiosk;
+    setIsFullyKiosk(isFully);
+    if (isFully) {
+      console.log('Running in Fully Kiosk - using fallback login');
+    }
+  }, []);
 
   const onSuccess = async (credentialResponse) => {
     setLoading(true);
@@ -50,7 +62,6 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
       const { token } = res.data;
       localStorage.setItem('token', token);
       
-      // Get user data with the new token
       const userRes = await axiosInstance.get('/users/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -59,11 +70,9 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
       
       toast.success('Login successful!');
       
-      // ✅ FIX: Handle redirection with proper role parsing
       const userRoles = parseUserRoles(userRes.data);
       
       if (supplierMode) {
-        // Supplier portal - only allow suppliers and their assistants
         if (userRoles.includes('suppliers') || userRes.data.isAssistant) {
           navigate('/dashboard');
         } else {
@@ -72,7 +81,6 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
           toast.error('This portal is for customers only');
         }
       } else {
-        // Regular employee portal - don't allow suppliers
         if (userRoles.includes('suppliers')) {
           localStorage.removeItem('token');
           setUser(null);
@@ -103,6 +111,32 @@ const GoogleLoginComponent = ({ setLoading, supplierMode = false }) => {
     toast.error('Google Sign-In failed. Please try again.');
     setLoading(false);
   };
+
+  // For Fully Kiosk, show instruction message
+  if (isFullyKiosk) {
+    return (
+      <div className="text-center space-y-3">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+          <p className="text-sm text-yellow-800 mb-2">
+            📱 For Google login in this app:
+          </p>
+          <p className="text-xs text-gray-600">
+            1. Use the <strong>OTP Login</strong> option below instead<br/>
+            2. Or open this page in Chrome browser
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            toast.error('Please use OTP Login option below for this device');
+          }}
+          className="w-full py-3 px-4 border border-gray-300 rounded-lg flex items-center justify-center gap-3 bg-gray-50 hover:bg-gray-100 transition"
+        >
+          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+          <span className="text-gray-500">Google Login (Not Available)</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <GoogleLogin
