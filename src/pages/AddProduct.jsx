@@ -1,5 +1,5 @@
 import imageCompression from 'browser-image-compression';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
 import { useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 
 export default function AddProduct() {
   const [isLoading, setIsLoading] = useState(false);
+  const [polybagOptions, setPolybagOptions] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -15,20 +16,36 @@ export default function AddProduct() {
     hsnCode: "",
     gstPercent: "",
     description: "",
-    weight: "", // Weight in grams
-    pcsPerPacket: "", // 🆕 Number of pieces in 1 packet
+    weight: "",
+    pcsPerPacket: "",
+    polybagSize: "",
   });
 
   const [images, setImages] = useState([]);
   const [internalImages, setInternalImages] = useState([]);
+  const [additionalImages1, setAdditionalImages1] = useState([]);
+  const [additionalImages2, setAdditionalImages2] = useState([]);
   const navigate = useNavigate();
+
+  // Fetch polybag products on component mount
+  useEffect(() => {
+    const fetchPolybagProducts = async () => {
+      try {
+        const response = await axiosInstance.get("/purchase-products/category/Lifafa Polythene bags for Packing");
+        setPolybagOptions(response.data);
+      } catch (error) {
+        console.error("Failed to fetch polybag products:", error);
+      }
+    };
+    fetchPolybagProducts();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Normal images compression
+  // Normal images compression
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     const compressed = [];
@@ -36,13 +53,14 @@ export default function AddProduct() {
     for (const file of files) {
       const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
       const compressedFile = await imageCompression(file, options);
-      compressed.push(compressedFile);
+      const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+      compressed.push(renamedFile);
     }
 
     setImages((prev) => [...prev, ...compressed].slice(0, 5));
   };
 
-  // ✅ Internal images & PDFs (skip compression for PDFs)
+  // Internal images & PDFs
   const handleInternalChange = async (e) => {
     const files = Array.from(e.target.files);
     const processed = [];
@@ -51,13 +69,52 @@ export default function AddProduct() {
       if (file.type.startsWith("image/")) {
         const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
         const compressedFile = await imageCompression(file, options);
-        processed.push(compressedFile);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        processed.push(renamedFile);
       } else {
         processed.push(file);
       }
     }
 
     setInternalImages((prev) => [...prev, ...processed].slice(0, 5));
+  };
+
+  // Additional images 1
+  const handleAdditionalImages1Change = async (e) => {
+    const files = Array.from(e.target.files);
+    const compressed = [];
+
+    for (const file of files) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        compressed.push(renamedFile);
+      } else {
+        compressed.push(file);
+      }
+    }
+
+    setAdditionalImages1((prev) => [...prev, ...compressed].slice(0, 5));
+  };
+
+  // Additional images 2
+  const handleAdditionalImages2Change = async (e) => {
+    const files = Array.from(e.target.files);
+    const compressed = [];
+
+    for (const file of files) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        compressed.push(renamedFile);
+      } else {
+        compressed.push(file);
+      }
+    }
+
+    setAdditionalImages2((prev) => [...prev, ...compressed].slice(0, 5));
   };
 
   const handleRemoveImage = (idx) => {
@@ -68,37 +125,37 @@ export default function AddProduct() {
     setInternalImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleRemoveAdditional1 = (idx) => {
+    setAdditionalImages1((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleRemoveAdditional2 = (idx) => {
+    setAdditionalImages2((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     const data = new FormData();
 
-    // Append text fields
     Object.entries(formData).forEach(([key, val]) => {
       if (key === "sizes") {
         data.append(key, JSON.stringify(val.split(",").map((s) => s.trim())));
       } else if (key === "weight") {
-        // Convert grams to kg for storage (divide by 1000)
         const weightInKg = val ? parseFloat(val) / 1000 : "";
         data.append(key, weightInKg);
       } else if (key === "pcsPerPacket") {
-        // Store as number
         data.append(key, val ? parseInt(val) : 0);
       } else {
         data.append(key, val);
       }
     });
 
-    // Append product images
-    images.forEach((file) => {
-      data.append("images", file);
-    });
-
-    // Append internal images/pdfs
-    internalImages.forEach((file) => {
-      data.append("internalImages", file);
-    });
+    images.forEach((file) => data.append("images", file));
+    internalImages.forEach((file) => data.append("internalImages", file));
+    additionalImages1.forEach((file) => data.append("additionalImages1", file));
+    additionalImages2.forEach((file) => data.append("additionalImages2", file));
 
     try {
       await axiosInstance.post("/products-multer", data, {
@@ -109,7 +166,7 @@ export default function AddProduct() {
     } catch (err) {
       console.error("Product addition failed", err);
       const message = err.response?.data?.error || "Failed to add product";
-      alert(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +181,6 @@ export default function AddProduct() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Text fields with labels */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Product Name *</label>
             <input name="name" placeholder="Product Name" required value={formData.name} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
@@ -150,7 +206,6 @@ export default function AddProduct() {
             <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
           </div>
 
-          {/* Product Weight - In GRAMS */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Product Weight (grams)</label>
             <input 
@@ -166,7 +221,6 @@ export default function AddProduct() {
             <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
           </div>
 
-          {/* 🆕 Number of Pieces in 1 Packet */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
             <input 
@@ -182,7 +236,6 @@ export default function AddProduct() {
             <p className="text-sm text-gray-500 mt-1">Number of pieces contained in one packet</p>
           </div>
 
-          {/* Description Field */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
             <textarea 
@@ -195,7 +248,24 @@ export default function AddProduct() {
             />
           </div>
 
-          {/* Product Images */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Size of Polybag/Lifafa Used</label>
+            <select 
+              name="polybagSize" 
+              value={formData.polybagSize} 
+              onChange={handleChange}
+              className="w-full p-3 border border-gray-300 rounded-lg bg-white"
+            >
+              <option value="">Select Polybag Size</option>
+              {polybagOptions.map((option) => (
+                <option key={option._id} value={option._id}>
+                  {option.name} {option.size ? `(${option.size})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-gray-500 mt-1">Select the polybag/lifafa size used for packing</p>
+          </div>
+
           <label className="block text-gray-700 font-semibold mb-2">Upload Product Sheet Images (max 5)</label>
           <input type="file" accept="image/*" multiple onChange={handleImageChange} className="w-full border rounded p-2" />
           <div className="flex flex-wrap gap-4 mt-4">
@@ -207,7 +277,6 @@ export default function AddProduct() {
             ))}
           </div>
 
-          {/* Internal Images / PDFs */}
           <label className="block text-gray-700 font-semibold mb-2">Upload Internal Product Sheet Images (max 5)</label>
           <input type="file" accept="image/*,application/pdf" multiple onChange={handleInternalChange} className="w-full border rounded p-2" />
           <div className="flex flex-wrap gap-4 mt-4">
@@ -223,11 +292,41 @@ export default function AddProduct() {
             ))}
           </div>
 
-          {/* Submit */}
+  <label className="block font-semibold">Image of Weight per Piece/Set</label>
+          <span className="text-sm">(Put Image of Product on Small Kanda/Weighing Scale)</span>
+                    <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages1Change} className="w-full border rounded p-2" />
+          <div className="flex flex-wrap gap-4 mt-4">
+            {additionalImages1.map((file, idx) => (
+              <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden">
+                {file.type === "application/pdf" ? (
+                  <span className="text-red-600 font-semibold">📄 PDF</span>
+                ) : (
+                  <img src={URL.createObjectURL(file)} alt={`Additional1 ${idx + 1}`} className="w-full h-full object-cover" />
+                )}
+                <button type="button" onClick={() => handleRemoveAdditional1(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center">&times;</button>
+              </div>
+            ))}
+          </div>
+
+ <label className="block font-semibold">Product Packed Image</label>
+          <span className="text-sm">(Put Image of Product Packed in Packet with Outer Dimensions of Packet mentioned on Image)</span>        
+            <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages2Change} className="w-full border rounded p-2" />
+          <div className="flex flex-wrap gap-4 mt-4">
+            {additionalImages2.map((file, idx) => (
+              <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden">
+                {file.type === "application/pdf" ? (
+                  <span className="text-red-600 font-semibold">📄 PDF</span>
+                ) : (
+                  <img src={URL.createObjectURL(file)} alt={`Additional2 ${idx + 1}`} className="w-full h-full object-cover" />
+                )}
+                <button type="button" onClick={() => handleRemoveAdditional2(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center">&times;</button>
+              </div>
+            ))}
+          </div>
+
           <button type="submit" disabled={isLoading} className={`w-full font-bold py-3 rounded-lg shadow ${isLoading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
             {isLoading ? "Adding Product..." : "Add Product"}
           </button>
-          {isLoading && <p className="text-center text-blue-600 mt-2">Please wait, uploading product...</p>}
         </form>
       </div>
     </>

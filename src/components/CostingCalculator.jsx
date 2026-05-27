@@ -61,19 +61,28 @@ export default function CostingCalculator() {
     }
   };
 
-  // Calculate required volume in m³
-  const calculateRequiredVolume = () => {
-    const lengthMM = convertToMM(formData.length, formData.lengthUnit);
-    const breadthMM = convertToMM(formData.breadth, formData.breadthUnit);
-    const heightMM = convertToMM(formData.height, formData.heightUnit);
-    
-    const lengthM = lengthMM / 1000;
-    const breadthM = breadthMM / 1000;
-    const heightM = heightMM / 1000;
-    
-    const volume = lengthM * breadthM * heightM;
-    return { volume, lengthM, breadthM, heightM };
-  };
+// Calculate required volume in m³ with 0.5mm extra on all dimensions
+const calculateRequiredVolume = () => {
+  // Convert input to mm first
+  let lengthMM = convertToMM(formData.length, formData.lengthUnit);
+  let breadthMM = convertToMM(formData.breadth, formData.breadthUnit);
+  let heightMM = convertToMM(formData.height, formData.heightUnit);
+  
+  // ✅ Add 0.5mm extra to each dimension
+  lengthMM = lengthMM + 0.5;
+  breadthMM = breadthMM + 0.5;
+  heightMM = heightMM + 0.5;
+  
+  // Convert to meters
+  const lengthM = lengthMM / 1000;
+  const breadthM = breadthMM / 1000;
+  const heightM = heightMM / 1000;
+  
+  // Volume in m³
+  const volume = lengthM * breadthM * heightM;
+  
+  return { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM };
+};
 
   // Calculate best number of pieces from raw block
   const calculateBestPieces = (requiredL, requiredB, requiredH) => {
@@ -119,95 +128,115 @@ export default function CostingCalculator() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCalculate = () => {
-    setLoading(true);
-    
-    try {
-      if (!formData.length || !formData.breadth || !formData.height) {
-        toast.error("Please enter all dimensions");
-        setLoading(false);
-        return;
-      }
-      
-      if (!formData.density) {
-        toast.error("Please enter density");
-        setLoading(false);
-        return;
-      }
-      
-      const { volume, lengthM, breadthM, heightM } = calculateRequiredVolume();
-      
-      if (volume === 0) {
-        toast.error("Invalid dimensions");
-        setLoading(false);
-        return;
-      }
-      
-      const lengthMM = convertToMM(formData.length, formData.lengthUnit);
-      const breadthMM = convertToMM(formData.breadth, formData.breadthUnit);
-      const heightMM = convertToMM(formData.height, formData.heightUnit);
-      
-      const { maxPieces, bestOrientation } = calculateBestPieces(lengthMM, breadthMM, heightMM);
-      
-      const blockVolume = 4.6;
-      const density = parseFloat(formData.density);
-      const weightPerBlock = density * blockVolume;
-      const effectiveRmRate = parseFloat(formData.customRmRate) || rmRate;
-      const conversionRate = parseFloat(formData.conversionRate) || 0;
-      const totalPerKg = effectiveRmRate + conversionRate;
-      const costPerBlock = weightPerBlock * totalPerKg;
-      const pricePerPiece = maxPieces > 0 ? costPerBlock / maxPieces : 0;
-      const freight = parseFloat(formData.freight) || 0;
-      const totalWithFreight = pricePerPiece + (freight / maxPieces);
-      const gst = totalWithFreight * 0.18;
-      const finalPrice = totalWithFreight + gst;
-      const outerDimensionM3 = volume;
-      const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
-      const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
-      
-      setResult({
-        outerDimensions: {
-          length: lengthM.toFixed(3),
-          breadth: breadthM.toFixed(3),
-          height: heightM.toFixed(3),
-          volume: volume.toFixed(6),
-          displayLength: `${formData.length} ${formData.lengthUnit}`,
-          displayBreadth: `${formData.breadth} ${formData.breadthUnit}`,
-          displayHeight: `${formData.height} ${formData.heightUnit}`
-        },
-        density: density,
-        blockVolume: blockVolume,
-        weightPerBlock: weightPerBlock.toFixed(2),
-        rmRate: effectiveRmRate,
-        conversionRate: conversionRate,
-        totalPerKg: totalPerKg.toFixed(2),
-        costPerBlock: costPerBlock.toFixed(2),
-        piecesFromBlock: {
-          count: maxPieces,
-          orientation: bestOrientation?.orientation,
-          piecesL: bestOrientation?.piecesL,
-          piecesB: bestOrientation?.piecesB,
-          piecesH: bestOrientation?.piecesH
-        },
-        pricePerPiece: pricePerPiece.toFixed(2),
-        freight: freight,
-        freightPerPiece: (freight / maxPieces).toFixed(2),
-        totalWithFreight: totalWithFreight.toFixed(2),
-        gst: gst.toFixed(2),
-        finalPrice: finalPrice.toFixed(2),
-        piecesInTempo: piecesInTempo,
-        piecesInTruck: piecesInTruck,
-        outerDimensionM3: outerDimensionM3.toFixed(6)
-      });
-      
-      toast.success("Calculation completed!");
-    } catch (err) {
-      console.error("Calculation error:", err);
-      toast.error("Failed to calculate");
-    } finally {
+const handleCalculate = () => {
+  setLoading(true);
+  
+  try {
+    if (!formData.length || !formData.breadth || !formData.height) {
+      toast.error("Please enter all dimensions");
       setLoading(false);
+      return;
     }
-  };
+    
+    if (!formData.density) {
+      toast.error("Please enter density");
+      setLoading(false);
+      return;
+    }
+    
+    const { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM } = calculateRequiredVolume();
+    
+    if (volume === 0) {
+      toast.error("Invalid dimensions");
+      setLoading(false);
+      return;
+    }
+    
+    // Use the dimensions WITH 0.5mm extra for piece calculation
+    const { maxPieces, bestOrientation } = calculateBestPieces(lengthMM, breadthMM, heightMM);
+    
+    const blockVolume = 4.6;
+    const density = parseFloat(formData.density);
+    const weightPerBlock = density * blockVolume;
+    const effectiveRmRate = parseFloat(formData.customRmRate) || rmRate;
+    const conversionRate = parseFloat(formData.conversionRate) || 0;
+    const totalPerKg = effectiveRmRate + conversionRate;
+    const costPerBlock = weightPerBlock * totalPerKg;
+    const pricePerPiece = maxPieces > 0 ? costPerBlock / maxPieces : 0;
+    const freight = parseFloat(formData.freight) || 0;
+    const totalWithFreight = pricePerPiece + (freight / maxPieces);
+    const gst = totalWithFreight * 0.18;
+    const finalPrice = totalWithFreight + gst;
+    const outerDimensionM3 = volume;
+    const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
+    const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
+    
+    // Calculate display dimensions with the +0.5mm addition
+    const displayLengthMM = lengthMM;
+    const displayBreadthMM = breadthMM;
+    const displayHeightMM = heightMM;
+    
+    setResult({
+      outerDimensions: {
+        length: lengthM.toFixed(3),
+        breadth: breadthM.toFixed(3),
+        height: heightM.toFixed(3),
+        volume: volume.toFixed(6),
+        displayLength: `${formData.length} ${formData.lengthUnit} (+0.5mm = ${displayLengthMM.toFixed(1)}mm)`,
+        displayBreadth: `${formData.breadth} ${formData.breadthUnit} (+0.5mm = ${displayBreadthMM.toFixed(1)}mm)`,
+        displayHeight: `${formData.height} ${formData.heightUnit} (+0.5mm = ${displayHeightMM.toFixed(1)}mm)`
+      },
+      density: density,
+      blockVolume: blockVolume,
+      weightPerBlock: weightPerBlock.toFixed(2),
+      rmRate: effectiveRmRate,
+      conversionRate: conversionRate,
+      totalPerKg: totalPerKg.toFixed(2),
+      costPerBlock: costPerBlock.toFixed(2),
+      piecesFromBlock: {
+        count: maxPieces,
+        orientation: bestOrientation?.orientation,
+        piecesL: bestOrientation?.piecesL,
+        piecesB: bestOrientation?.piecesB,
+        piecesH: bestOrientation?.piecesH
+      },
+      pricePerPiece: pricePerPiece.toFixed(2),
+      freight: freight,
+      freightPerPiece: (freight / maxPieces).toFixed(2),
+      totalWithFreight: totalWithFreight.toFixed(2),
+      gst: gst.toFixed(2),
+      finalPrice: finalPrice.toFixed(2),
+      piecesInTempo: piecesInTempo,
+      piecesInTruck: piecesInTruck,
+      outerDimensionM3: outerDimensionM3.toFixed(6),
+      // Store the extra dimensions for reference
+      extraDimensions: {
+        original: {
+          length: formData.length,
+          breadth: formData.breadth,
+          height: formData.height
+        },
+        added: {
+          length: 0.5,
+          breadth: 0.5,
+          height: 0.5
+        },
+        final: {
+          length: displayLengthMM.toFixed(1),
+          breadth: displayBreadthMM.toFixed(1),
+          height: displayHeightMM.toFixed(1)
+        }
+      }
+    });
+    
+    toast.success("Calculation completed with +0.5mm added to all dimensions!");
+  } catch (err) {
+    console.error("Calculation error:", err);
+    toast.error("Failed to calculate");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleReset = () => {
     setFormData({
@@ -456,7 +485,7 @@ const handleSharePDF = async () => {
       <>
         <InternalNavbar />
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-full mx-auto">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <button
