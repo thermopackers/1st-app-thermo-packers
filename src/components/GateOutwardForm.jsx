@@ -1054,7 +1054,7 @@ const handlePhotoUpload = (e) => {
         📸 Take Photo with Camera
       </button>
       
-      {/* <button
+      <button
         type="button"
         onClick={() => {
           const input = document.createElement('input');
@@ -1067,7 +1067,7 @@ const handlePhotoUpload = (e) => {
         className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
       >
         📁 Choose from Gallery
-      </button> */}
+      </button>
     </div>
     
     <input
