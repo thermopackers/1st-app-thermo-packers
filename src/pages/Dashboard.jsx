@@ -2637,9 +2637,13 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
   </DashboardSection>
 )}
 
-   {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
+
+ {!userRoles.some((role) =>
+            ["guard"].includes(role)
+          ) && (
                  <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
-          <DashboardSection>
+
+ <DashboardSection>
               <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                 <span className="text-3xl">📋</span>
                 Leave Management
@@ -2658,6 +2662,11 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 </ActionButton>
               </div>
           </DashboardSection>
+          </div>)}
+
+   {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
+                 <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
+         
 
           {/* Enhanced Attendance Logs */}
           {user.allowAttendance && (
