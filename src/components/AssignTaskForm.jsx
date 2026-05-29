@@ -581,7 +581,7 @@ customerPhone
       📸 Take Photo
     </button>
     
-    <button
+    {/* <button
       type="button"
       onClick={() => {
         const input = document.createElement('input');
@@ -594,7 +594,7 @@ customerPhone
       className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm"
     >
       📁 Choose File
-    </button>
+    </button> */}
   </div>
   
   <input
