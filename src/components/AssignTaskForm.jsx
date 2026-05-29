@@ -30,6 +30,28 @@ const [products, setProducts] = useState([]);
 const [productSearch, setProductSearch] = useState("");
 const [selectedProducts, setSelectedProducts] = useState([]);
 
+// Check for microphone permission in Fully Kiosk
+useEffect(() => {
+  const isFullyKiosk = navigator.userAgent.includes('FullyKiosk') || window.FullyKiosk;
+  
+  if (isFullyKiosk) {
+    console.log("Running in Fully Kiosk - configuring mic access");
+    
+    // Check if mediaDevices is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn("getUserMedia not supported in this browser");
+      
+      // Show warning after a delay
+      setTimeout(() => {
+        toast.error(
+          "Voice recording may not work in this app. Use Chrome browser for voice notes.",
+          { duration: 5000 }
+        );
+      }, 1000);
+    }
+  }
+}, []);
+
 useEffect(() => {
   const fetchProducts = async () => {
     try {
@@ -73,14 +95,33 @@ useEffect(() => {
   }, [task]);
   
 const startRecording = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const newRecorder = new RecordRTC(stream, {
-    type: 'audio',
-    mimeType: 'audio/webm',
-  });
-  newRecorder.startRecording();
-  setRecorder(newRecorder);
-  setRecording(true);
+  try {
+    // Check if getUserMedia is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error('Voice recording is not supported in this browser. Please use Chrome.');
+      return;
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const newRecorder = new RecordRTC(stream, {
+      type: 'audio',
+      mimeType: 'audio/webm',
+    });
+    newRecorder.startRecording();
+    setRecorder(newRecorder);
+    setRecording(true);
+    toast.success('Recording started. Click Stop when done.');
+  } catch (err) {
+    console.error('Microphone error:', err);
+    
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      toast.error('Microphone access denied. Please allow microphone in browser settings.');
+    } else if (err.name === 'NotFoundError') {
+      toast.error('No microphone found on this device.');
+    } else {
+      toast.error('Failed to start recording. Please check microphone.');
+    }
+  }
 };
 
 const stopRecording = () => {
@@ -521,37 +562,87 @@ customerPhone
           </div>
         ))}
 
-        <input
-          type="file"
-          multiple
-          accept="image/*,application/pdf"
-          onChange={handleImageChange}
-          className="mt-2"
-        />
+       {/* Camera/Photo buttons for Fully Kiosk compatibility */}
+<div className="flex flex-col gap-3 mt-2">
+  <div className="flex gap-3">
+    <button
+      type="button"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.multiple = true;
+        input.capture = 'environment';
+        input.onchange = (e) => handleImageChange(e);
+        input.click();
+      }}
+      className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm"
+    >
+      📸 Take Photo
+    </button>
+    
+    <button
+      type="button"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.multiple = true;
+        input.onchange = (e) => handleImageChange(e);
+        input.click();
+      }}
+      className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm"
+    >
+      📁 Choose File
+    </button>
+  </div>
+  
+  <input
+    type="file"
+    multiple
+    accept="image/*,application/pdf"
+    onChange={handleImageChange}
+    className="hidden"
+    id="fileUploadInput"
+  />
+  
+ 
+</div>
       </div>
 <div className="mt-4 space-y-2">
   <label className="block text-gray-700 font-semibold mb-2">Voice Note</label>
+  
   {recording ? (
     <button
       type="button"
       onClick={stopRecording}
-      className="bg-red-500 text-white px-4 py-2 rounded"
+      className="bg-red-500 text-white px-4 py-2 rounded w-full flex items-center justify-center gap-2"
     >
-      ⏹ Stop Recording
+      ⏹ Stop Recording (Recording in progress...)
     </button>
   ) : (
     <button
       type="button"
       onClick={startRecording}
-      className="bg-green-600 text-white px-4 py-2 rounded"
+      className="bg-green-600 text-white px-4 py-2 rounded w-full flex items-center justify-center gap-2"
     >
-      🎙 Start Recording
+      🎙 Start Recording Voice Note
     </button>
   )}
+  
   {recordedBlob && (
-    <audio controls className="mt-2">
-      <source src={URL.createObjectURL(recordedBlob)} type="audio/webm" />
-    </audio>
+    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+      <audio controls className="w-full">
+        <source src={URL.createObjectURL(recordedBlob)} type="audio/webm" />
+      </audio>
+      <button
+        type="button"
+        onClick={() => setRecordedBlob(null)}
+        className="mt-2 text-red-600 text-sm hover:text-red-800"
+      >
+        Remove Recording
+      </button>
+    </div>
   )}
 </div>
 
