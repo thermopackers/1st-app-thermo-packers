@@ -46,6 +46,38 @@ const GateOutwardForm = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Check for Fully Kiosk and show guidance
+useEffect(() => {
+  const isFullyKiosk = navigator.userAgent.includes('FullyKiosk') || window.FullyKiosk;
+  
+  if (isFullyKiosk) {
+    console.log("Running in Fully Kiosk - configuring camera access for Gate Outward");
+    
+    // Show helpful message once
+    const timer = setTimeout(() => {
+      Swal.fire({
+        icon: "info",
+        title: "Camera Access Tip",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">For taking photos in this app:</p>
+            <ul class="list-disc pl-5 space-y-1 text-sm">
+              <li>Use <strong>"Take Photo with Camera"</strong> button</li>
+              <li>If that fails, try <strong>"Choose from Gallery"</strong></li>
+              <li>Or open this page in <strong>Chrome browser</strong></li>
+            </ul>
+            <p class="mt-3 text-xs text-gray-500">This message will not show again.</p>
+          </div>
+        `,
+        confirmButtonText: "Got it",
+        timer: 5000
+      });
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }
+}, []);
+
   useEffect(() => {
     fetchSuppliers();
     fetchCustomers();
@@ -158,14 +190,34 @@ const GateOutwardForm = () => {
     }
   };
 
-  const handlePhotoUpload = (e) => {
+const handlePhotoUpload = (e) => {
+  try {
+    if (!e.target.files || e.target.files.length === 0) {
+      console.log("No files selected");
+      return;
+    }
+    
     const files = Array.from(e.target.files);
+    console.log(`Selected ${files.length} file(s)`);
+    
     if (files.length + photos.length > 5) {
       Swal.fire('Warning', 'Maximum 5 photos allowed', 'warning');
       return;
     }
-    setPhotos(prev => [...prev, ...files]);
-  };
+    
+    // Validate file types
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    if (validFiles.length !== files.length) {
+      Swal.fire('Warning', 'Only image files are allowed', 'warning');
+      setPhotos(prev => [...prev, ...validFiles]);
+    } else {
+      setPhotos(prev => [...prev, ...files]);
+    }
+  } catch (err) {
+    console.error("Photo upload error:", err);
+    Swal.fire('Error', 'Failed to upload photos. Please try again.', 'error');
+  }
+};
 
   const removePhoto = (index) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
@@ -1009,39 +1061,83 @@ const GateOutwardForm = () => {
               </div>
 
               {/* Photo Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Photos (Max 5) *
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3"
-                />
-                
-                {photos.length > 0 && (
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    {photos.map((photo, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={URL.createObjectURL(photo)}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+             {/* Photo Upload */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Upload Photos (Max 5) *
+  </label>
+  
+  {/* Camera/Photo buttons for Fully Kiosk compatibility */}
+  <div className="flex flex-col gap-3">
+    <div className="flex gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.multiple = true;
+          input.capture = 'environment';
+          input.onchange = (e) => handlePhotoUpload(e);
+          input.click();
+        }}
+        className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
+      >
+        📸 Take Photo with Camera
+      </button>
+      
+      <button
+        type="button"
+        onClick={() => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.multiple = true;
+          input.onchange = (e) => handlePhotoUpload(e);
+          input.click();
+        }}
+        className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+      >
+        📁 Choose from Gallery
+      </button>
+    </div>
+    
+    <input
+      type="file"
+      multiple
+      accept="image/*"
+      onChange={handlePhotoUpload}
+      className="hidden"
+      id="photoUploadInput"
+    />
+  </div>
+  
+  {/* Add camera hint for Fully Kiosk */}
+  <p className="text-xs text-gray-500 mt-2">
+    💡 Tip: If camera doesn't work, try the "Choose from Gallery" option or disable "Advanced Kiosk Protection" in Fully Kiosk settings
+  </p>
+  
+  {photos.length > 0 && (
+    <div className="mt-4 grid grid-cols-2 gap-4">
+      {photos.map((photo, index) => (
+        <div key={index} className="relative">
+          <img
+            src={URL.createObjectURL(photo)}
+            alt={`Preview ${index + 1}`}
+            className="w-full h-32 object-cover rounded-lg"
+          />
+          <button
+            type="button"
+            onClick={() => removePhoto(index)}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
               {/* Action Buttons */}
               <div className="flex gap-4">
