@@ -46,38 +46,6 @@ const GateOutwardForm = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Check for Fully Kiosk and show guidance
-useEffect(() => {
-  const isFullyKiosk = navigator.userAgent.includes('FullyKiosk') || window.FullyKiosk;
-  
-  if (isFullyKiosk) {
-    console.log("Running in Fully Kiosk - configuring camera access for Gate Outward");
-    
-    // Show helpful message once
-    const timer = setTimeout(() => {
-      Swal.fire({
-        icon: "info",
-        title: "Camera Access Tip",
-        html: `
-          <div class="text-left">
-            <p class="mb-2">For taking photos in this app:</p>
-            <ul class="list-disc pl-5 space-y-1 text-sm">
-              <li>Use <strong>"Take Photo with Camera"</strong> button</li>
-              <li>If that fails, try <strong>"Choose from Gallery"</strong></li>
-              <li>Or open this page in <strong>Chrome browser</strong></li>
-            </ul>
-            <p class="mt-3 text-xs text-gray-500">This message will not show again.</p>
-          </div>
-        `,
-        confirmButtonText: "Got it",
-        timer: 5000
-      });
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }
-}, []);
-
   useEffect(() => {
     fetchSuppliers();
     fetchCustomers();
