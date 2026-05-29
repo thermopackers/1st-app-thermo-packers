@@ -2028,6 +2028,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
       Assign / View / Edit / Delete Task
     </div>
   </ActionButton>
+  {!userRoles.some(role => ["guard"].includes(role)) && (
     <ActionButton
       onClick={() => setShowTaskAssignment(true)}
       variant="purple"
@@ -2039,7 +2040,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
       <div className="text-purple-100 text-sm opacity-90">
         Assign tasks when someone is absent
       </div>
-    </ActionButton>
+    </ActionButton>)}
     <ActionButton
   to="/task-assignments"
   variant="teal"
