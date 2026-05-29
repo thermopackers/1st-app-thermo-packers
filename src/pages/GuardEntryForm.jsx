@@ -1155,7 +1155,7 @@ const takePhotoWithFullyKiosk = () => {
       📸 Take Photo with Camera
     </button>
     
-    <button
+    {/* <button
       type="button"
       onClick={() => {
         const input = document.createElement('input');
@@ -1168,7 +1168,7 @@ const takePhotoWithFullyKiosk = () => {
       className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
     >
       📁 Choose from Gallery
-    </button>
+    </button> */}
   </div>
   
   <input
