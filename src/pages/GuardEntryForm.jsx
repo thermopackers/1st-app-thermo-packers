@@ -85,6 +85,32 @@ const selectedProductsRef = useRef([]);
     }
   }, [customerSearchQuery, customers]);
 
+  // Add this after other useEffects
+useEffect(() => {
+  // Check if running in Fully Kiosk and handle camera access
+  const isFullyKiosk = navigator.userAgent.includes('FullyKiosk') || window.FullyKiosk;
+  
+  if (isFullyKiosk) {
+    console.log("Running in Fully Kiosk - configuring camera access");
+    
+    // Check if file input is supported
+    const testInput = document.createElement('input');
+    testInput.type = 'file';
+    
+    if (!testInput.disabled && testInput.click) {
+      console.log("File input supported in Fully Kiosk");
+    } else {
+      console.warn("File input may be blocked in Fully Kiosk");
+      Swal.fire({
+        icon: "info",
+        title: "Camera Access",
+        text: "If camera doesn't work, please check Fully Kiosk settings: Disable 'Advanced Kiosk Protection' and enable 'File Input'",
+        confirmButtonText: "OK"
+      });
+    }
+  }
+}, []);
+
   useEffect(() => {
     // Filter products based on search query
     if (productSearchQuery.trim() === '') {
@@ -518,6 +544,37 @@ const handleSubmit = async (e) => {
     };
     return date.toLocaleDateString('en-IN', options);
   };
+
+  // Add this function to handle camera via Fully Kiosk intent
+const takePhotoWithFullyKiosk = () => {
+  // Check if running in Fully Kiosk
+  if (window.FullyKiosk || navigator.userAgent.includes('FullyKiosk')) {
+    try {
+      // Use Fully Kiosk's intent to open camera
+      // This requires "Start Activity Intent" permission in Fully Kiosk
+      window.FullyKiosk.startActivity({
+        action: "android.media.action.IMAGE_CAPTURE",
+        package: "com.android.camera2",
+        className: "com.android.camera.CaptureActivity"
+      });
+      
+      // Listen for the result (requires Fully Kiosk's JavaScript interface)
+      window.FullyKiosk.registerWebviewCallback('onNewIntent', (intent) => {
+        if (intent.action === "android.media.action.IMAGE_CAPTURE") {
+          const photoUri = intent.data;
+          // Handle the captured photo
+          console.log("Photo captured:", photoUri);
+        }
+      });
+    } catch (err) {
+      console.error("Fully Kiosk camera error:", err);
+      // Fallback to regular file input
+      document.getElementById('photoUploadInput')?.click();
+    }
+  } else {
+    document.getElementById('photoUploadInput')?.click();
+  }
+};
 
   return (
     <>
@@ -1080,13 +1137,49 @@ const handleSubmit = async (e) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Click Live Pictures of Material & Bill copy/Upload Photos (Max 5) *
                 </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3"
-                />
+               <div className="flex flex-col gap-3">
+  <div className="flex gap-3">
+    <button
+      type="button"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.capture = 'environment'; // 'environment' for back camera, 'user' for front
+        input.onchange = (e) => handlePhotoUpload(e);
+        input.click();
+      }}
+      className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+    >
+      📸 Take Photo with Camera
+    </button>
+    
+    <button
+      type="button"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.onchange = (e) => handlePhotoUpload(e);
+        input.click();
+      }}
+      className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+    >
+      📁 Choose from Gallery
+    </button>
+  </div>
+  
+  <input
+    type="file"
+    multiple
+    accept="image/*"
+    onChange={handlePhotoUpload}
+    className="hidden" // Hidden now, using buttons above
+    id="photoUploadInput"
+  />
+</div>
                 
                 {/* Photo Previews */}
                 {photos.length > 0 && (
