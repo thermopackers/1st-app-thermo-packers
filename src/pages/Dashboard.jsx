@@ -2015,7 +2015,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                       </motion.span>
                     )}
                   </div>
-
+  {!userRoles.some(role => ["guard"].includes(role)) && (
   <ActionButton
     to="/task-dashboard"
     variant="danger"
@@ -2027,7 +2027,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     <div className="text-red-100 text-sm opacity-90">
       Assign / View / Edit / Delete Task
     </div>
-  </ActionButton>
+  </ActionButton>)}
   {!userRoles.some(role => ["guard"].includes(role)) && (
     <ActionButton
       onClick={() => setShowTaskAssignment(true)}
@@ -2490,6 +2490,9 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
         Sales Products
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {!userRoles.some((role) =>
+  ["sales"].includes(role)
+) && (
         <ActionButton
           to="/add-product"
           variant="success"
@@ -2503,6 +2506,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             New sales product
           </div>
         </ActionButton>
+)}
 
         <ActionButton
           to="/all-products"
@@ -2639,10 +2643,13 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
 )}
 
 
- {!userRoles.some((role) =>
+
+
+   {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
+                 <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
+          {!userRoles.some((role) =>
             ["guard"].includes(role)
           ) && (
-                 <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
 
  <DashboardSection>
               <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
@@ -2663,11 +2670,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 </ActionButton>
               </div>
           </DashboardSection>
-          </div>)}
-
-   {/* ✅ NEW LEAVE MANAGEMENT SECTION */}
-                 <div className="flex flex-col md:flex-row items-center justify-center bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 mb-6">
-         
+          )}
 
           {/* Enhanced Attendance Logs */}
           {user.allowAttendance && (
