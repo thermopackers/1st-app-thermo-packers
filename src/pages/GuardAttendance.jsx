@@ -33,16 +33,22 @@ export default function GuardAttendance() {
   const webcamRef = useRef(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentShift, setCurrentShift] = useState("shift1");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shouldAutoRestart, setShouldAutoRestart] = useState(false);
   const [todayStats, setTodayStats] = useState({ shift1: 0, shift2: 0 });
   const [isReady, setIsReady] = useState(false);
+  const [autoStart, setAutoStart] = useState(false);
   const [faceMatcher, setFaceMatcher] = useState(null);
 const [voicesLoaded, setVoicesLoaded] = useState(false);
+const [autoStarting, setAutoStarting] = useState(false);
 // Add this state
 const [cachedVoice, setCachedVoice] = useState(null);
+const captureLockRef = useRef(false); // Add this line
+const autoCaptureTimerRef = useRef(null);
 
 // Add at the very top of GuardAttendance component
 useEffect(() => {
@@ -51,6 +57,21 @@ useEffect(() => {
     console.log("Running in Fully Kiosk");
     // Disable strict mode features that cause white page
     document.body.style.backgroundColor = "#f3f4f6";
+  }
+}, []);
+
+// Reset camera ready when capturing stops
+useEffect(() => {
+  if (!capturing) {
+    setCameraReady(false);
+  }
+}, [capturing]);
+
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const auto = params.get('auto');
+  if (auto === 'true') {
+    setAutoStart(true);
   }
 }, []);
 
@@ -113,6 +134,38 @@ useEffect(() => {
   };
 
   const userRoles = user ? parseUserRoles(user) : [];
+
+// Auto-capture when camera becomes active
+useEffect(() => {
+  console.log("🔍 Auto-capture check - capturing:", capturing, "cameraReady:", cameraReady, "modelsLoaded:", modelsLoaded, "faceMatcher:", !!faceMatcher, "locked:", captureLockRef.current);
+  
+  if (capturing && cameraReady && webcamRef.current && modelsLoaded && faceMatcher && !captureLockRef.current) {
+    console.log("🎯 Auto-capture triggered! Starting handleCapture in 1000ms");
+    
+    // Clear any existing timer
+    if (autoCaptureTimerRef.current) {
+      clearTimeout(autoCaptureTimerRef.current);
+    }
+    
+    // Set new timer
+    autoCaptureTimerRef.current = setTimeout(() => {
+      console.log("⏰ Timer expired, calling handleCapture");
+      if (webcamRef.current && !captureLockRef.current && !isProcessing) {
+        handleCapture();
+      }
+      autoCaptureTimerRef.current = null;
+    }, 1000);
+  }
+  
+  // Cleanup function
+  return () => {
+    if (autoCaptureTimerRef.current) {
+      console.log("🧹 Cleaning up auto-capture timer");
+      clearTimeout(autoCaptureTimerRef.current);
+      autoCaptureTimerRef.current = null;
+    }
+  };
+}, [capturing, cameraReady, modelsLoaded, faceMatcher, isProcessing]);
 
   // Determine shift based on current time
   useEffect(() => {
@@ -266,6 +319,44 @@ useEffect(() => {
   checkCameraPermission();
 }, []);
 
+// Auto-start capture when component mounts OR when shouldAutoRestart changes
+useEffect(() => {
+  if (!autoStart) return;
+  if (!isReady || loading) return;
+
+  const autoStartRecognition = async () => {
+    setAutoStarting(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const hasPermission = await requestCameraPermission();
+    if (hasPermission) {
+      setCameraReady(false);
+      // Small delay before setting capturing to true
+      setTimeout(() => {
+        setCapturing(true);
+      }, 500);
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "Camera Access Required",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">Please allow camera access:</p>
+            <p class="text-sm text-gray-600">1. Click the camera icon in address bar</p>
+            <p class="text-sm text-gray-600">2. Select "Allow" for camera permission</p>
+            <p class="text-sm text-gray-600">3. Refresh the page</p>
+          </div>
+        `,
+        confirmButtonColor: "#2563eb"
+      });
+    }
+    setAutoStarting(false);
+    setShouldAutoRestart(false);
+  };
+  
+  autoStartRecognition();
+}, [autoStart, isReady, loading, shouldAutoRestart]);
+
 // Load employees and create face matcher - ULTRA FAST VERSION
 const loadEmployeesAndCreateMatcher = async () => {
   try {
@@ -351,7 +442,21 @@ const loadEmployeesAndCreateMatcher = async () => {
   };
 
 const handleCapture = async () => {
+  console.log("🔍 handleCapture called - isProcessing:", isProcessing, "captureLockRef:", captureLockRef.current);
+  
+  // Prevent multiple simultaneous captures
+  if (isProcessing) {
+    console.log("❌ Already processing, skipping");
+    return;
+  }
+  
+  if (captureLockRef.current) {
+    console.log("❌ Already locked, skipping");
+    return;
+  }
+  
   if (!modelsLoaded || !faceMatcher) {
+    console.log("❌ Models not ready - modelsLoaded:", modelsLoaded, "faceMatcher:", !!faceMatcher);
     Swal.fire({
       icon: "info",
       title: "Not Ready",
@@ -362,28 +467,40 @@ const handleCapture = async () => {
     return;
   }
 
-  if (isProcessing) return;
-
+  // Set lock ONLY here
+  captureLockRef.current = true;
   setIsProcessing(true);
+  console.log("✅ Starting capture process - lock acquired");
+  
 
   try {
-    // Capture face - smaller resolution for faster processing
-    const screenshot = webcamRef.current?.getScreenshot();
+    // Check if webcam is ready
+    if (!webcamRef.current) {
+      console.log("❌ Webcam ref is null");
+      throw new Error("Webcam not ready");
+    }
+    
+    console.log("📸 Taking screenshot...");
+    const screenshot = webcamRef.current.getScreenshot();
+    console.log("📸 Screenshot taken:", screenshot ? "Yes (length: " + screenshot.length + ")" : "No");
+    
     if (!screenshot) throw new Error("No screenshot captured");
 
-    // Create image element from screenshot
+    console.log("🖼️ Creating image from screenshot...");
     const img = await faceapi.fetchImage(screenshot);
-    
-    // Detect face and get descriptor - OPTIMIZED for speed
+    console.log("✅ Image created");
+
+    console.log("🔍 Detecting face...");
     const detection = await faceapi
       .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ 
-        inputSize: 160, // Balanced between speed and accuracy
+        inputSize: 160,
         scoreThreshold: 0.3 
       }))
       .withFaceLandmarks()
       .withFaceDescriptor();
 
     if (!detection) {
+      console.log("❌ No face detected");
       Swal.fire({
         icon: "error",
         title: "Face Not Detected",
@@ -392,13 +509,16 @@ const handleCapture = async () => {
         showConfirmButton: false
       });
       setIsProcessing(false);
+      captureLockRef.current = false;
       return;
     }
 
-    // Find best match - instantaneous
+    console.log("✅ Face detected, finding match...");
     const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+    console.log("🏆 Best match:", bestMatch.label, "distance:", bestMatch.distance);
     
     if (bestMatch.label === "unknown") {
+      console.log("❌ No match found");
       Swal.fire({
         icon: "error",
         title: "No Match Found",
@@ -407,51 +527,53 @@ const handleCapture = async () => {
         showConfirmButton: false
       });
       setIsProcessing(false);
+      captureLockRef.current = false;
       return;
     }
 
-    // Find the matched employee
     const matchedEmployee = employees.find(emp => emp._id === bestMatch.label);
+    console.log("👤 Matched employee:", matchedEmployee?.name);
     
     if (!matchedEmployee) {
+      console.log("❌ Employee not found in employees array");
       setIsProcessing(false);
+      captureLockRef.current = false;
       return;
     }
 
     const confidence = Math.round((1 - bestMatch.distance) * 100);
+    console.log("📊 Confidence:", confidence + "%");
 
-    // 👇 ADD THIS SHIFT CHECK HERE
-    // First check if shift change is needed
+    // Check shift status
     const shiftChangeHandled = await checkShiftStatus(matchedEmployee._id);
     
     if (shiftChangeHandled) {
+      console.log("🔄 Shift change handled");
       setIsProcessing(false);
       setCapturing(false);
+      captureLockRef.current = false;
       return;
     }
-    // 👆 END OF SHIFT CHECK
 
-    // Play success sound immediately
     playSuccessSound();
 
-  // Ask for check-in/out
-const result = await Swal.fire({
-  title: `Welcome ${matchedEmployee.name}`,
-  html: `
-    <div class="text-left">
-      <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
-      <p><strong>Match:</strong> ${confidence}%</p>
-    </div>
-  `,
-  icon: "question",
-  showCancelButton: true,
-  showDenyButton: true,
-  confirmButtonText: "✅ Check In",
-  denyButtonText: "👋 Check Out",
-  cancelButtonText: "❌ Cancel",
-  confirmButtonColor: "#22c55e",
-  denyButtonColor: "#ef4444",
-});
+    const result = await Swal.fire({
+      title: `Welcome ${matchedEmployee.name}`,
+      html: `
+        <div class="text-left">
+          <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
+          <p><strong>Match:</strong> ${confidence}%</p>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "✅ Check In",
+      denyButtonText: "👋 Check Out",
+      cancelButtonText: "❌ Cancel",
+      confirmButtonColor: "#22c55e",
+      denyButtonColor: "#ef4444",
+    });
 
     if (result.isConfirmed) {
       await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-in");
@@ -460,7 +582,7 @@ const result = await Swal.fire({
     }
 
   } catch (err) {
-    console.error("Error during capture:", err);
+    console.error("❌ Error during capture:", err);
     Swal.fire({
       icon: "error",
       title: "Error",
@@ -469,8 +591,10 @@ const result = await Swal.fire({
       showConfirmButton: false
     });
   } finally {
-    setCapturing(false);
+    console.log("🏁 Capture finished, resetting locks");
+    // Don't reset capturing here - let markAttendance handle it
     setIsProcessing(false);
+    captureLockRef.current = false;
   }
 };
 
@@ -525,13 +649,12 @@ const playSuccessWithVoice = () => {
 // In the markAttendance function
 const markAttendance = async (userId, userName, type, shiftParam = null) => {
   try {
-    // Get user details to check if driver
     const userDetails = employees.find(emp => emp._id === userId);
     const isDriver = userDetails?.designation?.toLowerCase() === "driver";
     
     let shift;
     if (isDriver) {
-      shift = "driver"; // Drivers don't use shifts
+      shift = "driver";
     } else {
       shift = shiftParam || currentShift;
     }
@@ -543,14 +666,10 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
       source: 'guard'
     });
 
-    // Play combined sound (beep + voice)
     playSuccessWithVoice();
-
-    // Update stats
     fetchTodayStats();
 
-    // Show success message
-    Swal.fire({
+    await Swal.fire({
       icon: "success",
       title: "✅ अटेंडेंस लग गया!",
       html: `
@@ -565,6 +684,21 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
       showConfirmButton: false
     });
 
+    // Reset for next person
+    setCapturing(false);
+    setIsProcessing(false);
+    captureLockRef.current = false;
+    setCameraReady(false);
+    
+    // Auto-restart for next person if autoStart is enabled
+    if (autoStart) {
+      console.log("🔄 Will auto-restart for next person in 1.5 seconds...");
+      setTimeout(() => {
+        console.log("🔄 Triggering auto-restart...");
+        setShouldAutoRestart(true);
+      }, 1500);
+    }
+
   } catch (err) {
     console.error("Error marking attendance:", err);
     Swal.fire({
@@ -574,6 +708,11 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
       timer: 2000,
       showConfirmButton: false
     });
+    
+    setCapturing(false);
+    setIsProcessing(false);
+    captureLockRef.current = false;
+    setCameraReady(false);
   }
 };
 
@@ -593,12 +732,10 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
     );
   }
 
-  const requestCameraPermission = async () => {
+const requestCameraPermission = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    // Stop the stream immediately after getting permission
     stream.getTracks().forEach(track => track.stop());
-    console.log("Camera permission granted");
     return true;
   } catch (err) {
     console.error("Camera permission denied:", err);
@@ -606,26 +743,12 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
   }
 };
 
-// Update your Start Recognition button click handler
+
 const handleStartRecognition = async () => {
-  // First check if we have permission
+  // This function is no longer needed but kept for compatibility
   const hasPermission = await requestCameraPermission();
   if (hasPermission) {
     setCapturing(true);
-  } else {
-    Swal.fire({
-      icon: "error",
-      title: "Camera Access Required",
-      html: `
-        <div class="text-left">
-          <p class="mb-2">Please allow camera access:</p>
-          <p class="text-sm text-gray-600">1. Click the camera icon in address bar</p>
-          <p class="text-sm text-gray-600">2. Select "Allow" for camera permission</p>
-          <p class="text-sm text-gray-600">3. Click "Start Recognition" again</p>
-        </div>
-      `,
-      confirmButtonColor: "#2563eb"
-    });
   }
 };
 
@@ -669,6 +792,9 @@ const checkShiftStatus = async (userId) => {
         setTimeout(async () => {
           await markAttendance(userId, "check-in", "shift2");
           Swal.close();
+           setCapturing(false);
+    setIsProcessing(false);
+    captureLockRef.current = false;
         }, 500);
       }
       return true;
@@ -722,34 +848,52 @@ const checkShiftStatus = async (userId) => {
             </div>
           </motion.div>
 
-    {!capturing ? (
+   {!capturing ? (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     className="bg-white rounded-2xl shadow-xl p-8 text-center"
   >
-    <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-      <Camera className="w-12 h-12 text-blue-600" />
-    </div>
-    
-    <h2 className="text-xl font-semibold text-gray-800 mb-4">
-      Ready to Mark Attendance
-    </h2>
-    
-    <p className="text-gray-600 mb-8">
-      Click below and look at the camera - takes less than 2 seconds!
-    </p>
+    {autoStarting ? (
+      <div className="py-12">
+        <Loader className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">Starting Camera...</h3>
+        <p className="text-gray-600">Please wait while we prepare the camera</p>
+      </div>
+    ) : (
+      <>
+        <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Camera className="w-12 h-12 text-blue-600" />
+        </div>
+        
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          Ready to Mark Attendance
+        </h2>
+        
+        <p className="text-gray-600 mb-8">
+          Click below and look at the camera - takes less than 2 seconds!
+        </p>
 
- <motion.button
-  onClick={handleStartRecognition}  // Change from setCapturing(true)
-  whileHover={{ scale: 1.02 }}
-  whileTap={{ scale: 0.98 }}
-  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"
-  disabled={!isReady || loading}
->
-  <Zap className="w-5 h-5" />
-  {loading ? "Loading..." : !isReady ? "No Employees" : "Start Recognition"}
-</motion.button>
+     <motion.button
+  onClick={() => {
+    console.log("🖱️ Manual button clicked - capturing:", capturing, "isReady:", isReady, "loading:", loading, "locked:", captureLockRef.current);
+    if (!capturing && isReady && !loading && !captureLockRef.current) {
+      console.log("🎯 Manual trigger - setting capturing to true");
+      setCapturing(true);
+    } else {
+      console.log("❌ Manual trigger blocked - conditions not met");
+    }
+  }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"
+          disabled={!isReady || loading}
+        >
+          <Zap className="w-5 h-5" />
+          {loading ? "Loading..." : !isReady ? "No Employees" : "Manual Start"}
+        </motion.button>
+      </>
+    )}
   </motion.div>
 ) : (
   <motion.div
@@ -769,9 +913,16 @@ const checkShiftStatus = async (userId) => {
           height: { ideal: 360 },
           aspectRatio: { ideal: 4/3 }
         }}
-        onUserMedia={() => console.log("Camera started successfully")}
-        onUserMediaError={(err) => {
+ onUserMedia={() => {
+  console.log("Camera started successfully");
+  // Small delay to ensure camera is fully ready
+  setTimeout(() => {
+    setCameraReady(true);
+  }, 500);
+}}
+          onUserMediaError={(err) => {
           console.error("Camera error:", err);
+              setCameraReady(false); // Reset on error
           setCapturing(false);
           
           // Show user-friendly error message

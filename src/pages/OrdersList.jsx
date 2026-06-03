@@ -323,85 +323,205 @@ useEffect(() => {
   }
 }, [filters.customerName]);
 
-  // Export function - Makes separate API call to get all data for export
-  const exportToExcel = useCallback(async () => {
-    try {
-      // For export, get all data without pagination
-      const params = {
-        limit: 10000, // Large limit for export
-        page: 1,
-        ...filters,
-        search: searchTerm,
-        sort: sortOrder,
-        status: statusFilter,
-        dispatchStatus: dispatchStatusFilter,
-      };
+// In OrdersList.jsx - Replace the existing exportToExcel function
 
-      if (["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)) {
-        params.ageFilter = sortOrder;
-      }
+const exportToExcel = useCallback(async () => {
+  try {
+    toast.loading("Preparing export...", { id: "export" });
+    
+    // For export, get all data without pagination
+    const params = {
+      limit: 10000, // Large limit for export
+      page: 1,
+      ...filters,
+      search: searchTerm,
+      sort: sortOrder,
+      status: statusFilter,
+      dispatchStatus: dispatchStatusFilter,
+    };
 
-      const res = await axiosInstance.get("/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
-
-      const data = res.data.orders.map((order) => ({
-        OrderID: order._id,
-        ShortID: order.shortId,
-        Customer: order.customerName || order.customer?.name || "",
-        Product: order.product,
-        Quantity: order.quantity,
-         DeliveredQuantity: order.deliveredQuantity || 0,  // ADD THIS
-  RemainingBalance: order.remainingBalance || order.quantity,  // ADD THIS
-        Unit: order.unit,
-        Size: order.size,
-        Density: order.density,
-        Price: order.price,
-        PackagingCharge: order.packagingCharge,
-        Freight: order.freight,
-        FreightAmount: order.freightAmount,
-        PO: order.po,
-        Status: order.status,
-        DispatchStatus: order.dispatchStatus,
-        PackagingStatus: order.packagingStatus,
-        Produced: order.produced,
-        RemainingToProduce: order.remainingToProduce,
-        Stock: order.stock,
-        ReadyForPackaging: order.readyForPackaging ? "Yes" : "No",
-        Remarks: order.remarks || "",
-        CreatedAt: new Date(order.createdAt).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-        OrderDate: new Date(order.date).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
-
-      const blob = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      saveAs(blob, `orders_${Date.now()}.xlsx`);
-      
-      toast.success("Orders exported successfully!");
-    } catch (err) {
-      console.error("Error exporting orders:", err);
-      toast.error("Failed to export orders");
+    if (["olderThan10", "olderThan20", "olderThan30", "moreThan30"].includes(sortOrder)) {
+      params.ageFilter = sortOrder;
     }
-  }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, token]);
+
+    const res = await axiosInstance.get("/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+      params,
+    });
+
+    const orders = res.data.orders;
+    
+    // Prepare data for Excel
+    const data = [];
+    
+    for (const order of orders) {
+      // Check if multi-product order
+      const hasMultipleProducts = order.products && order.products.length > 0;
+      
+      if (hasMultipleProducts) {
+        // For multi-product orders, create a separate row for each product
+        for (const product of order.products) {
+          data.push({
+            "Order ID": order.shortId,
+            "Short ID": order.shortId,
+            "Order Date": new Date(order.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+            "Customer Name": order.customerName || order.customer?.name || "",
+            "Customer Phone": order.customer?.phone || "",
+            "PO Number": order.po,
+            "Product Name": product.productName,
+            "Size": product.size || "",
+            "Quantity": product.quantity,
+            "Delivered Quantity": product.deliveredQuantity || 0,
+            "Remaining Balance": (product.quantity || 0) - (product.deliveredQuantity || 0),
+            "Basic Price": product.price,
+            "Density": product.density || "",
+            "Product Remarks": product.productRemarks || "",
+            "Narration": product.narration || order.narration || "",
+            "Total Order Quantity": order.products.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0),
+            "Total Delivered": order.products.reduce((sum, p) => sum + (p.deliveredQuantity || 0), 0),
+            "Overall Balance": order.remainingBalance || 0,
+            "Freight": order.freight,
+            "Freight Amount": order.freightAmount,
+            "Packaging Charge": order.packagingCharge,
+            "Bill To": order.billTo || "",
+            "Ship To": order.shipTo || "",
+            "Payment Terms": order.paymentTerms || "",
+            "Status": order.status,
+            "Dispatch Status": order.dispatchStatus,
+            "Packaging Status": order.packagingStatus,
+            "Production Status": order.status,
+            "Remarks": order.remarks || "",
+            "Created At": new Date(order.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+            "Delivery Date": order.date ? new Date(order.date).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }) : "",
+            "Delivery Option": order.deliveryOption || "",
+          });
+        }
+      } else {
+        // For single product orders
+        data.push({
+          "Order ID": order.shortId,
+          "Short ID": order.shortId,
+          "Order Date": new Date(order.createdAt).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          "Customer Name": order.customerName || order.customer?.name || "",
+          "Customer Phone": order.customer?.phone || "",
+          "PO Number": order.po,
+          "Product Name": order.product,
+          "Size": order.size || "",
+          "Quantity": order.quantity,
+          "Delivered Quantity": order.deliveredQuantity || 0,
+          "Remaining Balance": order.remainingBalance || (order.quantity - (order.deliveredQuantity || 0)),
+          "Basic Price": order.price,
+          "Density": order.density || "",
+          "Product Remarks": order.productRemarks || "",
+          "Narration": order.narration || "",
+          "Total Order Quantity": order.quantity,
+          "Total Delivered": order.deliveredQuantity || 0,
+          "Overall Balance": order.remainingBalance || (order.quantity - (order.deliveredQuantity || 0)),
+          "Freight": order.freight,
+          "Freight Amount": order.freightAmount,
+          "Packaging Charge": order.packagingCharge,
+          "Bill To": order.billTo || "",
+          "Ship To": order.shipTo || "",
+          "Payment Terms": order.paymentTerms || "",
+          "Status": order.status,
+          "Dispatch Status": order.dispatchStatus,
+          "Packaging Status": order.packagingStatus,
+          "Production Status": order.status,
+          "Remarks": order.remarks || "",
+          "Created At": new Date(order.createdAt).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          "Delivery Date": order.date ? new Date(order.date).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }) : "",
+          "Delivery Option": order.deliveryOption || "",
+        });
+      }
+    }
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    
+    // Auto-size columns (optional - sets approximate widths)
+    const colWidths = [
+      { wch: 12 }, // Order ID
+      { wch: 12 }, // Short ID
+      { wch: 12 }, // Order Date
+      { wch: 25 }, // Customer Name
+      { wch: 15 }, // Customer Phone
+      { wch: 15 }, // PO Number
+      { wch: 35 }, // Product Name
+      { wch: 15 }, // Size
+      { wch: 10 }, // Quantity
+      { wch: 10 }, // Delivered Quantity
+      { wch: 12 }, // Remaining Balance
+      { wch: 12 }, // Basic Price
+      { wch: 10 }, // Density
+      { wch: 30 }, // Product Remarks
+      { wch: 30 }, // Narration
+      { wch: 12 }, // Total Order Quantity
+      { wch: 12 }, // Total Delivered
+      { wch: 12 }, // Overall Balance
+      { wch: 12 }, // Freight
+      { wch: 12 }, // Freight Amount
+      { wch: 12 }, // Packaging Charge
+      { wch: 30 }, // Bill To
+      { wch: 30 }, // Ship To
+      { wch: 20 }, // Payment Terms
+      { wch: 15 }, // Status
+      { wch: 15 }, // Dispatch Status
+      { wch: 15 }, // Packaging Status
+      { wch: 15 }, // Production Status
+      { wch: 30 }, // Remarks
+      { wch: 12 }, // Created At
+      { wch: 12 }, // Delivery Date
+      { wch: 15 }, // Delivery Option
+    ];
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    
+    const fileName = `orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+    saveAs(blob, fileName);
+    
+    toast.dismiss("export");
+    toast.success(`Exported ${data.length} order items successfully!`);
+  } catch (err) {
+    console.error("Error exporting orders:", err);
+    toast.dismiss("export");
+    toast.error("Failed to export orders");
+  }
+}, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, token]);
 
   // Section radio change handler
   const handleSectionRadioChange = useCallback(async (orderId, selectedKey) => {
@@ -510,116 +630,157 @@ useEffect(() => {
   }, []);
 
   // Complex slip submission function
-  const handleSlipSubmit = useCallback(async (payload) => {
-    try {
-      if (!selectedOrder) return;
+// In OrdersList.jsx - replace the dispatch case in handleSlipSubmit
 
-      const selectedSections = selectedOrder?.requiredSections || {};
+const handleSlipSubmit = useCallback(async (payload) => {
+  try {
+    if (!selectedOrder) return;
 
-      const slipTypeToHandler = {
-        dana: async () => {
-          if (selectedSections.preExpander) {
-            await axiosInstance.post("/slips/dana", {
-              orderId: selectedOrder._id,
-              ...payload.danaFormData,
-            });
-            await actuallySendToProduction(
-              selectedOrder._id,
-              null,
-              null,
-              null,
-              payload.danaFormData
-            );
+    const selectedSections = selectedOrder?.requiredSections || {};
+
+    const slipTypeToHandler = {
+      dana: async () => {
+        if (selectedSections.preExpander) {
+          await axiosInstance.post("/slips/dana", {
+            orderId: selectedOrder._id,
+            ...payload.danaFormData,
+          });
+          // ✅ Remove the actuallySendToProduction call
+          // await actuallySendToProduction(selectedOrder._id, null, null, null, payload.danaFormData);
+        }
+      },
+
+     production: async () => {
+  if (selectedSections.shapeMoulding) {
+    // ✅ Prepare the data properly for multi-product orders
+    const shapeData = {
+      orderId: selectedOrder._id,
+      productName: payload.shapeFormData.productName,
+      dryWeight: payload.shapeFormData.dryWeight,
+      quantity: payload.shapeFormData.quantity,
+      remarks: payload.shapeFormData.remarks,
+      isMultiProduct: payload.shapeFormData.isMultiProduct,
+      products: payload.shapeFormData.products,
+    };
+    
+    console.log("📤 Submitting Production slip:", shapeData);
+    
+    await axiosInstance.post("/slips/production", shapeData);
+  }
+},
+     dispatch: async () => {
+        if (selectedSections.sheetCutting) {
+          // ✅ Prepare the data properly for multi-product orders
+          const cuttingData = {
+            orderId: selectedOrder._id,
+            isMultiProduct: payload.cuttingFormData?.isMultiProduct || false,
+          };
+
+          // ✅ If multi-product, send the products array
+          if (payload.cuttingFormData?.isMultiProduct && payload.cuttingFormData?.products) {
+            cuttingData.products = payload.cuttingFormData.products;
+            cuttingData.overallRemarks = payload.cuttingFormData.remarks;
+          } else {
+            // Single product - use row format
+            cuttingData.row = [{
+              productName: payload.cuttingFormData.productName,
+              size: payload.cuttingFormData.size,
+              density: payload.cuttingFormData.density,
+              quantity: payload.cuttingFormData.quantity,
+              remarks: payload.cuttingFormData.remarks,
+            }];
           }
-        },
 
-        production: async () => {
-          if (selectedSections.shapeMoulding) {
-            await axiosInstance.post("/slips/production", {
-              orderId: selectedOrder._id,
-              ...payload.shapeFormData,
-            });
-            await actuallySendToProduction(
-              selectedOrder._id,
-              payload.shapeFormData,
-              null,
-              null
-            );
-          }
-        },
+          console.log("📤 Submitting Dispatch slip:", cuttingData);
+          await axiosInstance.post("/slips/dispatch", cuttingData);
+        }
+      },
 
-        dispatch: async () => {
-          if (selectedSections.sheetCutting) {
-            await axiosInstance.post("/slips/dispatch", {
-              orderId: selectedOrder._id,
-              row: [payload.cuttingFormData],
-            });
-            await actuallySendToDispatch(selectedOrder._id, [
-              payload.cuttingFormData,
-            ]);
-          }
-        },
+     packaging: async () => {
+  if (selectedSections.shapePackaging) {
+    // ✅ Prepare the data properly for multi-product orders
+    const packagingData = {
+      orderId: selectedOrder._id,
+      productName: payload.packagingFormData.productName,
+      packagingWeight: payload.packagingFormData.packagingWeight,
+      packagingType: payload.packagingFormData.packagingType,
+      quantity: payload.packagingFormData.quantity,
+      remarks: payload.packagingFormData.remarks,
+      isMultiProduct: payload.packagingFormData.isMultiProduct || false,
+    };
 
-        packaging: async () => {
-          if (selectedSections.shapePackaging) {
-            await axiosInstance.post("/slips/packaging", {
-              orderId: selectedOrder._id,
-              ...payload.packagingFormData,
-            });
-            await actuallySendToPackaging(
-              selectedOrder._id,
-              payload.packagingFormData
-            );
-          }
-        },
-
-        "cnc-slip": async () => {
-          if (selectedSections.cncSection) {
-            await axiosInstance.post("/slips/cnc", {
-              orderId: selectedOrder._id,
-              ...payload.cncFormData,
-            });
-          }
-        },
-        "dana-beads": async () => {
-          if (selectedSections.danaBeads) {
-            await axiosInstance.post("/slips/dana-beads", {
-              orderId: selectedOrder._id,
-              ...payload.danaBeadsFormData,
-            });
-            await actuallySendToProduction(
-              selectedOrder._id,
-              null,
-              null,
-              null,
-              null,
-              payload.danaBeadsFormData
-            );
-          }
-        },
-      };
-
-      const handler = slipTypeToHandler[slipType];
-      if (!handler) {
-        console.warn("⚠️ Unsupported slip type:", slipType);
-        return;
-      }
-
-      await handler();
-
-      await Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Slip submitted successfully!",
-      });
-
-      setModalOpen(false);
-      setSelectedOrder(null);
-    } catch (err) {
-      console.error("❌ Error submitting slip:", err);
-      alert("Error submitting slip");
+    // ✅ If multi-product, send the products array
+    if (payload.packagingFormData?.isMultiProduct && payload.packagingFormData?.products) {
+      packagingData.products = payload.packagingFormData.products;
+      packagingData.overallRemarks = payload.packagingFormData.remarks;
     }
-  }, [selectedOrder, slipType]);
+
+    console.log("📤 Submitting Packaging slip:", packagingData);
+    
+    await axiosInstance.post("/slips/packaging", packagingData);
+  }
+},
+        "cnc-slip": async () => {
+    if (selectedSections.cncSection) {
+      console.log("📤 Submitting CNC slip with payload:", payload.cncFormData);
+      
+      await axiosInstance.post("/slips/cnc", {
+        orderId: selectedOrder._id,
+        productName: payload.cncFormData.productName,
+        drawingName: payload.cncFormData.drawingName,
+        remarks: payload.cncFormData.remarks,
+        drawingFiles: payload.cncFormData.drawingFiles || [],
+        isMultiProduct: payload.cncFormData.isMultiProduct,
+        products: payload.cncFormData.products,
+      });
+    }
+  },
+      
+      "dana-beads": async () => {
+        if (selectedSections.danaBeads) {
+          console.log("📤 Submitting Dana/Beads slip with payload:", payload.danaBeadsFormData);
+          
+          await axiosInstance.post("/slips/dana-beads", {
+            orderId: selectedOrder._id,
+            productName: payload.danaBeadsFormData.productName,
+            density: payload.danaBeadsFormData.density,
+            quantity: payload.danaBeadsFormData.quantity,
+            recycleDana: payload.danaBeadsFormData.recycleDana,
+            nextGrade: payload.danaBeadsFormData.nextGrade,
+            remarks: payload.danaBeadsFormData.remarks,
+            isMultiProduct: payload.danaBeadsFormData.isMultiProduct,
+            products: payload.danaBeadsFormData.products,
+          });
+        }
+      },
+    };
+
+    const handler = slipTypeToHandler[slipType];
+    if (!handler) {
+      console.warn("⚠️ Unsupported slip type:", slipType);
+      return;
+    }
+
+    await handler();
+
+    await Swal.fire({
+      icon: "success",
+      title: "Success!",
+      text: "Slip submitted successfully!",
+    });
+
+    setModalOpen(false);
+    setSelectedOrder(null);
+    refetchOrders(); // Refresh the orders list
+  } catch (err) {
+    console.error("❌ Error submitting slip:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Error!",
+      text: err.response?.data?.message || "Error submitting slip",
+    });
+  }
+}, [selectedOrder, slipType, refetchOrders]);
 
   // Production sending functions
   const actuallySendToProduction = useCallback(async (

@@ -477,171 +477,188 @@ const handleSaveEditedSlip = async (orderId, type, formData) => {
 
                 </tr>
               </thead>
-             <tbody>
+           <tbody>
   {currentOrders.map((order, index) => (
     <tr key={order._id} className="table-row capitalize">
-                    <td className="px-6 py-4">{order.shortId}</td>
-                    <td className="px-6 py-4">
-  <div className="text-xs text-gray-500">
-    {new Date(order.createdAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}
-  </div>
-</td>
-
-                    <td className="px-6 py-4">{order.customerName}</td>
-                    <td className="px-6 py-4">{order.po}</td>
- <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
-  <button
-    onClick={() => {
-      const product = products.find((p) => p.name === order.product);
-      if (product?.images?.length > 0) {
-        setActiveProductImage({
-          name: product.name,
-          images: product.images,
-        });
-      } else {
-        Swal.fire({
-          icon: "info",
-          title: "No Image",
-          text: "No images available for this product.",
-        });
-      }
-    }}
-  >
-    {order.product}
-  </button>
-</td>       
-{editModalOpen && selectedOrderForEdit && (
-  <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-6">
-    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-4">
-        Edit {editType === 'shape' ? 'Shape' : 'Dana'} Slip for Order {selectedOrderForEdit.shortId}
-      </h2>
+      <td className="px-6 py-4">{order.shortId}</td>
+      <td className="px-6 py-4">
+        <div className="text-xs text-gray-500">
+          {new Date(order.createdAt).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </div>
+      </td>
+      <td className="px-6 py-4">{order.customerName}</td>
+      <td className="px-6 py-4">{order.po}</td>
       
-      <EditSlipForm
-        order={selectedOrderForEdit}
-        type={editType}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedOrderForEdit(null);
-          setEditType(null);
-        }}
-        onSave={handleSaveEditedSlip}
-      />
-    </div>
-  </div>
-)}             
-<td className="px-6 py-4">{order.quantity}</td>
-<td className="px-6 py-4">
-  <div className="flex flex-col">   
-    {/* Slip-specific remarks */}
-    {order.shapeSlip?.remarks && (
-      <div className="text-sm text-green-600">
-        <span className="font-semibold">Shape:</span> {order.shapeSlip.remarks}
-      </div>
-    )}
-    {order.danaSlip?.remarks && (
-      <div className="text-sm text-purple-600">
-        <span className="font-semibold">Dana:</span> {order.danaSlip.remarks}
-      </div>
-    )}  
-  </div>
-</td>
-                   <td className="px-6 py-4 space-y-1">
-  {order.shapeSlip?.url && (
-    <a
-      href={order.shapeSlip.url}
-      download
-      className="text-green-600 underline block"
-    >
-      🏭 Shape Slip
-    </a>
-  )}
-  {order.danaSlip?.url && (
-    <a
-      href={order.danaSlip.url}
-      download
-      className="text-blue-600 underline block"
-    >
-      🧪 Dana Slip
-    </a>
-  )}
-</td>
+      {/* ✅ PRODUCT NAME - Multi-product support */}
+      <td className="px-4 py-2 text-blue-600 font-bold">
+        {order.products && order.products.length > 0 ? (
+          <div className="space-y-1">
+            {order.products.map((prod, idx) => (
+              <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
+                <button
+                  onClick={() => {
+                    const product = products.find((p) => p.name === prod.productName);
+                    if (product?.images?.length > 0) {
+                      setActiveProductImage({
+                        name: prod.productName,
+                        images: product.images,
+                      });
+                    } else {
+                      Swal.fire({
+                        icon: "info",
+                        title: "No Image",
+                        text: "No images available for this product.",
+                      });
+                    }
+                  }}
+                  className="underline cursor-pointer text-left text-sm"
+                >
+                  {prod.productName}
+                </button>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              const product = products.find((p) => p.name === order.product);
+              if (product?.images?.length > 0) {
+                setActiveProductImage({
+                  name: product.name,
+                  images: product.images,
+                });
+              } else {
+                Swal.fire({
+                  icon: "info",
+                  title: "No Image",
+                  text: "No images available for this product.",
+                });
+              }
+            }}
+            className="underline cursor-pointer"
+          >
+            {order.product}
+          </button>
+        )}
+      </td>
+      
+      {/* ✅ QUANTITY - Show total for multi-product */}
+      <td className="px-6 py-4">
+        {order.products && order.products.length > 0 ? (
+          <div>
+            <span className="font-bold text-blue-600">
+              {order.products.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)}
+            </span>
+            <span className="text-xs text-gray-500 block">
+              ({order.products.length} products)
+            </span>
+          </div>
+        ) : (
+          order.quantity
+        )}
+      </td>
+      
+      {/* ✅ REMARKS - Show slip remarks and product remarks */}
+      <td className="px-6 py-4">
+        <div className="flex flex-col">   
+          {order.shapeSlip?.remarks && (
+            <div className="text-sm text-green-600">
+              <span className="font-semibold">Shape:</span> {order.shapeSlip.remarks}
+            </div>
+          )}
+          {order.danaSlip?.remarks && (
+            <div className="text-sm text-purple-600">
+              <span className="font-semibold">Dana:</span> {order.danaSlip.remarks}
+            </div>
+          )}
+          {order.products && order.products.length > 0 && (
+            <div className="text-xs text-gray-500 mt-1">
+              {order.products.map((p, idx) => p.productRemarks && (
+                <div key={idx}><strong>{p.productName}:</strong> {p.productRemarks}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
+      
+      {/* Slip Links */}
+      <td className="px-6 py-4 space-y-1">
+        {order.shapeSlip?.url && (
+          <a href={order.shapeSlip.url} download className="text-green-600 underline block">
+            🏭 Shape Slip
+          </a>
+        )}
+        {order.danaSlip?.url && (
+          <a href={order.danaSlip.url} download className="text-blue-600 underline block">
+            🧪 Dana Slip
+          </a>
+        )}
+      </td>
 
+      {/* Production Status */}
+      <td className="px-6 py-4 flex items-center">
+        {order.status === "cancelled" ? (
+          <span className="text-red-600 font-semibold">🚫 Order cancelled</span>
+        ) : order.status === "completed" ? (
+          <span className="text-green-600 font-semibold">✅ Completed</span>
+        ) : (
+          <>
+            {order.status}
+            <span className={`w-3 h-3 rounded-full ml-2 ${
+              order.status?.trim().toLowerCase() === "pending" ? "bg-orange-500" :
+              order.status?.trim().toLowerCase() === "in process" ? "bg-yellow-500" :
+              order.status?.trim().toLowerCase() === "processed" ? "bg-green-500" : "bg-gray-400"
+            }`} />
+          </>
+        )}
+      </td>
 
-                   
-                   <td className="px-6 py-4 flex items-center">
- {order.status === "cancelled" ? (
-  <span className="text-red-600 font-semibold">
-    🚫 Order cancelled, not to be processed!
-  </span>
-) : order.status === "completed" ? (
-  <span className="text-green-600 font-semibold">
-    ✅ Order completed!
-  </span>
-) : (
-  <>
-    {order.status}
-    <span
-      className={`w-3 h-3 rounded-full ml-2 ${
-        order.status?.trim().toLowerCase() === "pending"
-          ? "bg-orange-500"
-          : order.status?.trim().toLowerCase() === "in process"
-          ? "bg-yellow-500"
-          : order.status?.trim().toLowerCase() === "processed"
-          ? "bg-green-500"
-          : order.status?.trim().toLowerCase() === "completed"
-          ? "bg-green-700"
-          : "bg-gray-400"
-      }`}
-    />
-  </>
-)}
+      {/* Actions */}
+      <td className="px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+          <select
+            value={order.status}
+            onChange={(e) => handleStatusChange(order._id, e.target.value)}
+            disabled={order.status === "cancelled" || order.status === "completed"}
+            className={`border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
+              order.status === "cancelled" || order.status === "completed"
+                ? "bg-gray-100 cursor-not-allowed"
+                : ""
+            }`}
+          >
+            <option value="pending">Pending</option>
+            <option value="in process">In Process</option>
+            <option value="processed">Processed</option>
+            <option value="completed" disabled>Completed</option>
+          </select>
+        </div>
+      </td>
 
-</td>
-
-                  <td className="px-6 py-4">
-  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
- <select
-  value={order.status}
-  onChange={(e) => handleStatusChange(order._id, e.target.value)}
-  disabled={order.status === "cancelled" || order.status === "completed"} // 🚫 disable for cancelled & completed
-  className={`border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
-    order.status === "cancelled" || order.status === "completed"
-      ? "bg-gray-100 cursor-not-allowed"
-      : ""
-  }`}
->
-  <option value="pending">Pending</option>
-  <option value="in process">In Process</option>
-  <option value="processed">Processed</option>
-  <option value="completed" disabled>Completed</option>
-</select>
-
-  </div>
-</td>
-
-                                       <td className="px-6 py-4 flex items-center">
-  {/* 🗑 Delete Slip Button */}
-  <button
-    className="mt-2 sm:mt-0 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
-    onClick={() => handleRemoveFromProduction(order)}
-  >
-    🗑 Remove from Production
-  </button>
-  
-  {/* ✏️ Edit Slip Button */}
-  <button
-    className="mt-2 sm:mt-0 ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm"
-    onClick={() => handleEditSlip(order)}
-  >
-    ✏️ Edit Slip
-  </button>
-</td>
-                  </tr>
+      {/* Delete/Edit Buttons */}
+      <td className="px-6 py-4">
+        <div className="flex flex-col gap-2">
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
+            onClick={() => handleRemoveFromProduction(order)}
+          >
+            🗑 Remove
+          </button>
+          <button
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm"
+            onClick={() => handleEditSlip(order)}
+          >
+            ✏️ Edit Slip
+          </button>
+        </div>
+      </td>
+    </tr>
   ))}
 </tbody>
 

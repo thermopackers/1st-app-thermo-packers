@@ -1832,7 +1832,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
                 </DashboardSection>
               )}
 
-              {userRoles.some(role => ["guard"].includes(role)) && (
+             {userRoles.some(role => ["guard"].includes(role)) && (
     <DashboardSection>
       <DashboardCard>
         <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
@@ -1844,7 +1844,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <ActionButton 
-            to="/guard-attendance" 
+            to="/guard-attendance?auto=true" 
             variant="primary" 
             icon="📸"
           >
@@ -1871,7 +1871,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
         </div>
       </DashboardCard>
     </DashboardSection>
-    )}
+)}
 
  {userRoles.some(role => ["guard"].includes(role)) && (
     <DashboardSection>

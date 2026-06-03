@@ -1,19 +1,36 @@
 import { useState } from "react";
 
 const EditCuttingSlipForm = ({ order, onClose, onSave }) => {
+  // Get existing values from order.cuttingSlip if available
+  const existingData = order.cuttingSlip?.editedData || order.cuttingSlip?.products?.[0] || {};
+  
   const [formData, setFormData] = useState({
-    productName: order.product || '',
-    size: order.size || '',
-    density: order.density || '',
-    quantity: order.quantity || '',
-    remarks: order.remarks || '',
-    productRemarks: order.productRemarks || '',
+    productName: existingData.productName || order.product || '',
+    size: existingData.size || order.size || '',
+    density: existingData.density || order.density || '',
+    quantity: existingData.quantity || order.quantity || '',
+    remarks: existingData.remarks || order.remarks || '',
+    productRemarks: existingData.productRemarks || order.productRemarks || '',
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(order._id, formData);
-  };
+// In EditCuttingSlipForm.jsx - make sure the form is sending the correct data
+const handleSubmit = (e) => {
+  e.preventDefault();
+  console.log("📤 Submitting edit with:", {
+    size: formData.size,
+    density: formData.density,
+    quantity: formData.quantity,
+    remarks: formData.remarks,
+    productRemarks: formData.productRemarks
+  });
+  onSave(order._id, {
+    size: formData.size,
+    density: formData.density,
+    quantity: formData.quantity,
+    remarks: formData.remarks,
+    productRemarks: formData.productRemarks
+  });
+};
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -104,4 +121,5 @@ const EditCuttingSlipForm = ({ order, onClose, onSave }) => {
     </form>
   );
 };
+
 export default EditCuttingSlipForm;

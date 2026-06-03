@@ -505,210 +505,265 @@ EPS/Thermocol Shape Molding Packaging & Dispatch Section        </h2>
                       <th className="px-4 py-3">Delete This order from here</th>
                     </tr>
                   </thead>
-                 <tbody className="bg-white divide-y divide-gray-200">
-  {currentOrders.map((order, index) => (
-    <tr
-                        key={order._id}
-                        ref={(el) => (cardsRef.current[index] = el)}
-                        className="hover:bg-gray-50 transition duration-150"
-                      >
-                        <td className="px-4 py-3 font-medium">{order.shortId}</td>
-                         <td className="px-6 py-4">
-  <div className="text-xs text-gray-500">
-    {new Date(order.createdAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}
-  </div>
-</td>
+                <tbody className="bg-white divide-y divide-gray-200">
+  {currentOrders.map((order, index) => {
+    // Helper to check multi-product
+    const hasMultipleProducts = order.products && order.products.length > 0;
+    const productList = hasMultipleProducts ? order.products : [{
+      productName: order.product,
+      quantity: order.quantity,
+      size: order.size,
+      density: order.density,
+      productRemarks: order.productRemarks
+    }];
+    const totalQuantity = hasMultipleProducts 
+      ? productList.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)
+      : order.quantity;
 
-                        <td className="px-4 py-3 capitalize">{order.customerName}</td>
-                        <td className="px-4 py-3 capitalize">{order.po}</td>
- <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
-  <button
-    onClick={() => {
-      const product = products.find((p) => p.name === order.product);
-      if (product?.images?.length > 0) {
-        setActiveProductImage({
-          name: product.name,
-          images: product.images,
-        });
-      } else {
-        Swal.fire({
-          icon: "info",
-          title: "No Image",
-          text: "No images available for this product.",
-        });
-      }
-    }}
-  >
-    {order.product}
-  </button>
-</td>                         <td className="px-4 py-3">{order.size}</td>
-                        <td className="px-4 py-3">{order.quantity}</td>
+    return (
+      <tr
+        key={order._id}
+        ref={(el) => (cardsRef.current[index] = el)}
+        className="hover:bg-gray-50 transition duration-150"
+      >
+        {/* Order ID */}
+        <td className="px-4 py-3 font-medium">{order.shortId}</td>
         
-                        <td className="px-4 py-3">{order.packagingSlip.remarks || order.remarks}</td>
-                        <td className="px-4 py-3">
-                          {order.packagingSlip?.url && (
-                            <a
-                                    href={order.packagingSlip.url}
-                              download
-                              className="text-purple-600 underline"
-                            >
-                              📦 Download Slip
-                            </a>
-                          )}
-                        </td>
-                     <td className="px-4 py-2 whitespace-nowrap">
- {order.status === "cancelled" ? (
-  <span className="text-red-600 font-semibold">
-    🚫 Order cancelled, not to be processed!
-  </span>
-) : order.status === "completed" ? (
-  <span className="text-green-600 font-semibold">
-    ✅ Order completed!
-  </span>
-) : (
-  <div className="flex flex-col gap-1">
-    <div className="flex items-center gap-2">
-      <span
-        className={`w-3 h-3 rounded-full ${
-          order.status?.toLowerCase() === "pending"
-            ? "bg-orange-500"
-            : order.status?.toLowerCase() === "in process"
-            ? "bg-yellow-500"
-            : order.status?.toLowerCase() === "processed"
-            ? "bg-green-500"
-            : order.status?.toLowerCase() === "completed"
-            ? "bg-green-700"
-            : "bg-gray-400"
-        }`}
-      ></span>
-      <span className="capitalize">
-        {order.shapeSlip ? order.status || "Unknown" : "Direct Dispatch"}
-      </span>
-    </div>
+        {/* Date of Order */}
+        <td className="px-6 py-4">
+          <div className="text-xs text-gray-500">
+            {new Date(order.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
+          </div>
+        </td>
 
-    {order.shapeSlip && (
-      <select
-        value={order.status || ""}
-        onChange={(e) =>
-          handleProductionStatusChange(order._id, e.target.value)
-        }
-        disabled={order.status === "completed"} // ✅ disable once completed
-        className={`mt-1 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300 ${
-          order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
-        }`}
-      >
-        <option value="" disabled>
-          Change Status
-        </option>
-        <option value="pending">Pending</option>
-        <option value="in process">In Process</option>
-        <option value="processed">Processed</option>
-  <option value="completed" disabled>Completed</option>
-      </select>
-    )}
-  </div>
-)}
+        {/* Customer Name */}
+        <td className="px-4 py-3 capitalize">{order.customerName}</td>
+        
+        {/* PO */}
+        <td className="px-4 py-3 capitalize">{order.po}</td>
 
-</td>
+        {/* Product Name - Multi-product support */}
+        <td className="px-4 py-2">
+          {hasMultipleProducts ? (
+            <div className="space-y-1">
+              {productList.map((prod, idx) => (
+                <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
+                  <button
+                    onClick={() => {
+                      const product = products.find((p) => p.name === prod.productName);
+                      if (product?.images?.length > 0) {
+                        setActiveProductImage({ name: prod.productName, images: product.images });
+                      } else {
+                        Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
+                      }
+                    }}
+                    className="text-blue-600 underline cursor-pointer text-left text-sm"
+                  >
+                    {prod.productName}
+                  </button>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                const product = products.find((p) => p.name === order.product);
+                if (product?.images?.length > 0) {
+                  setActiveProductImage({ name: order.product, images: product.images });
+                } else {
+                  Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
+                }
+              }}
+              className="text-blue-600 underline cursor-pointer"
+            >
+              {order.product}
+            </button>
+          )}
+        </td>
 
+        {/* Size - Multi-product support */}
+        <td className="px-4 py-3">
+          {hasMultipleProducts ? (
+            <div className="space-y-1 text-xs">
+              {productList.map((prod, idx) => (
+                <div key={idx}>{prod.size || "N/A"}</div>
+              ))}
+            </div>
+          ) : (
+            order.size || "N/A"
+          )}
+        </td>
 
-                      <td className="px-4 py-3">
-  {order.status === "cancelled" ? (
-    <span className="text-red-600 font-semibold">🚫 Cancelled</span>
-  ) : order.status === "completed" ? (
-    <span className="text-gray-500 italic">Completed - No Packaging Needed</span>
-  ) : (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        order.packagingStatus === "packaged"
-          ? "bg-green-100 text-green-700"
-          : "bg-red-100 text-red-700"
-      }`}
-    >
-      {order.packagingStatus || "Unpackaged"}
-    </span>
-  )}
-</td>
-<td className="px-4 py-3">
-  {order.status === "cancelled" ? (
-    <span className="text-gray-500 italic">Locked</span>
-  ) : order.status === "completed" ? (
-    <span className="text-gray-500 italic">Completed - No Update Needed</span>
-  ) : (
-    <select
-      value={order.packagingStatus || ""}
-      onChange={(e) => handleStatusChange(order._id, e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
-    >
-      <option value="" disabled>Select Status</option>
-      <option value="unpackaged">Unpackaged</option>
-      <option value="packaged">Packaged</option>
-    </select>
-  )}
-</td>
+        {/* Quantity - Multi-product support */}
+        <td className="px-4 py-3">
+          {hasMultipleProducts ? (
+            <div>
+              <span className="font-bold text-blue-600">{totalQuantity}</span>
+              <span className="text-xs text-gray-500 block">({productList.length} products)</span>
+            </div>
+          ) : (
+            order.quantity
+          )}
+        </td>
 
-                      <td className="px-4 py-3">
-  {order.status === "cancelled" ? (
-    <span className="text-red-600 font-semibold">🚫 Cancelled</span>
-  ) : order.status === "completed" ? (
-    <span className="text-gray-500 italic">Completed - No Dispatch Needed</span>
-  ) : (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        order.dispatchStatus === "dispatched"
-          ? "bg-green-100 text-green-700"
-          : "bg-red-100 text-red-700"
-      }`}
-    >
-      {order.dispatchStatus || "not dispatched"}
-    </span>
-  )}
-</td>
-<td className="px-4 py-3">
-  {order.status === "cancelled" ? (
-    <span className="text-gray-500 italic">Locked</span>
-  ) : order.status === "completed" ? (
-    <span className="text-gray-500 italic">Completed - No Update Needed</span>
-  ) : (
-    <select
-      value={order.dispatchStatus || ""}
-      onChange={(e) => handleDispatchStatusChange(order._id, e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
-    >
-      <option value="not dispatched">Not Dispatched</option>
-      <option value="ready to dispatch">Ready To Dispatch</option>
-      <option value="dispatched">Dispatched</option>
-    </select>
-  )}
-</td>
+        {/* Remarks - Multi-product support */}
+        <td className="px-4 py-3">
+          {hasMultipleProducts ? (
+            <div className="space-y-1 text-xs">
+              {productList.map((prod, idx) => prod.productRemarks && (
+                <div key={idx}><strong>{prod.productName}:</strong> {prod.productRemarks}</div>
+              ))}
+              {!productList.some(p => p.productRemarks) && <span className="text-gray-400">-</span>}
+            </div>
+          ) : (
+            order.packagingSlip?.remarks || order.remarks || "-"
+          )}
+        </td>
 
-                       <td className="px-4 py-3">
-  <div className="flex flex-col space-y-2">
-    <button
-      onClick={() => handleDeleteFromPackaging(order._id)}
-      className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
-    >
-      ❌ Delete
-    </button>
-    
-    {/* Edit Button */}
-    {order.packagingSlip?.url && (
-      <button
-        onClick={() => handleEditSlip(order)}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-      >
-        ✏️ Edit
-      </button>
-    )}
-  </div>
-</td>
+        {/* Slip */}
+        <td className="px-4 py-3">
+          {order.packagingSlip?.url && (
+            <a href={order.packagingSlip.url} download className="text-purple-600 underline">
+              📦 Download Slip
+            </a>
+          )}
+        </td>
 
-                      </tr>
-  ))}
+        {/* Production Status */}
+        <td className="px-4 py-2 whitespace-nowrap">
+          {order.status === "cancelled" ? (
+            <span className="text-red-600 font-semibold">🚫 Order cancelled, not to be processed!</span>
+          ) : order.status === "completed" ? (
+            <span className="text-green-600 font-semibold">✅ Order completed!</span>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${
+                  order.status?.toLowerCase() === "pending" ? "bg-orange-500" :
+                  order.status?.toLowerCase() === "in process" ? "bg-yellow-500" :
+                  order.status?.toLowerCase() === "processed" ? "bg-green-500" : "bg-gray-400"
+                }`}></span>
+                <span className="capitalize">
+                  {order.shapeSlip ? order.status || "Unknown" : "Direct Dispatch"}
+                </span>
+              </div>
+              {order.shapeSlip && (
+                <select
+                  value={order.status || ""}
+                  onChange={(e) => handleProductionStatusChange(order._id, e.target.value)}
+                  disabled={order.status === "completed"}
+                  className={`mt-1 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300 ${
+                    order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <option value="" disabled>Change Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="in process">In Process</option>
+                  <option value="processed">Processed</option>
+                  <option value="completed" disabled>Completed</option>
+                </select>
+              )}
+            </div>
+          )}
+        </td>
+
+        {/* Packaging Status */}
+        <td className="px-4 py-3">
+          {order.status === "cancelled" ? (
+            <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+          ) : order.status === "completed" ? (
+            <span className="text-gray-500 italic">Completed - No Packaging Needed</span>
+          ) : (
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              order.packagingStatus === "packaged" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}>
+              {order.packagingStatus || "Unpackaged"}
+            </span>
+          )}
+        </td>
+
+        {/* Update Packaging Status */}
+        <td className="px-4 py-3">
+          {order.status === "cancelled" ? (
+            <span className="text-gray-500 italic">Locked</span>
+          ) : order.status === "completed" ? (
+            <span className="text-gray-500 italic">Completed - No Update Needed</span>
+          ) : (
+            <select
+              value={order.packagingStatus || ""}
+              onChange={(e) => handleStatusChange(order._id, e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
+            >
+              <option value="" disabled>Select Status</option>
+              <option value="unpackaged">Unpackaged</option>
+              <option value="packaged">Packaged</option>
+            </select>
+          )}
+        </td>
+
+        {/* Dispatch Status */}
+        <td className="px-4 py-3">
+          {order.status === "cancelled" ? (
+            <span className="text-red-600 font-semibold">🚫 Cancelled</span>
+          ) : order.status === "completed" ? (
+            <span className="text-gray-500 italic">Completed - No Dispatch Needed</span>
+          ) : (
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              order.dispatchStatus === "dispatched" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}>
+              {order.dispatchStatus || "not dispatched"}
+            </span>
+          )}
+        </td>
+
+        {/* Update Dispatch Status */}
+        <td className="px-4 py-3">
+          {order.status === "cancelled" ? (
+            <span className="text-gray-500 italic">Locked</span>
+          ) : order.status === "completed" ? (
+            <span className="text-gray-500 italic">Completed - No Update Needed</span>
+          ) : (
+            <select
+              value={order.dispatchStatus || ""}
+              onChange={(e) => handleDispatchStatusChange(order._id, e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring focus:ring-purple-300"
+            >
+              <option value="not dispatched">Not Dispatched</option>
+              <option value="ready to dispatch">Ready To Dispatch</option>
+              <option value="dispatched">Dispatched</option>
+            </select>
+          )}
+        </td>
+
+        {/* Actions - Delete & Edit */}
+        <td className="px-4 py-3">
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={() => handleDeleteFromPackaging(order._id)}
+              className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+            >
+              ❌ Delete
+            </button>
+            {order.packagingSlip?.url && (
+              <button
+                onClick={() => handleEditSlip(order)}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+              >
+                ✏️ Edit
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  })}
 </tbody>
 
                 </table>

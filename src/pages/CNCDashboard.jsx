@@ -513,203 +513,270 @@ const getFileIcon = (fileName) => {
                       <th className="px-4 py-3">Delete This order from here</th>
   </tr>
 </thead>
-              <tbody>
-                {orders.map((order) => (
-                 <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
-  <td className="px-4 py-2">{order.shortId}</td>
-   <td className="px-6 py-4">
-  <div className="text-xs text-gray-500">
-    {new Date(order.createdAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}
-  </div>
-</td>
+             <tbody>
+  {orders.map((order) => {
+    // Helper to check multi-product
+    const hasMultipleProducts = order.products && order.products.length > 0;
+    const productList = hasMultipleProducts ? order.products : [{
+      productName: order.product,
+      quantity: order.quantity,
+      size: order.size,
+      density: order.density,
+      productRemarks: order.productRemarks
+    }];
+    const totalQuantity = hasMultipleProducts 
+      ? productList.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)
+      : order.quantity;
 
-  <td className="px-4 py-2 capitalize">{order.customerName}</td>
-  <td className="px-4 py-2 capitalize">{order.po}</td>
- <td className="px-4 py-2 text-blue-600 underline cursor-pointer">
-  <button
-    onClick={() => {
-      const product = products.find((p) => p.name === order.product);
-      if (product?.images?.length > 0) {
-        setActiveProductImage({
-          name: product.name,
-          images: product.images,
-        });
-      } else {
-        Swal.fire({
-          icon: "info",
-          title: "No Image",
-          text: "No images available for this product.",
-        });
-      }
-    }}
-  >
-    {order.product}
-  </button>
-</td> 
-  <td className="px-4 py-2">{order.size}</td>
-  <td className="px-4 py-2">{order.quantity}</td>
-  <td className="px-4 py-2">{order.cncSlip.remarks || order.remarks}</td>
-  <td className="px-4 py-2">
-    {order.cncSlip?.url && (
-      <a
-        href={order.cncSlip.url}
-        download
-        className="text-blue-600 underline"
-      >
-        🧾 Download Slip
-      </a>
-    )}
-  </td>
-  <td className="px-4 py-2">
-  {/* NEW COLUMN: Drawing Files */}
-  {order.cncSlip?.drawingFiles && order.cncSlip.drawingFiles.length > 0 ? (
-    <div className="space-y-1 max-h-24 overflow-y-auto">
-      {order.cncSlip.drawingFiles.map((fileUrl, index) => {
-        const fileName = fileUrl.split('/').pop() || `Drawing ${index + 1}`;
-        const fileExtension = fileName.split('.').pop()?.toLowerCase();
-        const isStepFile = fileExtension === 'step' || fileExtension === 'stp';
+    return (
+      <tr key={order._id} className="hover:bg-gray-50 transition duration-150">
+        {/* Order ID */}
+        <td className="px-4 py-2">{order.shortId}</td>
         
-        return (
-          <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-1 rounded border">
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1"
-              title={fileName}
-            >
-              {isStepFile ? '📐' : '📎'} {fileName}
-            </a>
+        {/* Date of Order */}
+        <td className="px-6 py-4">
+          <div className="text-xs text-gray-500">
+            {new Date(order.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
           </div>
-        );
-      })}
-    </div>
-  ) : (
-    <span className="text-gray-400 text-xs">No drawings</span>
-  )}
-</td>
-<td className="px-4 py-2">
-  {order.status === "cancelled" ? (
-    <span className="text-red-600 font-semibold">
-      🚫 Order cancelled, not to be processed!
-    </span>
-  ) : (
-   <select
-  value={order.status || "pending"}
-  onChange={(e) => updateCNCStatus(order._id, e.target.value)}
-  disabled={order.status === "completed"} // lock after completed
-  className={`border border-gray-300 rounded px-2 py-1 text-sm ${
-    order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
-  }`}
->
-  <option value="pending">Pending</option>
-  <option value="in process">In Process</option>
-  <option value="processed">Processed(Ready For Dispatch)</option>
-  <option value="completed" disabled>Already Dispatched</option>
-</select>
+        </td>
 
-  )}
-</td>
+        {/* Customer Name */}
+        <td className="px-4 py-2 capitalize">{order.customerName}</td>
+        
+        {/* PO */}
+        <td className="px-4 py-2 capitalize">{order.po}</td>
 
-<td className="px-4 py-2 whitespace-nowrap">
- <span
-  className={`px-2 py-1 rounded-full text-xs font-semibold ${
-    order.status === "completed"
-      ? "bg-green-700 text-white"
-      : order.status === "processed"
-      ? "bg-green-100 text-green-700"
-      : order.status === "in process"
-      ? "bg-yellow-100 text-yellow-700"
-      : order.status === "cancelled"
-      ? "bg-red-200 text-red-800"
-      : order.status === "pending"
-      ? "bg-orange-100 text-orange-700"
-      : "bg-gray-100 text-gray-700"
-  }`}
->
-  {order.status === "completed" ? "✅ Completed" : order.status || "pending"}
-</span>
+        {/* Product Name - Multi-product support */}
+        <td className="px-4 py-2">
+          {hasMultipleProducts ? (
+            <div className="space-y-1">
+              {productList.map((prod, idx) => (
+                <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
+                  <button
+                    onClick={() => {
+                      const product = products.find((p) => p.name === prod.productName);
+                      if (product?.images?.length > 0) {
+                        setActiveProductImage({ name: prod.productName, images: product.images });
+                      } else {
+                        Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
+                      }
+                    }}
+                    className="text-blue-600 underline cursor-pointer text-left text-sm"
+                  >
+                    {prod.productName}
+                  </button>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                const product = products.find((p) => p.name === order.product);
+                if (product?.images?.length > 0) {
+                  setActiveProductImage({ name: order.product, images: product.images });
+                } else {
+                  Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
+                }
+              }}
+              className="text-blue-600 underline cursor-pointer"
+            >
+              {order.product}
+            </button>
+          )}
+        </td>
 
-</td>
-<td className="px-4 py-2">
-  <div className="flex flex-col space-y-2">
-    {/* File Upload Input */}
-    <input
-      type="file"
-      multiple
-  accept="image/*,.pdf,.doc,.docx,.step,.stp,.dwg,.dxf,.iges,.igs"
-      onChange={(e) => handleFileUpload(order._id, e.target.files)}
-      disabled={uploadingFiles[order._id]}
-      className="text-sm text-gray-700 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-    />
-    
-    {/* Uploading Indicator */}
-    {uploadingFiles[order._id] && (
-      <div className="text-blue-600 text-xs">Uploading...</div>
-    )}
-    
-    {/* Uploaded Files List */}
-   {order.cncFinishedFiles && order.cncFinishedFiles.length > 0 && (
-  <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-    {order.cncFinishedFiles.map((file, index) => (
-      <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-2 rounded border">
-        <button
-          onClick={() => handleFilePreview(file)}
-          className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 text-left"
-          title={`Click to preview: ${file.originalName}`}
-        >
-          {getFileIcon(file.originalName)} {file.originalName}
-        </button>
-       <button
-  onClick={() => handleDeleteFile(order._id, file.public_id)}
-  disabled={deletingFiles[file.public_id]}
-  className={`ml-2 text-sm font-bold ${
-    deletingFiles[file.public_id] 
-      ? 'text-gray-400 cursor-not-allowed' 
-      : 'text-red-500 hover:text-red-700'
-  }`}
-  title={deletingFiles[file.public_id] ? "Deleting..." : "Delete file"}
->
-  {deletingFiles[file.public_id] ? (
-    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-  ) : (
-    '×'
-  )}
-</button>
-      </div>
-    ))}
-  </div>
-)}
-  </div>
-</td>
-<td className="px-4 py-2">
-  <div className="flex flex-col space-y-2">
-    <button
-      onClick={() => handleDeleteCNC(order._id)}
-      className="text-red-600 hover:text-red-800 underline text-sm"
-    >
-      ❌ Delete
-    </button>
-    
-    {/* Edit Button */}
-    {order.cncSlip?.url && (
-      <button
-        onClick={() => handleEditSlip(order)}
-        className="text-blue-600 hover:text-blue-800 underline text-sm"
-      >
-        ✏️ Edit
-      </button>
-    )}
-  </div>
-</td>
-</tr>
+        {/* Size - Multi-product support */}
+        <td className="px-4 py-2">
+          {hasMultipleProducts ? (
+            <div className="space-y-1 text-xs">
+              {productList.map((prod, idx) => (
+                <div key={idx}>{prod.size || "N/A"}</div>
+              ))}
+            </div>
+          ) : (
+            order.size || "N/A"
+          )}
+        </td>
 
+        {/* Quantity - Multi-product support */}
+        <td className="px-4 py-2">
+          {hasMultipleProducts ? (
+            <div>
+              <span className="font-bold text-blue-600">{totalQuantity}</span>
+              <span className="text-xs text-gray-500 block">({productList.length} products)</span>
+            </div>
+          ) : (
+            order.quantity
+          )}
+        </td>
+
+        {/* Remarks - Multi-product support */}
+        <td className="px-4 py-2">
+          {hasMultipleProducts ? (
+            <div className="space-y-1 text-xs">
+              {productList.map((prod, idx) => prod.productRemarks && (
+                <div key={idx}><strong>{prod.productName}:</strong> {prod.productRemarks}</div>
+              ))}
+              {!productList.some(p => p.productRemarks) && <span className="text-gray-400">-</span>}
+            </div>
+          ) : (
+            order.cncSlip?.remarks || order.remarks || "-"
+          )}
+        </td>
+
+        {/* Slip */}
+        <td className="px-4 py-2">
+          {order.cncSlip?.url && (
+            <a href={order.cncSlip.url} download className="text-blue-600 underline">
+              🧾 Download Slip
+            </a>
+          )}
+        </td>
+
+        {/* Drawing Files */}
+        <td className="px-4 py-2">
+          {order.cncSlip?.drawingFiles && order.cncSlip.drawingFiles.length > 0 ? (
+            <div className="space-y-1 max-h-24 overflow-y-auto">
+              {order.cncSlip.drawingFiles.map((fileUrl, index) => {
+                const fileName = fileUrl.split('/').pop() || `Drawing ${index + 1}`;
+                const fileExtension = fileName.split('.').pop()?.toLowerCase();
+                const isStepFile = fileExtension === 'step' || fileExtension === 'stp';
+                
+                return (
+                  <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-1 rounded border">
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1"
+                      title={fileName}
+                    >
+                      {isStepFile ? '📐' : '📎'} {fileName}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <span className="text-gray-400 text-xs">No drawings</span>
+          )}
+        </td>
+
+        {/* Status */}
+        <td className="px-4 py-2">
+          {order.status === "cancelled" ? (
+            <span className="text-red-600 font-semibold">🚫 Order cancelled, not to be processed!</span>
+          ) : (
+            <select
+              value={order.status || "pending"}
+              onChange={(e) => updateCNCStatus(order._id, e.target.value)}
+              disabled={order.status === "completed"}
+              className={`border border-gray-300 rounded px-2 py-1 text-sm ${
+                order.status === "completed" ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
+            >
+              <option value="pending">Pending</option>
+              <option value="in process">In Process</option>
+              <option value="processed">Processed(Ready For Dispatch)</option>
+              <option value="completed" disabled>Already Dispatched</option>
+            </select>
+          )}
+        </td>
+
+        {/* CNC Status */}
+        <td className="px-4 py-2 whitespace-nowrap">
+          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+            order.status === "completed" ? "bg-green-700 text-white" :
+            order.status === "processed" ? "bg-green-100 text-green-700" :
+            order.status === "in process" ? "bg-yellow-100 text-yellow-700" :
+            order.status === "cancelled" ? "bg-red-200 text-red-800" :
+            order.status === "pending" ? "bg-orange-100 text-orange-700" :
+            "bg-gray-100 text-gray-700"
+          }`}>
+            {order.status === "completed" ? "✅ Completed" : order.status || "pending"}
+          </span>
+        </td>
+
+        {/* Finished Product Pictures */}
+        <td className="px-4 py-2">
+          <div className="flex flex-col space-y-2">
+            <input
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.step,.stp,.dwg,.dxf,.iges,.igs"
+              onChange={(e) => handleFileUpload(order._id, e.target.files)}
+              disabled={uploadingFiles[order._id]}
+              className="text-sm text-gray-700 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            
+            {uploadingFiles[order._id] && (
+              <div className="text-blue-600 text-xs">Uploading...</div>
+            )}
+            
+            {order.cncFinishedFiles && order.cncFinishedFiles.length > 0 && (
+              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                {order.cncFinishedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs bg-gray-100 p-2 rounded border">
+                    <button
+                      onClick={() => handleFilePreview(file)}
+                      className="text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 text-left"
+                      title={`Click to preview: ${file.originalName}`}
+                    >
+                      {getFileIcon(file.originalName)} {file.originalName}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFile(order._id, file.public_id)}
+                      disabled={deletingFiles[file.public_id]}
+                      className={`ml-2 text-sm font-bold ${
+                        deletingFiles[file.public_id] 
+                          ? 'text-gray-400 cursor-not-allowed' 
+                          : 'text-red-500 hover:text-red-700'
+                      }`}
+                      title={deletingFiles[file.public_id] ? "Deleting..." : "Delete file"}
+                    >
+                      {deletingFiles[file.public_id] ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        '×'
+                      )}
+                    </button>
+                  </div>
                 ))}
-              </tbody>
+              </div>
+            )}
+          </div>
+        </td>
+
+        {/* Actions - Delete & Edit */}
+        <td className="px-4 py-2">
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={() => handleDeleteCNC(order._id)}
+              className="text-red-600 hover:text-red-800 underline text-sm"
+            >
+              ❌ Delete
+            </button>
+            {order.cncSlip?.url && (
+              <button
+                onClick={() => handleEditSlip(order)}
+                className="text-blue-600 hover:text-blue-800 underline text-sm"
+              >
+                ✏️ Edit
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
             </table>
             {activeProductImage && (
   <div
