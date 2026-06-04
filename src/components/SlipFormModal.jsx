@@ -1415,29 +1415,29 @@ if (isMultiProduct) {
   });
 }
 
-    // ✅ CNC Slip - Initialize with per-product fields for multi-product
-    if (isMultiProduct) {
-      const initialCNCData = {
-        productName: "Multiple Products",
-        drawingName: "",
-        remarks: selectedOrder.remarks || "",
-      };
-      // Add per-product fields
-      productList.forEach((product, idx) => {
-        initialCNCData[`size_${idx}`] = product.size || "";
-        initialCNCData[`quantity_${idx}`] = product.quantity;
-        initialCNCData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-      });
-      setCNCFormData(initialCNCData);
-    } else {
-      setCNCFormData({
-        productName: selectedOrder.product || "",
-        size: selectedOrder.size || "",
-        quantity: selectedOrder.quantity || "",
-        drawingName: "",
-        remarks: selectedOrder.remarks || "",
-      });
-    }
+// ✅ CNC Slip - Initialize with per-product fields for multi-product
+if (isMultiProduct) {
+  const initialCNCData = {
+    productName: "Multiple Products",
+    drawingName: "",
+    remarks: selectedOrder.remarks || "",
+  };
+  // Add per-product fields
+  productList.forEach((product, idx) => {
+    initialCNCData[`size_${idx}`] = product.size || "";
+    initialCNCData[`quantity_${idx}`] = product.quantity;
+    initialCNCData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+  });
+  setCNCFormData(initialCNCData);
+} else {
+  setCNCFormData({
+    productName: selectedOrder.product || "",
+    size: selectedOrder.size || "",
+    quantity: selectedOrder.quantity || "",
+    drawingName: "",
+    remarks: selectedOrder.remarks || "",
+  });
+}
 
  // ✅ Dana/Beads Slip - ADD THIS BLOCK
 const initialDanaBeadsFormData = {
@@ -1634,24 +1634,42 @@ if (type === "dana") {
     checkMissing(["size", "density", "quantity", "remarks"], cuttingFormData);
   }
 } else if (type === "cnc-slip") {
-  // For multi-product, check per-product fields instead
+  // For multi-product, check per-product fields
   if (hasMultipleProducts) {
     // Check each product has size and quantity
+    let allValid = true;
     for (let idx = 0; idx < productList.length; idx++) {
-      if (!cncFormData[`size_${idx}`]?.toString().trim()) {
+      const size = cncFormData[`size_${idx}`];
+      const quantity = cncFormData[`quantity_${idx}`];
+      
+      if (!size?.toString().trim()) {
+        console.log(`❌ Missing size for product ${idx}`);
         missing.push(`size_${idx}`);
+        allValid = false;
       }
-      if (!cncFormData[`quantity_${idx}`]?.toString().trim()) {
+      if (!quantity?.toString().trim()) {
+        console.log(`❌ Missing quantity for product ${idx}`);
         missing.push(`quantity_${idx}`);
+        allValid = false;
       }
     }
+    // Only check remarks if it's required (make it optional)
+    // if (!cncFormData.remarks?.toString().trim()) {
+    //   missing.push("remarks");
+    // }
   } else {
     // Single product - check regular fields
-    if (!cncFormData.productName?.toString().trim()) missing.push("productName");
-    if (!cncFormData.size?.toString().trim()) missing.push("size");
-    if (!cncFormData.quantity?.toString().trim()) missing.push("quantity");
+    if (!cncFormData.productName?.toString().trim()) {
+      missing.push("productName");
+    }
+    if (!cncFormData.size?.toString().trim()) {
+      missing.push("size");
+    }
+    if (!cncFormData.quantity?.toString().trim()) {
+      missing.push("quantity");
+    }
   }
-  if (!cncFormData.remarks?.toString().trim()) missing.push("remarks");
+  // Remarks are optional, don't require them
 } else if (type === "packaging" || type === "shape-packaging") {
   if (hasMultipleProducts) {
     // For multi-product, check each product's quantity and remarks
@@ -2897,10 +2915,10 @@ if (type === "dana") {
   </section>
 )}
 
-      {/* CNC Slip */}
+     {/* CNC Slip */}
 {type === "cnc-slip" && (
   <section className="space-y-4">
-    {/* ✅ Show product list with editable fields for multi-product */}
+    {/* Show product list with editable fields for multi-product */}
     {hasMultipleProducts ? (
       <div className="mb-4">
         <label className="font-bold text-xl mb-2 block">Products</label>
@@ -2909,8 +2927,8 @@ if (type === "dana") {
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">Product Name</th>
-                <th className="p-2 border">Size</th>
-                <th className="p-2 border">Quantity</th>
+                <th className="p-2 border">Size <span className="text-red-500">*</span></th>
+                <th className="p-2 border">Quantity <span className="text-red-500">*</span></th>
                 <th className="p-2 border">Remarks</th>
               </tr>
               </thead>
@@ -2934,7 +2952,7 @@ if (type === "dana") {
                           }));
                         }}
                         placeholder="Size"
-                        className="w-32 p-1 border border-gray-300 rounded"
+                        className={`w-32 p-1 border rounded ${missingFields.includes(`size_${idx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       />
                     </td>
                     <td className="p-2 border">
@@ -2948,7 +2966,7 @@ if (type === "dana") {
                           }));
                         }}
                         placeholder="Quantity"
-                        className="w-24 p-1 border border-gray-300 rounded"
+                        className={`w-24 p-1 border rounded ${missingFields.includes(`quantity_${idx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       />
                     </td>
                     <td className="p-2 border">
@@ -2974,7 +2992,7 @@ if (type === "dana") {
       ) : (
         // Single product view
         <>
-          <label className="font-bold text-xl">Product Name:</label>
+          <label className="font-bold text-xl">Product Name <span className="text-red-500">*</span>:</label>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <input
               type="text"
@@ -2985,10 +3003,26 @@ if (type === "dana") {
             />
             {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
           </div>
+
+          <label className="font-bold text-xl">Size <span className="text-red-500">*</span>:</label>
+          <input
+            type="text"
+            value={cncFormData.size}
+            onChange={(e) => handleCNCChange("size", e.target.value)}
+            className={inputClass("size")}
+          />
+
+          <label className="font-bold text-xl">Quantity <span className="text-red-500">*</span>:</label>
+          <input
+            type="number"
+            value={cncFormData.quantity}
+            onChange={(e) => handleCNCChange("quantity", e.target.value)}
+            className={inputClass("quantity")}
+          />
         </>
       )}
 
-      {/* Common fields for CNC */}
+      {/* Rest of CNC form remains the same */}
       <div className="mt-4 pt-4 border-t border-gray-200">
         <label className="font-bold text-xl">Drawing Name (Optional):</label>
         <input
@@ -3024,12 +3058,12 @@ if (type === "dana") {
         ))}
       </div>
 
-      {/* <label className="font-bold text-xl">Overall Remarks:</label>
+      {/* <label className="font-bold text-xl">Overall Remarks (Optional):</label>
       <textarea
         value={cncFormData.remarks}
         onChange={(e) => handleCNCChange("remarks", e.target.value)}
         rows={4}
-        className={inputClass("remarks", "resize-none")}
+        className="w-full border border-gray-300 rounded-md px-4 py-3"
         placeholder="Enter overall remarks for this CNC job"
       /> */}
   </section>
