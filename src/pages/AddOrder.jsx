@@ -838,15 +838,15 @@ if (loadingProducts || loadingCustomers) {
             ></textarea>
           </div>
 {/* ========== COMMON FREIGHT SECTION - MOVED BEFORE PRODUCTS ========== */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-  <div className="col-span-2">
-    <h3 className="text-lg font-bold text-blue-800 mb-2">🚚 Common Order Charges (Applies to All Products)</h3>
-    <p className="text-sm text-gray-600 mb-3">These charges will be applied once for the entire order</p>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+  <div className="col-span-1 sm:col-span-2">
+    <h3 className="text-base sm:text-lg font-bold text-blue-800 mb-1 sm:mb-2">🚚 Common Order Charges (Applies to All Products)</h3>
+    <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">These charges will be applied once for the entire order</p>
   </div>
 
   {/* Freight Type */}
   <div className="flex flex-col">
-    <label className="mb-1 font-medium text-gray-700">Freight Type</label>
+    <label className="mb-1 text-xs sm:text-sm font-medium text-gray-700">Freight Type</label>
     <select
       value={commonFreight}
       onChange={(e) => {
@@ -855,7 +855,7 @@ if (loadingProducts || loadingCustomers) {
           setCommonFreightAmount("");
         }
       }}
-      className="border border-gray-400 p-2 rounded"
+      className="border border-gray-400 p-2 sm:p-2.5 rounded text-sm sm:text-base"
       required
     >
       <option value="">Select Freight</option>
@@ -869,7 +869,7 @@ if (loadingProducts || loadingCustomers) {
   {/* Freight Amount (conditional) */}
   {(commonFreight === "To pay" || commonFreight === "Billed in Invoice") && (
     <div className="flex flex-col">
-      <label className="mb-1 font-medium text-gray-700">
+      <label className="mb-1 text-xs sm:text-sm font-medium text-gray-700">
         {commonFreight === "To pay" ? "Freight Amount to Pay" : "Freight Amount Billed"}
       </label>
       <input
@@ -877,7 +877,7 @@ if (loadingProducts || loadingCustomers) {
         value={commonFreightAmount}
         onChange={(e) => setCommonFreightAmount(e.target.value)}
         placeholder="Enter amount"
-        className="border border-gray-400 p-2 rounded"
+        className="border border-gray-400 p-2 sm:p-2.5 rounded text-sm sm:text-base"
         required
         min="0"
         step="0.01"
@@ -887,13 +887,13 @@ if (loadingProducts || loadingCustomers) {
 
   {/* Packaging Charge */}
   <div className="flex flex-col">
-    <label className="mb-1 font-medium text-gray-700">Packaging Charge (Common)</label>
+    <label className="mb-1 text-xs sm:text-sm font-medium text-gray-700">Packaging Charge (Common)</label>
     <input
       type="number"
       value={commonPackagingCharge}
       onChange={(e) => setCommonPackagingCharge(e.target.value)}
       placeholder="Packaging Charge"
-      className="border border-gray-400 p-2 rounded"
+      className="border border-gray-400 p-2 sm:p-2.5 rounded text-sm sm:text-base"
       min="0"
       step="0.01"
     />
