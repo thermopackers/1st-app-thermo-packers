@@ -11,7 +11,6 @@ const FloatingWhatsApp = () => {
   
   // YOUR BUSINESS WHATSAPP NUMBER
   const BUSINESS_WHATSAPP_NUMBER = "919878165432"; // Remove the first 0 if present
-    // const BUSINESS_WHATSAPP_NUMBER = "916206002096"; // Remove the first 0 if present
 
   const [leadFormData, setLeadFormData] = useState({
     name: "",
@@ -64,7 +63,7 @@ Time: ${new Date().toLocaleString()}
 💬 Reply to this message to connect!`;
 
       // Use your business WhatsApp number (without + or spaces)
-      const BUSINESS_NUMBER = "916206002096"; // Your number from logs
+      const BUSINESS_NUMBER = "919878165432"; // Your number from logs
       const encodedMessage = encodeURIComponent(completeMessage);
       const whatsappUrl = `https://wa.me/${BUSINESS_NUMBER}?text=${encodedMessage}`;
       
@@ -84,7 +83,7 @@ Email: ${leadData.email}
 Phone: +91${cleanPhone}
 Message: ${leadData.message}`;
     
-    const BUSINESS_NUMBER = "916206002096";
+    const BUSINESS_NUMBER = "919878165432";
     const whatsappUrl = `https://wa.me/${BUSINESS_NUMBER}?text=${encodeURIComponent(completeMessage)}`;
     window.open(whatsappUrl, "_blank");
     
