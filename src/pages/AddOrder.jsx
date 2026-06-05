@@ -429,12 +429,29 @@ const handleSubmit = async (e) => {
   e.preventDefault();
   setIsSubmitting(true);
 
-  // Validate at least one product
-  if (productList.length === 0 || productList.some((prod) => !(prod.product || prod.customProduct) || !prod.quantity || !prod.price)) {
-    toast.error("Please fill at least one complete product entry.");
+// Validate at least one product
+if (productList.length === 0 || productList.some((prod) => !(prod.product || prod.customProduct) || !prod.quantity || !prod.price)) {
+  toast.error("Please fill at least one complete product entry.");
+  setIsSubmitting(false);
+  return;
+}
+
+// Validate quantity is a valid positive number (with up to 2 decimals)
+for (const prod of productList) {
+  const qty = parseFloat(prod.quantity);
+  if (isNaN(qty) || qty < 0) {
+    toast.error(`Invalid quantity for product "${prod.product || prod.customProduct}". Please enter a valid positive number.`);
     setIsSubmitting(false);
     return;
   }
+  // Optional: Check if it has more than 2 decimal places
+  const decimalMatch = prod.quantity.toString().match(/\.(\d+)$/);
+  if (decimalMatch && decimalMatch[1].length > 2) {
+    toast.error(`Quantity for "${prod.product || prod.customProduct}" can have at most 2 decimal places.`);
+    setIsSubmitting(false);
+    return;
+  }
+}
 
   try {
     const formData = new FormData();
@@ -863,6 +880,7 @@ if (loadingProducts || loadingCustomers) {
       <option value="Self Dispatch">Self Pickup</option>
       <option value="Freight Paid">Freight Paid</option>
       <option value="Billed in Invoice">Billed in Invoice</option>
+          <option value="As per Transport">As per Transport</option>
     </select>
   </div>
 
@@ -959,19 +977,26 @@ if (loadingProducts || loadingCustomers) {
       />
     </div>
 
-    {/* Quantity */}
-    <div className="flex flex-col">
-      <label className="mb-1 font-medium text-gray-700">Quantity</label>
-      <input
-        type="number"
-        value={prod.quantity}
-        placeholder="Qty"
-        onChange={(e) => handleProductChange(index, "quantity", e.target.value)}
-        className="border border-gray-400 p-2 rounded"
-        required
-        min={1}
-      />
-    </div>
+   {/* Quantity */}
+<div className="flex flex-col">
+  <label className="mb-1 font-medium text-gray-700">Quantity</label>
+  <input
+    type="text"
+    inputMode="decimal"
+    pattern="^\d+(?:\.\d{1,2})?$"
+    value={prod.quantity}
+    placeholder="Qty (e.g., 10.50)"
+    onChange={(e) => {
+      const value = e.target.value;
+      // Allow empty, numbers, and numbers with up to 2 decimal places
+      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+        handleProductChange(index, "quantity", value);
+      }
+    }}
+    className="border border-gray-400 p-2 rounded"
+    required
+  />
+</div>
 
     {/* Price */}
     <div className="flex flex-col">
