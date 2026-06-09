@@ -1012,6 +1012,167 @@ const renderProductCell = (order) => {
       </div>
     );
   }
+  // Helper function to render delivery time
+const renderDeliveryTime = (order) => {
+  if (!order.date) return "N/A";
+  
+  const today = new Date();
+  const deliveryDate = new Date(order.date);
+  today.setHours(0, 0, 0, 0);
+  deliveryDate.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
+  
+  const deliveryOption = order.deliveryOption;
+  
+  if (deliveryOption === "1week") {
+    return (
+      <div>
+        <span className="font-medium text-blue-600">Within 1 Week</span>
+        <br />
+        <span className="text-xs text-gray-500">
+          By: {deliveryDate.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    );
+  }
+  
+  if (deliveryOption === "2weeks") {
+    return (
+      <div>
+        <span className="font-medium text-blue-600">Within 2 Weeks</span>
+        <br />
+        <span className="text-xs text-gray-500">
+          By: {deliveryDate.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    );
+  }
+  
+  if (deliveryOption === "particular") {
+    return (
+      <div>
+        <span className="font-medium text-green-600">Particular Date</span>
+        <br />
+        <span className="text-xs text-gray-700 font-medium">
+          {deliveryDate.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    );
+  }
+  
+  if (diffDays <= 7) return "Within 1 Week";
+  if (diffDays <= 14) return "Within 2 Weeks";
+  if (diffDays <= 20) return "Within 20 Days";
+  
+  return deliveryDate.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+// Helper function to render narration images
+const renderNarrationImages = (order) => {
+  const hasOrderImages = order.narrationImages && order.narrationImages.length > 0;
+  const hasProductImages = order.products && order.products.some(p => p.narrationImages && p.narrationImages.length > 0);
+  
+  if (!hasOrderImages && !hasProductImages) {
+    return <span className="text-gray-400 text-xs">No images</span>;
+  }
+  
+  // Collect all images from order level and product level
+  const allImages = [];
+  
+  // Add order level narration images
+  if (order.narrationImages && order.narrationImages.length > 0) {
+    order.narrationImages.forEach(img => {
+      allImages.push({ url: img, type: 'order', label: 'Order Narration' });
+    });
+  }
+  
+  // Add product level narration images
+  if (order.products && order.products.length > 0) {
+    order.products.forEach(product => {
+      if (product.narrationImages && product.narrationImages.length > 0) {
+        product.narrationImages.forEach(img => {
+          allImages.push({ 
+            url: img, 
+            type: 'product', 
+            label: product.productName 
+          });
+        });
+      }
+    });
+  }
+  
+  // Show first 3 images with preview on click
+  const displayImages = allImages.slice(0, 3);
+  const remainingCount = allImages.length - 3;
+  
+  return (
+    <div className="flex flex-wrap gap-2">
+      {displayImages.map((img, idx) => (
+        <img
+          key={idx}
+          src={img.url}
+          alt={`Narration ${idx + 1}`}
+          className="w-12 h-12 object-cover rounded cursor-pointer border border-gray-300 hover:border-blue-500 transition-all"
+          onClick={() => {
+            Swal.fire({
+              title: img.type === 'order' ? 'Order Narration Image' : `Product: ${img.label}`,
+              html: `<img src="${img.url}" class="max-w-full max-h-96 mx-auto rounded-lg shadow-lg" style="max-height: 70vh; object-fit: contain;" />`,
+              showCloseButton: true,
+              showConfirmButton: false,
+              width: 'auto',
+              padding: '20px',
+              background: '#f8fafc'
+            });
+          }}
+        />
+      ))}
+      {remainingCount > 0 && (
+        <div 
+          className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center cursor-pointer hover:bg-gray-200 border border-gray-300"
+          onClick={() => {
+            // Show all images in a grid
+            Swal.fire({
+              title: `Narration Images (${allImages.length})`,
+              html: `
+                <div class="grid grid-cols-3 gap-4 max-h-96 overflow-y-auto p-4">
+                  ${allImages.map(img => `
+                    <div class="text-center">
+                      <img src="${img.url}" class="w-full h-32 object-cover rounded cursor-pointer" onclick="window.open('${img.url}', '_blank')" />
+                      <p class="text-xs mt-1 truncate max-w-[100px]">${img.type === 'order' ? 'Order' : img.label}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              `,
+              showCloseButton: true,
+              showConfirmButton: false,
+              width: '700px',
+              background: '#f8fafc'
+            });
+          }}
+          title={`${remainingCount} more images`}
+        >
+          <span className="text-xs font-medium">+{remainingCount}</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
   return (
     <>
@@ -1122,7 +1283,9 @@ const renderProductCell = (order) => {
                       <th className="px-4 py-3">PO</th>
                       <th className="px-4 py-3">Product(s)</th>
                       <th className="px-4 py-3">Total Quantity</th>
+                              <th className="px-4 py-3">Delivery Time(Material required by Customer on Date?)</th>  {/* NEW COLUMN */}
                       <th className="px-4 py-3">Remarks</th>
+                          <th className="px-6 py-4 text-left font-medium">Narration Images</th>  {/* NEW COLUMN */}
                       <th className="px-4 py-3">Slip</th>
                       <th className="px-4 py-3">Dana/Beads Status</th>
                       <th className="px-4 py-3">Update Status</th>
@@ -1199,7 +1362,12 @@ const renderProductCell = (order) => {
         ) : (
           order.quantity
         )}
+
       </td>
+        {/* ✅ Delivery Time - NEW COLUMN */}
+        <td className="px-4 py-2">
+          {renderDeliveryTime(order)}
+        </td>
       
       {/* Remarks Column */}
       <td className="px-4 py-3">
@@ -1217,6 +1385,11 @@ const renderProductCell = (order) => {
         ) : (
           order.danaBeadsSlip?.form?.remarks || order.remarks || "-"
         )}
+      </td>
+
+       {/* ✅ Narration Images - NEW COLUMN */}
+      <td className="px-6 py-4">
+        {renderNarrationImages(order)}
       </td>
       
       {/* Slip Column */}

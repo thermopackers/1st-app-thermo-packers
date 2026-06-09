@@ -241,7 +241,7 @@ useEffect(() => {
               </p>
             </div>
 
-           <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3">
   {/* Export Button */}
   <motion.button
     onClick={exportToCSV}
@@ -251,6 +251,7 @@ useEffect(() => {
   >
     <Download className="w-4 h-4" />
     <span className="hidden sm:inline">Export CSV</span>
+    <span className="text-xs ml-1 bg-white/20 px-1.5 py-0.5 rounded-md">Export to Excel</span>
   </motion.button>
 
   {/* Monthly Reports Button - Show to ALL users */}
@@ -262,20 +263,23 @@ useEffect(() => {
     >
       <FileText className="w-4 h-4" />
       <span className="hidden sm:inline">Monthly Reports</span>
+      <span className="text-xs ml-1 bg-white/20 px-1.5 py-0.5 rounded-md">Staff Monthly Reports</span>
     </motion.div>
   </NavLink>
+
   {isPrivileged && (
-  <NavLink to="/factory-attendance-logs">
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
-    >
-      <Users className="w-4 h-4" />
-      <span className="hidden sm:inline">Drivers & Workers Attendance</span>
-    </motion.div>
-  </NavLink>
-)}
+    <NavLink to="/factory-attendance-logs">
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 shadow-lg"
+      >
+        <Users className="w-4 h-4" />
+        <span className="hidden sm:inline">Drivers & Workers Attendance</span>
+        <span className="text-xs ml-1 bg-white/20 px-1.5 py-0.5 rounded-md">Drivers/Workers Attendance</span>
+      </motion.div>
+    </NavLink>
+  )}
 </div>
           </motion.div>
 

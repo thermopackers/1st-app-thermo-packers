@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useToDo } from "../context/ToDoContext";
 import axiosInstance from "../axiosInstance";
-import Swal from "sweetalert2"; // Make sure you have installed sweetalert2 via npm/yarn
+import Swal from "sweetalert2";
 import InternalNavbar from "../components/InternalNavbar";
 import AssignTaskForm from "../components/AssignTaskForm";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
 
 const AdminDashboard = () => {
-  const { user } = useUserContext(); // Get logged-in user info
+  const { user } = useUserContext();
 
   const {
     tasks,
@@ -24,31 +24,33 @@ const AdminDashboard = () => {
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  
+  // State for multi-select functionality
+  const [selectedTasks, setSelectedTasks] = useState([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Get filters from URL or default
   const filterStatus = searchParams.get("status") || "";
   const selectedUser = searchParams.get("assignedTo") || "";
   const page = parseInt(searchParams.get("page") || "1", 10);
   const repeatFilter = searchParams.get("repeat") || "";
 
-  // Fetch users once on mount
   useEffect(() => {
     axiosInstance
       .get("/users/get-all-users")
       .then((res) => setUsers(res.data))
       .catch((err) => console.error("Error fetching users:", err));
   }, []);
-useEffect(() => {
-  axiosInstance
-    .get("/todos/assigned-users")
-    .then((res) => setAssignedUsers(res.data))
-    .catch((err) => console.error("Error fetching assigned users:", err));
-}, []);
 
-  // Fetch tasks whenever filters or page changes
+  useEffect(() => {
+    axiosInstance
+      .get("/todos/assigned-users")
+      .then((res) => setAssignedUsers(res.data))
+      .catch((err) => console.error("Error fetching assigned users:", err));
+  }, []);
+
   useEffect(() => {
     const params = {
       page,
@@ -56,28 +58,27 @@ useEffect(() => {
       status: filterStatus || undefined,
       assignedTo: selectedUser || undefined,
       repeat: repeatFilter || undefined,
-        assignedBy: user?._id, // 👈 Add this line to fetch only tasks assigned by current user
+      assignedBy: user?._id,
     };
 
     fetchAllTasks(params);
     setCurrentPage(page);
   }, [filterStatus, selectedUser, page, repeatFilter]);
 
- const updateFilters = (newFilters) => {
-  const updated = {
-    status: newFilters.status ?? filterStatus,
-    assignedTo: newFilters.assignedTo ?? selectedUser,
-    repeat: newFilters.repeat ?? repeatFilter,
-    page: newFilters.page ?? 1,
+  const updateFilters = (newFilters) => {
+    const updated = {
+      status: newFilters.status ?? filterStatus,
+      assignedTo: newFilters.assignedTo ?? selectedUser,
+      repeat: newFilters.repeat ?? repeatFilter,
+      page: newFilters.page ?? 1,
+    };
+
+    Object.keys(updated).forEach((key) => {
+      if (!updated[key] && updated[key] !== 0) delete updated[key];
+    });
+
+    setSearchParams(updated);
   };
-
-  // Remove empty keys to keep URL clean
-  Object.keys(updated).forEach((key) => {
-    if (!updated[key] && updated[key] !== 0) delete updated[key];
-  });
-
-  setSearchParams(updated);
-};
 
   const clearFilters = () => {
     setSearchParams({});
@@ -92,18 +93,226 @@ useEffect(() => {
       try {
         await axiosInstance.delete(`/todos/${taskId}`);
         toast.success("Task deleted successfully!");
-            fetchAllTasks({
-        page: currentPage,
-        limit: 9,
-        status: filterStatus || undefined,
-        assignedTo: selectedUser || undefined,
-        repeat: repeatFilter || undefined, // 👈 ADD THIS
-      });
+        fetchAllTasks({
+          page: currentPage,
+          limit: 9,
+          status: filterStatus || undefined,
+          assignedTo: selectedUser || undefined,
+          repeat: repeatFilter || undefined,
+        });
       } catch (error) {
         console.error("Delete error:", error);
         toast.error("Failed to delete task");
       }
     }
+  };
+
+  // Handle task selection
+  const handleSelectTask = (taskId) => {
+    setSelectedTasks(prev => {
+      if (prev.includes(taskId)) {
+        return prev.filter(id => id !== taskId);
+      } else {
+        return [...prev, taskId];
+      }
+    });
+  };
+
+  // Handle select all tasks on current page
+  const handleSelectAll = () => {
+    if (selectedTasks.length === tasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(tasks.map(task => task._id));
+    }
+  };
+
+  // NEW: Handle delete all tasks from the ENTIRE DATABASE (not just current page)
+  const handleDeleteAllTasks = async () => {
+    // First, get total count of all tasks
+    let totalTaskCount = 0;
+    try {
+      const countRes = await axiosInstance.get("/todos/all", {
+        params: {
+          page: 1,
+          limit: 1,
+          status: filterStatus || undefined,
+          assignedTo: selectedUser || undefined,
+          repeat: repeatFilter || undefined,
+        }
+      });
+      totalTaskCount = countRes.data.totalCount || 0;
+    } catch (err) {
+      console.error("Error getting task count:", err);
+    }
+
+    if (totalTaskCount === 0) {
+      toast.error("No tasks to delete");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: '⚠️ Delete ALL Tasks',
+      html: `Are you ABSOLUTELY sure you want to delete <strong>ALL ${totalTaskCount} task(s)</strong> from the database?<br/><br/>This action <strong>cannot be undone</strong> and will permanently remove:<br/>• All tasks<br/>• All associated images<br/>• All audio files<br/>• All PDF attachments`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete EVERYTHING!',
+      cancelButtonText: 'No, cancel!',
+      dangerMode: true,
+    });
+
+    if (result.isConfirmed) {
+      // Second confirmation for safety
+      const doubleConfirm = await Swal.fire({
+        title: 'Final Confirmation',
+        text: `Type "DELETE ALL" to confirm you want to delete all ${totalTaskCount} tasks`,
+        input: 'text',
+        inputPlaceholder: 'Type DELETE ALL here',
+        showCancelButton: true,
+        confirmButtonText: 'Confirm Delete',
+        cancelButtonText: 'Cancel',
+        preConfirm: (inputValue) => {
+          if (inputValue !== 'DELETE ALL') {
+            Swal.showValidationMessage('Please type "DELETE ALL" to confirm');
+            return false;
+          }
+          return true;
+        }
+      });
+
+      if (doubleConfirm.isConfirmed) {
+        let successCount = 0;
+        let failCount = 0;
+        
+        // Show loading toast
+        toast.loading(`Deleting ${totalTaskCount} tasks...`, { duration: 2000 });
+        
+        // Fetch all task IDs (paginate through all pages)
+        let allTaskIds = [];
+        let currentPageNum = 1;
+        const limitPerPage = 50;
+        let hasMore = true;
+        
+        while (hasMore) {
+          try {
+            const res = await axiosInstance.get("/todos/all", {
+              params: {
+                page: currentPageNum,
+                limit: limitPerPage,
+                status: filterStatus || undefined,
+                assignedTo: selectedUser || undefined,
+                repeat: repeatFilter || undefined,
+              }
+            });
+            
+            const tasksOnPage = res.data.tasks || [];
+            const taskIds = tasksOnPage.map(task => task._id);
+            allTaskIds.push(...taskIds);
+            
+            if (tasksOnPage.length < limitPerPage) {
+              hasMore = false;
+            } else {
+              currentPageNum++;
+            }
+          } catch (err) {
+            console.error("Error fetching tasks for deletion:", err);
+            hasMore = false;
+          }
+        }
+        
+        // Delete all tasks one by one
+        for (const taskId of allTaskIds) {
+          try {
+            await axiosInstance.delete(`/todos/${taskId}`);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to delete task ${taskId}:`, error);
+            failCount++;
+          }
+        }
+        
+        toast.dismiss();
+        
+        if (successCount > 0) {
+          toast.success(`Successfully deleted ${successCount} task(s)`);
+        }
+        if (failCount > 0) {
+          toast.error(`Failed to delete ${failCount} task(s)`);
+        }
+        
+        // Clear selection and refresh
+        setSelectedTasks([]);
+        setIsSelectMode(false);
+        fetchAllTasks({
+          page: 1,
+          limit: 9,
+          status: filterStatus || undefined,
+          assignedTo: selectedUser || undefined,
+          repeat: repeatFilter || undefined,
+        });
+        setCurrentPage(1);
+      }
+    }
+  };
+
+  // Handle delete multiple selected tasks
+  const handleDeleteMultiple = async () => {
+    if (selectedTasks.length === 0) {
+      toast.error("No tasks selected");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Delete Multiple Tasks',
+      text: `Are you sure you want to delete ${selectedTasks.length} task(s)? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete them!',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const taskId of selectedTasks) {
+        try {
+          await axiosInstance.delete(`/todos/${taskId}`);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to delete task ${taskId}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully deleted ${successCount} task(s)`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} task(s)`);
+      }
+
+      // Clear selection and refresh
+      setSelectedTasks([]);
+      setIsSelectMode(false);
+      fetchAllTasks({
+        page: currentPage,
+        limit: 9,
+        status: filterStatus || undefined,
+        assignedTo: selectedUser || undefined,
+        repeat: repeatFilter || undefined,
+      });
+    }
+  };
+
+  // Cancel selection mode
+  const cancelSelection = () => {
+    setSelectedTasks([]);
+    setIsSelectMode(false);
   };
 
   return (
@@ -120,22 +329,22 @@ useEffect(() => {
           Admin / Accounts ToDo Dashboard
         </h1>
 
-        {/* Filters and Assign Task Button */}
+        {/* Filters and Action Buttons */}
         <div className="flex flex-wrap items-center gap-4">
           {!searchParams.get("isOrderFollowUp") && (
-           <select
-  className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-  onChange={(e) =>
-    updateFilters({ repeat: e.target.value, page: 1 })
-  }
-  value={repeatFilter}
->
-  <option value="">All Type of Tasks</option>
-  <option value="ONE_TIME">One time</option>
-  <option value="DAILY">Repeat every day</option>
-  <option value="MONTHLY">Repeat every month</option>
-  <option value="YEARLY">Repeat every year</option>
-</select>
+            <select
+              className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              onChange={(e) =>
+                updateFilters({ repeat: e.target.value, page: 1 })
+              }
+              value={repeatFilter}
+            >
+              <option value="">All Type of Tasks</option>
+              <option value="ONE_TIME">One time</option>
+              <option value="DAILY">Repeat every day</option>
+              <option value="MONTHLY">Repeat every month</option>
+              <option value="YEARLY">Repeat every year</option>
+            </select>
           )}
 
           <select
@@ -147,18 +356,19 @@ useEffect(() => {
             <option value="NOT DONE">Pending</option>
             <option value="DONE">Done</option>
           </select>
-<select
-  className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-  value={selectedUser}
-  onChange={(e) => updateFilters({ assignedTo: e.target.value, page: 1 })}
->
-  <option value="">All Employees</option>
-  {assignedUsers.map((users) => (
-    <option key={users._id} value={users._id}>
-      {users.name} ({users.role})
-    </option>
-  ))}
-</select>
+
+          <select
+            className="border cursor-pointer border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            value={selectedUser}
+            onChange={(e) => updateFilters({ assignedTo: e.target.value, page: 1 })}
+          >
+            <option value="">All Employees</option>
+            {assignedUsers.map((users) => (
+              <option key={users._id} value={users._id}>
+                {users.name} ({users.role})
+              </option>
+            ))}
+          </select>
 
           <button
             onClick={clearFilters}
@@ -168,10 +378,46 @@ useEffect(() => {
             🗙 Clear Filters
           </button>
 
+          {/* NEW: Delete All Tasks Button - Always visible but with confirmation */}
+          <button
+            onClick={handleDeleteAllTasks}
+            className="bg-red-700 cursor-pointer font-bold hover:bg-red-800 text-white px-4 py-2 rounded-md shadow transition flex items-center gap-2"
+            title="Delete ALL tasks from database"
+          >
+            ⚠️ Delete All Tasks
+          </button>
+
+          {/* Select Mode Toggle Button */}
+          {!isSelectMode ? (
+            <button
+              onClick={() => setIsSelectMode(true)}
+              className="bg-blue-500 cursor-pointer font-bold hover:bg-blue-600 text-white px-4 py-2 rounded-md shadow transition flex items-center gap-2"
+            >
+              ☐ Select Tasks
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeleteMultiple}
+                className="bg-red-500 cursor-pointer font-bold hover:bg-red-600 text-white px-4 py-2 rounded-md shadow transition flex items-center gap-2"
+              >
+                🗑️ Delete Selected ({selectedTasks.length})
+              </button>
+              <button
+                onClick={cancelSelection}
+                className="bg-gray-500 cursor-pointer font-bold hover:bg-gray-600 text-white px-4 py-2 rounded-md shadow transition flex items-center gap-2"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => {
               setShowAssignForm(!showAssignForm);
               setEditingTask(null);
+              setIsSelectMode(false);
+              setSelectedTasks([]);
             }}
             className="ml-auto cursor-pointer font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-md shadow transition flex items-center"
           >
@@ -179,31 +425,50 @@ useEffect(() => {
           </button>
         </div>
 
-        {/* Assign Task Form */}
-       <div
-  className={`transition-all duration-500 ease-in-out max-w-3xl mx-auto rounded-lg shadow-lg
-  bg-gradient-to-r from-indigo-50 via-white to-indigo-50 border border-indigo-300
-  ${
-    showAssignForm
-      ? "opacity-100 p-8 mt-8"
-      : "opacity-0 p-0 mt-0 hidden"
-  }
-  `}
->
+        {/* Select All Row (visible only in select mode) */}
+        {isSelectMode && tasks.length > 0 && (
+          <div className="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedTasks.length === tasks.length && tasks.length > 0}
+                onChange={handleSelectAll}
+                className="w-5 h-5 cursor-pointer"
+              />
+              <span className="font-medium text-gray-700">
+                Select All ({tasks.length} tasks on this page)
+              </span>
+            </label>
+            <span className="text-sm text-gray-500">
+              {selectedTasks.length} task(s) selected
+            </span>
+          </div>
+        )}
 
+        {/* Assign Task Form */}
+        <div
+          className={`transition-all duration-500 ease-in-out max-w-3xl mx-auto rounded-lg shadow-lg
+          bg-gradient-to-r from-indigo-50 via-white to-indigo-50 border border-indigo-300
+          ${
+            showAssignForm
+              ? "opacity-100 p-8 mt-8"
+              : "opacity-0 p-0 mt-0 hidden"
+          }
+          `}
+        >
           <h3 className="text-2xl font-semibold text-indigo-700 mb-6 border-b border-indigo-200 pb-3 select-none">
             {editingTask ? "Updating Existing Task" : "Assign New Task"}
           </h3>
           <AssignTaskForm
             users={users}
             task={editingTask}
-                       onTaskCreated={() => {
+            onTaskCreated={() => {
               fetchAllTasks({
                 page: currentPage,
                 limit: 9,
                 status: filterStatus || undefined,
                 assignedTo: selectedUser || undefined,
-                repeat: repeatFilter || undefined, // 👈 ADD THIS
+                repeat: repeatFilter || undefined,
               });
               setShowAssignForm(false);
               setEditingTask(null);
@@ -224,17 +489,28 @@ useEffect(() => {
           ) : (
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {tasks.map((task) => {
-                
-
                 return (
                   <div
                     key={task._id}
-                    className={`bg-white p-5 shadow rounded-lg border-l-4 ${
+                    className={`bg-white p-5 shadow rounded-lg border-l-4 relative ${
                       task.isOrderFollowUp
                         ? "border-orange-500"
                         : "border-indigo-500"
-                    } hover:shadow-lg transition relative`}
+                    } hover:shadow-lg transition`}
                   >
+                    {/* Selection Checkbox (visible only in select mode) */}
+                    {isSelectMode && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.includes(task._id)}
+                          onChange={() => handleSelectTask(task._id)}
+                          className="w-5 h-5 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    )}
+
                     {task.isOrderFollowUp && (
                       <span className="text-orange-600 font-semibold p-1 bg-orange-200 text-sm ml-1">
                         Follow-up Task
@@ -246,7 +522,7 @@ useEffect(() => {
                         task.isOrderFollowUp
                           ? "text-orange-700"
                           : "text-indigo-800"
-                      }`}
+                      } ${isSelectMode ? "ml-6" : ""}`}
                     >
                       {task.title}
                     </h2>
@@ -254,75 +530,75 @@ useEffect(() => {
                     <p className="text-gray-700 mb-3 break-words whitespace-pre-wrap">
                       {task.description}
                     </p>
+                    
                     {task.products && task.products.length > 0 && (
-  <div className="mt-2">
-    <p className="text-sm font-semibold text-gray-700">Product to Sell:</p>
-    <ul className="list-disc list-inside text-sm text-gray-600">
-      {task.products.map((prod) => (
-        <li key={prod._id}>
-          {prod.name} {prod.unit ? `(${prod.unit})` : ""}
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
+                      <div className="mt-2">
+                        <p className="text-sm font-semibold text-gray-700">Product to Sell:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600">
+                          {task.products.map((prod) => (
+                            <li key={prod._id}>
+                              {prod.name} {prod.unit ? `(${prod.unit})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     {task.images && task.images.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {task.images.map((url, idx) => {
-  const isPDF = url.toLowerCase().endsWith(".pdf");
-  const isAudio = url.includes("audio") || url.includes(".webm");
+                          const isPDF = url.toLowerCase().endsWith(".pdf");
+                          const isAudio = url.includes("audio") || url.includes(".webm");
 
-  if (isAudio) {
-    return (
-      <div key={idx} className="w-full mt-2">
-        <p className="text-sm text-gray-600 mb-1">🎧 Voice Note:</p>
-        <audio controls className="w-full">
-          <source src={url} type="audio/webm" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-    );
-  }
+                          if (isAudio) {
+                            return (
+                              <div key={idx} className="w-full mt-2">
+                                <p className="text-sm text-gray-600 mb-1">🎧 Voice Note:</p>
+                                <audio controls className="w-full">
+                                  <source src={url} type="audio/webm" />
+                                  Your browser does not support the audio element.
+                                </audio>
+                              </div>
+                            );
+                          }
 
-  if (isPDF) {
-    return (
-      <a
-        key={idx}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden"
-      >
-        <img
-          src="./images/pdf.png"
-          alt="PDF"
-          className="w-12 h-12 object-contain"
-        />
-      </a>
-    );
-  }
+                          if (isPDF) {
+                            return (
+                              <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden"
+                              >
+                                <img
+                                  src="./images/pdf.png"
+                                  alt="PDF"
+                                  className="w-12 h-12 object-contain"
+                                />
+                              </a>
+                            );
+                          }
 
-  return (
-    <img
-      key={idx}
-      src={url}
-      alt={`Assigned File ${idx + 1}`}
-      className="w-24 h-24 object-cover rounded cursor-pointer"
-      onClick={() =>
-        Swal.fire({
-          imageUrl: url,
-          imageAlt: `Assigned Image ${idx + 1}`,
-          showConfirmButton: false,
-          showCloseButton: true,
-          width: "auto",
-          padding: "1em",
-        })
-      }
-    />
-  );
-})}
-
+                          return (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt={`Assigned File ${idx + 1}`}
+                              className="w-24 h-24 object-cover rounded cursor-pointer"
+                              onClick={() =>
+                                Swal.fire({
+                                  imageUrl: url,
+                                  imageAlt: `Assigned Image ${idx + 1}`,
+                                  showConfirmButton: false,
+                                  showCloseButton: true,
+                                  width: "auto",
+                                  padding: "1em",
+                                })
+                              }
+                            />
+                          );
+                        })}
                       </div>
                     )}
 
@@ -342,7 +618,7 @@ useEffect(() => {
                         : "N/A"}
                     </p>
 
-                                       {!task.isOrderFollowUp && task.repeat && (
+                    {!task.isOrderFollowUp && task.repeat && (
                       <p className="text-sm text-gray-500 mt-1">
                         Repeat: {
                           task.repeat === "ONE_TIME" ? "One time" :
@@ -380,58 +656,57 @@ useEffect(() => {
                       task.doneFiles.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {task.doneFiles.map((url, idx) => {
-  const isPdf = url.toLowerCase().endsWith(".pdf");
-  const isAudio = url.includes("audio") || url.endsWith(".webm");
+                            const isPdf = url.toLowerCase().endsWith(".pdf");
+                            const isAudio = url.includes("audio") || url.endsWith(".webm");
 
-  if (isAudio) {
-    return (
-      <div key={idx} className="w-full mt-2">
-        <p className="text-sm text-gray-600 mb-1">🎤 Uploaded Voice Note:</p>
-        <audio controls className="w-full">
-          <source src={url} type="audio/webm" />
-          Your browser does not support the audio element.
-        </audio>
-      </div>
-    );
-  }
+                            if (isAudio) {
+                              return (
+                                <div key={idx} className="w-full mt-2">
+                                  <p className="text-sm text-gray-600 mb-1">🎤 Uploaded Voice Note:</p>
+                                  <audio controls className="w-full">
+                                    <source src={url} type="audio/webm" />
+                                    Your browser does not support the audio element.
+                                  </audio>
+                                </div>
+                              );
+                            }
 
-  if (isPdf) {
-    return (
-      <div
-        key={idx}
-        className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
-        onClick={() => window.open(url, "_blank")}
-      >
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
-          alt={`PDF File ${idx + 1}`}
-          className="w-10 h-10"
-        />
-        <span className="text-xs text-center mt-1">PDF {idx + 1}</span>
-      </div>
-    );
-  }
+                            if (isPdf) {
+                              return (
+                                <div
+                                  key={idx}
+                                  className="w-20 h-20 flex flex-col items-center justify-center bg-gray-100 rounded shadow cursor-pointer"
+                                  onClick={() => window.open(url, "_blank")}
+                                >
+                                  <img
+                                    src="https://cdn-icons-png.flaticon.com/512/337/337946.png"
+                                    alt={`PDF File ${idx + 1}`}
+                                    className="w-10 h-10"
+                                  />
+                                  <span className="text-xs text-center mt-1">PDF {idx + 1}</span>
+                                </div>
+                              );
+                            }
 
-  return (
-    <img
-      key={idx}
-      src={url}
-      alt={`Done Image ${idx + 1}`}
-      className="w-20 h-20 object-cover rounded shadow cursor-pointer"
-      onClick={() => {
-        Swal.fire({
-          imageUrl: url,
-          imageAlt: "Done Image",
-          showConfirmButton: false,
-          showCloseButton: true,
-          width: "50vw",
-          padding: "1em",
-        });
-      }}
-    />
-  );
-})
-}
+                            return (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`Done Image ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded shadow cursor-pointer"
+                                onClick={() => {
+                                  Swal.fire({
+                                    imageUrl: url,
+                                    imageAlt: "Done Image",
+                                    showConfirmButton: false,
+                                    showCloseButton: true,
+                                    width: "50vw",
+                                    padding: "1em",
+                                  });
+                                }}
+                              />
+                            );
+                          })}
                         </div>
                       )}
 
@@ -442,12 +717,12 @@ useEffect(() => {
                           Done on: {new Date(task.doneOn).toLocaleDateString()}
                         </p>
                       )}
-                      {task.isOrderFollowUp && task.status === "DONE" && (
-  <p className="text-sm text-green-700 mt-1 italic">
-    ✅ This order follow-up was completed based on the last response.
-  </p>
-)}
-
+                    
+                    {task.isOrderFollowUp && task.status === "DONE" && (
+                      <p className="text-sm text-green-700 mt-1 italic">
+                        ✅ This order follow-up was completed based on the last response.
+                      </p>
+                    )}
 
                     {task.followUps && task.followUps.length > 0 && (
                       <div className="mt-4 text-sm text-gray-700 bg-gray-100 p-3 rounded">
@@ -472,89 +747,88 @@ useEffect(() => {
                         ))}
                       </div>
                     )}
-{/* Day-wise follow-up attendance */}
-{task.isOrderFollowUp && task.status !== "DONE" && (
-  <div className="mt-4 text-sm text-gray-700 bg-orange-50 p-3 rounded border border-orange-200">
-    <h4 className="font-semibold text-orange-600 mb-3">📅 Follow-Up Attendance</h4>
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse text-xs md:text-sm">
-        <thead>
-          <tr className="bg-orange-100">
-            <th className="p-2 border">Day</th>
-            <th className="p-2 border">Date</th>
-            <th className="p-2 border text-center">✔ / ❌</th>
-            <th className="p-2 border">Response</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(() => {
-            const assignedDate = new Date(task.assignedOn);
-            const today = new Date();
-            const followUps = task.followUps || [];
-            const rows = [];
 
-           const startDate = new Date(assignedDate);
-startDate.setHours(0, 0, 0, 0);
+                    {task.isOrderFollowUp && task.status !== "DONE" && (
+                      <div className="mt-4 text-sm text-gray-700 bg-orange-50 p-3 rounded border border-orange-200">
+                        <h4 className="font-semibold text-orange-600 mb-3">📅 Follow-Up Attendance</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs md:text-sm">
+                            <thead>
+                              <tr className="bg-orange-100">
+                                <th className="p-2 border">Day</th>
+                                <th className="p-2 border">Date</th>
+                                <th className="p-2 border text-center">✔ / ❌</th>
+                                <th className="p-2 border">Response</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(() => {
+                                const assignedDate = new Date(task.assignedOn);
+                                const today = new Date();
+                                const followUps = task.followUps || [];
+                                const rows = [];
 
-const endDate = new Date();
-endDate.setHours(0, 0, 0, 0);
+                                const startDate = new Date(assignedDate);
+                                startDate.setHours(0, 0, 0, 0);
 
-let i = 1;
-for (
-  let d = new Date(startDate);
-  d <= endDate;
-  d.setDate(d.getDate() + 1), i++
-) {
-  const match = followUps.find(
-    (f) =>
-      new Date(f.date).toLocaleDateString() === d.toLocaleDateString()
-  );
+                                const endDate = new Date();
+                                endDate.setHours(0, 0, 0, 0);
 
-  rows.push(
-    <tr key={d.toDateString()} className="text-xs md:text-sm">
-      <td className="p-2 border">Day {i}</td>
-      <td className="p-2 border">{d.toLocaleDateString()}</td>
-      <td className="p-2 border text-center">{match ? "✔️" : "❌"}</td>
-      <td className="p-2 border">{match ? match.response : "—"}</td>
-    </tr>
-  );
-}
+                                let i = 1;
+                                for (
+                                  let d = new Date(startDate);
+                                  d <= endDate;
+                                  d.setDate(d.getDate() + 1), i++
+                                ) {
+                                  const match = followUps.find(
+                                    (f) =>
+                                      new Date(f.date).toLocaleDateString() === d.toLocaleDateString()
+                                  );
 
+                                  rows.push(
+                                    <tr key={d.toDateString()} className="text-xs md:text-sm">
+                                      <td className="p-2 border">Day {i}</td>
+                                      <td className="p-2 border">{d.toLocaleDateString()}</td>
+                                      <td className="p-2 border text-center">{match ? "✔️" : "❌"}</td>
+                                      <td className="p-2 border">{match ? match.response : "—"}</td>
+                                    </tr>
+                                  );
+                                }
+                                return rows;
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
 
-            return rows;
-          })()}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+                    {/* Hide Edit/Delete buttons when in select mode */}
+                    {!isSelectMode && (
+                      <div className="mt-4 flex gap-3">
+                        <button
+                          onClick={() => {
+                            setEditingTask(task);
+                            setShowAssignForm(true);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
+                          aria-label={`Edit task ${task.title}`}
+                        >
+                          <span>✏️</span> Edit
+                        </button>
 
-
-                    <div className="mt-4 flex gap-3">
-                       <button
-  onClick={() => {
-    setEditingTask(task);
-    setShowAssignForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 scrolls to top
-  }}
-  className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-indigo-500 text-white rounded-md shadow hover:bg-indigo-600 transition"
-  aria-label={`Edit task ${task.title}`}
->
-  <span>✏️</span> Edit
-</button>
-
-                      <button
-                        onClick={() => handleDelete(task._id)}
-                        className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 transition"
-                        aria-label={`Delete task ${task.title}`}
-                      >
-                        <span>🗑️</span> Delete
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => handleDelete(task._id)}
+                          className="w-full flex items-center cursor-pointer justify-center gap-1 px-3 py-2 bg-rose-500 text-white rounded-md shadow hover:bg-rose-600 transition"
+                          aria-label={`Delete task ${task.title}`}
+                        >
+                          <span>🗑️</span> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-              
             </div>
           )}
 

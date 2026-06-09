@@ -38,14 +38,33 @@ const [status, setStatus] = useState("pending");
   ]);
 
   const navigate = useNavigate();
-  const termsAndConditions = [
-    "Material to be delivered on door delivery basis, Freight Paid to factory.",
-    "To avoid damage in transport, material must be packed properly.",
-    "Material to be weighed at delivery.",
-    "Any deviation in sizes, material will be rejected and sent back.",
-    "Material delivery at: THERMO PACKERS, VPO SANGAL SOHAL, KAPURTHALA ROAD, JALANDHAR, 144013, PUNJAB - INDIA",
-    "All Disputes Subject to Jalandhar, Punjab Jurisdiction only.",
-  ];
+const defaultTermsAndConditions = [
+  "Material to be delivered on door delivery basis, Freight Paid to factory.",
+  "To avoid damage in transport, material must be packed properly.",
+  "Material to be weighed at delivery.",
+  "Any deviation in sizes, material will be rejected and sent back.",
+  "Material delivery at: THERMO PACKERS, VPO SANGAL SOHAL, KAPURTHALA ROAD, JALANDHAR, 144013, PUNJAB - INDIA",
+  "All Disputes Subject to Jalandhar, Punjab Jurisdiction only.",
+];
+
+const [termsAndConditions, setTermsAndConditions] = useState(defaultTermsAndConditions);
+const [isEditingTerms, setIsEditingTerms] = useState(false);
+const [newTerm, setNewTerm] = useState("");
+
+// Add this after your useEffect that loads PO data
+useEffect(() => {
+  // Sanitize terms when they come from backend or when they change
+  if (termsAndConditions && termsAndConditions.length > 0) {
+    const sanitized = termsAndConditions.map(term => {
+      if (typeof term === 'string') return term;
+      if (term && typeof term === 'object' && term.text) return term.text;
+      return String(term || '');
+    });
+    if (JSON.stringify(sanitized) !== JSON.stringify(termsAndConditions)) {
+      setTermsAndConditions(sanitized);
+    }
+  }
+}, [termsAndConditions]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +87,11 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
           setPoNumber(po.poNumber);
           setSelectedSupplier(po.supplier);
           setExistingPdfUrl(po.pdfUrl);
+
+            // ✅ Load saved terms and conditions
+  if (po.termsAndConditions && po.termsAndConditions.length > 0) {
+    setTermsAndConditions(po.termsAndConditions);
+  }
           // ✅ NEW: Autofill main fields
           setFreightOption(po.freightOption || "");
           setFreightComment(po.freightComment || "");
@@ -235,14 +259,14 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
             }
 
             // Add the row with one cell that spans all 8 columns
-            bodyRows.push([
-              {
-                colSpan: 9,
-                columns: imageRow,
-                margin: [0, 5, 0, 5],
-              },
-              ...Array(9).fill({}), // 9 placeholders to make total = 10
-            ]);
+    bodyRows.push([
+  {
+    colSpan: 9,
+    columns: imageRow,
+    margin: [0, 5, 0, 5],
+  },
+  ...Array(9).fill(null), // Null won't render anything
+]);
 
             imageRow = []; // Reset
           }
@@ -250,18 +274,18 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
       }
     }
 
-    bodyRows.push([
-      { text: "", colSpan: 7 },
-      {},
-      {},
-      {},
-      {},
-      {},
-      {}, // 7 merged empty cells
-      { text: "Subtotal (With GST)", bold: true, fontSize: 8 },
-      { text: `₹ ${grandTotal.toFixed(2)}`, bold: true, fontSize: 8 },
-      {}, // empty filler if table has 10 columns total
-    ]);
+   bodyRows.push([
+  { text: "", colSpan: 7 },
+  { text: "" },
+  { text: "" },
+  { text: "" },
+  { text: "" },
+  { text: "" },
+  { text: "" },
+  { text: "Subtotal (With GST)", bold: true, fontSize: 8 },
+  { text: `₹ ${grandTotal.toFixed(2)}`, bold: true, fontSize: 8 },
+  { text: "" },
+]);
 
     const docDefinition = {
       content: [
@@ -490,8 +514,8 @@ const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a
                       margin: [0, 0, 0, 10],
                       fontSize: 9,
                     },
-                    { ul: termsAndConditions, fontSize: 7 },
-                   {
+{ ul: [...termsAndConditions], fontSize: 7 }, // Create a copy for PDF                   
+{
   stack: [
     {
       text: "\nFor THERMO PACKERS",
@@ -581,6 +605,17 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
 
         const data = await res.json();
 
+         // ✅ ADD THIS SANITIZATION CODE HERE
+    // Before sending to backend, sanitize terms to ensure they're just strings
+    const cleanTermsForBackend = termsAndConditions.map(term => {
+      if (typeof term === 'string') return term;
+      if (term && typeof term === 'object' && term.text) return term.text;
+      return String(term || '');
+    });
+
+    console.log("Original terms:", termsAndConditions);
+    console.log("Cleaned terms for backend:", cleanTermsForBackend);
+
         if (data.secure_url) {
           if (id) {
             // 🔄 Update existing
@@ -601,6 +636,7 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
               paymentComment,
               requiredDate,
               status,
+  termsAndConditions: cleanTermsForBackend, // ✅ Use cleaned version
     approvedBy: status === "approved" ? user._id : null,
     approvedAt: status === "approved" ? new Date() : null,
        
@@ -625,6 +661,7 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
               paymentComment,
               requiredDate,
               status,
+  termsAndConditions: cleanTermsForBackend, // ✅ Use cleaned version
     approvedBy: status === "approved" ? user._id : null,
     approvedAt: status === "approved" ? new Date() : null,
       createdBy: user._id,  // Add this line
@@ -960,6 +997,76 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
             </div>
           </div>
         ))}
+
+  {/* Terms and Conditions Section */}
+        <div className="mt-6 mb-6 border border-gray-300 rounded p-4 bg-gray-50">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-bold text-gray-800">Terms and Conditions</h3>
+            <button
+              onClick={() => setIsEditingTerms(!isEditingTerms)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              {isEditingTerms ? "Cancel" : "Edit Terms"}
+            </button>
+          </div>
+
+          {isEditingTerms ? (
+            <div>
+              <div className="mb-3">
+                {termsAndConditions.map((term, idx) => (
+                  <div key={idx} className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={term}
+                      onChange={(e) => {
+                        const updated = [...termsAndConditions];
+                        updated[idx] = e.target.value;
+                        setTermsAndConditions(updated);
+                      }}
+                      className="flex-1 border border-gray-300 p-2 rounded text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        const updated = termsAndConditions.filter((_, i) => i !== idx);
+                        setTermsAndConditions(updated);
+                      }}
+                      className="text-red-600 hover:text-red-800 px-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={newTerm}
+                  onChange={(e) => setNewTerm(e.target.value)}
+                  placeholder="Add new term..."
+                  className="flex-1 border border-gray-300 p-2 rounded text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (newTerm.trim()) {
+                      setTermsAndConditions([...termsAndConditions, newTerm.trim()]);
+                      setNewTerm("");
+                    }
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm"
+                >
+                  Add Term
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ul className="list-disc pl-5 text-sm text-gray-700">
+              {termsAndConditions.map((term, idx) => (
+                <li key={idx} className="mb-1">{term}</li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="flex flex-wrap justify-center gap-4 mt-4">
           <button

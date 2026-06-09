@@ -19,12 +19,16 @@ export default function AddProduct() {
     weight: "",
     pcsPerPacket: "",
     polybagSize: "",
+     conversion: "",
+  salesCategory: "",
   });
 
   const [images, setImages] = useState([]);
   const [internalImages, setInternalImages] = useState([]);
   const [additionalImages1, setAdditionalImages1] = useState([]);
   const [additionalImages2, setAdditionalImages2] = useState([]);
+  // Add this new state with the other useState declarations
+const [drawings, setDrawings] = useState([]);
   const navigate = useNavigate();
 
   // Fetch polybag products on component mount
@@ -156,6 +160,8 @@ export default function AddProduct() {
     internalImages.forEach((file) => data.append("internalImages", file));
     additionalImages1.forEach((file) => data.append("additionalImages1", file));
     additionalImages2.forEach((file) => data.append("additionalImages2", file));
+    // Add this line with the other file appends
+drawings.forEach((file) => data.append("drawings", file));
 
     try {
       await axiosInstance.post("/products-multer", data, {
@@ -171,6 +177,38 @@ export default function AddProduct() {
       setIsLoading(false);
     }
   };
+
+  // Handle drawings upload (2D/3D drawings)
+const handleDrawingsChange = async (e) => {
+  const files = Array.from(e.target.files);
+  const processed = [];
+
+  for (const file of files) {
+    // Check for allowed drawing formats
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+    const isStepFile = file.name.toLowerCase().endsWith('.step');
+    
+    if (allowedTypes.includes(file.type) || isStepFile) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        processed.push(renamedFile);
+      } else {
+        // For PDF and STEP files, keep as is
+        processed.push(file);
+      }
+    } else {
+      toast.error(`${file.name} is not a supported drawing format. Please upload PDF, JPEG, or STEP files.`);
+    }
+  }
+
+  setDrawings((prev) => [...prev, ...processed].slice(0, 5));
+};
+
+const handleRemoveDrawing = (idx) => {
+  setDrawings((prev) => prev.filter((_, i) => i !== idx));
+};
 
   return (
     <>
@@ -235,6 +273,35 @@ export default function AddProduct() {
             />
             <p className="text-sm text-gray-500 mt-1">Number of pieces contained in one packet</p>
           </div>
+
+          {/* Conversion Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Conversion</label>
+  <input 
+    type="number"
+    step="any"
+    name="conversion"
+    placeholder="e.g., 1.5, 2, 0.75" 
+    value={formData.conversion} 
+    onChange={handleChange} 
+    className="w-full p-3 border border-gray-300 rounded-lg"
+  />
+  <p className="text-sm text-gray-500 mt-1">Supports both integer and decimal values</p>
+</div>
+
+{/* Sales Category Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Sales Category</label>
+  <input 
+    type="text"
+    name="salesCategory"
+    placeholder="Enter sales category" 
+    value={formData.salesCategory} 
+    onChange={handleChange} 
+    className="w-full p-3 border border-gray-300 rounded-lg"
+  />
+  <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
+</div>
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
@@ -323,6 +390,45 @@ export default function AddProduct() {
               </div>
             ))}
           </div>
+
+          {/* Drawings Upload Section */}
+<div className="mt-4">
+  <label className="block text-gray-700 font-semibold mb-2">Product Drawings (2D/3D)</label>
+  <span className="text-sm text-gray-500 block mb-2">Upload technical drawings in PDF, JPEG, or STEP format (max 5 files)</span>
+  <input 
+    type="file" 
+    accept=".pdf,.jpeg,.jpg,.step" 
+    multiple 
+    onChange={handleDrawingsChange} 
+    className="w-full border rounded p-2" 
+  />
+  <div className="flex flex-wrap gap-4 mt-4">
+    {drawings.map((file, idx) => (
+      <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden bg-gray-50">
+        {file.type === "application/pdf" ? (
+          <div className="text-center">
+            <span className="text-red-600 font-semibold text-2xl">📄</span>
+            <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
+          </div>
+        ) : file.name.toLowerCase().endsWith('.step') ? (
+          <div className="text-center">
+            <span className="text-blue-600 font-semibold text-2xl">📐</span>
+            <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
+          </div>
+        ) : (
+          <img src={URL.createObjectURL(file)} alt={`Drawing ${idx + 1}`} className="w-full h-full object-cover" />
+        )}
+        <button 
+          type="button" 
+          onClick={() => handleRemoveDrawing(idx)} 
+          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+        >
+          &times;
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
 
           <button type="submit" disabled={isLoading} className={`w-full font-bold py-3 rounded-lg shadow ${isLoading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
             {isLoading ? "Adding Product..." : "Add Product"}

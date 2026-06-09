@@ -24,6 +24,8 @@ export default function EditProduct() {
     weight: "", // Weight in grams
     pcsPerPacket: "", // Number of pieces in 1 packet
     polybagSize: "", // 🆕 Selected polybag size
+     conversion: "",
+  salesCategory: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +52,10 @@ export default function EditProduct() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Add with other state declarations
+const [drawings, setDrawings] = useState([]);
+const [drawingPreviewUrls, setDrawingPreviewUrls] = useState([]);
+const [removedDrawings, setRemovedDrawings] = useState([]);
 
 useEffect(() => {
   return () => {
@@ -65,6 +71,10 @@ useEffect(() => {
     additionalPreviewUrls2.forEach(url => {
       if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
     });
+    // Add this inside the cleanup function
+drawingPreviewUrls.forEach(url => {
+  if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+});
   };
 }, [previewUrls, internalPreviewUrls, additionalPreviewUrls1, additionalPreviewUrls2]);
 
@@ -104,6 +114,8 @@ useEffect(() => {
           weight: weightInGrams,
           pcsPerPacket: res.data.pcsPerPacket || "",
           polybagSize: res.data.polybagSize || "", // 🆕
+            conversion: res.data.conversion || "",
+  salesCategory: res.data.salesCategory || "",
         });
 
         // Existing product images
@@ -131,6 +143,14 @@ useEffect(() => {
             res.data.additionalImages2.map((file) => (file.startsWith("http") ? file : `${BASE_URL}${file}`))
           );
         }
+
+        // 🆕 Existing drawings
+if (res.data.drawings?.length > 0) {
+  setDrawingPreviewUrls(
+    res.data.drawings.map((file) => (file.startsWith("http") ? file : `${BASE_URL}${file}`))
+  );
+}
+
       } catch (err) {
         setError("Failed to load product");
       } finally {
@@ -340,15 +360,23 @@ const handleAdditionalImages2Change = async (e) => {
       data.append("hsnCode", formData.hsnCode);
       data.append("gstPercent", formData.gstPercent);
       data.append("description", formData.description || "");
-      data.append("polybagSize", formData.polybagSize || ""); // 🆕
-      
+data.append("polybagSize", formData.polybagSize || "");
+data.append("conversion", formData.conversion || 0);
+data.append("salesCategory", formData.salesCategory || "");  
+    
       // Convert weight from grams to kg for storage
       const weightInKg = formData.weight ? parseFloat(formData.weight) / 1000 : "";
       data.append("weight", weightInKg);
       
       // Add pcsPerPacket
-      data.append("pcsPerPacket", formData.pcsPerPacket ? parseInt(formData.pcsPerPacket) : 0);
-
+// Add pcsPerPacket - preserve existing value if not changed
+if (formData.pcsPerPacket !== undefined && formData.pcsPerPacket !== null && formData.pcsPerPacket !== "") {
+  data.append("pcsPerPacket", parseInt(formData.pcsPerPacket));
+} else if (formData.pcsPerPacket === "" && formData.pcsPerPacket !== undefined) {
+  // User explicitly cleared the field - set to 0
+  data.append("pcsPerPacket", 0);
+}
+// If pcsPerPacket is undefined/null, don't send it (backend will keep existing value)
       // Images
       images.forEach((imgFile) => data.append("images", imgFile));
       removedImages.forEach((imgPath) => data.append("removedImages[]", imgPath));
@@ -365,6 +393,10 @@ const handleAdditionalImages2Change = async (e) => {
       additionalImages2.forEach((file) => data.append("additionalImages2", file));
       removedAdditionalImages2.forEach((filePath) => data.append("removedAdditionalImages2[]", filePath));
 
+      // Add with other file appends
+drawings.forEach((file) => data.append("drawings", file));
+removedDrawings.forEach((filePath) => data.append("removedDrawings[]", filePath));
+
       await axiosInstance.put(`/products-multer/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -378,6 +410,57 @@ const handleAdditionalImages2Change = async (e) => {
       setIsSubmitting(false);
     }
   };
+
+  // Handle drawings upload
+const handleDrawingsChange = async (e) => {
+  const files = Array.from(e.target.files);
+  const processed = [];
+
+  for (const file of files) {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+    const isStepFile = file.name.toLowerCase().endsWith('.step');
+    
+    if (allowedTypes.includes(file.type) || isStepFile) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        processed.push(renamedFile);
+      } else {
+        processed.push(file);
+      }
+    } else {
+      toast.error(`${file.name} is not supported. Use PDF, JPEG, or STEP files.`);
+    }
+  }
+  setDrawings((prev) => [...prev, ...processed]);
+  setDrawingPreviewUrls((prev) => [...prev, ...processed.map((f) => URL.createObjectURL(f))]);
+};
+
+// Remove drawing
+const handleRemoveDrawing = (indexToRemove) => {
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "You want to delete this drawing?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancel'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const removedUrl = drawingPreviewUrls[indexToRemove];
+      if (!removedUrl.startsWith("blob:")) {
+        const relativePath = removedUrl.replace(BASE_URL, "");
+        setRemovedDrawings((prev) => [...prev, relativePath]);
+      } else {
+        setDrawings((prev) => prev.filter((_, i) => i !== indexToRemove));
+      }
+      setDrawingPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
+    }
+  });
+};
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-600">{error}</p>;
@@ -453,6 +536,35 @@ const handleAdditionalImages2Change = async (e) => {
             />
             <p className="text-sm text-gray-500 mt-1">Number of pieces contained in one packet</p>
           </div>
+
+          {/* Conversion Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Conversion</label>
+  <input 
+    type="number"
+    step="any"
+    name="conversion"
+    placeholder="e.g., 1.5, 2, 0.75" 
+    value={formData.conversion} 
+    onChange={handleChange} 
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">Supports both integer and decimal values</p>
+</div>
+
+{/* Sales Category Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Sales Category</label>
+  <input 
+    type="text"
+    name="salesCategory"
+    placeholder="Enter sales category" 
+    value={formData.salesCategory} 
+    onChange={handleChange} 
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
+</div>
 
           {/* Description Field */}
           <div>
@@ -635,7 +747,52 @@ const handleAdditionalImages2Change = async (e) => {
             ))}
           </div>
           <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages2Change} className="w-full border p-2 rounded" />
-
+{/* Drawings Section */}
+<label className="block font-semibold mt-4">Product Drawings (2D/3D)</label>
+<span className="text-sm text-gray-500 block mb-2">Technical drawings in PDF, JPEG, or STEP format</span>
+<div className="flex flex-wrap gap-2 mb-2">
+  {drawingPreviewUrls.map((url, i) => (
+    <div key={i} className="relative w-32 h-32 border rounded flex items-center justify-center overflow-hidden bg-gray-50">
+      {url.endsWith(".pdf") ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-red-600 font-semibold text-center">
+          <div className="text-2xl">📄</div>
+          <div className="text-xs">PDF</div>
+        </a>
+      ) : url.toLowerCase().endsWith(".step") ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-semibold text-center">
+          <div className="text-2xl">📐</div>
+          <div className="text-xs">STEP</div>
+        </a>
+      ) : (
+        <img 
+          src={url} 
+          alt={`Drawing ${i}`} 
+          className="w-full h-full object-cover cursor-pointer"
+          onClick={() => {
+            Swal.fire({
+              html: `<div style="text-align: center;">
+                       <img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;" />
+                       <div style="margin-top: 10px;">
+                         <button id="closeImageBtn" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                       </div>
+                     </div>`,
+              showConfirmButton: false,
+              width: 'auto',
+              padding: 0,
+              didOpen: () => {
+                document.getElementById('closeImageBtn').addEventListener('click', () => {
+                  Swal.close();
+                });
+              }
+            });
+          }}
+        />
+      )}
+      <button type="button" onClick={() => handleRemoveDrawing(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
+    </div>
+  ))}
+</div>
+<input type="file" accept=".pdf,.jpeg,.jpg,.step" multiple onChange={handleDrawingsChange} className="w-full border p-2 rounded" />
           <button type="submit" disabled={isSubmitting} className={`bg-blue-600 text-white px-4 py-2 rounded ${isSubmitting ? "opacity-50" : "hover:bg-blue-700"}`}>
             {isSubmitting ? "Updating..." : "Update Product"}
           </button>

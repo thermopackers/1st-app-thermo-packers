@@ -46,7 +46,8 @@ export default function PipeSectionCalculator() {
     density: "",
     customRmRate: "",
     conversionRate: "",
-    freight: ""
+    freight: "",
+    wastageRate: ""  // 🆕 Add wastage rate field
   });
   const [sizes, setSizes] = useState([
     { id: Date.now(), pipeSize: "3", thickness: "2" }
@@ -60,7 +61,7 @@ export default function PipeSectionCalculator() {
     fetchRMRate();
   }, []);
 
-  // 🔥 NEW: Recalculate totals when includeWastageInPrice changes
+  // Recalculate totals when includeWastageInPrice changes
   useEffect(() => {
     if (results.length > 0) {
       const subtotal = results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0);
@@ -175,12 +176,16 @@ export default function PipeSectionCalculator() {
     return { maxPieces, bestOrientation };
   };
 
-  // Calculate wastage analysis
-  const calculateWastage = (odMM, piecesFromBlock, volumeM3) => {
+  // Calculate wastage analysis with wastage rate
+  const calculateWastage = (odMM, piecesFromBlock, volumeM3, density, wastageRatePerKg) => {
     const blockVolume = 4.6;
     const totalPipeVolume = piecesFromBlock * volumeM3;
     const wastageVolume = blockVolume - totalPipeVolume;
     const wastagePercentage = (wastageVolume / blockVolume) * 100;
+    
+    // Calculate wastage weight and cost
+    const wastageWeight = wastageVolume * density;
+    const wastageCost = wastageWeight * wastageRatePerKg;
     
     // Calculate linear waste
     const blockL = 6100;
@@ -196,6 +201,8 @@ export default function PipeSectionCalculator() {
       totalPipeVolume: totalPipeVolume.toFixed(4),
       wastageVolume: wastageVolume.toFixed(4),
       wastagePercentage: wastagePercentage.toFixed(2),
+      wastageWeight: wastageWeight.toFixed(2),
+      wastageCost: wastageCost.toFixed(2),
       wasteL,
       wasteB,
       wasteH,
@@ -220,6 +227,7 @@ export default function PipeSectionCalculator() {
       const weightPerBlock = density * blockVolume;
       const costPerBlock = weightPerBlock * totalPerKg;
       const freight = parseFloat(globalFormData.freight) || 0;
+      const wastageRatePerKg = parseFloat(globalFormData.wastageRate) || 0;
 
       const calculatedResults = sizes.map(size => {
         const odMM = calculateOD(size.pipeSize, size.thickness);
@@ -228,11 +236,15 @@ export default function PipeSectionCalculator() {
         
         const pricePerPiece = maxPieces > 0 ? costPerBlock / maxPieces : 0;
         
-        // Calculate price with wastage included
-        const wastage = calculateWastage(odMM, maxPieces, volumeM3);
+        // Calculate wastage with wastage rate
+        const wastage = calculateWastage(odMM, maxPieces, volumeM3, density, wastageRatePerKg);
         
         const usableVolumePerPiece = volumeM3;
         const theoreticalPricePerPiece = (usableVolumePerPiece * density * totalPerKg);
+        
+        // Price including wastage cost
+        const wastageCostPerPiece = maxPieces > 0 ? parseFloat(wastage.wastageCost) / maxPieces : 0;
+        const priceWithWastage = pricePerPiece + wastageCostPerPiece;
         
         const outerDimensionM3 = volumeM3;
         const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
@@ -252,7 +264,9 @@ export default function PipeSectionCalculator() {
           piecesFromBlock: maxPieces,
           orientation: bestOrientation?.orientation || "N/A",
           piecesLayout: bestOrientation ? `${bestOrientation.piecesL} x ${bestOrientation.piecesB} x ${bestOrientation.piecesH}` : "N/A",
-          pricePerPiece: pricePerPiece.toFixed(2),
+          pricePerPiece: priceWithWastage.toFixed(2),
+          priceWithoutWastage: pricePerPiece.toFixed(2),
+          wastageCostPerPiece: wastageCostPerPiece.toFixed(2),
           theoreticalPricePerPiece: theoreticalPricePerPiece.toFixed(2),
           piecesInTempo,
           piecesInTruck,
@@ -265,7 +279,8 @@ export default function PipeSectionCalculator() {
             effectiveRmRate: effectiveRmRate,
             conversionRate: conversionRate,
             density: density,
-            freight: freight
+            freight: freight,
+            wastageRate: wastageRatePerKg
           }
         };
       });
@@ -337,11 +352,12 @@ export default function PipeSectionCalculator() {
         { text: 'INPUT DETAILS', style: 'sectionHeader', margin: [0, 0, 0, 10] },
         {
           table: {
-            widths: ['33%', '33%', '34%'],
+            widths: ['25%', '25%', '25%', '25%'],
             body: [
               [{ text: `Density: ${globalFormData.density} kg/m³`, style: 'tableValue' },
                { text: `RM Rate: ₹${parseFloat(globalFormData.customRmRate) || rmRate}/kg`, style: 'tableValue' },
-               { text: `Conversion: ₹${globalFormData.conversionRate || 0}/kg`, style: 'tableValue' }]
+               { text: `Conversion: ₹${globalFormData.conversionRate || 0}/kg`, style: 'tableValue' },
+               { text: `Wastage Rate: ₹${globalFormData.wastageRate || 0}/kg`, style: 'tableValue' }]
             ]
           },
           layout: 'noBorders'
@@ -400,7 +416,7 @@ export default function PipeSectionCalculator() {
             {/* Global Settings */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <h3 className="font-semibold text-gray-800 mb-3">Common Settings</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Density (kg/m³) *</label>
                   <input
@@ -449,6 +465,19 @@ export default function PipeSectionCalculator() {
                     placeholder="Freight amount"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Wastage Rate (₹/kg)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="wastageRate"
+                    value={globalFormData.wastageRate}
+                    onChange={handleGlobalChange}
+                    placeholder="Wastage rate per kg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500">Enter wastage cost per kg (e.g., 40)</p>
                 </div>
               </div>
             </div>
@@ -579,178 +608,190 @@ export default function PipeSectionCalculator() {
             </div>
             
             {/* Results Table with Expandable Rows */}
-          {results.length > 0 && (
-  <div className="mt-6">
-    <h3 className="font-semibold text-gray-800 mb-3">Calculation Results</h3>
-    <div className="space-y-6">
-      {results.map((r) => {
-        const displayPrice = includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece);
-        
-        // Calculate individual order summary for this pipe size
-        const individualSubtotal = displayPrice;
-        const individualTotalWithFreight = individualSubtotal + (totalFreight / results.length);
-        const individualGST = individualTotalWithFreight * 0.18;
-        const individualGrandTotal = individualTotalWithFreight + individualGST;
-        
-        return (
-          <div key={r.id} className="border border-gray-200 rounded-lg overflow-hidden">
-            {/* Expandable Row */}
-            <div className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(r.id)}>
-              <div className="grid grid-cols-10 gap-2 p-3 text-sm bg-gray-50 border-b">
-                <div className="col-span-1 text-center">
-                  {expandedRow === r.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-                <div className="col-span-1 text-center font-semibold">{r.pipeSize}"</div>
-                <div className="col-span-1 text-center">{r.thickness}"</div>
-                <div className="col-span-1 text-center">{r.odMM}</div>
-                <div className="col-span-1 text-center">{r.volumeM3}</div>
-                <div className="col-span-1 text-center font-bold text-blue-600">{r.piecesFromBlock}</div>
-                <div className="col-span-1 text-center text-xs">{r.piecesLayout}</div>
-                <div className="col-span-1 text-center">₹{displayPrice.toFixed(2)}</div>
-                <div className="col-span-1 text-center">{r.piecesInTempo}</div>
-                <div className="col-span-1 text-center">{r.piecesInTruck}</div>
-              </div>
-            </div>
-            
-            {/* Expanded Details */}
-            {expandedRow === r.id && (
-              <div className="bg-gray-50 p-4 border-t">
-                <div className="text-sm">
-                  <h4 className="font-bold mb-2 text-blue-600">📊 Calculation Steps for {r.pipeSize}" Pipe with {r.thickness}" Thickness:</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p><strong>1. Outer Diameter Calculation:</strong></p>
-                      <p className="ml-4">Pipe OD = {r.pipeOD} mm</p>
-                      <p className="ml-4">Thickness = {r.thickness}" × 25 = {r.thicknessMM} mm</p>
-                      <p className="ml-4">Final OD = {r.pipeOD} + ({r.thicknessMM} × 2) = <strong>{r.odMM} mm</strong></p>
-                      
-                      <p className="mt-2"><strong>2. Volume per Piece:</strong></p>
-                      <p className="ml-4">Radius = {r.odMM}/2 = {r.odMM/2} mm = {(r.odMM/2/1000).toFixed(4)} m</p>
-                      <p className="ml-4">Volume = π × r² × h = 3.1416 × {(r.odMM/2/1000).toFixed(4)}² × 1 = <strong>{r.volumeM3} m³</strong></p>
-                      
-                      <p className="mt-2"><strong>3. Pieces per Block:</strong></p>
-                      <p className="ml-4">Block size: 6100 × 1220 × 620 mm</p>
-                      <p className="ml-4">Orientation: {r.orientation}</p>
-                      <p className="ml-4">Layout: {r.piecesLayout} = <strong>{r.piecesFromBlock} pieces</strong></p>
-                      
-                      {/* Wastage Analysis - Only shown when checkbox is checked */}
-                      {showWastage && (
-                        <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
-                          <p className="font-bold text-red-700">🗑️ Block Wastage Analysis:</p>
-                          <p className="ml-4 text-xs">Block Volume = {r.wastage.blockVolume} m³</p>
-                          <p className="ml-4 text-xs">Total Pipe Volume = {r.wastage.totalPipeVolume} m³</p>
-                          <p className="ml-4 text-xs">Wastage Volume = {r.wastage.wastageVolume} m³</p>
-                          <p className="ml-4 text-xs font-bold">Wastage Percentage = {r.wastage.wastagePercentage}%</p>
-                          <p className="ml-4 text-xs mt-1">Linear Wastage:</p>
-                          <p className="ml-8 text-xs">Length waste: {r.wastage.wasteL} mm</p>
-                          <p className="ml-8 text-xs">Breadth waste: {r.wastage.wasteB} mm</p>
-                          <p className="ml-8 text-xs">Height waste: {r.wastage.wasteH} mm</p>
-                        </div>
-                      )}
-                    </div>
+            {results.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold text-gray-800 mb-3">Calculation Results</h3>
+                <div className="space-y-6">
+                  {results.map((r) => {
+                    const displayPrice = includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece);
                     
-                    <div className="space-y-1">
-                      <p><strong>4. Cost per Block:</strong></p>
-                      <p className="ml-4">Block Volume = {r.calculationSteps.blockVolume} m³</p>
-                      <p className="ml-4">Weight per Block = Density × Volume = {r.calculationSteps.density} × {r.calculationSteps.blockVolume} = <strong>{r.calculationSteps.weightPerBlock} kg</strong></p>
-                      <p className="ml-4">Total Rate = RM Rate + Conversion = {r.calculationSteps.effectiveRmRate} + {r.calculationSteps.conversionRate} = <strong>₹{r.calculationSteps.totalPerKg}/kg</strong></p>
-                      <p className="ml-4">Cost per Block = Weight × Rate = {r.calculationSteps.weightPerBlock} × {r.calculationSteps.totalPerKg} = <strong>₹{r.calculationSteps.costPerBlock}</strong></p>
-                      
-                      <p className="mt-2"><strong>5. Price per Piece:</strong></p>
-                      <p className="ml-4">Price per Piece = Cost per Block ÷ Pieces per Block = {r.calculationSteps.costPerBlock} ÷ {r.piecesFromBlock} = <strong>₹{r.pricePerPiece}</strong></p>
-                      
-                      {!includeWastageInPrice && (
-                        <>
-                          <p className="mt-2"><strong>6. Theoretical Price (without wastage):</strong></p>
-                          <p className="ml-4">Theoretical Price = ₹{r.theoreticalPricePerPiece}</p>
-                        </>
-                      )}
+                    // Calculate individual order summary for this pipe size
+                    const individualSubtotal = displayPrice;
+                    const individualTotalWithFreight = individualSubtotal + (totalFreight / results.length);
+                    const individualGST = individualTotalWithFreight * 0.18;
+                    const individualGrandTotal = individualTotalWithFreight + individualGST;
+                    
+                    return (
+                      <div key={r.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        {/* Expandable Row */}
+                        <div className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(r.id)}>
+                          <div className="grid grid-cols-10 gap-2 p-3 text-sm bg-gray-50 border-b">
+                            <div className="col-span-1 text-center">
+                              {expandedRow === r.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                            <div className="col-span-1 text-center font-semibold">{r.pipeSize}"</div>
+                            <div className="col-span-1 text-center">{r.thickness}"</div>
+                            <div className="col-span-1 text-center">{r.odMM}</div>
+                            <div className="col-span-1 text-center">{r.volumeM3}</div>
+                            <div className="col-span-1 text-center font-bold text-blue-600">{r.piecesFromBlock}</div>
+                            <div className="col-span-1 text-center text-xs">{r.piecesLayout}</div>
+                            <div className="col-span-1 text-center">₹{displayPrice.toFixed(2)}</div>
+                            <div className="col-span-1 text-center">{r.piecesInTempo}</div>
+                            <div className="col-span-1 text-center">{r.piecesInTruck}</div>
+                          </div>
+                        </div>
+                        
+                        {/* Expanded Details */}
+                        {expandedRow === r.id && (
+                          <div className="bg-gray-50 p-4 border-t">
+                            <div className="text-sm">
+                              <h4 className="font-bold mb-2 text-blue-600">📊 Calculation Steps for {r.pipeSize}" Pipe with {r.thickness}" Thickness:</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <p><strong>1. Outer Diameter Calculation:</strong></p>
+                                  <p className="ml-4">Pipe OD = {r.pipeOD} mm</p>
+                                  <p className="ml-4">Thickness = {r.thickness}" × 25 = {r.thicknessMM} mm</p>
+                                  <p className="ml-4">Final OD = {r.pipeOD} + ({r.thicknessMM} × 2) = <strong>{r.odMM} mm</strong></p>
+                                  
+                                  <p className="mt-2"><strong>2. Volume per Piece:</strong></p>
+                                  <p className="ml-4">Radius = {r.odMM}/2 = {r.odMM/2} mm = {(r.odMM/2/1000).toFixed(4)} m</p>
+                                  <p className="ml-4">Volume = π × r² × h = 3.1416 × {(r.odMM/2/1000).toFixed(4)}² × 1 = <strong>{r.volumeM3} m³</strong></p>
+                                  
+                                  <p className="mt-2"><strong>3. Pieces per Block:</strong></p>
+                                  <p className="ml-4">Block size: 6100 × 1220 × 620 mm</p>
+                                  <p className="ml-4">Orientation: {r.orientation}</p>
+                                  <p className="ml-4">Layout: {r.piecesLayout} = <strong>{r.piecesFromBlock} pieces</strong></p>
+                                  
+                                  {/* Wastage Analysis - Only shown when checkbox is checked */}
+                                  {showWastage && (
+                                    <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                                      <p className="font-bold text-red-700">🗑️ Block Wastage Analysis:</p>
+                                      <p className="ml-4 text-xs">Block Volume = {r.wastage.blockVolume} m³</p>
+                                      <p className="ml-4 text-xs">Total Pipe Volume = {r.wastage.totalPipeVolume} m³</p>
+                                      <p className="ml-4 text-xs">Wastage Volume = {r.wastage.wastageVolume} m³</p>
+                                      <p className="ml-4 text-xs font-bold">Wastage Percentage = {r.wastage.wastagePercentage}%</p>
+                                      <p className="ml-4 text-xs">Wastage Weight = {r.wastage.wastageWeight} kg</p>
+                                      <p className="ml-4 text-xs">Wastage Cost = ₹{r.wastage.wastageCost}</p>
+                                      <p className="ml-4 text-xs">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
+                                      <p className="ml-4 text-xs mt-1">Linear Wastage:</p>
+                                      <p className="ml-8 text-xs">Length waste: {r.wastage.wasteL} mm</p>
+                                      <p className="ml-8 text-xs">Breadth waste: {r.wastage.wasteB} mm</p>
+                                      <p className="ml-8 text-xs">Height waste: {r.wastage.wasteH} mm</p>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <p><strong>4. Cost per Block:</strong></p>
+                                  <p className="ml-4">Block Volume = {r.calculationSteps.blockVolume} m³</p>
+                                  <p className="ml-4">Weight per Block = Density × Volume = {r.calculationSteps.density} × {r.calculationSteps.blockVolume} = <strong>{r.calculationSteps.weightPerBlock} kg</strong></p>
+                                  <p className="ml-4">Total Rate = RM Rate + Conversion = {r.calculationSteps.effectiveRmRate} + {r.calculationSteps.conversionRate} = <strong>₹{r.calculationSteps.totalPerKg}/kg</strong></p>
+                                  <p className="ml-4">Cost per Block = Weight × Rate = {r.calculationSteps.weightPerBlock} × {r.calculationSteps.totalPerKg} = <strong>₹{r.calculationSteps.costPerBlock}</strong></p>
+                                  <p className="ml-4">Wastage Cost per Block = ₹{r.wastage.wastageCost}</p>
+                                  
+                                  <p className="mt-2"><strong>5. Price per Piece:</strong></p>
+                                  <p className="ml-4">Price without Wastage = ₹{r.priceWithoutWastage}</p>
+                                  <p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
+                                  <p className="ml-4">Price with Wastage = ₹{r.pricePerPiece}</p>
+                                  
+                                  {!includeWastageInPrice && (
+                                    <>
+                                      <p className="mt-2"><strong>6. Theoretical Price (without wastage):</strong></p>
+                                      <p className="ml-4">Theoretical Price = ₹{r.theoreticalPricePerPiece}</p>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="mt-3 pt-2 border-t border-gray-200">
+                                <p className="text-xs text-gray-500"><strong>Transport Estimates:</strong> Pieces per Tempo (12m³): {r.piecesInTempo} | Pieces per Truck (40m³): {r.piecesInTruck}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Order Summary for this pipe size */}
+                        <div className="p-4 bg-gray-100 border-t">
+                          <h4 className="font-semibold text-gray-800 mb-2">Order Summary for {r.pipeSize}" × {r.thickness}" Pipe</h4>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span>Price per Piece:</span>
+                              <span className="font-medium">₹{displayPrice.toFixed(2)}</span>
+                            </div>
+                            {showWastage && (
+                              <div className="flex justify-between">
+                                <span>Wastage Cost per Piece (₹{globalFormData.wastageRate || 0}/kg):</span>
+                                <span className="font-medium text-orange-600">₹{r.wastageCostPerPiece}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span>Freight (Shared):</span>
+                              <span className="font-medium">₹{(totalFreight / results.length).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Subtotal:</span>
+                              <span className="font-medium">₹{individualSubtotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Total with Freight:</span>
+                              <span className="font-medium">₹{individualTotalWithFreight.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>GST (18%):</span>
+                              <span className="font-medium">₹{individualGST.toFixed(2)}</span>
+                            </div>
+                            <div className="border-t border-gray-300 pt-2 mt-2">
+                              <div className="flex justify-between">
+                                <span className="font-bold text-lg">Grand Total:</span>
+                                <span className="font-bold text-lg text-green-700">₹{individualGrandTotal.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Overall Summary */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">Overall Summary (All Sizes Combined)</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Total Subtotal:</span>
+                      <span className="font-medium">₹{results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Freight:</span>
+                      <span className="font-medium">₹{totalFreight.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total GST:</span>
+                      <span className="font-medium">₹{totalGST.toFixed(2)}</span>
+                    </div>
+                    <div className="border-t border-blue-300 pt-2 mt-2">
+                      <div className="flex justify-between">
+                        <span className="font-bold text-lg">Overall Grand Total:</span>
+                        <span className="font-bold text-lg text-green-700">₹{grandTotal.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="mt-3 pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-500"><strong>Transport Estimates:</strong> Pieces per Tempo (12m³): {r.piecesInTempo} | Pieces per Truck (40m³): {r.piecesInTruck}</p>
-                  </div>
+                </div>
+                
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-500">
+                    Note: 1 inch = 25mm conversion used. GST 18% applied on subtotal + freight. Block size: 6100 x 1220 x 620 mm
+                  </p>
+                  <p className="text-xs text-blue-500">💡 Click on any row to expand and see detailed calculation steps!</p>
+                  {showWastage && (
+                    <p className="text-xs text-red-500">⚠️ Wastage analysis is enabled. Check expanded rows for details.</p>
+                  )}
+                  {!includeWastageInPrice && (
+                    <p className="text-xs text-orange-500">ℹ️ Wastage cost is NOT included in final price (theoretical price shown).</p>
+                  )}
                 </div>
               </div>
             )}
-            
-            {/* Order Summary for this pipe size */}
-            <div className="p-4 bg-gray-100 border-t">
-              <h4 className="font-semibold text-gray-800 mb-2">Order Summary for {r.pipeSize}" × {r.thickness}" Pipe</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Price per Piece:</span>
-                  <span className="font-medium">₹{displayPrice.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Freight (Shared):</span>
-                  <span className="font-medium">₹{(totalFreight / results.length).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span className="font-medium">₹{individualSubtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total with Freight:</span>
-                  <span className="font-medium">₹{individualTotalWithFreight.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>GST (18%):</span>
-                  <span className="font-medium">₹{individualGST.toFixed(2)}</span>
-                </div>
-                <div className="border-t border-gray-300 pt-2 mt-2">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-lg">Grand Total:</span>
-                    <span className="font-bold text-lg text-green-700">₹{individualGrandTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-    
-    {/* Overall Summary (Optional) */}
-    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-      <h4 className="font-semibold text-blue-800 mb-2">Overall Summary (All Sizes Combined)</h4>
-      <div className="space-y-1 text-sm">
-        <div className="flex justify-between">
-          <span>Total Subtotal:</span>
-          <span className="font-medium">₹{results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0).toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Total Freight:</span>
-          <span className="font-medium">₹{totalFreight.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Total GST:</span>
-          <span className="font-medium">₹{totalGST.toFixed(2)}</span>
-        </div>
-        <div className="border-t border-blue-300 pt-2 mt-2">
-          <div className="flex justify-between">
-            <span className="font-bold text-lg">Overall Grand Total:</span>
-            <span className="font-bold text-lg text-green-700">₹{grandTotal.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div className="mt-2 space-y-1">
-      <p className="text-xs text-gray-500">
-        Note: 1 inch = 25mm conversion used. GST 18% applied on subtotal + freight. Block size: 6100 x 1220 x 620 mm
-      </p>
-      <p className="text-xs text-blue-500">💡 Click on any row to expand and see detailed calculation steps!</p>
-      {showWastage && (
-        <p className="text-xs text-red-500">⚠️ Wastage analysis is enabled. Check expanded rows for details.</p>
-      )}
-      {!includeWastageInPrice && (
-        <p className="text-xs text-orange-500">ℹ️ Wastage cost is NOT included in final price (theoretical price shown).</p>
-      )}
-    </div>
-  </div>
-)}
           </div>
         </div>
       </div>

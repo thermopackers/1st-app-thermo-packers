@@ -64,40 +64,51 @@ const OrderRow = ({
     deliveredQuantity: order.deliveredQuantity || 0
   }];
   
-  // Calculate total quantity and total delivered
-  const totalQuantity = hasMultipleProducts 
-    ? productList.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)
-    : order.quantity;
-  
-  const totalDelivered = hasMultipleProducts
-    ? perProductDelivered.reduce((sum, p) => sum + (parseInt(p.deliveredQuantity) || 0), 0)
-    : (order.deliveredQuantity || 0);
-  
+// Calculate total quantity and total delivered
+const totalQuantity = hasMultipleProducts 
+  ? productList.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
+  : (parseFloat(order.quantity) || 0);
+
+const totalDelivered = hasMultipleProducts
+  ? perProductDelivered.reduce((sum, p) => sum + (parseFloat(p.deliveredQuantity) || 0), 0)
+  : (parseFloat(order.deliveredQuantity) || 0);
   const remainingBalance = totalQuantity - totalDelivered;
   
   // Determine row color
   const getRowClass = () => {
     if (order.status === "cancelled") return "bg-red-50";
     
-    if (remainingBalance === 0 && totalDelivered > 0) {
-      return "bg-green-300 border-l-4 border-l-green-500";
-    } else if (remainingBalance > 0 && totalDelivered > 0) {
-      return "bg-yellow-300 border-l-4 border-l-yellow-500";
-    }
+    if (Math.abs(remainingBalance) < 0.01 && totalDelivered > 0) {
+  return "bg-green-300 border-l-4 border-l-green-500";
+} else if (remainingBalance > 0.01 && totalDelivered > 0) {
+  return "bg-yellow-300 border-l-4 border-l-yellow-500";
+}
     
     return "odd:bg-white even:bg-gray-50";
   };
 
-// In OrderRow.jsx - saveProductDeliveredQuantity function
 const saveProductDeliveredQuantity = async (productIndex, newValue) => {
   const product = productList[productIndex];
-  const originalQuantity = parseInt(product.quantity) || 0;
+  // ✅ Use parseFloat instead of parseInt to allow decimals
+  const originalQuantity = parseFloat(product.quantity) || 0;
+  const deliveredValue = parseFloat(newValue) || 0;
   
-  if (newValue < 0 || newValue > originalQuantity) {
+  // Validate decimal places (max 2)
+  const decimalMatch = newValue.toString().match(/\.(\d+)$/);
+  if (decimalMatch && decimalMatch[1].length > 2) {
     Swal.fire({
       icon: "error",
       title: "Invalid Quantity",
-      text: `Delivered quantity must be between 0 and ${originalQuantity} for ${product.productName}`,
+      text: `Delivered quantity for ${product.productName} can have at most 2 decimal places.`,
+    });
+    return;
+  }
+  
+  if (deliveredValue < 0 || deliveredValue > originalQuantity) {
+    Swal.fire({
+      icon: "error",
+      title: "Invalid Quantity",
+      text: `Delivered quantity must be between 0 and ${originalQuantity.toFixed(2)} for ${product.productName}`,
     });
     return;
   }
@@ -105,14 +116,12 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
   setIsSaving(true);
   
   try {
-    // Create the productsDelivered array
     const updatedDelivered = [...perProductDelivered];
     updatedDelivered[productIndex] = {
       productName: product.productName,
-      deliveredQuantity: newValue
+      deliveredQuantity: deliveredValue
     };
     
-    // Send to backend
     const response = await axiosInstance.put(
       `/orders/${order._id}`,
       { 
@@ -127,28 +136,25 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
     // Update local state with response data
     if (response.data.updatedOrder) {
       const updatedOrder = response.data.updatedOrder;
-      // Update perProductDelivered from the response
       if (updatedOrder.products) {
         const newPerProductDelivered = updatedOrder.products.map(p => ({
           productName: p.productName,
-          deliveredQuantity: p.deliveredQuantity || 0,
-          originalQuantity: p.quantity
+          deliveredQuantity: parseFloat(p.deliveredQuantity) || 0,
+          originalQuantity: parseFloat(p.quantity) || 0
         }));
         setPerProductDelivered(newPerProductDelivered);
       }
     } else {
-      // Fallback: update local state
       setPerProductDelivered(updatedDelivered);
     }
     
     Swal.fire({
       icon: "success",
       title: "Updated!",
-      text: `Delivered quantity for ${product.productName} updated to ${newValue}`,
+      text: `Delivered quantity for ${product.productName} updated to ${deliveredValue.toFixed(2)}`,
       timer: 1500
     });
     
-    // Refresh orders to get latest data
     refetchOrders && refetchOrders();
     
   } catch (err) {
@@ -164,13 +170,56 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
   }
 };
 
-  const handleProductKeyDown = (e, productIndex, newValue) => {
-    if (e.key === 'Enter') {
-      saveProductDeliveredQuantity(productIndex, newValue);
-    } else if (e.key === 'Escape') {
-      setIsEditingProduct(null);
-    }
-  };
+const handleProductKeyDown = (e, productIndex, newValue) => {
+  if (e.key === 'Enter') {
+    saveProductDeliveredQuantity(productIndex, parseFloat(newValue) || 0);
+  } else if (e.key === 'Escape') {
+    setIsEditingProduct(null);
+  }
+};
+
+const saveSingleDelivered = async (newValue) => {
+  const originalQuantity = parseFloat(order.quantity) || 0;
+  const deliveredValue = parseFloat(newValue) || 0;
+  
+  if (deliveredValue < 0 || deliveredValue > originalQuantity) {
+    Swal.fire({
+      icon: "error",
+      title: "Invalid Quantity",
+      text: `Delivered quantity must be between 0 and ${originalQuantity.toFixed(2)}`,
+    });
+    return;
+  }
+  
+  setIsSaving(true);
+  
+  try {
+    await axiosInstance.put(
+      `/orders/${order._id}`,
+      { deliveredQuantity: deliveredValue },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    Swal.fire({
+      icon: "success",
+      title: "Updated!",
+      text: `Delivered quantity updated to ${deliveredValue.toFixed(2)}`,
+      timer: 1500
+    });
+    
+    refetchOrders && refetchOrders();
+    
+  } catch (err) {
+    console.error("Error updating delivered quantity:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Update Failed",
+      text: err.response?.data?.message || "Failed to update delivered quantity",
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <tr className={`order-row hover:bg-gray-100 ${getRowClass()}`} data-order-id={order._id}>
@@ -192,12 +241,12 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
         {order.customer?.createdBy ? (
           <>
             <div>{order.customer.createdBy.name}</div>
-            <div className="text-[10px] text-gray-500">{order.customer.createdBy.email}</div>
+            {/* <div className="text-[10px] text-gray-500">{order.customer.createdBy.email}</div> */}
           </>
         ) : order.employee ? (
           <>
             <div>{order.employee.name}</div>
-            <div className="text-[5px] text-gray-500">{order.employee.email}</div>
+            {/* <div className="text-[5px] text-gray-500">{order.employee.email}</div> */}
           </>
         ) : (
           "N/A"
@@ -209,7 +258,7 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
         {order.createdBy ? (
           <>
             <div className="font-medium">{order.createdBy.name}</div>
-            <div className="text-[10px] text-gray-500">{order.createdBy.email}</div>
+            {/* <div className="text-[10px] text-gray-500">{order.createdBy.email}</div> */}
             <div className="text-xs text-gray-400 mt-1">
               📅 {new Date(order.createdAt).toLocaleDateString("en-GB", {
                 day: "2-digit",
@@ -221,7 +270,7 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
         ) : order.employee ? (
           <>
             <div className="font-medium">{order.employee.name}</div>
-            <div className="text-xs text-gray-500">{order.employee.email}</div>
+            {/* <div className="text-xs text-gray-500">{order.employee.email}</div> */}
             <div className="text-xs text-gray-400 mt-1">
               📅 {new Date(order.createdAt).toLocaleDateString("en-GB")}
             </div>
@@ -385,166 +434,188 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
       </OrderCell>
       
       {/* QUANTITY - Show each product's quantity and total */}
-      <OrderCell>
-        {hasMultipleProducts ? (
-          <div>
-            <div className="space-y-1">
-              {productList.map((prod, idx) => (
-                <div key={idx} className="text-xs">
-                  {prod.productName}: <span className='bg-blue-200 p-1 rounded'>{prod.quantity}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-1 pt-1 border-t border-gray-200">
-              <span className="font-bold text-blue-600">Total: {totalQuantity}</span>
-            </div>
+<OrderCell>
+  {hasMultipleProducts ? (
+    <div>
+      <div className="space-y-1">
+        {productList.map((prod, idx) => (
+          <div key={idx} className="text-xs">
+            {prod.productName}: <span className='bg-blue-200 p-1 rounded'>{parseFloat(prod.quantity).toFixed(2)}</span>
           </div>
-        ) : (
-          order.quantity
-        )}
-      </OrderCell>
+        ))}
+      </div>
+      <div className="mt-1 pt-1 border-t border-gray-200">
+        <span className="font-bold text-blue-600">Total: {totalQuantity.toFixed(2)}</span>
+      </div>
+    </div>
+  ) : (
+    parseFloat(order.quantity).toFixed(2)
+  )}
+</OrderCell>
 
-      {/* ✅ DELIVERED QUANTITY - Per product for multi-product */}
-      <OrderCell>
-        {hasMultipleProducts ? (
-          <div className="space-y-2">
-            {productList.map((prod, idx) => {
-              const currentDelivered = perProductDelivered[idx]?.deliveredQuantity || 0;
-              const isEditing = isEditingProduct === idx;
-              
-              return (
-                <div key={idx} className="text-sm">
-                  <span className="text-gray-600 text-xs">{prod.productName}:</span>
-                  {role.includes("accounts") ? (
-                    isEditing ? (
-                      <div className="flex items-center gap-1 mt-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max={prod.quantity}
-                          value={currentDelivered}
-                          onChange={(e) => {
-                            const updated = [...perProductDelivered];
-                            updated[idx] = { ...updated[idx], deliveredQuantity: parseInt(e.target.value) || 0 };
-                            setPerProductDelivered(updated);
-                          }}
-                          onKeyDown={(e) => handleProductKeyDown(e, idx, parseInt(e.target.value) || 0)}
-                          className="w-16 px-1 py-0.5 border border-gray-300 rounded text-center text-sm"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => saveProductDeliveredQuantity(idx, currentDelivered)}
-                          className="text-green-600 hover:text-green-800 text-xs"
-                          title="Save"
-                        >
-                          save
-                        </button>
-                        <button
-                          onClick={() => setIsEditingProduct(null)}
-                          className="text-gray-500 hover:text-gray-700 text-xs"
-                          title="Cancel"
-                        >
-                          cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div 
-                        className="flex items-center gap-1 cursor-pointer hover:text-blue-600 mt-1"
-                        onClick={() => setIsEditingProduct(idx)}
-                        title="Click to edit"
-                      >
-                        <span className={currentDelivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
-                          {currentDelivered}
-                        </span>
-                        <span className="text-gray-500">/</span>
-                        <span className="text-gray-600">{prod.quantity}</span>
-                        <span className="text-blue-500 text-xs ml-1">✏️</span>
-                      </div>
-                    )
-                  ) : (
-                    <div className="mt-1">
-                      <span className={currentDelivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
-                        {currentDelivered}
-                      </span>
-                      <span className="text-gray-500">/</span>
-                      <span className="text-gray-600">{prod.quantity}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <div className="pt-1 border-t border-gray-200">
-              <span className="font-medium">Total Delivered: {totalDelivered}</span>
-            </div>
-          </div>
-        ) : (
-          // Single product - simple view
-          (() => {
-            const delivered = order.deliveredQuantity || 0;
-            const [localDelivered, setLocalDelivered] = useState(delivered);
-            const [isEditing, setIsEditing] = useState(false);
-            
-            return role.includes("accounts") ? (
+   {/* ✅ DELIVERED QUANTITY - Per product for multi-product */}
+<OrderCell>
+  {hasMultipleProducts ? (
+    <div className="space-y-2">
+      {productList.map((prod, idx) => {
+        const currentDelivered = perProductDelivered[idx]?.deliveredQuantity || 0;
+        const isEditing = isEditingProduct === idx;
+        
+        return (
+          <div key={idx} className="text-sm">
+            <span className="text-gray-600 text-xs">{prod.productName}:</span>
+            {role.includes("accounts") ? (
               isEditing ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 mt-1">
                   <input
                     type="number"
+                    step="0.01"
                     min="0"
-                    max={order.quantity}
-                    value={localDelivered}
-                    onChange={(e) => setLocalDelivered(parseInt(e.target.value) || 0)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        saveSingleDelivered(localDelivered);
-                      } else if (e.key === 'Escape') {
-                        setIsEditing(false);
-                        setLocalDelivered(delivered);
+                    max={parseFloat(prod.quantity)}
+                    value={currentDelivered}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value) && value >= 0 && value <= parseFloat(prod.quantity)) {
+                        const updated = [...perProductDelivered];
+                        updated[idx] = { ...updated[idx], deliveredQuantity: value };
+                        setPerProductDelivered(updated);
+                      } else if (e.target.value === "") {
+                        const updated = [...perProductDelivered];
+                        updated[idx] = { ...updated[idx], deliveredQuantity: 0 };
+                        setPerProductDelivered(updated);
                       }
                     }}
-                    className="w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-sm"
+                    onBlur={() => {
+                      const currentValue = perProductDelivered[idx]?.deliveredQuantity || 0;
+                      saveProductDeliveredQuantity(idx, currentValue);
+                      setIsEditingProduct(null);
+                    }}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm"
                     autoFocus
                   />
                   <button
-                    onClick={() => saveSingleDelivered(localDelivered)}
+                    onClick={() => {
+                      const currentValue = perProductDelivered[idx]?.deliveredQuantity || 0;
+                      saveProductDeliveredQuantity(idx, currentValue);
+                    }}
                     className="text-green-600 hover:text-green-800 text-xs"
+                    title="Save"
                   >
                     save
                   </button>
                   <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setLocalDelivered(delivered);
-                    }}
+                    onClick={() => setIsEditingProduct(null)}
                     className="text-gray-500 hover:text-gray-700 text-xs"
+                    title="Cancel"
                   >
                     cancel
                   </button>
                 </div>
               ) : (
                 <div 
-                  className="flex items-center gap-1 cursor-pointer hover:text-blue-600"
-                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-1 cursor-pointer hover:text-blue-600 mt-1"
+                  onClick={() => setIsEditingProduct(idx)}
+                  title="Click to edit"
                 >
-                  <span className={delivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
-                    {delivered}
+                  <span className={currentDelivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
+                    {currentDelivered.toFixed(2)}
                   </span>
                   <span className="text-gray-500">/</span>
-                  <span className="text-gray-600">{order.quantity}</span>
+                  <span className="text-gray-600">{parseFloat(prod.quantity).toFixed(2)}</span>
                   <span className="text-blue-500 text-xs ml-1">✏️</span>
                 </div>
               )
             ) : (
-              <div className="flex items-center gap-1">
-                <span className={delivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
-                  {delivered}
+              <div className="mt-1">
+                <span className={currentDelivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
+                  {currentDelivered.toFixed(2)}
                 </span>
                 <span className="text-gray-500">/</span>
-                <span className="text-gray-600">{order.quantity}</span>
+                <span className="text-gray-600">{parseFloat(prod.quantity).toFixed(2)}</span>
               </div>
-            );
-          })()
-        )}
-      </OrderCell>
+            )}
+          </div>
+        );
+      })}
+      <div className="pt-1 border-t border-gray-200">
+        <span className="font-medium">Total Delivered: {totalDelivered.toFixed(2)}</span>
+      </div>
+    </div>
+  ) : (
+    // Single product view
+    (() => {
+      const delivered = order.deliveredQuantity || 0;
+      const [localDelivered, setLocalDelivered] = useState(delivered);
+      const [isEditing, setIsEditing] = useState(false);
+      
+      return role.includes("accounts") ? (
+        isEditing ? (
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max={parseFloat(order.quantity)}
+              value={localDelivered}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && value >= 0 && value <= parseFloat(order.quantity)) {
+                  setLocalDelivered(value);
+                } else if (e.target.value === "") {
+                  setLocalDelivered(0);
+                }
+              }}
+              onBlur={() => {
+                saveSingleDelivered(localDelivered);
+                setIsEditing(false);
+              }}
+              className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                saveSingleDelivered(localDelivered);
+                setIsEditing(false);
+              }}
+              className="text-green-600 hover:text-green-800 text-xs"
+            >
+              save
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setLocalDelivered(delivered);
+              }}
+              className="text-gray-500 hover:text-gray-700 text-xs"
+            >
+              cancel
+            </button>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center gap-1 cursor-pointer hover:text-blue-600"
+            onClick={() => setIsEditing(true)}
+          >
+            <span className={delivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
+              {delivered.toFixed(2)}
+            </span>
+            <span className="text-gray-500">/</span>
+            <span className="text-gray-600">{parseFloat(order.quantity).toFixed(2)}</span>
+            <span className="text-blue-500 text-xs ml-1">✏️</span>
+          </div>
+        )
+      ) : (
+        <div className="flex items-center gap-1">
+          <span className={delivered > 0 ? "font-medium text-blue-600" : "text-gray-700"}>
+            {delivered.toFixed(2)}
+          </span>
+          <span className="text-gray-500">/</span>
+          <span className="text-gray-600">{parseFloat(order.quantity).toFixed(2)}</span>
+        </div>
+      );
+    })()
+  )}
+</OrderCell>
       
       {/* ✅ REMAINING BALANCE - Per product for multi-product */}
       <OrderCell>
@@ -552,47 +623,47 @@ const saveProductDeliveredQuantity = async (productIndex, newValue) => {
           <div className="space-y-2">
             {productList.map((prod, idx) => {
               const delivered = perProductDelivered[idx]?.deliveredQuantity || 0;
-              const remaining = (parseInt(prod.quantity) || 0) - delivered;
+const remaining = (parseFloat(prod.quantity) || 0) - delivered;
               return (
                 <div key={idx} className="text-sm">
                   <span className="text-gray-600 text-xs">{prod.productName}:</span>
-                  <span className={`ml-2 px-1 py-0.5 rounded text-xs ${
-                    remaining === 0 
-                      ? "bg-green-100 text-green-800" 
-                      : delivered > 0 
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                  }`}>
-                    {remaining === 0 ? "✅ Completed" : `${remaining} left`}
-                  </span>
+                 <span className={`ml-2 px-1 py-0.5 rounded text-xs ${
+  remaining === 0 
+    ? "bg-green-100 text-green-800" 
+    : delivered > 0 
+      ? "bg-yellow-100 text-yellow-800"
+      : "bg-red-100 text-red-800"
+}`}>
+  {remaining === 0 ? "✅ Completed" : `${remaining.toFixed(2)} left`}
+</span>
                 </div>
               );
             })}
             <div className="pt-1 border-t border-gray-200">
               <span className={`font-bold px-2 py-1 rounded inline-block text-center ${
-                remainingBalance === 0 
-                  ? "bg-green-100 text-green-800" 
-                  : totalDelivered > 0
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-              }`}>
-                {remainingBalance === 0 ? "All Completed" : `${remainingBalance} total remaining`}
-              </span>
+  remainingBalance === 0 
+    ? "bg-green-100 text-green-800" 
+    : totalDelivered > 0
+      ? "bg-yellow-100 text-yellow-800"
+      : "bg-red-100 text-red-800"
+}`}>
+  {remainingBalance === 0 ? "All Completed" : `${remainingBalance.toFixed(2)} total remaining`}
+</span>
             </div>
           </div>
         ) : (
           (() => {
-            const remaining = order.quantity - (order.deliveredQuantity || 0);
+const remaining = (parseFloat(order.quantity) || 0) - (parseFloat(order.deliveredQuantity) || 0);
             return (
-              <span className={`font-bold px-2 py-1 rounded inline-block min-w-[80px] text-center ${
-                remaining === 0 
-                  ? "bg-green-100 text-green-800 border border-green-300" 
-                  : order.deliveredQuantity > 0
-                    ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
-                    : "bg-red-100 text-red-800 border border-red-300"
-              }`}>
-                {remaining === 0 ? "Fully Delivered" : `${remaining} remaining`}
-              </span>
+             <span className={`font-bold px-2 py-1 rounded inline-block min-w-[80px] text-center ${
+  remaining === 0 
+    ? "bg-green-100 text-green-800 border border-green-300" 
+    : order.deliveredQuantity > 0
+      ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+      : "bg-red-100 text-red-800 border border-red-300"
+}`}>
+  {remaining === 0 ? "Fully Delivered" : `${remaining.toFixed(2)} remaining`}
+</span>
             );
           })()
         )}

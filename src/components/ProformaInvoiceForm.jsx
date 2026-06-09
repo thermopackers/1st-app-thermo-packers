@@ -191,37 +191,36 @@ useEffect(() => {
 
   <div>
     <label className="text-sm font-medium">Customer</label>
-    <Select
-      className="text-sm"
-      placeholder="Select Customer..."
-      options={customers.map(c => ({
-        value: c._id,
-        label: c.name,
-        data: c
-      }))}
-      onChange={(selectedOption) => {
-        const customer = selectedOption.data;
-  setForm(f => ({
-  ...f,
-  customerName: customer.name || "",
-  customerEmail: customer.email || "",
-  contact: customer.phone || "",
-  billTo: customer.address || "",
-  shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
-  gstin: customer.company || "",
-
-  city: customer.city || "",
-  state: customer.state || "",
-  pincode: customer.pincode || "",
-  inPunjab: customer.state === "Punjab",
-}));
-
-
-      }}
-      isSearchable
-      menuPortalTarget={document.body}
-      styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-    />
+<Select
+  className="text-sm"
+  placeholder="Select Customer..."
+  options={customers.map(c => ({
+    value: c._id,
+    label: c.name,
+    data: c
+  }))}
+  onChange={(selectedOption) => {
+    const customer = selectedOption.data;
+    setForm(f => ({
+      ...f,
+      customerName: customer.name || "",
+      customerEmail: customer.email || "",
+      contact: customer.phone || "",
+      billTo: customer.address || "",
+      shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
+      gstin: customer.company || "",
+      city: customer.city || "",
+      state: customer.state || "",
+      pincode: customer.pincode || "",
+      inPunjab: customer.state === "Punjab",
+      // 🔥 ADD THIS LINE - Auto set destination from customer's city/village/town
+    destination: customer.city || "",
+    }));
+  }}
+  isSearchable
+  menuPortalTarget={document.body}
+  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+/>
   </div>
 
   <div>
@@ -267,11 +266,12 @@ useEffect(() => {
   </div>
   <div>
     <label className="text-sm font-medium">Destination</label>
-    <input
-      className="input"
-      placeholder="Destination"
-      onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
-    />
+   <input
+  className="input"
+  placeholder="Destination"
+  value={form.destination || ""}
+  onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
+/>
   </div>
  <div>
   <label className="text-sm font-medium">Freight Type</label>

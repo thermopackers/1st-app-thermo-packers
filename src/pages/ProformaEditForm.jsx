@@ -223,11 +223,13 @@ useEffect(() => {
       contact: customer.phone || "",
       billTo: customer.address || "",
       shipTo: f.sameAddress ? customer.address || "" : customer.shippingAddress || "",
-      gstin: customer.company || "", // ✅ prefer gstin field
+      gstin: customer.company || "",
       city: customer.city || "",
       state: customer.state || "",
       pincode: customer.pincode || "",
       inPunjab: (customer.state || "").toLowerCase() === "punjab",
+      // 🔥 ADD THIS LINE - Auto set destination from customer's city/village/town
+          destination: customer.city || "",
     }));
   }}
   isSearchable
