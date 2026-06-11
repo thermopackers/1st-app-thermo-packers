@@ -1350,20 +1350,32 @@ const renderNarrationImages = (order) => {
         )}
       </td>
       
-      {/* Total Quantity Column */}
-      <td className="px-4 py-3 font-medium">
-        {hasMultipleProducts(order) ? (
-          <div>
-            <span className="font-bold text-blue-600">{getTotalQuantity(order)}</span>
-            <span className="text-xs text-gray-500 block">
-              ({order.products.length} products)
+     {/* ✅ Quantity Column - Show each product's quantity for multi-product orders */}
+<td className="px-4 py-3">
+  {hasMultipleProducts(order) ? (
+    <div>
+      <div className="space-y-1">
+        {order.products.map((prod, idx) => (
+          <div key={idx} className="text-xs">
+            <span className="font-medium">{prod.productName}:</span>{' '}
+            <span className="bg-blue-100 px-2 py-0.5 rounded">
+              {parseFloat(prod.quantity).toFixed(2)}
             </span>
           </div>
-        ) : (
-          order.quantity
-        )}
-
-      </td>
+        ))}
+      </div>
+      <div className="mt-1 pt-1 border-t border-gray-200">
+        <span className="font-bold text-blue-600">
+          Total: {getTotalQuantity(order)}
+        </span>
+      </div>
+    </div>
+  ) : (
+    <span className="bg-blue-100 px-2 py-0.5 rounded">
+      {parseFloat(order.quantity).toFixed(2)}
+    </span>
+  )}
+</td>
         {/* ✅ Delivery Time - NEW COLUMN */}
         <td className="px-4 py-2">
           {renderDeliveryTime(order)}
