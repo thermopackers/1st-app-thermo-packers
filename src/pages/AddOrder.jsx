@@ -115,9 +115,8 @@ useEffect(() => {
 
   fetchData();
 }, []);
+
 useEffect(() => {
-
-
   // ✅ Handle auto-fill from Proforma Invoice
   const state = location.state;
   if (state?.fromProforma && state.invoice) {
@@ -125,97 +124,111 @@ useEffect(() => {
 
     const customer = allCustomers.find(c => c.name === invoice.customerName);
 
-   setClientDetails((prev) => ({
-  ...prev,
-  customerId: customer?._id || "",
-  customerName: invoice.customerName || "",
-  billTo: invoice.billTo || "",
-  shipTo: invoice.shipTo || "",
-  sameAsBillTo: invoice.billTo === invoice.shipTo,
-  po: invoice.invoiceNo || "",
-  deliveryOption: "", // Reset delivery option
-  date: new Date().toISOString().split("T")[0],
-  remarks: invoice.remarks || "",
-}));
-// ✅ Auto-map payment terms from Proforma
-// ✅ Auto-map payment terms from Proforma
-if (invoice.paymentTerms || invoice.customPaymentTerm) {
-  const piPaymentTerm = invoice.paymentTerms || invoice.customPaymentTerm;
-  
-  // Check if it matches any of the standard options
-  const standardTerms = [
-    "100% Advance",
-    "Cash on Delivery (Driver to get Cash payment on delivery)",
-    "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
-    "50% Advance & Balance 50% before Dispatch against PI",
-    "Credit (Udhaar): 45 Days"
-  ];
-  
-  if (standardTerms.includes(piPaymentTerm)) {
-    setPaymentTerms(piPaymentTerm);
-    setCustomPaymentTerms("");
-  } else {
-    // It's a custom term
-    setPaymentTerms("Other");
-    setCustomPaymentTerms(piPaymentTerm);
-  }
-}
+    setClientDetails((prev) => ({
+      ...prev,
+      customerId: customer?._id || "",
+      customerName: invoice.customerName || "",
+      billTo: invoice.billTo || "",
+      shipTo: invoice.shipTo || "",
+      sameAsBillTo: invoice.billTo === invoice.shipTo,
+      po: invoice.invoiceNo || "",
+      deliveryOption: "", // Reset delivery option
+      date: new Date().toISOString().split("T")[0],
+      remarks: invoice.remarks || "",
+    }));
 
+    // ✅ Auto-map payment terms from Proforma
+    if (invoice.paymentTerms || invoice.customPaymentTerm) {
+      const piPaymentTerm = invoice.paymentTerms || invoice.customPaymentTerm;
+      
+      // Check if it matches any of the standard options
+      const standardTerms = [
+        "100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE",
+        "Cash on Delivery (Driver to get Cash payment on delivery)",
+        "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
+        "50% Advance & Balance 50% before Dispatch against PI",
+        "Credit (Udhaar): 45 Days",
+          "Credit (Udhaar): 15 Days",
+  "Credit (Udhaar): 30 Days",
+      ];
+      
+      if (standardTerms.includes(piPaymentTerm)) {
+        setPaymentTerms(piPaymentTerm);
+        setCustomPaymentTerms("");
+      } else {
+        // It's a custom term
+        setPaymentTerms("Other");
+        setCustomPaymentTerms(piPaymentTerm);
+      }
+    }
+
+    // ✅ Determine freight type for common order fields
     const freightType = (invoice.freightType || "").toLowerCase().trim();
+    let commonFreightValue = "";
+    let commonFreightAmountValue = "";
 
+    // Map Proforma freightType to Order freight options
+    if (freightType === "freight paid" || freightType === "paid") {
+      commonFreightValue = "Freight Paid";
+      commonFreightAmountValue = "";
+    } 
+    else if (freightType === "self dispatch" || freightType === "self pickup") {
+      commonFreightValue = "Self Dispatch";
+      commonFreightAmountValue = "";
+    } 
+    else if (freightType === "to pay") {
+      commonFreightValue = "To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)";
+      commonFreightAmountValue = invoice.toPayAmount?.toString() || invoice.freight?.toString() || "";
+    } 
+    else if (freightType === "billed") {
+      commonFreightValue = "Billed in Invoice";
+      commonFreightAmountValue = invoice.freight?.toString() || "";
+    } 
+    else if (freightType === "as per (actual amount on to pay basis)") {
+      commonFreightValue = "As per (Actual amount on To Pay basis)";
+      commonFreightAmountValue = "";
+    }
+
+    // ✅ Set common freight fields at ORDER LEVEL
+    setCommonFreight(commonFreightValue);
+    setCommonFreightAmount(commonFreightAmountValue);
+    
+    // ✅ Set packaging charge at ORDER LEVEL
+    setCommonPackagingCharge(invoice.packaging?.toString() || "");
+
+    // ✅ Process products (without freight/packaging at product level)
     if (Array.isArray(invoice.products)) {
-  const products = invoice.products.map((prod) => ({
-    product: prod.name || "",
-    customProduct: "",
-    size: "",
-    customSize: "",
-    quantity: prod.qty?.toString() || "",
-    price: prod.rate?.toString() || "",
-    density: "",
-    packagingCharge: invoice.packagingCharge || "",
+      const products = invoice.products.map((prod) => ({
+        product: prod.name || "",
+        customProduct: "",
+        size: "",
+        customSize: "",
+        quantity: prod.qty?.toString() || "",
+        price: prod.rate?.toString() || "",
+        density: "",
+        // ❌ REMOVED: packagingCharge, freight, freightAmount (now at order level)
 
-    // ✅ Freight logic based on freightType
+        // ✅ Product images
+        productImages: Array.isArray(prod.productImages) && prod.productImages.length > 0
+          ? prod.productImages
+          : Array.isArray(prod.images) && prod.images.length > 0
+          ? prod.images
+          : [],
 
-freight:
-  freightType === "paid" || freightType === "freight paid"
-    ? "Freight Paid"
-    : freightType === "self pickup" || freightType === "self dispatch"
-    ? "Self Dispatch"
-    : freightType === "to pay"
-    ? "To pay"
-    : freightType === "billed"
-    ? "Billed in Invoice"
-    : "",
+        // ✅ Remarks
+        productRemarks: prod.narration || prod.remarks || "",
+        narration: prod.narration || "",
+        
+        // ✅ Narration images
+        narrationImages: Array.isArray(prod.narrationImages) && prod.narrationImages.length > 0
+          ? prod.narrationImages
+          : [],
+      }));
 
-freightAmount:
-  freightType === "billed" || freightType === "to pay"
-    ? invoice.freight || ""
-    : "",
-
-
-    // ✅ Product images
-    productImages:
-      Array.isArray(prod.productImages) && prod.productImages.length > 0
-        ? prod.productImages
-        : Array.isArray(prod.images) && prod.images.length > 0
-        ? prod.images
-        : [],
-
-    // ✅ Remarks
-    productRemarks: prod.narration || prod.remarks || "",
-    narration: prod.narration || "", // ✅ Auto-fill narration text
-    // ✅ Narration images
-    narrationImages:
-      Array.isArray(prod.narrationImages) && prod.narrationImages.length > 0
-        ? prod.narrationImages
-        : [],
-  }));
-
-  setProductList(products);
-}
-
+      setProductList(products);
+    }
   }
-}, [location,allCustomers]);
+}, [location, allCustomers]);
 
 
 // Function to mark an invoice as converted
@@ -640,16 +653,18 @@ if (loadingProducts || loadingCustomers) {
             />
            <div className="mb-4">
   <label className="block font-medium mb-1 text-gray-700">Payment Terms</label>
- <select
+<select
   className="w-full border border-gray-300 rounded px-3 py-2"
   value={
     paymentTerms &&
     ![
-      "100% Advance",
+      "100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE",
       "Cash on Delivery (Driver to get Cash payment on delivery)",
       "PDC (Cheque on Delivery) - Driver to get cheque on delivery on material",
       "50% Advance & Balance 50% before Dispatch against PI",
-      "Credit (Udhaar): 45 Days"
+      "Credit (Udhaar): 45 Days",
+      "Credit (Udhaar): 15 Days",
+      "Credit (Udhaar): 30 Days"
     ].includes(paymentTerms)
       ? "Other"
       : paymentTerms
@@ -663,25 +678,30 @@ if (loadingProducts || loadingCustomers) {
     }
   }}
 >
-
-   <option value="">-- Select Payment Terms --</option>
-<option value="100% Advance">
-  1) 100% Advance
-</option>
-<option value="Cash on Delivery (Driver to get Cash payment on delivery)">
-  2) Cash on Delivery (Driver to get Cash payment on delivery)
-</option>
-<option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
-  3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
-</option>
-<option value="50% Advance & Balance 50% before Dispatch against PI">
-  4) 50% Advance & Balance 50% before Dispatch against PI
-</option>
-<option value="Credit (Udhaar): 45 Days">
-  5) Credit (Udhaar): 45 Days
-</option>
-    <option value="Other">6) Other (Write in remarks)</option>
-  </select>
+  <option value="">-- Select Payment Terms --</option>
+  <option value="100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE">
+    1) 100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE
+  </option>
+  <option value="Cash on Delivery (Driver to get Cash payment on delivery)">
+    2) Cash on Delivery (Driver to get Cash payment on delivery)
+  </option>
+  <option value="PDC (Cheque on Delivery) - Driver to get cheque on delivery on material">
+    3) PDC (Cheque on Delivery) - Driver to get cheque on delivery on material
+  </option>
+  <option value="50% Advance & Balance 50% before Dispatch against PI">
+    4) 50% Advance & Balance 50% before Dispatch against PI
+  </option>
+  <option value="Credit (Udhaar): 45 Days">
+    5) Credit (Udhaar): 45 Days
+  </option>
+  <option value="Credit (Udhaar): 15 Days">
+    6) Credit (Udhaar): 15 Days
+  </option>
+  <option value="Credit (Udhaar): 30 Days">
+    7) Credit (Udhaar): 30 Days
+  </option>
+  <option value="Other">8) Other (Write in remarks)</option>
+</select>
 
   {paymentTerms === "Other" && (
     <input
@@ -868,7 +888,7 @@ if (loadingProducts || loadingCustomers) {
       value={commonFreight}
       onChange={(e) => {
         setCommonFreight(e.target.value);
-        if (e.target.value !== "To pay" && e.target.value !== "Billed in Invoice") {
+        if (e.target.value !== "To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)" && e.target.value !== "Billed in Invoice") {
           setCommonFreightAmount("");
         }
       }}
@@ -876,19 +896,19 @@ if (loadingProducts || loadingCustomers) {
       required
     >
       <option value="">Select Freight</option>
-      <option value="To pay">To pay</option>
+      <option value="To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)">To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)</option>
       <option value="Self Dispatch">Self Pickup</option>
       <option value="Freight Paid">Freight Paid</option>
       <option value="Billed in Invoice">Billed in Invoice</option>
-          <option value="As per Transport">As per Transport</option>
+          <option value="As per (Actual amount on To Pay basis)">As per (Actual amount on To Pay basis)</option>
     </select>
   </div>
 
   {/* Freight Amount (conditional) */}
-  {(commonFreight === "To pay" || commonFreight === "Billed in Invoice") && (
+  {(commonFreight === "To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)" || commonFreight === "Billed in Invoice") && (
     <div className="flex flex-col">
       <label className="mb-1 text-xs sm:text-sm font-medium text-gray-700">
-        {commonFreight === "To pay" ? "Freight Amount to Pay" : "Freight Amount Billed"}
+        {commonFreight === "To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)" ? "Freight Amount to Pay" : "Freight Amount Billed"}
       </label>
       <input
         type="number"

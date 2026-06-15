@@ -42,13 +42,13 @@ export default function PipeSectionCalculator() {
   const [expandedRow, setExpandedRow] = useState(null);
   const [showWastage, setShowWastage] = useState(false);
   const [includeWastageInPrice, setIncludeWastageInPrice] = useState(true);
-  const [globalFormData, setGlobalFormData] = useState({
-    density: "",
-    customRmRate: "",
-    conversionRate: "",
-    freight: "",
-    wastageRate: ""  // 🆕 Add wastage rate field
-  });
+const [globalFormData, setGlobalFormData] = useState({
+  density: "16",
+  customRmRate: "",
+  conversionRate: "120",
+  freight: "",
+  wastageRate: "40"
+});
   const [sizes, setSizes] = useState([
     { id: Date.now(), pipeSize: "3", thickness: "2" }
   ]);
@@ -61,29 +61,35 @@ export default function PipeSectionCalculator() {
     fetchRMRate();
   }, []);
 
-  // Recalculate totals when includeWastageInPrice changes
-  useEffect(() => {
-    if (results.length > 0) {
-      const subtotal = results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0);
-      const totalWithFreight = subtotal + totalFreight;
-      const gst = totalWithFreight * 0.18;
-      const grandTotalPrice = totalWithFreight + gst;
-      
-      setTotalGST(gst);
-      setGrandTotal(grandTotalPrice);
-    }
-  }, [includeWastageInPrice, results, totalFreight]);
+// Recalculate totals when includeWastageInPrice changes
+useEffect(() => {
+  if (results.length > 0) {
+    const subtotal = results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece)), 0);
+    const totalWithFreight = subtotal + totalFreight;
+    const gst = totalWithFreight * 0.18;
+    const grandTotalPrice = totalWithFreight + gst;
+    
+    setTotalGST(gst);
+    setGrandTotal(grandTotalPrice);
+  }
+}, [includeWastageInPrice, results, totalFreight]);
 
-  const fetchRMRate = async () => {
-    try {
-      const res = await axiosInstance.get("/rm-rate");
-      setRmRate(res.data.rate || 0);
-      setGlobalFormData(prev => ({ ...prev, customRmRate: res.data.rate || 0 }));
-    } catch (err) {
-      console.error("Error fetching RM rate:", err);
-      toast.error("Failed to load RM rate");
-    }
-  };
+const fetchRMRate = async () => {
+  try {
+    const res = await axiosInstance.get("/rm-rate");
+    setRmRate(res.data.rate || 0);
+    setGlobalFormData(prev => ({ 
+      ...prev, 
+      customRmRate: res.data.rate || 0,
+      density: prev.density || "16",
+      conversionRate: prev.conversionRate || "120",
+      wastageRate: prev.wastageRate || "40"
+    }));
+  } catch (err) {
+    console.error("Error fetching RM rate:", err);
+    toast.error("Failed to load RM rate");
+  }
+};
 
   const handleGlobalChange = (e) => {
     const { name, value } = e.target;
@@ -210,101 +216,104 @@ export default function PipeSectionCalculator() {
     };
   };
 
-  const handleCalculate = () => {
-    if (!globalFormData.density) {
-      toast.error("Please enter density");
-      return;
-    }
+const handleCalculate = () => {
+  if (!globalFormData.density) {
+    toast.error("Please enter density");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
+  
+  try {
+    const effectiveRmRate = parseFloat(globalFormData.customRmRate) || rmRate;
+    const conversionRate = parseFloat(globalFormData.conversionRate) || 0;
+    const totalPerKg = effectiveRmRate + conversionRate;
+    const density = parseFloat(globalFormData.density);
+    const blockVolume = 4.6;
+    const weightPerBlock = density * blockVolume;
+    const costPerBlock = weightPerBlock * totalPerKg;
+    const freight = parseFloat(globalFormData.freight) || 0;
+    const wastageRatePerKg = parseFloat(globalFormData.wastageRate) || 0;
+
+    const calculatedResults = sizes.map(size => {
+      const odMM = calculateOD(size.pipeSize, size.thickness);
+      const volumeM3 = calculateVolume(odMM);
+      const { maxPieces, bestOrientation } = calculateBestPieces(odMM);
+      
+      const priceWithWastage = maxPieces > 0 ? costPerBlock / maxPieces : 0;
+      
+      // Calculate wastage with wastage rate
+      const wastage = calculateWastage(odMM, maxPieces, volumeM3, density, wastageRatePerKg);
+      
+      const usableVolumePerPiece = volumeM3;
+      const theoreticalPricePerPiece = (usableVolumePerPiece * density * totalPerKg);
+      
+      // Price without wastage = (Cost per Block - Wastage Cost) / pieces
+      const wastageCostTotal = parseFloat(wastage.wastageCost);
+      const costPerBlockWithoutWastage = costPerBlock - wastageCostTotal;
+      const priceWithoutWastage = maxPieces > 0 ? costPerBlockWithoutWastage / maxPieces : 0;
+      const wastageCostPerPiece = maxPieces > 0 ? wastageCostTotal / maxPieces : 0;
+      
+      const outerDimensionM3 = volumeM3;
+      const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
+      const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
+      
+      const pipe = pipeData[parseFloat(size.pipeSize)];
+      const thicknessMM = inchToMM(size.thickness);
+      
+      return {
+        id: size.id,
+        pipeSize: size.pipeSize,
+        thickness: size.thickness,
+        odMM: odMM.toFixed(2),
+        pipeOD: pipe?.od || 0,
+        thicknessMM: thicknessMM,
+        volumeM3: volumeM3.toFixed(6),
+        piecesFromBlock: maxPieces,
+        orientation: bestOrientation?.orientation || "N/A",
+        piecesLayout: bestOrientation ? `${bestOrientation.piecesL} x ${bestOrientation.piecesB} x ${bestOrientation.piecesH}` : "N/A",
+        priceWithWastage: priceWithWastage.toFixed(2),
+        priceWithoutWastage: priceWithoutWastage.toFixed(2),
+        wastageCostPerPiece: wastageCostPerPiece.toFixed(2),
+        theoreticalPricePerPiece: theoreticalPricePerPiece.toFixed(2),
+        piecesInTempo,
+        piecesInTruck,
+        wastage,
+        calculationSteps: {
+          blockVolume: blockVolume,
+          weightPerBlock: weightPerBlock.toFixed(2),
+          totalPerKg: totalPerKg.toFixed(2),
+          costPerBlock: costPerBlock.toFixed(2),
+          costPerBlockWithoutWastage: costPerBlockWithoutWastage.toFixed(2),
+          effectiveRmRate: effectiveRmRate,
+          conversionRate: conversionRate,
+          density: density,
+          freight: freight,
+          wastageRate: wastageRatePerKg
+        }
+      };
+    });
     
-    try {
-      const effectiveRmRate = parseFloat(globalFormData.customRmRate) || rmRate;
-      const conversionRate = parseFloat(globalFormData.conversionRate) || 0;
-      const totalPerKg = effectiveRmRate + conversionRate;
-      const density = parseFloat(globalFormData.density);
-      const blockVolume = 4.6;
-      const weightPerBlock = density * blockVolume;
-      const costPerBlock = weightPerBlock * totalPerKg;
-      const freight = parseFloat(globalFormData.freight) || 0;
-      const wastageRatePerKg = parseFloat(globalFormData.wastageRate) || 0;
-
-      const calculatedResults = sizes.map(size => {
-        const odMM = calculateOD(size.pipeSize, size.thickness);
-        const volumeM3 = calculateVolume(odMM);
-        const { maxPieces, bestOrientation } = calculateBestPieces(odMM);
-        
-        const pricePerPiece = maxPieces > 0 ? costPerBlock / maxPieces : 0;
-        
-        // Calculate wastage with wastage rate
-        const wastage = calculateWastage(odMM, maxPieces, volumeM3, density, wastageRatePerKg);
-        
-        const usableVolumePerPiece = volumeM3;
-        const theoreticalPricePerPiece = (usableVolumePerPiece * density * totalPerKg);
-        
-        // Price including wastage cost
-        const wastageCostPerPiece = maxPieces > 0 ? parseFloat(wastage.wastageCost) / maxPieces : 0;
-        const priceWithWastage = pricePerPiece + wastageCostPerPiece;
-        
-        const outerDimensionM3 = volumeM3;
-        const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
-        const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
-        
-        const pipe = pipeData[parseFloat(size.pipeSize)];
-        const thicknessMM = inchToMM(size.thickness);
-        
-        return {
-          id: size.id,
-          pipeSize: size.pipeSize,
-          thickness: size.thickness,
-          odMM: odMM.toFixed(2),
-          pipeOD: pipe?.od || 0,
-          thicknessMM: thicknessMM,
-          volumeM3: volumeM3.toFixed(6),
-          piecesFromBlock: maxPieces,
-          orientation: bestOrientation?.orientation || "N/A",
-          piecesLayout: bestOrientation ? `${bestOrientation.piecesL} x ${bestOrientation.piecesB} x ${bestOrientation.piecesH}` : "N/A",
-          pricePerPiece: priceWithWastage.toFixed(2),
-          priceWithoutWastage: pricePerPiece.toFixed(2),
-          wastageCostPerPiece: wastageCostPerPiece.toFixed(2),
-          theoreticalPricePerPiece: theoreticalPricePerPiece.toFixed(2),
-          piecesInTempo,
-          piecesInTruck,
-          wastage,
-          calculationSteps: {
-            blockVolume: blockVolume,
-            weightPerBlock: weightPerBlock.toFixed(2),
-            totalPerKg: totalPerKg.toFixed(2),
-            costPerBlock: costPerBlock.toFixed(2),
-            effectiveRmRate: effectiveRmRate,
-            conversionRate: conversionRate,
-            density: density,
-            freight: freight,
-            wastageRate: wastageRatePerKg
-          }
-        };
-      });
-      
-      setResults(calculatedResults);
-      
-      // Calculate totals with freight added once
-      const subtotal = calculatedResults.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0);
-      const totalWithFreight = subtotal + freight;
-      const gst = totalWithFreight * 0.18;
-      const grandTotalPrice = totalWithFreight + gst;
-      
-      setTotalFreight(freight);
-      setTotalGST(gst);
-      setGrandTotal(grandTotalPrice);
-      
-      toast.success(`Calculated ${calculatedResults.length} pipe sizes!`);
-    } catch (err) {
-      console.error("Calculation error:", err);
-      toast.error("Failed to calculate");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setResults(calculatedResults);
+    
+    // Calculate totals with freight added once
+    const subtotal = calculatedResults.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece)), 0);
+    const totalWithFreight = subtotal + freight;
+    const gst = totalWithFreight * 0.18;
+    const grandTotalPrice = totalWithFreight + gst;
+    
+    setTotalFreight(freight);
+    setTotalGST(gst);
+    setGrandTotal(grandTotalPrice);
+    
+    toast.success(`Calculated ${calculatedResults.length} pipe sizes!`);
+  } catch (err) {
+    console.error("Calculation error:", err);
+    toast.error("Failed to calculate");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const toggleExpand = (id) => {
     setExpandedRow(expandedRow === id ? null : id);
@@ -328,20 +337,20 @@ export default function PipeSectionCalculator() {
       ['Pipe Size (inch)', 'Thickness (inch)', 'OD (mm)', 'Volume (m³)', 'Pcs/Block', 'Price/Pc (₹)']
     ];
     
-    results.forEach(r => {
-      const displayPrice = includeWastageInPrice ? r.pricePerPiece : r.theoreticalPricePerPiece;
-      tableBody.push([
-        r.pipeSize,
-        r.thickness,
-        r.odMM,
-        r.volumeM3,
-        r.piecesFromBlock.toString(),
-        displayPrice
-      ]);
-    });
-    
-    const subtotal = results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0);
-    
+results.forEach(r => {
+  const displayPrice = includeWastageInPrice ? r.priceWithWastage : r.theoreticalPricePerPiece;
+  tableBody.push([
+    r.pipeSize,
+    r.thickness,
+    r.odMM,
+    r.volumeM3,
+    r.piecesFromBlock.toString(),
+    displayPrice
+  ]);
+});
+
+const subtotal = results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece)), 0);
+
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [20, 40, 20, 40],
@@ -497,7 +506,7 @@ export default function PipeSectionCalculator() {
                 </label>
               </div>
               
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="includeWastageInPrice"
@@ -508,7 +517,7 @@ export default function PipeSectionCalculator() {
                 <label htmlFor="includeWastageInPrice" className="text-sm font-medium text-gray-700">
                   Include Wastage Cost in Final Price
                 </label>
-              </div>
+              </div> */}
             </div>
             
             {/* Pipe Sizes Table */}
@@ -613,8 +622,8 @@ export default function PipeSectionCalculator() {
                 <h3 className="font-semibold text-gray-800 mb-3">Calculation Results</h3>
                 <div className="space-y-6">
                   {results.map((r) => {
-                    const displayPrice = includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece);
-                    
+const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece);
+
                     // Calculate individual order summary for this pipe size
                     const individualSubtotal = displayPrice;
                     const individualTotalWithFreight = individualSubtotal + (totalFreight / results.length);
@@ -672,11 +681,7 @@ export default function PipeSectionCalculator() {
                                       <p className="ml-4 text-xs font-bold">Wastage Percentage = {r.wastage.wastagePercentage}%</p>
                                       <p className="ml-4 text-xs">Wastage Weight = {r.wastage.wastageWeight} kg</p>
                                       <p className="ml-4 text-xs">Wastage Cost = ₹{r.wastage.wastageCost}</p>
-                                      <p className="ml-4 text-xs">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
-                                      <p className="ml-4 text-xs mt-1">Linear Wastage:</p>
-                                      <p className="ml-8 text-xs">Length waste: {r.wastage.wasteL} mm</p>
-                                      <p className="ml-8 text-xs">Breadth waste: {r.wastage.wasteB} mm</p>
-                                      <p className="ml-8 text-xs">Height waste: {r.wastage.wasteH} mm</p>
+                                     
                                     </div>
                                   )}
                                 </div>
@@ -689,11 +694,11 @@ export default function PipeSectionCalculator() {
                                   <p className="ml-4">Cost per Block = Weight × Rate = {r.calculationSteps.weightPerBlock} × {r.calculationSteps.totalPerKg} = <strong>₹{r.calculationSteps.costPerBlock}</strong></p>
                                   <p className="ml-4">Wastage Cost per Block = ₹{r.wastage.wastageCost}</p>
                                   
-                                  <p className="mt-2"><strong>5. Price per Piece:</strong></p>
-                                  <p className="ml-4">Price without Wastage = ₹{r.priceWithoutWastage}</p>
-                                  <p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
-                                  <p className="ml-4">Price with Wastage = ₹{r.pricePerPiece}</p>
-                                  
+                                 <p className="mt-2"><strong>5. Price per Piece:</strong></p>
+<p className="ml-4">Price without Wastage = ₹{r.priceWithoutWastage}</p>
+<p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
+<p className="ml-4">Price with Wastage = ₹{r.priceWithWastage}</p>
+
                                   {!includeWastageInPrice && (
                                     <>
                                       <p className="mt-2"><strong>6. Theoretical Price (without wastage):</strong></p>
@@ -715,37 +720,41 @@ export default function PipeSectionCalculator() {
                           <h4 className="font-semibold text-gray-800 mb-2">Order Summary for {r.pipeSize}" × {r.thickness}" Pipe</h4>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
-                              <span>Price per Piece:</span>
-                              <span className="font-medium">₹{displayPrice.toFixed(2)}</span>
+                              <span>Price per Piece (wastage not included):</span>
+                              <span className="font-medium">₹{r.priceWithoutWastage}</span>
                             </div>
-                            {showWastage && (
+                            {/* {showWastage && (
                               <div className="flex justify-between">
                                 <span>Wastage Cost per Piece (₹{globalFormData.wastageRate || 0}/kg):</span>
                                 <span className="font-medium text-orange-600">₹{r.wastageCostPerPiece}</span>
                               </div>
-                            )}
-                            <div className="flex justify-between">
+                            )} */}
+                            {/* <div className="flex justify-between">
                               <span>Freight (Shared):</span>
                               <span className="font-medium">₹{(totalFreight / results.length).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between">
+                            </div> */}
+                            {/* <div className="flex justify-between">
                               <span>Subtotal:</span>
                               <span className="font-medium">₹{individualSubtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Total with Freight:</span>
                               <span className="font-medium">₹{individualTotalWithFreight.toFixed(2)}</span>
-                            </div>
+                            </div> */}
                             <div className="flex justify-between">
-                              <span>GST (18%):</span>
-                              <span className="font-medium">₹{individualGST.toFixed(2)}</span>
+                              <span>Wastage Cost per Piece:</span>
+                              <span className="font-medium">₹{r.wastageCostPerPiece}</span>
                             </div>
-                            <div className="border-t border-gray-300 pt-2 mt-2">
+                             <div className="flex justify-between">
+                              <span>Price per Piece (including wastage):</span>
+                              <span className="font-medium">₹{displayPrice.toFixed(2)}</span>
+                            </div>
+                            {/* <div className="border-t border-gray-300 pt-2 mt-2">
                               <div className="flex justify-between">
                                 <span className="font-bold text-lg">Grand Total:</span>
                                 <span className="font-bold text-lg text-green-700">₹{individualGrandTotal.toFixed(2)}</span>
                               </div>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </div>
@@ -757,10 +766,10 @@ export default function PipeSectionCalculator() {
                 <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="font-semibold text-blue-800 mb-2">Overall Summary (All Sizes Combined)</h4>
                   <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span>Total Subtotal:</span>
-                      <span className="font-medium">₹{results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.pricePerPiece) : parseFloat(r.theoreticalPricePerPiece)), 0).toFixed(2)}</span>
-                    </div>
+                  <div className="flex justify-between">
+  <span>Total Subtotal:</span>
+  <span className="font-medium">₹{results.reduce((sum, r) => sum + (includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece)), 0).toFixed(2)}</span>
+</div>
                     <div className="flex justify-between">
                       <span>Total Freight:</span>
                       <span className="font-medium">₹{totalFreight.toFixed(2)}</span>

@@ -142,6 +142,8 @@ const PackagingDashboard = React.lazy(() => import("../pages/PackagingDashboard"
 const EmployeeDashboard = React.lazy(() => import("../pages/EmployeeDashboard"));
 const AdminDashboard = React.lazy(() => import("../pages/AdminDashboard"));
 const AssistantRegistrationPage = React.lazy(() => import("../pages/AssistantRegistrationPage"));
+const ShoppingProducts = React.lazy(() => import("../pages/ShoppingProducts"));
+const ManageCaremaxProducts = React.lazy(() => import("../pages/ManageCaremaxProducts"));
 
 export default function AppRoutes() {
   const { user, loading } = useUserContext();
@@ -233,6 +235,15 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["guard", "admin", "accounts"]}>
       <PageWrapper><GuardEntriesView /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/caremax-impex/manage-products"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts"]}>
+      <PageWrapper><ManageCaremaxProducts /></PageWrapper>
     </ProtectedRoute>
   }
 />
@@ -599,6 +610,8 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/shopping-products" element={<PageWrapper><ShoppingProducts /></PageWrapper>} />
 <Route
   path="/attendance-logs"
   element={

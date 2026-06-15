@@ -436,7 +436,7 @@ const handleSharePDF = async () => {
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Costing Calculator
               </h1>
               <p className="text-gray-600 mt-2">Select a calculator type</p>
@@ -450,7 +450,7 @@ const handleSharePDF = async () => {
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Package size={40} className="text-blue-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-800 mb-2">Thermocol Sheet Costing Calculator</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">EPS/Thermocol Sheet Costing Calculator</h2>
                 <p className="text-gray-500 text-sm">Calculate costing for thermocol sheets based on dimensions, density, and more</p>
               </button>
                 {/* New Calculator Button */}
@@ -494,7 +494,7 @@ const handleSharePDF = async () => {
               >
                 ← Back to Calculators
               </button>
-              <h1 className="text-2xl font-bold text-gray-800">Thermocol Sheet Costing Calculator</h1>
+              <h1 className="text-2xl font-bold text-gray-800">EPS/Thermocol Sheet Costing Calculator</h1>
               <div className="w-20"></div>
             </div>
             
@@ -711,9 +711,56 @@ const handleSharePDF = async () => {
                       <div className="space-y-1 text-sm">
                         <p><span className="text-gray-600">Best Orientation:</span> {result.piecesFromBlock.orientation}</p>
                         <p><span className="text-gray-600">Pieces Layout:</span> {result.piecesFromBlock.piecesL} x {result.piecesFromBlock.piecesB} x {result.piecesFromBlock.piecesH}</p>
-                        <p><span className="text-gray-600 font-bold text-green-600">Total Pieces from Block:</span> {result.piecesFromBlock.count} pcs</p>
-                        <p><span className="text-lg font-bold text-purple-600">Final Price per Piece:</span> ₹{result.pricePerPiece}</p>
-                        <p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
+                        <p><span className="font-bold text-green-600">Total Pieces from Block:</span> {result.piecesFromBlock.count} pcs</p>
+<div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
+  {/* Header Section */}
+  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
+    <p className="text-white text-sm">
+      <span className="font-semibold">Final Price per Piece:</span>
+      <span className="text-lg font-bold ml-1">₹{result.pricePerPiece}</span>
+    </p>
+  </div>
+  
+  {/* Calculation Section */}
+  <div className="p-3">
+    <div className="flex items-start gap-2">
+      <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+        <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Calculation</h4>
+        <p className="text-gray-500 text-xs">Cost per Block ÷ Total Pieces</p>
+      </div>
+    </div>
+
+    {/* Formula Display */}
+    <div className="mt-3 bg-purple-50 rounded-md p-2 border border-purple-200">
+      <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">₹{result.costPerBlock}</div>
+          <div className="text-[10px] text-gray-500">Cost per Block</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">÷</div>
+        
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">{result.piecesFromBlock.count}</div>
+          <div className="text-[10px] text-gray-500">Pieces</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">=</div>
+        
+        <div className="text-center bg-purple-700 px-2 py-1 rounded-md">
+          <div className="text-sm font-bold text-white">₹{(result.costPerBlock / result.piecesFromBlock.count).toFixed(2)}</div>
+          <div className="text-[9px] text-purple-200">per piece</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>                        
+<p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
                       </div>
                     </div>
                   </div>

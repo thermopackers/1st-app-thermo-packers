@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import axiosInstance from "../axiosInstance";
 import { useUserContext } from "../context/UserContext";
 import InternalNavbar from "../components/InternalNavbar";
@@ -12,6 +12,8 @@ import {
   Clock, 
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Loader,
   FileText,
   Users
@@ -28,6 +30,7 @@ const FactoryAttendanceLogs = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [employees, setEmployees] = useState([]);
+  const [expandedRow, setExpandedRow] = useState(null);  // <-- ADD THIS LINE
   const limit = 20;
 console.log("loggss", logs);
 
@@ -134,44 +137,85 @@ const clearFilters = () => {
     });
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+const formatTime = (dateStr) => {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
+};
 
-  const exportToCSV = () => {
-    const headers = ["Date", "Employee", "Designation", "Shift", "Check In", "Check Out", "Hours", "Overtime", "Status"];
-    const csvData = logs.map(entry => [
+// Helper function to format session duration
+const formatDuration = (hours) => {
+  if (!hours) return "—";
+  const hrs = Math.floor(hours);
+  const mins = Math.round((hours - hrs) * 60);
+  return `${hrs}h ${mins}m`;
+};
+
+// Helper to render multiple sessions
+const renderSessions = (entry) => {
+  if (entry.sessions && entry.sessions.length > 0) {
+    return entry.sessions.map((session, idx) => (
+      <div key={idx} className="text-xs border-b border-gray-100 py-1 last:border-0">
+        <span className="font-medium">Session {idx + 1}:</span> {formatTime(session.checkInTime)} → {formatTime(session.checkOutTime)} 
+        <span className="text-gray-500 ml-1">({formatDuration(session.totalWorkingHours)})</span>
+      </div>
+    ));
+  }
+  // Fallback for old format (single session)
+  return (
+    <div className="text-xs">
+      {formatTime(entry.checkInTime)} → {formatTime(entry.checkOutTime)}
+    </div>
+  );
+};
+
+const exportToCSV = () => {
+  const headers = ["Date", "Employee", "Designation", "Shift", "Sessions", "Total Hours", "Status"];
+  const csvData = logs.map(entry => {
+    let sessionsStr = "";
+    let totalHours = 0;
+    
+    if (entry.sessions && entry.sessions.length > 0) {
+      sessionsStr = entry.sessions.map((session, idx) => {
+        totalHours += session.totalWorkingHours || 0;
+        return `Session${idx+1}:${formatTime(session.checkInTime)}-${formatTime(session.checkOutTime)}(${(session.totalWorkingHours || 0).toFixed(1)}h)`;
+      }).join(" | ");
+    } else {
+      // Fallback for old format
+      totalHours = entry.totalWorkingHours || 0;
+      sessionsStr = `Session1:${formatTime(entry.checkInTime)}-${formatTime(entry.checkOutTime)}(${totalHours.toFixed(1)}h)`;
+    }
+    
+    return [
       formatDate(entry.date),
       entry.user?.name || "N/A",
       entry.user?.designation || "N/A",
-      entry.shift === "shift1" ? "8 AM - 8:30 PM" : "8:30 PM onwards",
-      entry.checkInTime ? formatTime(entry.checkInTime) : "—",
-      entry.checkOutTime ? formatTime(entry.checkOutTime) : "—",
-      entry.totalWorkingHours?.toFixed(1) || "—",
-      entry.isOvertime ? `${entry.overtimeHours?.toFixed(1)} hrs` : "No",
+      entry.shift === "shift1" ? "Shift 1" : entry.shift === "shift2" ? "Shift 2" : "Driver",
+      sessionsStr,
+      totalHours.toFixed(1),
       entry.checkOutTime ? "Completed" : "Active"
-    ]);
+    ];
+  });
 
-    const csvContent = [
-      headers.join(","),
-      ...csvData.map(row => row.join(","))
-    ].join("\n");
+  const csvContent = [
+    headers.join(","),
+    ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+  ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `factory-attendance-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `factory-attendance-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
   if (!isPrivileged) {
     return (
@@ -320,62 +364,126 @@ const clearFilters = () => {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Employee</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Designation</th>
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Gender</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Shift</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Check In</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Check Out</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Hours</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Overtime</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {logs.map((entry, index) => (
-                        <tr key={entry._id || index} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">{formatDate(entry.date)}</td>
-                          <td className="px-4 py-3 text-sm font-medium">{entry.user?.name || "N/A"}</td>
-                          <td className="px-4 py-3 text-sm capitalize">{entry.user?.designation || "N/A"}</td>
-                                                    <td className="px-4 py-3 text-sm capitalize">{entry.user?.gender}</td>
-                         <td className="px-4 py-3">
-  <span className={`px-2 py-1 rounded-full text-xs ${
-    entry.shift === "shift1" 
-      ? "bg-blue-100 text-blue-700" 
-      : entry.shift === "shift2"
-      ? "bg-purple-100 text-purple-700"
-      : "bg-green-100 text-green-700"
-  }`}>
-    {entry.shift === "shift1" ? "Shift 1" : 
-     entry.shift === "shift2" ? "Shift 2" : 
-     "Driver"}
-  </span>
-</td>
-                          <td className="px-4 py-3 text-sm">{entry.checkInTime ? formatTime(entry.checkInTime) : "—"}</td>
-                          <td className="px-4 py-3 text-sm">{entry.checkOutTime ? formatTime(entry.checkOutTime) : "—"}</td>
-                          <td className="px-4 py-3 text-sm">{entry.totalWorkingHours?.toFixed(1) || "—"}</td>
-                          <td className="px-4 py-3 text-sm">
-                            {entry.isOvertime ? (
-                              <span className="text-green-600 font-medium">
-                                {entry.overtimeHours?.toFixed(1)} hrs
-                              </span>
-                            ) : "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              entry.checkOutTime 
-                                ? "bg-green-100 text-green-700" 
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}>
-                              {entry.checkOutTime ? "Completed" : "Active"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
+                   <thead className="bg-gray-50 border-b">
+  <tr>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Employee</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Designation</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Gender</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Shift</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Sessions</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Total Hours</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Details</th>
+  </tr>
+</thead>
+                   <tbody className="divide-y divide-gray-200">
+  {logs.map((entry, index) => {
+    const totalHours = entry.sessions?.reduce((sum, s) => sum + (s.totalWorkingHours || 0), 0) || entry.totalWorkingHours || 0;
+    const sessionCount = entry.sessions?.length || (entry.checkInTime ? 1 : 0);
+    const isActive = entry.sessions?.some(s => !s.checkOutTime) || (!entry.checkOutTime && entry.checkInTime);
+    
+    return (
+      <React.Fragment key={entry._id || index}>
+        <tr 
+          className="hover:bg-gray-50 cursor-pointer"
+          onClick={() => setExpandedRow(expandedRow === entry._id ? null : entry._id)}
+        >
+          <td className="px-4 py-3 text-sm">{formatDate(entry.date)}</td>
+          <td className="px-4 py-3 text-sm font-medium">{entry.user?.name || "N/A"}</td>
+          <td className="px-4 py-3 text-sm capitalize">{entry.user?.designation || "N/A"}</td>
+          <td className="px-4 py-3 text-sm capitalize">{entry.user?.gender || "—"}</td>
+          <td className="px-4 py-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              entry.shift === "shift1" 
+                ? "bg-blue-100 text-blue-700" 
+                : entry.shift === "shift2"
+                ? "bg-purple-100 text-purple-700"
+                : "bg-green-100 text-green-700"
+            }`}>
+              {entry.shift === "shift1" ? "Shift 1" : 
+               entry.shift === "shift2" ? "Shift 2" : 
+               "Driver"}
+            </span>
+          </td>
+          <td className="px-4 py-3 text-sm">
+            <span className="font-medium">{sessionCount}</span>
+            <span className="text-gray-400 text-xs ml-1">session(s)</span>
+          </td>
+          <td className="px-4 py-3 text-sm font-medium">{totalHours.toFixed(1)} hrs</td>
+          <td className="px-4 py-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              !isActive 
+                ? "bg-green-100 text-green-700" 
+                : "bg-yellow-100 text-yellow-700"
+            }`}>
+              {!isActive ? "Completed" : "Active"}
+            </span>
+          </td>
+          <td className="px-4 py-3">
+            <button className="text-blue-600 hover:text-blue-800">
+              {expandedRow === entry._id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </td>
+        </tr>
+        
+        {/* Expanded row showing session details */}
+        {expandedRow === entry._id && (
+          <tr className="bg-gray-50">
+            <td colSpan="9" className="px-4 py-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-700 text-sm mb-2">📋 Session Details</h4>
+                {entry.sessions && entry.sessions.length > 0 ? (
+                  <div className="space-y-2">
+                    {entry.sessions.map((session, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-blue-600">Session #{idx + 1}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            session.checkOutTime ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {session.checkOutTime ? 'Completed' : 'Active'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                          <div>
+                            <span className="text-gray-500">Check In:</span>
+                            <span className="ml-2 font-medium">{formatTime(session.checkInTime)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Check Out:</span>
+                            <span className="ml-2 font-medium">{formatTime(session.checkOutTime)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Hours Worked:</span>
+                            <span className="ml-2 font-medium">{formatDuration(session.totalWorkingHours)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Overtime:</span>
+                            <span className="ml-2 font-medium">{session.isOvertime ? formatDuration(session.overtimeHours) : "—"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Fallback for old format
+                  <div className="bg-white p-3 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-gray-500">Check In:</span> <span className="ml-2">{formatTime(entry.checkInTime)}</span></div>
+                      <div><span className="text-gray-500">Check Out:</span> <span className="ml-2">{formatTime(entry.checkOutTime)}</span></div>
+                      <div><span className="text-gray-500">Hours:</span> <span className="ml-2">{entry.totalWorkingHours?.toFixed(1) || "—"} hrs</span></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    );
+  })}
+</tbody>
                   </table>
                 </div>
 

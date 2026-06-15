@@ -45,10 +45,86 @@ export default function GuardAttendance() {
   const [faceMatcher, setFaceMatcher] = useState(null);
 const [voicesLoaded, setVoicesLoaded] = useState(false);
 const [autoStarting, setAutoStarting] = useState(false);
+
 // Add this state
 const [cachedVoice, setCachedVoice] = useState(null);
-const captureLockRef = useRef(false); // Add this line
+const captureLockRef = useRef(false);
 const autoCaptureTimerRef = useRef(null);
+const scanningIntervalRef = useRef(null);  // <-- ADD THIS
+const lastProcessedUserRef = useRef(null);
+const heartbeatIntervalRef = useRef(null);  // <-- ADD THIS
+const lastProcessedTimeRef = useRef(0);
+const [recentMatches, setRecentMatches] = useState([]);
+const [todaySessions, setTodaySessions] = useState([]);
+const [activeSession, setActiveSession] = useState(null);
+const [isScanning, setIsScanning] = useState(false);
+const lastCaptureAttemptRef = useRef(0);  // <-- ADD THIS
+const MIN_CAPTURE_INTERVAL = 2000;
+
+// OPTIMAL COOLDOWN - 18 seconds (balanced for all scenarios)
+const OPTIMAL_COOLDOWN_MS = 18000; // 18 seconds
+
+// Fetch sessions when a user is successfully matched
+useEffect(() => {
+  const fetchSessionsForUser = async () => {
+    if (lastProcessedUserRef.current) {
+      await fetchTodaySessions(lastProcessedUserRef.current);
+    }
+  };
+  
+  // Only fetch if we have a user and not processing
+  if (lastProcessedUserRef.current && !isProcessing) {
+    fetchSessionsForUser();
+  }
+}, [lastProcessedUserRef.current, isProcessing]);
+
+// ============================================
+// CAMERA KEEP-ALIVE HEARTBEAT
+// Prevents camera from going to sleep after being idle
+// ============================================
+useEffect(() => {
+  if (!capturing || !cameraReady) return;
+
+  console.log("💓 Starting camera keep-alive heartbeat...");
+  
+  // Clear any existing heartbeat
+  if (heartbeatIntervalRef.current) {
+    clearInterval(heartbeatIntervalRef.current);
+  }
+
+  // Send a "heartbeat" every 30 seconds to keep camera active
+  heartbeatIntervalRef.current = setInterval(() => {
+    if (!capturing || !cameraReady || isProcessing || captureLockRef.current) {
+      return;
+    }
+    
+    console.log("💓 Camera heartbeat - keeping alive");
+    
+    // Force a tiny capture to keep the camera stream active
+    try {
+      if (webcamRef.current && webcamRef.current.video) {
+        const video = webcamRef.current.video;
+        if (video.readyState === 4) {
+          // Just read a frame to keep the stream active
+          const canvas = document.createElement('canvas');
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, 1, 1);
+        }
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  }, 30000); // Every 30 seconds
+
+  return () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  };
+}, [capturing, cameraReady, isProcessing]);
 
 // Add at the very top of GuardAttendance component
 useEffect(() => {
@@ -64,7 +140,30 @@ useEffect(() => {
 useEffect(() => {
   if (!capturing) {
     setCameraReady(false);
+    setIsScanning(false);
+    // Clear scanning interval when not capturing
+    if (scanningIntervalRef.current) {
+      clearInterval(scanningIntervalRef.current);
+      scanningIntervalRef.current = null;
+    }
   }
+}, [capturing]);
+
+// Check if webcam is actually ready to take screenshots
+useEffect(() => {
+  if (!capturing) return;
+  
+  const checkWebcamReady = setInterval(() => {
+    if (webcamRef.current && webcamRef.current.video && webcamRef.current.video.readyState === 4) {
+      const testShot = webcamRef.current.getScreenshot();
+      if (testShot) {
+        console.log("✅ Webcam is ready for screenshots");
+        clearInterval(checkWebcamReady);
+      }
+    }
+  }, 500);
+  
+  return () => clearInterval(checkWebcamReady);
 }, [capturing]);
 
 useEffect(() => {
@@ -135,35 +234,194 @@ useEffect(() => {
 
   const userRoles = user ? parseUserRoles(user) : [];
 
-// Auto-capture when camera becomes active
+// Ultra-fast auto-capture when camera becomes active
 useEffect(() => {
   console.log("🔍 Auto-capture check - capturing:", capturing, "cameraReady:", cameraReady, "modelsLoaded:", modelsLoaded, "faceMatcher:", !!faceMatcher, "locked:", captureLockRef.current);
   
   if (capturing && cameraReady && webcamRef.current && modelsLoaded && faceMatcher && !captureLockRef.current) {
-    console.log("🎯 Auto-capture triggered! Starting handleCapture in 1000ms");
+    // Check throttle
+    const now = Date.now();
+    if (now - lastCaptureAttemptRef.current < MIN_CAPTURE_INTERVAL) {
+      console.log("⏱️ Skipping auto-capture - too soon since last attempt");
+      return;
+    }
+    
+    console.log("🎯 Auto-capture triggered! Starting handleCapture instantly");
+    lastCaptureAttemptRef.current = now;
     
     // Clear any existing timer
     if (autoCaptureTimerRef.current) {
       clearTimeout(autoCaptureTimerRef.current);
     }
     
-    // Set new timer
     autoCaptureTimerRef.current = setTimeout(() => {
-      console.log("⏰ Timer expired, calling handleCapture");
+      console.log("⚡ Instant capture!");
       if (webcamRef.current && !captureLockRef.current && !isProcessing) {
         handleCapture();
       }
       autoCaptureTimerRef.current = null;
-    }, 1000);
+    }, 100);
   }
   
-  // Cleanup function
   return () => {
     if (autoCaptureTimerRef.current) {
       console.log("🧹 Cleaning up auto-capture timer");
       clearTimeout(autoCaptureTimerRef.current);
       autoCaptureTimerRef.current = null;
     }
+  };
+}, [capturing, cameraReady, modelsLoaded, faceMatcher, isProcessing]);
+// ============================================
+// TAB VISIBILITY HANDLER
+// Restarts camera when tab becomes visible again
+// ============================================
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      console.log("📱 Tab became visible again - checking camera status...");
+      
+      // Check if camera is still responsive
+      if (capturing && webcamRef.current && webcamRef.current.video) {
+        const video = webcamRef.current.video;
+        if (video.readyState !== 4 || video.videoWidth === 0) {
+          console.log("🔄 Camera not responsive after tab return - restarting...");
+          setCapturing(false);
+          setTimeout(() => setCapturing(true), 500);
+        }
+      } else if (autoStart && !capturing && isReady) {
+        console.log("🔄 Restarting camera after tab return...");
+        setCapturing(true);
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+}, [capturing, autoStart, isReady]);
+
+// Continuous face scanning - keeps checking for faces
+useEffect(() => {
+  // Don't start scanning if conditions not met
+  if (!capturing || !cameraReady || !modelsLoaded || !faceMatcher) {
+    if (scanningIntervalRef.current) {
+      console.log("🧹 Clearing scanning interval - conditions not met");
+      clearInterval(scanningIntervalRef.current);
+      scanningIntervalRef.current = null;
+      setIsScanning(false);
+    }
+    return;
+  }
+
+  // If already processing, don't start new scan
+  if (isProcessing || captureLockRef.current) {
+    return;
+  }
+
+  console.log("👁️ Starting continuous face scanning...");
+  setIsScanning(true);
+  
+  // Clear any existing interval to avoid duplicates
+  if (scanningIntervalRef.current) {
+    clearInterval(scanningIntervalRef.current);
+    scanningIntervalRef.current = null;
+  }
+
+// Start scanning every 1000ms
+// Start scanning every 1000ms
+scanningIntervalRef.current = setInterval(async () => {
+  // Don't scan if already processing or locked
+  if (isProcessing || captureLockRef.current) {
+    return;
+  }
+  
+  // Throttle: Don't attempt capture too frequently
+  const now = Date.now();
+  if (now - lastCaptureAttemptRef.current < MIN_CAPTURE_INTERVAL) {
+    // Too soon since last capture attempt, skip
+    return;
+  }
+  
+  // Check if webcam is ready
+  if (!webcamRef.current || !webcamRef.current.video) {
+    return;
+  }
+  
+  const video = webcamRef.current.video;
+  if (video.readyState !== 4 || video.videoWidth === 0) {
+    return;
+  }
+  
+  // Test if we can get a screenshot
+  let testScreenshot = null;
+  try {
+    testScreenshot = webcamRef.current.getScreenshot();
+  } catch(e) {
+    return;
+  }
+  
+  if (!testScreenshot) {
+    return;
+  }
+  
+  try {
+    // Capture current frame from video
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/jpeg');
+    
+    if (!imageData) return;
+    
+    // Quick face detection on the frame
+    const img = await faceapi.fetchImage(imageData);
+    const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ 
+      inputSize: 160,
+      scoreThreshold: 0.5 
+    }));
+    
+    if (detections && detections.length > 0) {
+      // Check if face is large enough
+      const largestFace = detections.reduce((max, d) => {
+        const area = d.box.width * d.box.height;
+        return area > max.area ? { detection: d, area } : max;
+      }, { detection: detections[0], area: 0 });
+      
+      const faceArea = largestFace.area;
+      const videoArea = video.videoWidth * video.videoHeight;
+      const faceRatio = faceArea / videoArea;
+      
+      if (faceRatio > 0.08) {
+        console.log(`👤 Face detected! Size: ${Math.round(faceRatio * 100)}%. Triggering capture...`);
+        // Update last attempt time
+        lastCaptureAttemptRef.current = Date.now();
+        
+        // Stop scanning immediately
+        if (scanningIntervalRef.current) {
+          clearInterval(scanningIntervalRef.current);
+          scanningIntervalRef.current = null;
+        }
+        setIsScanning(false);
+        setTimeout(() => {
+          if (!isProcessing && !captureLockRef.current) {
+            handleCapture();
+          }
+        }, 300);
+      }
+    }
+  } catch (err) {
+    // Silent fail
+  }
+}, 1000);
+  // Cleanup
+  return () => {
+    if (scanningIntervalRef.current) {
+      console.log("🧹 Stopping continuous face scanning (cleanup)");
+      clearInterval(scanningIntervalRef.current);
+      scanningIntervalRef.current = null;
+    }
+    setIsScanning(false);
   };
 }, [capturing, cameraReady, modelsLoaded, faceMatcher, isProcessing]);
 
@@ -467,11 +725,10 @@ const handleCapture = async () => {
     return;
   }
 
-  // Set lock ONLY here
+  // Set lock
   captureLockRef.current = true;
   setIsProcessing(true);
   console.log("✅ Starting capture process - lock acquired");
-  
 
   try {
     // Check if webcam is ready
@@ -480,121 +737,419 @@ const handleCapture = async () => {
       throw new Error("Webcam not ready");
     }
     
+    const video = webcamRef.current.video;
+    if (!video || video.readyState !== 4) {
+      console.log("❌ Video not ready, readyState:", video?.readyState);
+      throw new Error("Video not ready");
+    }
+    
+    // Method 1: Try getScreenshot() first with retries
     console.log("📸 Taking screenshot...");
-    const screenshot = webcamRef.current.getScreenshot();
+    let screenshot = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (!screenshot && retryCount < maxRetries) {
+      try {
+        screenshot = webcamRef.current.getScreenshot();
+      } catch(e) {
+        console.log(`⚠️ Screenshot attempt ${retryCount + 1} error:`, e.message);
+      }
+      
+      if (!screenshot) {
+        console.log(`⚠️ Screenshot attempt ${retryCount + 1} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        retryCount++;
+      }
+    }
+    
+    // Method 2: If getScreenshot fails, use canvas capture
+    if (!screenshot) {
+      console.log("📸 getScreenshot failed, trying canvas capture...");
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        screenshot = canvas.toDataURL('image/jpeg');
+        console.log("✅ Canvas capture successful");
+      } catch(e) {
+        console.log("❌ Canvas capture failed:", e.message);
+      }
+    }
+    
     console.log("📸 Screenshot taken:", screenshot ? "Yes (length: " + screenshot.length + ")" : "No");
     
-    if (!screenshot) throw new Error("No screenshot captured");
+    if (!screenshot) {
+      console.log("❌ Could not take screenshot after multiple attempts");
+      Swal.fire({
+        icon: "info",
+        title: "Camera Not Ready",
+        text: "Please wait a moment and try again",
+        timer: 1500,
+        showConfirmButton: false
+      });
+      setIsProcessing(false);
+      captureLockRef.current = false;
+      if (autoStart) {
+        setTimeout(() => {
+          if (!capturing && !isProcessing) {
+            setCapturing(true);
+          }
+        }, 1000);
+      }
+      return;
+    }
 
     console.log("🖼️ Creating image from screenshot...");
     const img = await faceapi.fetchImage(screenshot);
     console.log("✅ Image created");
 
-    console.log("🔍 Detecting face...");
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ 
-        inputSize: 160,
-        scoreThreshold: 0.3 
+    console.log("🔍 Detecting all faces...");
+    const detections = await faceapi
+      .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ 
+        inputSize: 224,
+        scoreThreshold: 0.4 
       }))
       .withFaceLandmarks()
-      .withFaceDescriptor();
+      .withFaceDescriptors();
 
-    if (!detection) {
-      console.log("❌ No face detected");
+     if (!detections || detections.length === 0) {
+      console.log("❌ No face detected - please ensure good lighting and face is visible");
+      // Silent fail - no popup, just log and continue scanning
+      setIsProcessing(false);
+      captureLockRef.current = false;
+      if (autoStart) {
+        setTimeout(() => {
+          if (!capturing && !isProcessing) {
+            setCapturing(true);
+          }
+        }, 500);
+      }
+      return;
+    }
+
+    console.log(`✅ ${detections.length} face(s) detected`);
+
+    // Take the LARGEST face (closest to camera)
+    let bestDetection = detections[0];
+    let largestArea = 0;
+    
+    for (const detection of detections) {
+      const box = detection.detection.box;
+      const area = box.width * box.height;
+      if (area > largestArea) {
+        largestArea = area;
+        bestDetection = detection;
+      }
+    }
+    
+    // Check if face is large enough (at least 8% of frame)
+    if (video) {
+      const videoArea = video.videoWidth * video.videoHeight;
+      const faceRatio = largestArea / videoArea;
+      if (faceRatio < 0.08) {
+        console.log(`⚠️ Face too small (${Math.round(faceRatio * 100)}% of frame). Please move closer.`);
+        Swal.fire({
+          icon: "info",
+          title: "Move Closer",
+          text: "Please move closer to the camera for better recognition",
+          timer: 1500,
+          showConfirmButton: false
+        });
+        setIsProcessing(false);
+        captureLockRef.current = false;
+        if (autoStart) {
+          setTimeout(() => {
+            if (!capturing && !isProcessing) {
+              setCapturing(true);
+            }
+          }, 1000);
+        }
+        return;
+      }
+      console.log(`✅ Face size: ${Math.round(faceRatio * 100)}% of frame - Good!`);
+    }
+
+    // Find best match across all faces
+    let bestMatch = null;
+    let bestDistance = 0.5;
+    let matchedEmployee = null;
+
+    for (const detection of detections) {
+      const match = faceMatcher.findBestMatch(detection.descriptor);
+      if (match.label !== "unknown" && match.distance < bestDistance) {
+        bestDistance = match.distance;
+        bestMatch = match;
+        matchedEmployee = employees.find(emp => emp._id === match.label);
+      }
+    }
+
+    if (!bestMatch || bestMatch.label === "unknown" || !matchedEmployee) {
+      console.log("❌ No match found in database");
       Swal.fire({
         icon: "error",
-        title: "Face Not Detected",
-        text: "Please ensure face is clearly visible",
+        title: "Not Recognized",
+        text: "Face not recognized. Please contact admin.",
         timer: 1500,
         showConfirmButton: false
       });
       setIsProcessing(false);
       captureLockRef.current = false;
+      if (autoStart) {
+        setTimeout(() => {
+          if (!capturing && !isProcessing) {
+            setCapturing(true);
+          }
+        }, 1000);
+      }
       return;
     }
 
-    console.log("✅ Face detected, finding match...");
-    const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-    console.log("🏆 Best match:", bestMatch.label, "distance:", bestMatch.distance);
-    
-    if (bestMatch.label === "unknown") {
-      console.log("❌ No match found");
-      Swal.fire({
-        icon: "error",
-        title: "No Match Found",
-        text: "Employee not found in database",
-        timer: 1500,
+    const confidence = Math.round((1 - bestDistance) * 100);
+    console.log(`👤 Matched: ${matchedEmployee.name} (${confidence}%)`);
+
+    // FETCH USER'S SESSIONS FOR TODAY FIRST
+    let sessionsData = null;
+    let activeSessionExists = false;
+    let activeSessionData = null;
+
+    try {
+      console.log("📊 Fetching user sessions...");
+      const sessionsRes = await axiosInstance.get(`/factory-attendance/my-sessions/${matchedEmployee._id}`);
+      sessionsData = sessionsRes.data;
+      activeSessionExists = !!sessionsData.activeSession;
+      activeSessionData = sessionsData.activeSession;
+      console.log("Sessions data:", { activeSessionExists, sessionCount: sessionsData.sessionCount });
+    } catch (err) {
+      console.log("Could not fetch sessions, using fallback logic");
+    }
+
+    // CHECK COOLDOWN - only for users who are NOT already checked in
+    const now = Date.now();
+    if (lastProcessedUserRef.current === matchedEmployee._id && 
+        (now - lastProcessedTimeRef.current) < OPTIMAL_COOLDOWN_MS) {
+      const secondsLeft = Math.ceil((OPTIMAL_COOLDOWN_MS - (now - lastProcessedTimeRef.current)) / 1000);
+      console.log(`⏱️ ${matchedEmployee.name} on cooldown (${secondsLeft}s left)`);
+      
+      await Swal.fire({
+        icon: "info",
+        title: `Welcome back ${matchedEmployee.name}`,
+        html: `<div class="text-center"><p class="text-md">Please wait ${secondsLeft} seconds</p></div>`,
+        timer: 1000,
         showConfirmButton: false
       });
-      setIsProcessing(false);
-      captureLockRef.current = false;
-      return;
-    }
-
-    const matchedEmployee = employees.find(emp => emp._id === bestMatch.label);
-    console.log("👤 Matched employee:", matchedEmployee?.name);
-    
-    if (!matchedEmployee) {
-      console.log("❌ Employee not found in employees array");
-      setIsProcessing(false);
-      captureLockRef.current = false;
-      return;
-    }
-
-    const confidence = Math.round((1 - bestMatch.distance) * 100);
-    console.log("📊 Confidence:", confidence + "%");
-
-    // Check shift status
-    const shiftChangeHandled = await checkShiftStatus(matchedEmployee._id);
-    
-    if (shiftChangeHandled) {
-      console.log("🔄 Shift change handled");
+      
       setIsProcessing(false);
       setCapturing(false);
       captureLockRef.current = false;
+      if (autoStart) setTimeout(() => setShouldAutoRestart(true), 1000);
       return;
     }
 
-    playSuccessSound();
+    // ============================================
+    // INTELLIGENT AUTO DECISION LOGIC
+    // ============================================
+    
+    const currentHour = new Date().getHours();
+    const currentMinutes = new Date().getMinutes();
+    const isLunchTime = (currentHour === 12) || (currentHour === 13) || (currentHour === 14 && currentMinutes < 30);
+    const isNearEndOfDay = currentHour >= 17; // After 5 PM
+    const isEarlyMorning = currentHour < 11; // Before 11 AM
+    
+    let action = null;
+    let actionReason = "";
+    let sessionType = "normal";
 
-    const result = await Swal.fire({
-      title: `Welcome ${matchedEmployee.name}`,
-      html: `
-        <div class="text-left">
-          <p><strong>Designation:</strong> ${matchedEmployee.designation}</p>
-          <p><strong>Match:</strong> ${confidence}%</p>
-        </div>
-      `,
-      icon: "question",
-      showCancelButton: true,
-      showDenyButton: true,
-      confirmButtonText: "✅ Check In",
-      denyButtonText: "👋 Check Out",
-      cancelButtonText: "❌ Cancel",
-      confirmButtonColor: "#22c55e",
-      denyButtonColor: "#ef4444",
-    });
+    // CASE 1: NO ACTIVE SESSION - They are entering the building
+    if (!activeSessionExists) {
+      action = "check-in";
+      
+      if (!sessionsData || sessionsData.sessions.length === 0) {
+        actionReason = "First arrival of the day";
+        sessionType = "first_checkin";
+      } else {
+        const lastSession = sessionsData.sessions[sessionsData.sessions.length - 1];
+        if (lastSession && lastSession.checkOutTime) {
+          const lastCheckoutTime = new Date(lastSession.checkOutTime);
+          const minutesSinceLastCheckout = (Date.now() - lastCheckoutTime) / (1000 * 60);
+          
+          if (minutesSinceLastCheckout < 120 && isLunchTime) {
+            actionReason = "Returning from lunch break";
+            sessionType = "return_from_lunch";
+          } else {
+            actionReason = "Returning to building";
+            sessionType = "reentry";
+          }
+        } else {
+          actionReason = "Starting new session";
+          sessionType = "new_session";
+        }
+      }
+      
+      console.log(`🟢 AUTO CHECK-IN: ${matchedEmployee.name} - ${actionReason}`);
+      
+    } 
+    // CASE 2: ACTIVE SESSION EXISTS - They might be leaving
+    else if (activeSessionExists && activeSessionData) {
+      const sessionStartTime = new Date(activeSessionData.checkInTime);
+      const sessionDurationMinutes = (Date.now() - sessionStartTime) / (1000 * 60);
+      
+      console.log(`Current session duration: ${sessionDurationMinutes.toFixed(0)} minutes`);
+      
+      if (sessionDurationMinutes < 2) {
+        console.log("⚠️ Very short session - likely accidental double scan, ignoring");
+        action = null;
+        actionReason = "Accidental double scan - ignoring";
+        
+        await Swal.fire({
+          icon: "info",
+          title: matchedEmployee.name,
+          html: `<div class="text-center"><p class="text-md">Already checked in</p><p class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</p></div>`,
+          timer: 1000,
+          showConfirmButton: false
+        });
+        
+        setIsProcessing(false);
+        setCapturing(false);
+        captureLockRef.current = false;
+        if (autoStart) setTimeout(() => setShouldAutoRestart(true), 1000);
+        return;
+      }
+      else if (isLunchTime && sessionDurationMinutes > 60) {
+        action = "check-out";
+        actionReason = "Going for lunch break (will return)";
+        sessionType = "lunch_break";
+        console.log(`🍽️ ${actionReason}`);
+      }
+      else if (isNearEndOfDay && sessionDurationMinutes > 120) {
+        action = "check-out";
+        actionReason = "End of work day - going home";
+        sessionType = "end_of_day";
+        console.log(`🏁 ${actionReason}`);
+      }
+      else if (isEarlyMorning && sessionDurationMinutes > 30) {
+        action = "check-out";
+        actionReason = "Short break/errand (will return)";
+        sessionType = "short_break";
+        console.log(`🚶 ${actionReason}`);
+      }
+      else if (sessionDurationMinutes > 240) {
+        action = "check-out";
+        actionReason = sessionDurationMinutes > 480 ? "End of long work day" : "Extended break";
+        sessionType = sessionDurationMinutes > 480 ? "end_of_day" : "extended_break";
+        console.log(`⏰ ${actionReason}`);
+      }
+      else {
+        action = "check-out";
+        actionReason = "Leaving building";
+        sessionType = "leaving";
+        console.log(`🔴 ${actionReason}`);
+      }
+    }
 
-    if (result.isConfirmed) {
+    // ============================================
+    // EXECUTE THE ACTION
+    // ============================================
+    
+    if (action === "check-in") {
+      console.log("🟢 EXECUTING CHECK-IN...");
       await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-in");
-    } else if (result.isDenied) {
+      
+      lastProcessedUserRef.current = matchedEmployee._id;
+      lastProcessedTimeRef.current = Date.now();
+      
+      const sessionNumber = (sessionsData?.sessionCount || 0) + 1;
+      
+      let messageTitle = "✅ Check In Successful";
+      let messageHtml = `<div class="text-center">
+        <p class="text-lg font-semibold text-green-600 mb-2">${matchedEmployee.name}</p>
+        <p class="text-md mb-1">Session #${sessionNumber} Started</p>
+        <p class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</p>`;
+      
+      if (sessionType === "return_from_lunch") {
+        messageHtml += `<p class="text-xs text-green-500 mt-1">Welcome back from lunch!</p>`;
+      } else if (sessionType === "first_checkin") {
+        messageHtml += `<p class="text-xs text-blue-500 mt-1">Good morning! Have a great day.</p>`;
+      }
+      messageHtml += `</div>`;
+      
+      await Swal.fire({
+        icon: "success",
+        title: messageTitle,
+        html: messageHtml,
+        timer: 2000,
+        showConfirmButton: false
+      });
+      
+    } 
+    else if (action === "check-out") {
+      console.log("🔴 EXECUTING CHECK-OUT...");
       await markAttendance(matchedEmployee._id, matchedEmployee.name, "check-out");
+      
+      lastProcessedUserRef.current = matchedEmployee._id;
+      lastProcessedTimeRef.current = Date.now();
+      
+      const sessionNumber = sessionsData?.sessions?.length || 1;
+      
+      let messageTitle = "👋 Check Out Successful";
+      let messageIcon = "success";
+      let messageHtml = `<div class="text-center">
+        <p class="text-lg font-semibold text-blue-600 mb-2">${matchedEmployee.name}</p>
+        <p class="text-md mb-1">Session #${sessionNumber} Ended</p>
+        <p class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</p>`;
+      
+      if (sessionType === "lunch_break") {
+        messageTitle = "🍽️ Lunch Break Started";
+        messageHtml += `<p class="text-xs text-orange-500 mt-1">Please scan again when you return</p>`;
+      } else if (sessionType === "end_of_day") {
+        messageTitle = "🏁 End of Day";
+        messageHtml += `<p class="text-xs text-green-500 mt-1">Thank you! See you tomorrow.</p>`;
+      } else if (sessionType === "short_break") {
+        messageTitle = "☕ Break Started";
+        messageHtml += `<p class="text-xs text-purple-500 mt-1">Scan again when you return</p>`;
+      }
+      messageHtml += `</div>`;
+      
+      await Swal.fire({
+        icon: messageIcon,
+        title: messageTitle,
+        html: messageHtml,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } else {
+      console.log("ℹ️ No action taken, restarting scan...");
+      setIsProcessing(false);
+      setCapturing(false);
+      captureLockRef.current = false;
+      if (autoStart) {
+        setTimeout(() => setShouldAutoRestart(true), 1000);
+      }
+      return;
+    }
+
+    // Reset for next person
+    setIsProcessing(false);
+    setCapturing(false);
+    captureLockRef.current = false;
+    
+    if (autoStart) {
+      console.log("🔄 Auto-restarting for next person in 2 seconds...");
+      setTimeout(() => {
+        setShouldAutoRestart(true);
+      }, 2000);
     }
 
   } catch (err) {
     console.error("❌ Error during capture:", err);
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Face detection failed. Please try again.",
-      timer: 1500,
-      showConfirmButton: false
-    });
-  } finally {
-    console.log("🏁 Capture finished, resetting locks");
-    // Don't reset capturing here - let markAttendance handle it
     setIsProcessing(false);
     captureLockRef.current = false;
+    
+    if (autoStart) {
+      setTimeout(() => setShouldAutoRestart(true), 1000);
+    }
   }
 };
 
@@ -645,6 +1200,16 @@ const playSuccessWithVoice = () => {
 };
 
 
+// Fetch sessions periodically
+const fetchTodaySessions = async (userId) => {
+  try {
+    const res = await axiosInstance.get(`/factory-attendance/my-sessions/${userId}`);
+    setTodaySessions(res.data.sessions);
+    setActiveSession(res.data.activeSession);
+  } catch (err) {
+    console.error("Error fetching sessions");
+  }
+};
 
 // In the markAttendance function
 const markAttendance = async (userId, userName, type, shiftParam = null) => {
@@ -667,6 +1232,7 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
     });
 
     playSuccessWithVoice();
+    addToRecentMatches(userName);
     fetchTodayStats();
 
     await Swal.fire({
@@ -690,6 +1256,13 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
     captureLockRef.current = false;
     setCameraReady(false);
     
+    // Clear any existing scanning interval
+    if (scanningIntervalRef.current) {
+      clearInterval(scanningIntervalRef.current);
+      scanningIntervalRef.current = null;
+    }
+    setIsScanning(false);
+
     // Auto-restart for next person if autoStart is enabled
     if (autoStart) {
       console.log("🔄 Will auto-restart for next person in 1.5 seconds...");
@@ -697,6 +1270,14 @@ const markAttendance = async (userId, userName, type, shiftParam = null) => {
         console.log("🔄 Triggering auto-restart...");
         setShouldAutoRestart(true);
       }, 1500);
+    } else {
+      // If not autoStart, still restart scanning after a short delay
+      setTimeout(() => {
+        if (capturing === false && !isProcessing) {
+          console.log("🔄 Restarting scanning after attendance...");
+          setCapturing(true);
+        }
+      }, 1000);
     }
 
   } catch (err) {
@@ -806,7 +1387,16 @@ const checkShiftStatus = async (userId) => {
   }
 };
 
-
+// Add this function to show who was recently processed
+const addToRecentMatches = (employeeName) => {
+  setRecentMatches(prev => {
+    const newMatches = [employeeName, ...prev].slice(0, 3);
+    return newMatches;
+  });
+  setTimeout(() => {
+    setRecentMatches(prev => prev.filter(name => name !== employeeName));
+  }, 5000);
+};
 
   return (
     <>
@@ -846,6 +1436,25 @@ const checkShiftStatus = async (userId) => {
                  "No employees with registered faces"}
               </span>
             </div>
+
+            {/* Session Status Display */}
+{/* {activeSession && (
+  <div className="mt-4 bg-blue-100 p-3 rounded-lg">
+    <p className="text-sm font-medium text-blue-800">
+      🔵 Currently in Session #{todaySessions.length}
+    </p>
+    <p className="text-xs text-blue-600">
+      Checked in at: {new Date(activeSession.checkInTime).toLocaleTimeString()}
+    </p>
+  </div>
+)} */}
+
+{/* Session History */}
+{todaySessions.filter(s => s.checkOutTime).length > 0 && (
+  <div className="mt-2 text-xs text-gray-500">
+    Completed sessions: {todaySessions.filter(s => s.checkOutTime).length}
+  </div>
+)}
           </motion.div>
 
    {!capturing ? (
@@ -913,12 +1522,29 @@ const checkShiftStatus = async (userId) => {
           height: { ideal: 360 },
           aspectRatio: { ideal: 4/3 }
         }}
- onUserMedia={() => {
+onUserMedia={() => {
   console.log("Camera started successfully");
-  // Small delay to ensure camera is fully ready
+  if (webcamRef.current && webcamRef.current.video) {
+    webcamRef.current.video.style.transform = 'scaleX(-1)';
+    const stream = webcamRef.current.video.srcObject;
+    if (stream) {
+      const track = stream.getVideoTracks()[0];
+      if (track && track.getCapabilities) {
+        try {
+          track.applyConstraints({
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 30 }
+          }).catch(e => console.log("Could not set higher resolution"));
+        } catch(e) { console.log("Could not set constraints"); }
+      }
+    }
+  }
+  // Wait longer for camera to stabilize (1 second instead of 200ms)
   setTimeout(() => {
     setCameraReady(true);
-  }, 500);
+    console.log("✅ Camera fully ready, can now take screenshots");
+  }, 1000);
 }}
           onUserMediaError={(err) => {
           console.error("Camera error:", err);
@@ -953,38 +1579,50 @@ const checkShiftStatus = async (userId) => {
       <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-lg text-sm">
         Position face in center
       </div>
+       {/* ADD THIS SCANNING INDICATOR HERE */}
+      {isScanning && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-1 rounded-full text-xs animate-pulse shadow-lg z-10">
+          🔍 Scanning for faces...
+        </div>
+      )}
     </div>
 
-    <div className="flex justify-between mt-6">
-      <button
-        onClick={() => setCapturing(false)}
-        className="px-6 py-3 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition"
-        disabled={isProcessing}
-      >
-        Cancel
-      </button>
-      
-      <motion.button
-        onClick={handleCapture}
-        disabled={isProcessing}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="px-8 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition flex items-center gap-2"
-      >
-        {isProcessing ? (
-          <>
-            <Loader className="w-4 h-4 animate-spin" />
-            Matching...
-          </>
-        ) : (
-          <>
-            <Zap className="w-4 h-4" />
-            Capture & Match
-          </>
-        )}
-      </motion.button>
-    </div>
+<div className="flex justify-between mt-6">
+  <button
+    onClick={() => setCapturing(false)}
+    className="px-6 py-3 bg-gray-200 rounded-xl font-medium hover:bg-gray-300 transition"
+    disabled={isProcessing}
+  >
+    Cancel
+  </button>
+  
+  <div className="text-sm text-gray-500 flex items-center">
+    {isProcessing ? (
+      <>
+        <Loader className="w-4 h-4 animate-spin mr-2" />
+        Processing...
+      </>
+    ) : isScanning ? (
+      <>
+        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+        Auto-detecting...
+      </>
+    ) : (
+      <>
+        <Zap className="w-4 h-4 text-green-500 mr-1" />
+        Ready - Waiting for face
+      </>
+    )}
+  </div>
+</div>
   </motion.div>
+)}
+
+{/* Recent matches indicator - shows who was just processed */}
+{recentMatches.length > 0 && (
+  <div className="absolute bottom-4 left-4 right-4 bg-black/70 text-white p-2 rounded-lg text-center">
+    <p className="text-sm">✓ Recently marked: {recentMatches.join(" → ")}</p>
+  </div>
 )}
 
           {/* Today's Stats */}

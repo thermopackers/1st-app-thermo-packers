@@ -273,30 +273,35 @@ useEffect(() => {
   onChange={(e) => setForm(f => ({ ...f, destination: e.target.value }))}
 />
   </div>
- <div>
+<div>
   <label className="text-sm font-medium">Freight Type</label>
-  <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
-    {["Self Pickup", "PAID", "To Pay", "Billed"].map((type) => (
-      <label key={type} className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={form.freightType === type}
-          onChange={() =>
-            setForm((f) => ({
-              ...f,
-              freightType: f.freightType === type ? "" : type,
-              freight: type === "Billed" ? f.freight : 0, // reset if not billed
-                  toPayAmount: type === "To Pay" ? f.toPayAmount : 0, // reset if not "To Pay"
-            }))
-          }
-        />
-        {type}
-      </label>
-    ))}
-  </div>
-  {form.freightType === "To Pay" && (
+  <select
+    value={form.freightType}
+    onChange={(e) => {
+      const newFreightType = e.target.value;
+      setForm(f => ({
+        ...f,
+        freightType: newFreightType,
+        // Reset amount fields when switching away from To Pay or Billed
+        freight: (newFreightType !== "Billed" && newFreightType !== "To Pay") ? 0 : f.freight,
+        toPayAmount: newFreightType !== "To Pay" ? 0 : f.toPayAmount,
+      }));
+    }}
+    className="w-full border border-gray-300 rounded px-3 py-2 mt-1 text-sm"
+  >
+    <option value="">Select Freight Type</option>
+    <option value="To Pay">To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)</option>
+    <option value="Self Dispatch">Self Pickup</option>
+    <option value="Freight Paid">Freight Paid</option>
+    <option value="Billed">Billed in Invoice</option>
+    <option value="As per (Actual amount on To Pay basis)">As per (Actual amount on To Pay basis)</option>
+  </select>
+</div>
+
+{/* Freight Amount - For "To Pay" option */}
+{form.freightType === "To Pay" && (
   <div>
-    <label className="text-sm font-medium">To Pay Amount (₹)</label>
+    <label className="text-sm font-medium">Freight Amount To Pay (₹)</label>
     <input
       className="input"
       type="number"
@@ -312,21 +317,19 @@ useEffect(() => {
   </div>
 )}
 
-</div>
-
-
+{/* Freight Amount - For "Billed in Invoice" option */}
 {form.freightType === "Billed" && (
   <div>
-    <label className="text-sm font-medium">Freight Amount (₹)</label>
+    <label className="text-sm font-medium">Freight Amount Billed (₹)</label>
     <input
       className="input"
       type="number"
-      placeholder="Freight Amount"
+      placeholder="Enter Freight Amount"
       value={form.freight ?? ""}
       onChange={(e) =>
         setForm((f) => ({
           ...f,
-freight: e.target.value,
+          freight: Number(e.target.value),
         }))
       }
     />
@@ -354,8 +357,8 @@ freight: e.target.value,
     }}
   >
     <option value="">-- Select Payment Terms --</option>
-    <option value="100% Advance">
-      1) 100% Advance
+    <option value="100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE">
+      1) 100% Advance against QUOTATION/PROFORMA INVOICE/ESTIMATE
     </option>
     <option value="Cash on Delivery (Driver to get Cash payment on delivery)">
       2) Cash on Delivery (Driver to get Cash payment on delivery)
@@ -369,7 +372,13 @@ freight: e.target.value,
     <option value="Credit (Udhaar): 45 Days">
       5) Credit (Udhaar): 45 Days
     </option>
-    <option value="Other">6) Other (Write in remarks)</option>
+    <option value="Credit (Udhaar): 15 Days">
+      6) Credit (Udhaar): 15 Days
+    </option>
+    <option value="Credit (Udhaar): 30 Days">
+      7) Credit (Udhaar): 30 Days
+    </option>
+    <option value="Other">8) Other (Write in remarks)</option>
   </select>
 
   {(form.paymentTerms === form.customPaymentTerm || form.paymentTerms === "Other") && (

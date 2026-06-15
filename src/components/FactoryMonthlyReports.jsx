@@ -17,7 +17,8 @@ import {
   TrendingUp,
   BarChart3,
   Loader,
-  FileText
+  FileText,
+  Layers
 } from "lucide-react";
 
 export default function FactoryMonthlyReports() {
@@ -204,9 +205,21 @@ const formatTime = (dateString) => {
     setExpandedUser(expandedUser === userId ? null : userId);
   };
 
-  // Helper function to check if user is a driver
   const isDriver = (user) => {
     return user?.designation?.toLowerCase() === "driver";
+  };
+
+  // NEW: Calculate total session count for a user
+  const getTotalSessions = (employeeData) => {
+    return employeeData.presentDetails?.length || 0;
+  };
+
+  // NEW: Calculate average session duration
+  const getAverageSessionDuration = (employeeData) => {
+    if (!employeeData.presentDetails || employeeData.presentDetails.length === 0) return 0;
+    const totalHours = employeeData.totalHours || 0;
+    const sessionCount = employeeData.presentDetails.length;
+    return sessionCount > 0 ? totalHours / sessionCount : 0;
   };
 
   const renderSummaryCards = () => {
@@ -251,6 +264,12 @@ const formatTime = (dateString) => {
         value: totalStats.absentDays,
         color: "text-red-600 bg-red-50",
         icon: <UserX className="w-6 h-6" />
+      },
+      {
+        title: "Total Sessions",
+        value: report.reduce((sum, emp) => sum + (emp.presentDetails?.length || 0), 0),
+        color: "text-indigo-600 bg-indigo-50",
+        icon: <Layers className="w-6 h-6" />
       },
       {
         title: "Total Leave Days",
@@ -787,295 +806,222 @@ const downloadAttendanceTable = async (employeeData, month) => {
   }
 };
 
-  const renderPresentDetails = (employeeData) => {
-    if (!employeeData || !employeeData.presentDetails || employeeData.presentDetails.length === 0) return null;
+const renderPresentDetails = (employeeData) => {
+  if (!employeeData || !employeeData.presentDetails || employeeData.presentDetails.length === 0) return null;
 
-    const isDriverUser = isDriver(employeeData.user);
+  const isDriverUser = isDriver(employeeData.user);
 
-    return (
-      <motion.div 
-        className="mt-4 bg-white p-4 rounded-xl border border-gray-200"
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: "auto" }}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="font-medium text-gray-800 flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Daily Attendance Details
-          </h4>
-          
-          {/* Download PDF Button */}
-          <button
-            onClick={() => downloadAttendanceTable(employeeData, month)}
-            disabled={downloadingPDF}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-          >
-            {downloadingPDF ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Download PDF
-          </button>
-        </div>
+  return (
+    <motion.div 
+      className="mt-4 bg-white p-4 rounded-xl border border-gray-200"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="font-medium text-gray-800 flex items-center gap-2">
+          <Calendar className="w-4 h-4" />
+          Daily Attendance Details
+        </h4>
         
-        {/* Summary Badges */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-            Present: {employeeData.presentDays}
-          </span>
-          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-            Absent: {employeeData.absentDays}
-          </span>
-          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-            Leave: {employeeData.leaveDays || 0}
-          </span>
-          <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-            Late: {employeeData.lateArrivals}
-          </span>
-          {!isDriverUser && (
-            <>
-              <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
-                Half Days: {employeeData.halfDays}
-              </span>
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                Early: {employeeData.earlyDepartures}
-              </span>
-            </>
-          )}
-          {!isDriverUser && (
-            <>
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                Shift 1: {employeeData.shift1Days}
-              </span>
-              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                Shift 2: {employeeData.shift2Days}
-              </span>
-            </>
-          )}
-        </div>
-        
-        {/* Detailed Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Date</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Day</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Shift</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-In</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Hours</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Overtime</th>
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {employeeData.presentDetails
-                .sort((a, b) => new Date(a.date) - new Date(b.date))
-                .map((detail, index) => {
-                  const dateObj = new Date(detail.date);
-                  const dayName = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
-                  const isSunday = dateObj.getDay() === 0;
-                  
-                  let rowColor = "bg-white";
-                 // In the table rendering part of renderPresentDetails
-// In renderPresentDetails function, update the attendance type logic
-let attendanceType = "Full Day";
-let attendanceColor = "bg-green-100 text-green-800";
-
-if (isSunday) {
-  attendanceType = "Weekly Off";
-  attendanceColor = "bg-orange-100 text-orange-800";
-} else if (isDriverUser) {
-  // For drivers, check if it was a half day
-  const hasOnlyCheckIn = detail.checkInTime && !detail.checkOutTime;
-  const hasOnlyCheckOut = !detail.checkInTime && detail.checkOutTime;
-  
-  if (hasOnlyCheckIn || hasOnlyCheckOut) {
-    attendanceType = "Half Day";
-    attendanceColor = "bg-amber-100 text-amber-800";
-  } else if (detail.checkInTime && detail.checkOutTime) {
-    const checkInDate = new Date(detail.checkInTime);
-    const checkOutDate = new Date(detail.checkOutTime);
-    const expectedCheckIn = new Date(detail.date + "T04:00:00+05:30");
-    const expectedCheckOut = new Date(detail.date + "T22:00:00+05:30");
-    
-    const isLateCheckIn = checkInDate > expectedCheckIn;
-    const isEarlyCheckOut = checkOutDate < expectedCheckOut;
-    
-    if (isLateCheckIn || isEarlyCheckOut) {
-      attendanceType = "Half Day";
-      attendanceColor = "bg-amber-100 text-amber-800";
-    }
-  }
-} else if (!isDriverUser && detail.shift === "shift1") {
-  // Get user details to check gender
-  const isFemale = employeeData.user?.gender?.toLowerCase() === "female";
-  
-  // Check if incomplete (only check-in)
-  const isIncomplete = detail.checkInTime && !detail.checkOutTime;
-  
-  // Check if half day due to late check-in (after 8:31 AM for all, or after 8:00 AM for lady workers? Keep consistent)
-  let isLateHalfDay = false;
-  if (detail.checkInTime) {
-    const checkInDate = new Date(detail.checkInTime);
-    const halfDayThreshold = new Date(detail.date + "T08:31:00+05:30");
-    isLateHalfDay = checkInDate > halfDayThreshold;
-  }
-  
-  // Check if half day due to early checkout
-  let isEarlyHalfDay = false;
-  if (detail.checkOutTime) {
-    const checkOutDate = new Date(detail.checkOutTime);
-    // For lady workers: expected check-out is 4:30 PM (16:30)
-    // For men workers: expected check-out is 8:30 PM (20:30)
-    let expectedHour = isFemale ? 16 : 20;
-    let expectedMinute = isFemale ? 30 : 30;
-    const expectedTime = new Date(detail.date);
-    expectedTime.setHours(expectedHour, expectedMinute, 0, 0);
-    isEarlyHalfDay = checkOutDate < expectedTime;
-  }
-  
-  if (isIncomplete || isLateHalfDay || isEarlyHalfDay) {
-    attendanceType = "Half Day";
-    attendanceColor = "bg-amber-100 text-amber-800";
-  }
-}
-                  
-                  return (
-                    <tr key={index} className={rowColor}>
-                      <td className="px-3 py-2 text-sm">{formatDate(detail.date)}</td>
-                      <td className="px-3 py-2 text-sm">{dayName}</td>
-                      <td className="px-3 py-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          detail.shift === "shift1" 
-                            ? "bg-blue-100 text-blue-700" 
-                            : detail.shift === "shift2"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {detail.shift === "shift1" ? "Shift 1" : 
-                           detail.shift === "shift2" ? "Shift 2" : 
-                           "Driver"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-sm">{detail.checkInTime ? formatTime(detail.checkInTime) : "—"}</td>
-                      <td className="px-3 py-2 text-sm">{detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}</td>
-
-<td className="px-3 py-2 text-sm">
-  {detail.checkInTime && detail.checkOutTime ? (
-    (() => {
-      // Parse the times correctly
-      const checkIn = new Date(detail.checkInTime);
-      const checkOut = new Date(detail.checkOutTime);
+        {/* Download PDF Button */}
+        <button
+          onClick={() => downloadAttendanceTable(employeeData, month)}
+          disabled={downloadingPDF}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+        >
+          {downloadingPDF ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          Download PDF
+        </button>
+      </div>
       
-      // Calculate difference in milliseconds
-      const diffMs = checkOut - checkIn;
-      
-      // Convert to hours and minutes
-      const totalMinutes = Math.round(diffMs / (1000 * 60));
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      
-      // Format with leading zero for minutes
-      const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-      
-      return `${hours}h ${formattedMinutes}m`;
-    })()
-  ) : "—"}
-</td>                      
-{/* Find the Overtime <td> and replace with this: */}
-<td className="px-3 py-2 text-sm">
-  {(() => {
-    if (!detail.checkInTime || !detail.checkOutTime) return "—";
-    
-    const overtime = calculateOvertime(detail, employeeData.user?.designation);
-    
-    if (overtime.isOvertime) {
-      const hrs = Math.floor(overtime.hours);
-      const mins = Math.round((overtime.hours - hrs) * 60);
-      const formattedMins = mins < 10 ? `0${mins}` : mins;
-      return (
-        <span className="text-green-600 font-medium">
-          {hrs}h {formattedMins}m
+      {/* Summary Badges */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+          Present: {employeeData.presentDays}
         </span>
-      );
-    }
-    return "—";
-  })()}
-</td>
-                      <td className="px-3 py-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${attendanceColor}`}>
-                          {attendanceType}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-           <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-  <tr>
-    <td colSpan="8" className="px-3 py-3 text-sm text-right">
-      <span className="font-semibold text-gray-800">
-        {(() => {
-          // Calculate total hours and overtime from all present details
-          let totalMinutes = 0;
-          let totalOvertimeMinutes = 0;
-          
-          employeeData.presentDetails.forEach(detail => {
-            if (detail.checkInTime && detail.checkOutTime) {
-              const checkIn = new Date(detail.checkInTime);
-              const checkOut = new Date(detail.checkOutTime);
-              const diffMs = checkOut - checkIn;
-              const minutes = Math.round(diffMs / (1000 * 60));
-              totalMinutes += minutes;
-              
-              // Calculate overtime for this entry
-              const totalHours = minutes / 60;
-              let regularHours = 0;
-              
-              if (isDriverUser) {
-                // Drivers: Regular hours = 18 hours (4 AM to 10 PM)
-                regularHours = 18;
-              } else {
-                // Operators/Helpers
-                if (detail.shift === "shift1") {
-                  // Shift 1: Regular hours = 12.5 hours (8 AM to 8:30 PM)
-                  regularHours = 12.5;
-                } else if (detail.shift === "shift2") {
-                  // Shift 2: Regular hours = 12 hours (8:30 PM to 8:30 AM next day)
-                  regularHours = 12;
+        <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+          Absent: {employeeData.absentDays}
+        </span>
+        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+          Leave: {employeeData.leaveDays || 0}
+        </span>
+        <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+          Late: {employeeData.lateArrivals}
+        </span>
+        <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+          Sessions: {employeeData.presentDetails.length}
+        </span>
+        {!isDriverUser && (
+          <>
+            <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+              Half Days: {employeeData.halfDays}
+            </span>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+              Early: {employeeData.earlyDepartures}
+            </span>
+          </>
+        )}
+        {!isDriverUser && (
+          <>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              Shift 1: {employeeData.shift1Days}
+            </span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+              Shift 2: {employeeData.shift2Days}
+            </span>
+          </>
+        )}
+      </div>
+      
+      {/* Detailed Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Date</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Day</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Shift</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-In</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Check-Out</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Hours</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Overtime</th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-800">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {employeeData.presentDetails
+              .sort((a, b) => new Date(a.date) - new Date(b.date))
+              .map((detail, index) => {
+                const dateObj = new Date(detail.date);
+                const dayName = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
+                const isSunday = dateObj.getDay() === 0;
+                
+                let attendanceType = "Full Day";
+                let attendanceColor = "bg-green-100 text-green-800";
+
+                if (isSunday) {
+                  attendanceType = "Weekly Off";
+                  attendanceColor = "bg-orange-100 text-orange-800";
+                } else if (isDriverUser) {
+                  const hasOnlyCheckIn = detail.checkInTime && !detail.checkOutTime;
+                  const hasOnlyCheckOut = !detail.checkInTime && detail.checkOutTime;
+                  
+                  if (hasOnlyCheckIn || hasOnlyCheckOut) {
+                    attendanceType = "Half Day";
+                    attendanceColor = "bg-amber-100 text-amber-800";
+                  } else if (detail.checkInTime && detail.checkOutTime) {
+                    const checkInDate = new Date(detail.checkInTime);
+                    const checkOutDate = new Date(detail.checkOutTime);
+                    const expectedCheckIn = new Date(detail.date + "T04:00:00+05:30");
+                    const expectedCheckOut = new Date(detail.date + "T22:00:00+05:30");
+                    
+                    const isLateCheckIn = checkInDate > expectedCheckIn;
+                    const isEarlyCheckOut = checkOutDate < expectedCheckOut;
+                    
+                    if (isLateCheckIn || isEarlyCheckOut) {
+                      attendanceType = "Half Day";
+                      attendanceColor = "bg-amber-100 text-amber-800";
+                    }
+                  }
+                } else if (!isDriverUser && detail.shift === "shift1") {
+                  const isFemale = employeeData.user?.gender?.toLowerCase() === "female";
+                  const isIncomplete = detail.checkInTime && !detail.checkOutTime;
+                  
+                  let isLateHalfDay = false;
+                  if (detail.checkInTime) {
+                    const checkInDate = new Date(detail.checkInTime);
+                    const halfDayThreshold = new Date(detail.date + "T08:31:00+05:30");
+                    isLateHalfDay = checkInDate > halfDayThreshold;
+                  }
+                  
+                  let isEarlyHalfDay = false;
+                  if (detail.checkOutTime) {
+                    const checkOutDate = new Date(detail.checkOutTime);
+                    let expectedHour = isFemale ? 16 : 20;
+                    let expectedMinute = isFemale ? 30 : 30;
+                    const expectedTime = new Date(detail.date);
+                    expectedTime.setHours(expectedHour, expectedMinute, 0, 0);
+                    isEarlyHalfDay = checkOutDate < expectedTime;
+                  }
+                  
+                  if (isIncomplete || isLateHalfDay || isEarlyHalfDay) {
+                    attendanceType = "Half Day";
+                    attendanceColor = "bg-amber-100 text-amber-800";
+                  }
                 }
-              }
-              
-              if (totalHours > regularHours) {
-                const overtimeHours = totalHours - regularHours;
-                totalOvertimeMinutes += overtimeHours * 60;
-              }
-            }
-          });
-          
-          const totalHours = Math.floor(totalMinutes / 60);
-          const totalMins = totalMinutes % 60;
-          const formattedTotalMins = totalMins < 10 ? `0${totalMins}` : totalMins;
-          
-          const totalOvertimeHours = Math.floor(totalOvertimeMinutes / 60);
-          const totalOvertimeMins = Math.round(totalOvertimeMinutes % 60);
-          const formattedOvertimeMins = totalOvertimeMins < 10 ? `0${totalOvertimeMins}` : totalOvertimeMins;
-          
-          return (
-            <>
-              Total Hours: {totalHours}h {formattedTotalMins}m | 
-              Overtime: {totalOvertimeHours}h {formattedOvertimeMins}m
-            </>
-          );
-        })()}
-      </span>
-    </td>
-  </tr>
-</tfoot>
-          </table>
-        </div>
-      </motion.div>
-    );
-  };
+                
+                // Calculate hours
+                let hoursDisplay = "—";
+                if (detail.checkInTime && detail.checkOutTime) {
+                  const checkIn = new Date(detail.checkInTime);
+                  const checkOut = new Date(detail.checkOutTime);
+                  const diffMs = checkOut - checkIn;
+                  const totalMinutes = Math.round(diffMs / (1000 * 60));
+                  const hours = Math.floor(totalMinutes / 60);
+                  const minutes = totalMinutes % 60;
+                  hoursDisplay = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+                }
+                
+                // Calculate overtime
+                let overtimeDisplay = "—";
+                if (detail.checkInTime && detail.checkOutTime) {
+                  const overtime = calculateOvertime(detail, employeeData.user?.designation, employeeData.user?.gender);
+                  if (overtime.isOvertime) {
+                    const hrs = Math.floor(overtime.hours);
+                    const mins = Math.round((overtime.hours - hrs) * 60);
+                    overtimeDisplay = `${hrs}h ${mins.toString().padStart(2, '0')}m`;
+                  }
+                }
+                
+                return (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm">{formatDate(detail.date)}</td>
+                    <td className="px-3 py-2 text-sm">{dayName}</td>
+                    <td className="px-3 py-2 text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        detail.shift === "shift1" 
+                          ? "bg-blue-100 text-blue-700" 
+                          : detail.shift === "shift2"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-green-100 text-green-700"
+                      }`}>
+                        {detail.shift === "shift1" ? "Shift 1" : 
+                         detail.shift === "shift2" ? "Shift 2" : 
+                         "Driver"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-sm">{detail.checkInTime ? formatTime(detail.checkInTime) : "—"}</td>
+                    <td className="px-3 py-2 text-sm">{detail.checkOutTime ? formatTime(detail.checkOutTime) : "—"}</td>
+                    <td className="px-3 py-2 text-sm">{hoursDisplay}</td>
+                    <td className="px-3 py-2 text-sm">
+                      {overtimeDisplay !== "—" ? (
+                        <span className="text-green-600 font-medium">{overtimeDisplay}</span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${attendanceColor}`}>
+                        {attendanceType}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+          <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+            <tr>
+              <td colSpan="8" className="px-3 py-3 text-sm text-right">
+                <span className="font-semibold text-gray-800">
+                  Total Hours: {employeeData.totalHours?.toFixed(1) || 0} hrs | 
+                  Overtime: {employeeData.totalOvertime?.toFixed(1) || 0} hrs
+                </span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </motion.div>
+  );
+};
 
   const reportButtons = [
     { key: "attendance", label: "All Attendance", color: "blue", icon: <BarChart3 className="w-4 h-4" /> },
@@ -1217,6 +1163,9 @@ if (isSunday) {
                       </td>
                       <td className="px-4 py-3 text-sm text-purple-600 font-medium">
                         {item.leaveDays || 0}
+                      </td>
+                        <td className="px-4 py-3 text-sm text-indigo-600 font-medium">
+                        {item.presentDetails?.length || 0}
                       </td>
                       <td className="px-4 py-3 text-sm text-blue-600">
                         {isDriverUser ? "—" : (item.shift1Days || 0)}

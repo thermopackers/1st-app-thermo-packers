@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import { motion } from "framer-motion";
 import { 
   Calendar, 
@@ -8,6 +8,8 @@ import {
   Filter, 
   ChevronLeft, 
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Loader,
   FileText,
   User,
@@ -36,8 +38,8 @@ export default function GuardAttendanceHistory() {
     startDate: "",
     endDate: ""
   });
-  const [showFilters, setShowFilters] = useState(false);
-
+const [showFilters, setShowFilters] = useState(false);
+const [expandedRow, setExpandedRow] = useState(null);  // <-- ADD THIS
   // Parse user roles
   const parseUserRoles = (user) => {
     if (!user || !user.role) return [];
@@ -152,7 +154,7 @@ export default function GuardAttendanceHistory() {
     const shift2Present = new Set();
     
     data.forEach(record => {
-      if (record.user && !record.checkOutTime) { // Currently checked in
+     if (record.user && (!record.checkOutTime || record.sessions?.some(s => !s.checkOutTime))) { // Currently checked in
         if (record.shift === "shift1") {
           shift1Present.add(record.user._id);
         } else {
@@ -232,73 +234,95 @@ export default function GuardAttendanceHistory() {
   };
 
   // Export to CSV
-  const exportToCSV = async () => {
-    // Fetch all data for export (without pagination)
-    try {
-      let url = `/factory-attendance/history?`;
-      if (selectedMonth && selectedYear) {
-        const startDate = `${selectedYear}-${selectedMonth}-01`;
-        const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
-        const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
-        url += `startDate=${startDate}&endDate=${endDate}`;
-      } else if (dateRange.startDate && dateRange.endDate) {
-        url += `startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
-      }
-      if (selectedEmployee) {
-        url += `&userId=${selectedEmployee}`;
-      }
-      url += `&limit=10000`; // Get all records for export
+const exportToCSV = async () => {
+  try {
+    let url = `/factory-attendance/history?`;
+    if (selectedMonth && selectedYear) {
+      const startDate = `${selectedYear}-${selectedMonth}-01`;
+      const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
+      const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
+      url += `startDate=${startDate}&endDate=${endDate}`;
+    } else if (dateRange.startDate && dateRange.endDate) {
+      url += `startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+    }
+    if (selectedEmployee) {
+      url += `&userId=${selectedEmployee}`;
+    }
+    url += `&limit=10000`;
 
-      const res = await axiosInstance.get(url);
-      const exportData = res.data.data || res.data;
-      
-      if (exportData.length === 0) {
-        Swal.fire({
-          icon: "info",
-          title: "No Data",
-          text: "No attendance records to export",
-        });
-        return;
-      }
+    const res = await axiosInstance.get(url);
+    const exportData = res.data.data || res.data;
+    
+    if (exportData.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "No Data",
+        text: "No attendance records to export",
+      });
+      return;
+    }
 
-      const headers = ["Date", "Employee Name", "Designation", "Shift", "Check In Time", "Check Out Time", "Working Hours", "Overtime", "Status"];
+    const headers = ["Date", "Employee Name", "Designation", "Shift", "Sessions", "Total Hours", "Overtime", "Status"];
+    
+    const csvData = exportData.map(record => {
+      let sessionsStr = "";
+      let totalHours = 0;
+      let hasOvertime = false;
+      let overtimeTotal = 0;
       
-      const csvData = exportData.map(record => [
+      if (record.sessions && record.sessions.length > 0) {
+        sessionsStr = record.sessions.map((session, idx) => {
+          totalHours += session.totalWorkingHours || 0;
+          if (session.isOvertime) {
+            hasOvertime = true;
+            overtimeTotal += session.overtimeHours || 0;
+          }
+          return `Session${idx+1}:${session.checkInTime ? new Date(session.checkInTime).toLocaleTimeString() : '—'}-${session.checkOutTime ? new Date(session.checkOutTime).toLocaleTimeString() : '—'}(${(session.totalWorkingHours || 0).toFixed(1)}h)`;
+        }).join(" | ");
+      } else {
+        // Fallback for old format
+        totalHours = record.totalWorkingHours || 0;
+        hasOvertime = record.isOvertime || false;
+        overtimeTotal = record.overtimeHours || 0;
+        sessionsStr = `Session1:${record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : '—'}-${record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : '—'}(${totalHours.toFixed(1)}h)`;
+      }
+      
+      return [
         record.date,
         record.user?.name || "N/A",
         record.user?.designation || "N/A",
-        record.shift === "shift1" ? "8 AM - 8:30 PM" : record.shift === "shift2" ? "8:30 PM onwards" : "Driver",
-        record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : "—",
-        record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : "—",
-        record.totalWorkingHours ? record.totalWorkingHours.toFixed(1) + " hrs" : "—",
-        record.isOvertime ? record.overtimeHours.toFixed(1) + " hrs" : "No",
-        record.checkOutTime ? "Completed" : "Active"
-      ]);
+        record.shift === "shift1" ? "Shift 1" : record.shift === "shift2" ? "Shift 2" : "Driver",
+        sessionsStr,
+        totalHours.toFixed(1) + " hrs",
+        hasOvertime ? overtimeTotal.toFixed(1) + " hrs" : "No",
+        record.sessions?.some(s => !s.checkOutTime) || (!record.checkOutTime && record.checkInTime) ? "Active" : "Completed"
+      ];
+    });
 
-      const csvContent = [
-        headers.join(","),
-        ...csvData.map(row => row.join(","))
-      ].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
 
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url_blob = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url_blob;
-      a.download = `factory-attendance-${selectedYear}-${selectedMonth}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url_blob);
-      
-    } catch (err) {
-      console.error("Error exporting data:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Export Failed",
-        text: "Failed to export attendance data",
-      });
-    }
-  };
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url_blob = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url_blob;
+    a.download = `factory-attendance-${selectedYear}-${selectedMonth}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url_blob);
+    
+  } catch (err) {
+    console.error("Error exporting data:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Export Failed",
+      text: "Failed to export attendance data",
+    });
+  }
+};
 
   // If not guard, show access denied
   if (!userRoles.includes("guard")) {
@@ -315,6 +339,23 @@ export default function GuardAttendanceHistory() {
       </>
     );
   }
+
+  const formatTime = (dateStr) => {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
+};
+
+const formatDuration = (hours) => {
+  if (!hours) return "—";
+  const hrs = Math.floor(hours);
+  const mins = Math.round((hours - hrs) * 60);
+  return `${hrs}h ${mins}m`;
+};
 
   return (
     <>
@@ -527,104 +568,170 @@ export default function GuardAttendanceHistory() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Employee
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Designation
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Gender
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Shift
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Check In
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Check Out
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Hours
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Overtime
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {attendance.map((record) => (
-                        <tr key={record._id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">
-                            {new Date(record.date).toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">
-                              {record.user?.name || "N/A"}
+                  <thead className="bg-gray-50 border-b">
+  <tr>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Designation</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Gender</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Shift</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sessions</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Hours</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Overtime</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Details</th>
+  </tr>
+</thead>
+                <tbody className="divide-y divide-gray-200">
+  {attendance.map((record) => {
+    // Calculate totals from sessions
+    const sessionCount = record.sessions?.length || (record.checkInTime ? 1 : 0);
+    const totalHours = record.sessions?.reduce((sum, s) => sum + (s.totalWorkingHours || 0), 0) || record.totalWorkingHours || 0;
+    const hasOvertime = record.sessions?.some(s => s.isOvertime) || record.isOvertime || false;
+    const overtimeTotal = record.sessions?.reduce((sum, s) => sum + (s.overtimeHours || 0), 0) || record.overtimeHours || 0;
+    const isActive = record.sessions?.some(s => !s.checkOutTime) || (!record.checkOutTime && record.checkInTime);
+    const hasSessions = record.sessions && record.sessions.length > 0;
+    
+    return (
+      <React.Fragment key={record._id}>
+        {/* Main Row */}
+        <tr 
+          className="hover:bg-gray-50 cursor-pointer"
+          onClick={() => setExpandedRow(expandedRow === record._id ? null : record._id)}
+        >
+          <td className="px-4 py-3 text-sm">
+            {new Date(record.date).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            })}
+          </td>
+          <td className="px-4 py-3">
+            <div className="font-medium text-gray-900">{record.user?.name || "N/A"}</div>
+          </td>
+          <td className="px-4 py-3 text-sm capitalize">{record.user?.designation || "N/A"}</td>
+          <td className="px-4 py-3 text-sm capitalize">{record.user?.gender || "N/A"}</td>
+          <td className="px-4 py-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              record.shift === "shift1" ? "bg-blue-100 text-blue-700" : 
+              record.shift === "shift2" ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"
+            }`}>
+              {record.shift === "shift1" ? "Shift 1" : record.shift === "shift2" ? "Shift 2" : "Driver"}
+            </span>
+          </td>
+          <td className="px-4 py-3 text-sm">
+            <span className="font-medium">{sessionCount}</span>
+            <span className="text-gray-400 text-xs ml-1">session(s)</span>
+          </td>
+          <td className="px-4 py-3 text-sm font-medium">{totalHours.toFixed(1)} hrs</td>
+          <td className="px-4 py-3">
+            {hasOvertime ? (
+              <span className="text-green-600 font-medium">+{overtimeTotal.toFixed(1)} hrs</span>
+            ) : <span className="text-gray-400">—</span>}
+          </td>
+          <td className="px-4 py-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              !isActive ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+            }`}>
+              {!isActive ? "Completed" : "Active"}
+            </span>
+          </td>
+          <td className="px-4 py-3">
+            <button className="text-blue-600 hover:text-blue-800">
+              {expandedRow === record._id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </td>
+        </tr>
+        
+        {/* Expanded Row - Session Details */}
+        {expandedRow === record._id && (
+          <tr className="bg-gray-50">
+            <td colSpan="10" className="px-4 py-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  Session Details for {new Date(record.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </h4>
+                
+                {hasSessions ? (
+                  <div className="space-y-2">
+                    {record.sessions.map((session, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-semibold text-blue-600">Session #{idx + 1}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            session.checkOutTime ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {session.checkOutTime ? 'Completed' : 'Active'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">Check In:</span>
+                            <div className="font-medium">{formatTime(session.checkInTime)}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Check Out:</span>
+                            <div className="font-medium">{formatTime(session.checkOutTime)}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Hours Worked:</span>
+                            <div className="font-medium">{formatDuration(session.totalWorkingHours)}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Overtime:</span>
+                            <div className="font-medium text-green-600">
+                              {session.isOvertime ? formatDuration(session.overtimeHours) : "—"}
                             </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm capitalize">
-                            {record.user?.designation || "N/A"}
-                          </td>
-                          <td className="px-4 py-3 text-sm capitalize">
-                            {record.user?.gender || "N/A"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              record.shift === "shift1" 
-                                ? "bg-blue-100 text-blue-700" 
-                                : record.shift === "shift2"
-                                ? "bg-purple-100 text-purple-700"
-                                : "bg-green-100 text-green-700"
+                          </div>
+                        </div>
+                        {session.sessionType && session.sessionType !== "normal" && (
+                          <div className="mt-2 text-xs">
+                            <span className={`px-2 py-0.5 rounded-full ${
+                              session.sessionType === "lunch_break" ? "bg-orange-100 text-orange-700" :
+                              session.sessionType === "end_of_day" ? "bg-green-100 text-green-700" :
+                              "bg-gray-100 text-gray-700"
                             }`}>
-                              {record.shift === "shift1" ? "Shift 1" : 
-                               record.shift === "shift2" ? "Shift 2" : 
-                               "Driver"}
+                              {session.sessionType === "lunch_break" ? "🍽️ Lunch Break" :
+                               session.sessionType === "end_of_day" ? "🏁 End of Day" :
+                               session.sessionType === "short_break" ? "☕ Short Break" : ""}
                             </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            {record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            {record.totalWorkingHours ? record.totalWorkingHours.toFixed(1) + " hrs" : "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            {record.isOvertime ? (
-                              <span className="text-green-600 font-medium">
-                                +{record.overtimeHours?.toFixed(1)} hrs
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              record.checkOutTime 
-                                ? "bg-green-100 text-green-700" 
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}>
-                              {record.checkOutTime ? "Completed" : "Active"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Fallback for old format (single session)
+                  <div className="bg-white p-3 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">Check In:</span>
+                        <div className="font-medium">{formatTime(record.checkInTime)}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Check Out:</span>
+                        <div className="font-medium">{formatTime(record.checkOutTime)}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Hours:</span>
+                        <div className="font-medium">{record.totalWorkingHours?.toFixed(1) || "—"} hrs</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Overtime:</span>
+                        <div className="font-medium">{record.isOvertime ? record.overtimeHours?.toFixed(1) + " hrs" : "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    );
+  })}
+</tbody>
                   </table>
                 </div>
 

@@ -705,8 +705,22 @@ const remaining = (parseFloat(order.quantity) || 0) - (parseFloat(order.delivere
       <OrderCell>{order.po}</OrderCell>
 
       {/* Freight */}
-      <OrderCell>{`${order.freight}: ₹${order.freightAmount || 0}`}</OrderCell>
-
+{/* Freight */}
+<OrderCell>
+  {order.freight === "To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)" ? (
+    <div className="text-sm">
+      <span className="font-medium text-orange-600">To pay</span>
+      <br />
+      <span className="text-xs text-gray-600">
+        (Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)
+      </span>
+      <br />
+      <span className="font-semibold">₹{order.freightAmount || 0}</span>
+    </div>
+  ) : (
+    <span>{order.freight}: ₹{order.freightAmount || 0}</span>
+  )}
+</OrderCell>
       {/* Payment Terms */}
       <OrderCell>{order.paymentTerms || "—"}</OrderCell>
 

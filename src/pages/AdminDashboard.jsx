@@ -88,24 +88,87 @@ const AdminDashboard = () => {
     updateFilters({ page: pageNum });
   };
 
-  const handleDelete = async (taskId) => {
-    if (confirm("Are you sure you want to delete this task?")) {
+const handleDelete = async (taskId) => {
+  // Find the full task object
+  const task = tasks.find(t => t._id === taskId);
+  
+  if (!task) {
+    toast.error("Task not found");
+    return;
+  }
+
+  const isRecurring = task.repeat && task.repeat !== "ONE_TIME";
+  
+  if (isRecurring) {
+    const result = await Swal.fire({
+      title: '⚠️ Recurring Task Detected',
+      html: `This is a <strong>${task.repeat}</strong> recurring task.<br/><br/>
+      If you delete it now, it will come back on the next ${task.repeat.toLowerCase()} cycle.<br/><br/>
+      <strong>What would you like to do?</strong>`,
+      icon: 'warning',
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Stop & Delete Permanently',
+      denyButtonText: 'Delete Just This Instance',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#d33',
+      denyButtonColor: '#3085d6',
+    });
+
+    if (result.isConfirmed) {
+      // Use the new permanent delete endpoint
       try {
-        await axiosInstance.delete(`/todos/${taskId}`);
-        toast.success("Task deleted successfully!");
-        fetchAllTasks({
-          page: currentPage,
-          limit: 9,
-          status: filterStatus || undefined,
-          assignedTo: selectedUser || undefined,
-          repeat: repeatFilter || undefined,
-        });
+        await axiosInstance.delete(`/todos/permanent/${task._id}`);
+        toast.success("Recurring task stopped and deleted permanently!");
+        refreshTasks();
+      } catch (error) {
+        console.error("Error permanently deleting recurring task:", error);
+        toast.error("Failed to permanently delete recurring task");
+      }
+    } else if (result.isDenied) {
+      // Delete just this instance using regular delete
+      try {
+        await axiosInstance.delete(`/todos/${task._id}`);
+        toast.warning(`Task deleted but will return on next ${task.repeat.toLowerCase()} cycle`);
+        refreshTasks();
       } catch (error) {
         console.error("Delete error:", error);
         toast.error("Failed to delete task");
       }
     }
-  };
+  } else {
+    // Non-recurring task, just delete
+    const confirm = await Swal.fire({
+      title: 'Delete Task',
+      text: `Are you sure you want to delete "${task.title}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+    
+    if (confirm.isConfirmed) {
+      try {
+        await axiosInstance.delete(`/todos/${task._id}`);
+        toast.success("Task deleted successfully!");
+        refreshTasks();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error("Failed to delete task");
+      }
+    }
+  }
+};
+
+const refreshTasks = () => {
+  fetchAllTasks({
+    page: currentPage,
+    limit: 9,
+    status: filterStatus || undefined,
+    assignedTo: selectedUser || undefined,
+    repeat: repeatFilter || undefined,
+  });
+};
 
   // Handle task selection
   const handleSelectTask = (taskId) => {
@@ -127,102 +190,113 @@ const AdminDashboard = () => {
     }
   };
 
-  // NEW: Handle delete all tasks from the ENTIRE DATABASE (not just current page)
-  const handleDeleteAllTasks = async () => {
-    // First, get total count of all tasks
-    let totalTaskCount = 0;
-    try {
-      const countRes = await axiosInstance.get("/todos/all", {
+const handleDeleteAllTasks = async () => {
+  // First, get all tasks to check for recurring ones
+  let allTasksList = [];
+  let totalTaskCount = 0;
+  
+  try {
+    let currentPageNum = 1;
+    const limitPerPage = 50;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const res = await axiosInstance.get("/todos/all", {
         params: {
-          page: 1,
-          limit: 1,
+          page: currentPageNum,
+          limit: limitPerPage,
           status: filterStatus || undefined,
           assignedTo: selectedUser || undefined,
           repeat: repeatFilter || undefined,
         }
       });
-      totalTaskCount = countRes.data.totalCount || 0;
-    } catch (err) {
-      console.error("Error getting task count:", err);
+      
+      const tasksOnPage = res.data.tasks || [];
+      allTasksList.push(...tasksOnPage);
+      totalTaskCount = res.data.totalCount || 0;
+      
+      if (tasksOnPage.length < limitPerPage) {
+        hasMore = false;
+      } else {
+        currentPageNum++;
+      }
     }
+  } catch (err) {
+    console.error("Error getting tasks:", err);
+  }
 
-    if (totalTaskCount === 0) {
-      toast.error("No tasks to delete");
-      return;
-    }
+  if (totalTaskCount === 0) {
+    toast.error("No tasks to delete");
+    return;
+  }
 
-    const result = await Swal.fire({
-      title: '⚠️ Delete ALL Tasks',
-      html: `Are you ABSOLUTELY sure you want to delete <strong>ALL ${totalTaskCount} task(s)</strong> from the database?<br/><br/>This action <strong>cannot be undone</strong> and will permanently remove:<br/>• All tasks<br/>• All associated images<br/>• All audio files<br/>• All PDF attachments`,
-      icon: 'warning',
+  const recurringTasks = allTasksList.filter(task => task.repeat && task.repeat !== "ONE_TIME");
+  const hasRecurring = recurringTasks.length > 0;
+  const allTaskIds = allTasksList.map(task => task._id);
+
+  let warningMessage = `⚠️ Are you ABSOLUTELY sure you want to delete ALL ${totalTaskCount} task(s)?`;
+  
+  if (hasRecurring) {
+    warningMessage = `⚠️⚠️⚠️ WARNING: ${recurringTasks.length} of these tasks are RECURRING (${recurringTasks.map(t => t.repeat).join(', ')}).\n\nIf you delete them now, they will come back on their next cycle!\n\nTo permanently delete recurring tasks, choose "Stop & Delete All Permanently".`;
+  }
+
+  const result = await Swal.fire({
+    title: '⚠️ Delete ALL Tasks',
+    html: `${warningMessage}<br/><br/>This action <strong>cannot be undone</strong> and will permanently remove:<br/>• All tasks<br/>• All associated images<br/>• All audio files<br/>• All PDF attachments`,
+    icon: 'warning',
+    showCancelButton: true,
+    showDenyButton: hasRecurring,
+    confirmButtonColor: '#d33',
+    denyButtonColor: '#3085d6',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: hasRecurring ? 'Delete Current Instances Only' : 'Yes, delete EVERYTHING!',
+    denyButtonText: hasRecurring ? 'Stop & Delete All Permanently' : undefined,
+    cancelButtonText: 'Cancel',
+    dangerMode: true,
+  });
+
+  if (result.isConfirmed || result.isDenied) {
+    // Second confirmation for safety
+    const actionText = result.isDenied ? 'STOP & DELETE ALL' : 'DELETE ALL';
+    const doubleConfirm = await Swal.fire({
+      title: 'Final Confirmation',
+      html: `Type <strong>"${actionText}"</strong> to confirm you want to ${result.isDenied ? 'stop recurring tasks and delete' : 'delete'} all ${totalTaskCount} tasks`,
+      input: 'text',
+      inputPlaceholder: `Type ${actionText} here`,
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete EVERYTHING!',
-      cancelButtonText: 'No, cancel!',
-      dangerMode: true,
+      confirmButtonText: 'Confirm',
+      cancelButtonText: 'Cancel',
+      preConfirm: (inputValue) => {
+        if (inputValue !== actionText) {
+          Swal.showValidationMessage(`Please type "${actionText}" to confirm`);
+          return false;
+        }
+        return true;
+      }
     });
 
-    if (result.isConfirmed) {
-      // Second confirmation for safety
-      const doubleConfirm = await Swal.fire({
-        title: 'Final Confirmation',
-        text: `Type "DELETE ALL" to confirm you want to delete all ${totalTaskCount} tasks`,
-        input: 'text',
-        inputPlaceholder: 'Type DELETE ALL here',
-        showCancelButton: true,
-        confirmButtonText: 'Confirm Delete',
-        cancelButtonText: 'Cancel',
-        preConfirm: (inputValue) => {
-          if (inputValue !== 'DELETE ALL') {
-            Swal.showValidationMessage('Please type "DELETE ALL" to confirm');
-            return false;
-          }
-          return true;
+    if (doubleConfirm.isConfirmed) {
+      if (result.isDenied && hasRecurring) {
+        // USE THE PERMANENT BATCH DELETE ENDPOINT
+        try {
+          toast.loading(`Permanently deleting ${totalTaskCount} tasks...`, { duration: 2000 });
+          const response = await axiosInstance.post("/todos/permanent-batch", {
+            taskIds: allTaskIds
+          });
+          toast.dismiss();
+          toast.success(response.data.message || `Successfully deleted ${totalTaskCount} tasks permanently`);
+        } catch (error) {
+          toast.dismiss();
+          console.error("Batch permanent delete error:", error);
+          toast.error("Failed to permanently delete all tasks");
         }
-      });
-
-      if (doubleConfirm.isConfirmed) {
+      } else {
+        // Regular delete (current instances only)
         let successCount = 0;
         let failCount = 0;
         
-        // Show loading toast
         toast.loading(`Deleting ${totalTaskCount} tasks...`, { duration: 2000 });
         
-        // Fetch all task IDs (paginate through all pages)
-        let allTaskIds = [];
-        let currentPageNum = 1;
-        const limitPerPage = 50;
-        let hasMore = true;
-        
-        while (hasMore) {
-          try {
-            const res = await axiosInstance.get("/todos/all", {
-              params: {
-                page: currentPageNum,
-                limit: limitPerPage,
-                status: filterStatus || undefined,
-                assignedTo: selectedUser || undefined,
-                repeat: repeatFilter || undefined,
-              }
-            });
-            
-            const tasksOnPage = res.data.tasks || [];
-            const taskIds = tasksOnPage.map(task => task._id);
-            allTaskIds.push(...taskIds);
-            
-            if (tasksOnPage.length < limitPerPage) {
-              hasMore = false;
-            } else {
-              currentPageNum++;
-            }
-          } catch (err) {
-            console.error("Error fetching tasks for deletion:", err);
-            hasMore = false;
-          }
-        }
-        
-        // Delete all tasks one by one
         for (const taskId of allTaskIds) {
           try {
             await axiosInstance.delete(`/todos/${taskId}`);
@@ -238,76 +312,99 @@ const AdminDashboard = () => {
         if (successCount > 0) {
           toast.success(`Successfully deleted ${successCount} task(s)`);
         }
+        if (hasRecurring) {
+          toast.warning(`${recurringTasks.length} recurring task(s) will return on their next cycle`);
+        }
         if (failCount > 0) {
           toast.error(`Failed to delete ${failCount} task(s)`);
         }
-        
-        // Clear selection and refresh
-        setSelectedTasks([]);
-        setIsSelectMode(false);
-        fetchAllTasks({
-          page: 1,
-          limit: 9,
-          status: filterStatus || undefined,
-          assignedTo: selectedUser || undefined,
-          repeat: repeatFilter || undefined,
-        });
-        setCurrentPage(1);
       }
-    }
-  };
-
-  // Handle delete multiple selected tasks
-  const handleDeleteMultiple = async () => {
-    if (selectedTasks.length === 0) {
-      toast.error("No tasks selected");
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: 'Delete Multiple Tasks',
-      text: `Are you sure you want to delete ${selectedTasks.length} task(s)? This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete them!',
-      cancelButtonText: 'Cancel'
-    });
-
-    if (result.isConfirmed) {
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const taskId of selectedTasks) {
-        try {
-          await axiosInstance.delete(`/todos/${taskId}`);
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to delete task ${taskId}:`, error);
-          failCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(`Successfully deleted ${successCount} task(s)`);
-      }
-      if (failCount > 0) {
-        toast.error(`Failed to delete ${failCount} task(s)`);
-      }
-
-      // Clear selection and refresh
+      
       setSelectedTasks([]);
       setIsSelectMode(false);
       fetchAllTasks({
-        page: currentPage,
+        page: 1,
         limit: 9,
         status: filterStatus || undefined,
         assignedTo: selectedUser || undefined,
         repeat: repeatFilter || undefined,
       });
+      setCurrentPage(1);
     }
-  };
+  }
+};
+
+const handleDeleteMultiple = async () => {
+  if (selectedTasks.length === 0) {
+    toast.error("No tasks selected");
+    return;
+  }
+
+  // Check if any selected tasks are recurring
+  const selectedTaskObjects = tasks.filter(task => selectedTasks.includes(task._id));
+  const recurringTasks = selectedTaskObjects.filter(task => task.repeat && task.repeat !== "ONE_TIME");
+  const hasRecurring = recurringTasks.length > 0;
+
+  let message = `Are you sure you want to delete ${selectedTasks.length} task(s)?`;
+  if (hasRecurring) {
+    message = `⚠️ ${recurringTasks.length} of the selected tasks are recurring (${recurringTasks.map(t => t.repeat).join(', ')}).\n\nDeleting them now will only remove the current instance - they will come back on their next cycle.\n\nTo permanently delete recurring tasks, choose "Stop & Delete Permanently".`;
+  }
+
+  const result = await Swal.fire({
+    title: 'Delete Multiple Tasks',
+    text: message,
+    icon: 'warning',
+    showCancelButton: true,
+    showDenyButton: hasRecurring,
+    confirmButtonText: hasRecurring ? 'Delete Current Instances' : 'Yes, delete them!',
+    denyButtonText: hasRecurring ? 'Stop & Delete Permanently' : undefined,
+    confirmButtonColor: '#d33',
+    denyButtonColor: '#3085d6',
+    cancelButtonText: 'Cancel'
+  });
+
+  if (result.isConfirmed) {
+    // Delete just current instances using regular delete
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const taskId of selectedTasks) {
+      try {
+        await axiosInstance.delete(`/todos/${taskId}`);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to delete task ${taskId}:`, error);
+        failCount++;
+      }
+    }
+    
+    if (successCount > 0) {
+      toast.success(`Deleted ${successCount} task(s)`);
+    }
+    if (hasRecurring) {
+      toast.warning(`${recurringTasks.length} recurring task(s) will return on their next cycle`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} task(s)`);
+    }
+    
+  } else if (result.isDenied && hasRecurring) {
+    // Use batch permanent delete endpoint
+    try {
+      const response = await axiosInstance.post("/todos/permanent-batch", {
+        taskIds: selectedTasks
+      });
+      toast.success(response.data.message || `Deleted ${selectedTasks.length} tasks permanently`);
+    } catch (error) {
+      console.error("Batch permanent delete error:", error);
+      toast.error("Failed to permanently delete some tasks");
+    }
+  }
+
+  setSelectedTasks([]);
+  setIsSelectMode(false);
+  refreshTasks();
+};
 
   // Cancel selection mode
   const cancelSelection = () => {
@@ -569,7 +666,7 @@ const AdminDashboard = () => {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-block w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden"
+                                className="w-24 h-24 bg-gray-100 flex items-center justify-center rounded overflow-hidden"
                               >
                                 <img
                                   src="./images/pdf.png"
