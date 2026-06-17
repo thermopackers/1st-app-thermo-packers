@@ -69,6 +69,44 @@ const FactoryAttendanceLogs = () => {
     }
   };
 
+  // 🔴 ADD THIS SORTING FUNCTION
+  const sortByPunchTime = (data) => {
+    if (!data || data.length === 0) return data;
+    
+    // Group by date
+    const groupedByDate = {};
+    data.forEach(record => {
+      if (!groupedByDate[record.date]) {
+        groupedByDate[record.date] = [];
+      }
+      groupedByDate[record.date].push(record);
+    });
+    
+    // Sort dates (newest first)
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+    
+    const result = [];
+    sortedDates.forEach(date => {
+      const records = groupedByDate[date];
+      
+      // Sort records within the date by earliest check-in time (oldest first)
+      records.sort((a, b) => {
+        const getEarliestTime = (record) => {
+          if (record.sessions && record.sessions.length > 0) {
+            const times = record.sessions.map(s => new Date(s.checkInTime));
+            return new Date(Math.min(...times));
+          }
+          return new Date(record.checkInTime || record.createdAt || 0);
+        };
+        return getEarliestTime(a) - getEarliestTime(b);
+      });
+      
+      result.push(...records);
+    });
+    
+    return result;
+  };
+
   const fetchLogs = async () => {
     setLoading(true);
     try {
@@ -96,13 +134,22 @@ const FactoryAttendanceLogs = () => {
 
       const res = await axiosInstance.get(`/factory-attendance/history?${params.toString()}`);
       
+      let logsData = [];
+      let totalPagesCount = 1;
+      
       if (res.data.data) {
-        setLogs(res.data.data);
-        setTotalPages(res.data.pagination.totalPages);
+        logsData = res.data.data;
+        totalPagesCount = res.data.pagination.totalPages;
       } else {
-        setLogs(res.data);
-        setTotalPages(1);
+        logsData = res.data;
+        totalPagesCount = 1;
       }
+      
+      // 🔴 FIX: Sort by punch time (who punched first)
+      const sortedData = sortByPunchTime(logsData);
+      setLogs(sortedData);
+      setTotalPages(totalPagesCount);
+      
     } catch (err) {
       console.error("Error fetching factory attendance:", err);
     } finally {
@@ -361,6 +408,19 @@ const FactoryAttendanceLogs = () => {
                                     <div className="font-semibold text-gray-900">{entry.user?.name || "N/A"}</div>
                                     <div className="text-xs text-gray-500">{entry.user?.designation || ""}</div>
                                   </div>
+                                  {/* 🔴 ADD THIS: Show first puncher badge */}
+                                  {(() => {
+                                    // Check if this is the first record for this date
+                                    const isFirstOfDay = index === 0 || logs[index - 1]?.date !== entry.date;
+                                    if (isFirstOfDay) {
+                                      return (
+                                        <span className="ml-2 text-xs bg-yellow-400 text-black px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                          🏆 First Punch!
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
