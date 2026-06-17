@@ -86,49 +86,92 @@ export default function GuardAttendanceHistory() {
     }
   };
 
-  // Fetch attendance history with pagination
-  const fetchAttendance = async () => {
-    setLoading(true);
-    try {
-      const startDate = `${selectedYear}-${selectedMonth}-01`;
-      const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
-      const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
+// Fetch attendance history with pagination
+const fetchAttendance = async () => {
+  setLoading(true);
+  try {
+    const startDate = `${selectedYear}-${selectedMonth}-01`;
+    const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
+    const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
 
-      let url = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}`;
-      if (selectedEmployee) {
-        url += `&userId=${selectedEmployee}`;
-      }
-      url += `&page=${currentPage}&limit=${itemsPerPage}`;
-
-      const res = await axiosInstance.get(url);
-      
-      if (res.data.data) {
-        setAttendance(res.data.data);
-        setTotalPages(res.data.pagination.totalPages);
-        
-        const statsUrl = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}` + 
-          (selectedEmployee ? `&userId=${selectedEmployee}` : "");
-        const statsRes = await axiosInstance.get(statsUrl);
-        const allData = statsRes.data.data || statsRes.data;
-        calculateStats(allData, startDate, endDate);
-      } else {
-        const attendanceData = res.data;
-        setAttendance(attendanceData);
-        setTotalPages(Math.ceil(attendanceData.length / itemsPerPage));
-        calculateStats(attendanceData, startDate, endDate);
-      }
-      
-    } catch (err) {
-      console.error("Error fetching attendance:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to fetch attendance history",
-      });
-    } finally {
-      setLoading(false);
+    let url = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}`;
+    if (selectedEmployee) {
+      url += `&userId=${selectedEmployee}`;
     }
-  };
+    url += `&page=${currentPage}&limit=${itemsPerPage}`;
+
+    const res = await axiosInstance.get(url);
+    
+    let attendanceData = [];
+    let totalPagesCount = 1;
+    
+    if (res.data.data) {
+      attendanceData = res.data.data;
+      totalPagesCount = res.data.pagination.totalPages;
+    } else {
+      attendanceData = res.data;
+      totalPagesCount = Math.ceil(attendanceData.length / itemsPerPage);
+    }
+    
+    // 🔴 FIX: Sort by punch time (who punched first)
+    const sortedData = sortByPunchTime(attendanceData);
+    setAttendance(sortedData);
+    setTotalPages(totalPagesCount);
+    
+    // Calculate stats
+    const statsUrl = `/factory-attendance/history?startDate=${startDate}&endDate=${endDate}` + 
+      (selectedEmployee ? `&userId=${selectedEmployee}` : "");
+    const statsRes = await axiosInstance.get(statsUrl);
+    const allData = statsRes.data.data || statsRes.data;
+    calculateStats(allData, startDate, endDate);
+    
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to fetch attendance history",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
+// 🔴 ADD THIS SORTING FUNCTION
+const sortByPunchTime = (data) => {
+  // Group by date
+  const groupedByDate = {};
+  data.forEach(record => {
+    if (!groupedByDate[record.date]) {
+      groupedByDate[record.date] = [];
+    }
+    groupedByDate[record.date].push(record);
+  });
+  
+  // Sort dates (newest first)
+  const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+  
+  const result = [];
+  sortedDates.forEach(date => {
+    const records = groupedByDate[date];
+    
+    // Sort records within the date by earliest check-in time (oldest first)
+    records.sort((a, b) => {
+      const getEarliestTime = (record) => {
+        if (record.sessions && record.sessions.length > 0) {
+          const times = record.sessions.map(s => new Date(s.checkInTime));
+          return new Date(Math.min(...times));
+        }
+        return new Date(record.checkInTime || record.createdAt || 0);
+      };
+      return getEarliestTime(a) - getEarliestTime(b);
+    });
+    
+    result.push(...records);
+  });
+  
+  return result;
+};
 
   // Calculate statistics
   const calculateStats = (data, startDate, endDate) => {
@@ -592,15 +635,28 @@ export default function GuardAttendanceHistory() {
                                   year: 'numeric'
                                 })}
                               </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <UserCircle className="w-5 h-5 text-blue-600" />
-                                  <div>
-                                    <div className="font-semibold text-gray-900">{record.user?.name || "N/A"}</div>
-                                    <div className="text-xs text-gray-500">{record.user?.designation || ""}</div>
-                                  </div>
-                                </div>
-                              </td>
+                   <td className="px-4 py-3">
+  <div className="flex items-center gap-2">
+    <UserCircle className="w-5 h-5 text-blue-600" />
+    <div>
+      <div className="font-semibold text-gray-900">{record.user?.name || "N/A"}</div>
+      <div className="text-xs text-gray-500">{record.user?.designation || ""}</div>
+    </div>
+    {/* 🔴 Show first puncher badge */}
+    {(() => {
+      // Check if this is the first record for this date
+      const isFirstOfDay = index === 0 || attendance[index - 1]?.date !== record.date;
+      if (isFirstOfDay) {
+        return (
+          <span className="ml-2 text-xs bg-yellow-400 text-black px-2 py-0.5 rounded-full font-bold animate-pulse">
+            🏆 First Punch!
+          </span>
+        );
+      }
+      return null;
+    })()}
+  </div>
+</td>
                               <td className="px-4 py-3">
                                 <span className={`px-2 py-1 rounded-full text-xs ${
                                   record.shift === "shift1" ? "bg-blue-100 text-blue-700" : 
