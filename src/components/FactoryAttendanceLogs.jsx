@@ -16,7 +16,8 @@ import {
   ChevronUp,
   Loader,
   FileText,
-  Users
+  Users,
+  UserCircle
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -30,9 +31,7 @@ const FactoryAttendanceLogs = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [employees, setEmployees] = useState([]);
-  const [expandedRow, setExpandedRow] = useState(null);  // <-- ADD THIS LINE
   const limit = 20;
-console.log("loggss", logs);
 
   // Parse user roles
   const parseUserRoles = (user) => {
@@ -50,7 +49,7 @@ console.log("loggss", logs);
 
   const userRoles = user ? parseUserRoles(user) : [];
   const isPrivileged = userRoles.some(role => ["admin", "accounts", "guard", "driver"].includes(role));
-  const isDriver = userRoles.includes("driver"); // Add this line
+  const isDriver = userRoles.includes("driver");
 
   useEffect(() => {
     fetchEmployees();
@@ -70,62 +69,53 @@ console.log("loggss", logs);
     }
   };
 
-const fetchLogs = async () => {
-  setLoading(true);
-  try {
-    let params = new URLSearchParams();
-    params.append('page', page);
-    params.append('limit', limit);
-    
-    // If user is a driver, always filter by their own ID
-    const userRoles = parseUserRoles(user);
-    const isDriver = userRoles.includes("driver");
-    
-    if (isDriver) {
-      // Drivers can only see their own logs
-      params.append('userId', user._id);
-      // Disable employee filter for drivers
-      setEmployeeFilter(user._id);
-    } else if (employeeFilter) {
-      // For other privileged users, respect the filter
-      params.append('userId', employeeFilter);
-    }
-    
-    if (dateFilter) {
-      params.append('startDate', dateFilter);
-      params.append('endDate', dateFilter);
-    }
-    if (shiftFilter) {
-      params.append('shift', shiftFilter);
-    }
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      let params = new URLSearchParams();
+      params.append('page', page);
+      params.append('limit', limit);
+      
+      const userRoles = parseUserRoles(user);
+      const isDriver = userRoles.includes("driver");
+      
+      if (isDriver) {
+        params.append('userId', user._id);
+        setEmployeeFilter(user._id);
+      } else if (employeeFilter) {
+        params.append('userId', employeeFilter);
+      }
+      
+      if (dateFilter) {
+        params.append('startDate', dateFilter);
+        params.append('endDate', dateFilter);
+      }
+      if (shiftFilter) {
+        params.append('shift', shiftFilter);
+      }
 
-    const res = await axiosInstance.get(`/factory-attendance/history?${params.toString()}`);
-    
-    // Handle both old and new response formats
-    if (res.data.data) {
-      // New paginated format
-      setLogs(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
-    } else {
-      // Old format (array)
-      setLogs(res.data);
-      setTotalPages(1);
+      const res = await axiosInstance.get(`/factory-attendance/history?${params.toString()}`);
+      
+      if (res.data.data) {
+        setLogs(res.data.data);
+        setTotalPages(res.data.pagination.totalPages);
+      } else {
+        setLogs(res.data);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error("Error fetching factory attendance:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Error fetching factory attendance:", err);
-    toast.error("Failed to fetch attendance logs");
-  } finally {
-    setLoading(false);
-  }
-}; // ✅ Properly closed fetchLogs function
+  };
 
-// ✅ clearFilters is now properly defined OUTSIDE fetchLogs
-const clearFilters = () => {
-  setDateFilter("");
-  setEmployeeFilter("");
-  setShiftFilter("");
-  setPage(1);
-};
+  const clearFilters = () => {
+    setDateFilter("");
+    setEmployeeFilter("");
+    setShiftFilter("");
+    setPage(1);
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -137,85 +127,64 @@ const clearFilters = () => {
     });
   };
 
-const formatTime = (dateStr) => {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Kolkata'
-  });
-};
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    });
+  };
 
-// Helper function to format session duration
-const formatDuration = (hours) => {
-  if (!hours) return "—";
-  const hrs = Math.floor(hours);
-  const mins = Math.round((hours - hrs) * 60);
-  return `${hrs}h ${mins}m`;
-};
+  const formatDuration = (hours) => {
+    if (!hours) return "—";
+    const hrs = Math.floor(hours);
+    const mins = Math.round((hours - hrs) * 60);
+    return `${hrs}h ${mins}m`;
+  };
 
-// Helper to render multiple sessions
-const renderSessions = (entry) => {
-  if (entry.sessions && entry.sessions.length > 0) {
-    return entry.sessions.map((session, idx) => (
-      <div key={idx} className="text-xs border-b border-gray-100 py-1 last:border-0">
-        <span className="font-medium">Session {idx + 1}:</span> {formatTime(session.checkInTime)} → {formatTime(session.checkOutTime)} 
-        <span className="text-gray-500 ml-1">({formatDuration(session.totalWorkingHours)})</span>
-      </div>
-    ));
-  }
-  // Fallback for old format (single session)
-  return (
-    <div className="text-xs">
-      {formatTime(entry.checkInTime)} → {formatTime(entry.checkOutTime)}
-    </div>
-  );
-};
+  const exportToCSV = () => {
+    const headers = ["Date", "Employee", "Shift", "Sessions", "Total Hours", "Status"];
+    const csvData = logs.map(entry => {
+      let sessionsStr = "";
+      let totalHours = 0;
+      
+      if (entry.sessions && entry.sessions.length > 0) {
+        sessionsStr = entry.sessions.map((session, idx) => {
+          totalHours += session.totalWorkingHours || 0;
+          return `Session${idx+1}:${formatTime(session.checkInTime)}-${formatTime(session.checkOutTime)}(${(session.totalWorkingHours || 0).toFixed(1)}h)`;
+        }).join(" | ");
+      } else {
+        totalHours = entry.totalWorkingHours || 0;
+        sessionsStr = `Session1:${formatTime(entry.checkInTime)}-${formatTime(entry.checkOutTime)}(${totalHours.toFixed(1)}h)`;
+      }
+      
+      return [
+        formatDate(entry.date),
+        entry.user?.name || "N/A",
+        entry.shift === "shift1" ? "Shift 1" : entry.shift === "shift2" ? "Shift 2" : "Driver",
+        sessionsStr,
+        totalHours.toFixed(1),
+        entry.checkOutTime ? "Completed" : "Active"
+      ];
+    });
 
-const exportToCSV = () => {
-  const headers = ["Date", "Employee", "Designation", "Shift", "Sessions", "Total Hours", "Status"];
-  const csvData = logs.map(entry => {
-    let sessionsStr = "";
-    let totalHours = 0;
-    
-    if (entry.sessions && entry.sessions.length > 0) {
-      sessionsStr = entry.sessions.map((session, idx) => {
-        totalHours += session.totalWorkingHours || 0;
-        return `Session${idx+1}:${formatTime(session.checkInTime)}-${formatTime(session.checkOutTime)}(${(session.totalWorkingHours || 0).toFixed(1)}h)`;
-      }).join(" | ");
-    } else {
-      // Fallback for old format
-      totalHours = entry.totalWorkingHours || 0;
-      sessionsStr = `Session1:${formatTime(entry.checkInTime)}-${formatTime(entry.checkOutTime)}(${totalHours.toFixed(1)}h)`;
-    }
-    
-    return [
-      formatDate(entry.date),
-      entry.user?.name || "N/A",
-      entry.user?.designation || "N/A",
-      entry.shift === "shift1" ? "Shift 1" : entry.shift === "shift2" ? "Shift 2" : "Driver",
-      sessionsStr,
-      totalHours.toFixed(1),
-      entry.checkOutTime ? "Completed" : "Active"
-    ];
-  });
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
 
-  const csvContent = [
-    headers.join(","),
-    ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
-  ].join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `factory-attendance-${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `factory-attendance-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   if (!isPrivileged) {
     return (
@@ -274,7 +243,7 @@ const exportToCSV = () => {
                 <NavLink to="/factory-monthly-reports">
                   <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium shadow-lg">
                     <FileText className="w-4 h-4" />
-                   Drivers & Workers Monthly Reports
+                    Monthly Reports
                   </button>
                 </NavLink>
               </div>
@@ -292,34 +261,30 @@ const exportToCSV = () => {
                 />
               </div>
 
-            <div className="relative">
-  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-  <select
-    value={employeeFilter}
-    onChange={(e) => setEmployeeFilter(e.target.value)}
-    disabled={isDriver} // Disable for drivers
-    className={`pl-10 pr-4 py-2 w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 appearance-none bg-white ${
-      isDriver ? 'bg-gray-100 cursor-not-allowed' : ''
-    }`}
-  >
-    {isDriver ? (
-      // Show only the driver's name
-      <option value={user._id}>
-        {user.name} (Driver)
-      </option>
-    ) : (
-      // Show all employees for other privileged users
-      <>
-        <option value="">All Employees</option>
-        {employees.map(emp => (
-          <option key={emp._id} value={emp._id}>
-            {emp.name} ({emp.designation})
-          </option>
-        ))}
-      </>
-    )}
-  </select>
-</div>
+              <div className="relative">
+                <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <select
+                  value={employeeFilter}
+                  onChange={(e) => setEmployeeFilter(e.target.value)}
+                  disabled={isDriver}
+                  className={`pl-10 pr-4 py-2 w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 appearance-none bg-white ${
+                    isDriver ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isDriver ? (
+                    <option value={user._id}>{user.name} (Driver)</option>
+                  ) : (
+                    <>
+                      <option value="">All Employees</option>
+                      {employees.map(emp => (
+                        <option key={emp._id} value={emp._id}>
+                          {emp.name} ({emp.designation})
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
 
               <div className="relative">
                 <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -343,7 +308,7 @@ const exportToCSV = () => {
             </div>
           </motion.div>
 
-          {/* Table */}
+          {/* Table - ALL ROWS EXPANDED */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -364,126 +329,157 @@ const exportToCSV = () => {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                   <thead className="bg-gray-50 border-b">
-  <tr>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Employee</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Designation</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Gender</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Shift</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Sessions</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Total Hours</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
-    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Details</th>
-  </tr>
-</thead>
-                   <tbody className="divide-y divide-gray-200">
-  {logs.map((entry, index) => {
-    const totalHours = entry.sessions?.reduce((sum, s) => sum + (s.totalWorkingHours || 0), 0) || entry.totalWorkingHours || 0;
-    const sessionCount = entry.sessions?.length || (entry.checkInTime ? 1 : 0);
-    const isActive = entry.sessions?.some(s => !s.checkOutTime) || (!entry.checkOutTime && entry.checkInTime);
-    
-    return (
-      <React.Fragment key={entry._id || index}>
-        <tr 
-          className="hover:bg-gray-50 cursor-pointer"
-          onClick={() => setExpandedRow(expandedRow === entry._id ? null : entry._id)}
-        >
-          <td className="px-4 py-3 text-sm">{formatDate(entry.date)}</td>
-          <td className="px-4 py-3 text-sm font-medium">{entry.user?.name || "N/A"}</td>
-          <td className="px-4 py-3 text-sm capitalize">{entry.user?.designation || "N/A"}</td>
-          <td className="px-4 py-3 text-sm capitalize">{entry.user?.gender || "—"}</td>
-          <td className="px-4 py-3">
-            <span className={`px-2 py-1 rounded-full text-xs ${
-              entry.shift === "shift1" 
-                ? "bg-blue-100 text-blue-700" 
-                : entry.shift === "shift2"
-                ? "bg-purple-100 text-purple-700"
-                : "bg-green-100 text-green-700"
-            }`}>
-              {entry.shift === "shift1" ? "Shift 1" : 
-               entry.shift === "shift2" ? "Shift 2" : 
-               "Driver"}
-            </span>
-          </td>
-          <td className="px-4 py-3 text-sm">
-            <span className="font-medium">{sessionCount}</span>
-            <span className="text-gray-400 text-xs ml-1">session(s)</span>
-          </td>
-          <td className="px-4 py-3 text-sm font-medium">{totalHours.toFixed(1)} hrs</td>
-          <td className="px-4 py-3">
-            <span className={`px-2 py-1 rounded-full text-xs ${
-              !isActive 
-                ? "bg-green-100 text-green-700" 
-                : "bg-yellow-100 text-yellow-700"
-            }`}>
-              {!isActive ? "Completed" : "Active"}
-            </span>
-          </td>
-          <td className="px-4 py-3">
-            <button className="text-blue-600 hover:text-blue-800">
-              {expandedRow === entry._id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </td>
-        </tr>
-        
-        {/* Expanded row showing session details */}
-        {expandedRow === entry._id && (
-          <tr className="bg-gray-50">
-            <td colSpan="9" className="px-4 py-4">
-              <div className="space-y-2">
-                <h4 className="font-medium text-gray-700 text-sm mb-2">📋 Session Details</h4>
-                {entry.sessions && entry.sessions.length > 0 ? (
-                  <div className="space-y-2">
-                    {entry.sessions.map((session, idx) => (
-                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-blue-600">Session #{idx + 1}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            session.checkOutTime ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {session.checkOutTime ? 'Completed' : 'Active'}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Check In:</span>
-                            <span className="ml-2 font-medium">{formatTime(session.checkInTime)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Check Out:</span>
-                            <span className="ml-2 font-medium">{formatTime(session.checkOutTime)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Hours Worked:</span>
-                            <span className="ml-2 font-medium">{formatDuration(session.totalWorkingHours)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Overtime:</span>
-                            <span className="ml-2 font-medium">{session.isOvertime ? formatDuration(session.overtimeHours) : "—"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  // Fallback for old format
-                  <div className="bg-white p-3 rounded-lg border border-gray-200">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-gray-500">Check In:</span> <span className="ml-2">{formatTime(entry.checkInTime)}</span></div>
-                      <div><span className="text-gray-500">Check Out:</span> <span className="ml-2">{formatTime(entry.checkOutTime)}</span></div>
-                      <div><span className="text-gray-500">Hours:</span> <span className="ml-2">{entry.totalWorkingHours?.toFixed(1) || "—"} hrs</span></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </td>
-          </tr>
-        )}
-      </React.Fragment>
-    );
-  })}
-</tbody>
+                    <thead className="bg-gray-50 border-b sticky top-0 z-10">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Employee</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Shift</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Sessions</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Total Hours</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {logs.map((entry, index) => {
+                        const totalHours = entry.sessions?.reduce((sum, s) => sum + (s.totalWorkingHours || 0), 0) || entry.totalWorkingHours || 0;
+                        const sessionCount = entry.sessions?.length || (entry.checkInTime ? 1 : 0);
+                        const isActive = entry.sessions?.some(s => !s.checkOutTime) || (!entry.checkOutTime && entry.checkInTime);
+                        const hasSessions = entry.sessions && entry.sessions.length > 0;
+                        const bgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        
+                        return (
+                          <React.Fragment key={entry._id || index}>
+                            {/* Main Row */}
+                            <tr className={`${bgColor} hover:bg-blue-50 transition-colors`}>
+                              <td className="px-4 py-3 text-sm border-l-4 border-blue-500">
+                                {formatDate(entry.date)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <UserCircle className="w-5 h-5 text-blue-600" />
+                                  <div>
+                                    <div className="font-semibold text-gray-900">{entry.user?.name || "N/A"}</div>
+                                    <div className="text-xs text-gray-500">{entry.user?.designation || ""}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  entry.shift === "shift1" ? "bg-blue-100 text-blue-700" : 
+                                  entry.shift === "shift2" ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"
+                                }`}>
+                                  {entry.shift === "shift1" ? "Shift 1" : entry.shift === "shift2" ? "Shift 2" : "Driver"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <span className="font-medium">{sessionCount}</span>
+                                <span className="text-gray-400 text-xs ml-1">session(s)</span>
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium">{totalHours.toFixed(1)} hrs</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  !isActive ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                                }`}>
+                                  {!isActive ? "Completed" : "Active"}
+                                </span>
+                              </td>
+                            </tr>
+                            
+                            {/* Expanded Row - ALWAYS VISIBLE */}
+                            <tr className={`${bgColor} border-t border-blue-200`}>
+                              <td colSpan="6" className="px-4 py-4">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Clock className="w-4 h-4 text-blue-500" />
+                                    <h4 className="font-medium text-gray-700 text-sm">
+                                      Session Details for {formatDate(entry.date)}
+                                    </h4>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      entry.shift === "shift1" ? "bg-blue-100 text-blue-700" : 
+                                      entry.shift === "shift2" ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"
+                                    }`}>
+                                      {entry.shift === "shift1" ? "Shift 1" : entry.shift === "shift2" ? "Shift 2" : "Driver"}
+                                    </span>
+                                  </div>
+                                  
+                                  {hasSessions ? (
+                                    <div className="space-y-2 ml-4">
+                                      {entry.sessions.map((session, idx) => (
+                                        <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                          <div className="flex justify-between items-center mb-2">
+                                            <span className="font-semibold text-blue-600">Session #{idx + 1}</span>
+                                            <div className="flex gap-2 flex-wrap">
+                                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                session.checkOutTime ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                              }`}>
+                                                {session.checkOutTime ? '✅ Completed' : '🟡 Active'}
+                                              </span>
+                                              {session.sessionType && session.sessionType !== "normal" && (
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                  session.sessionType === "lunch_break" ? "bg-orange-100 text-orange-700" :
+                                                  session.sessionType === "end_of_day" ? "bg-green-100 text-green-700" :
+                                                  "bg-gray-100 text-gray-700"
+                                                }`}>
+                                                  {session.sessionType === "lunch_break" ? "🍽️ Lunch Break" :
+                                                   session.sessionType === "end_of_day" ? "🏁 End of Day" :
+                                                   session.sessionType === "short_break" ? "☕ Short Break" : session.sessionType}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                            <div>
+                                              <span className="text-gray-500">📥 Check In:</span>
+                                              <div className="font-medium">{formatTime(session.checkInTime)}</div>
+                                            </div>
+                                            <div>
+                                              <span className="text-gray-500">📤 Check Out:</span>
+                                              <div className="font-medium">{formatTime(session.checkOutTime)}</div>
+                                            </div>
+                                            <div>
+                                              <span className="text-gray-500">⏱️ Hours:</span>
+                                              <div className="font-medium">{formatDuration(session.totalWorkingHours)}</div>
+                                            </div>
+                                            <div>
+                                              <span className="text-gray-500">🔄 Overtime:</span>
+                                              <div className="font-medium text-green-600">
+                                                {session.isOvertime ? formatDuration(session.overtimeHours) : "—"}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    // Fallback for old format
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 ml-4">
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                        <div>
+                                          <span className="text-gray-500">📥 Check In:</span>
+                                          <div className="font-medium">{formatTime(entry.checkInTime)}</div>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500">📤 Check Out:</span>
+                                          <div className="font-medium">{formatTime(entry.checkOutTime)}</div>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500">⏱️ Hours:</span>
+                                          <div className="font-medium">{entry.totalWorkingHours?.toFixed(1) || "—"} hrs</div>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500">🔄 Overtime:</span>
+                                          <div className="font-medium">{entry.isOvertime ? entry.overtimeHours?.toFixed(1) + " hrs" : "—"}</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
                   </table>
                 </div>
 
