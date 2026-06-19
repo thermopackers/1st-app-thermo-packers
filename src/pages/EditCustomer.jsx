@@ -106,6 +106,12 @@ const fetchGiftHistory = async (page = 1) => {
       setGiftTotal(res.data.total);
       setGiftTotalPages(res.data.pages);
       setGiftPage(res.data.page);
+      
+      // ✅ ALSO update the customer state with the gift history
+      setCustomer(prev => ({
+        ...prev,
+        giftHistory: res.data.gifts || []
+      }));
     }
   } catch (err) {
     console.error("Failed to fetch gift history", err);
@@ -114,7 +120,6 @@ const fetchGiftHistory = async (page = 1) => {
     setLoadingGiftHistory(false);
   }
 };
-
 
 // WhatsApp share function for customer
 const shareOnWhatsApp = () => {
@@ -334,69 +339,99 @@ setCustomer((prev) => ({
     setNewFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadToCloudinary = async (files) => {
-    const uploads = files.map(async (file) => {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "todo_uploads");
-      data.append("cloud_name", "dcr8k5amk");
+const uploadToCloudinary = async (files) => {
+  // Filter out any non-File objects (like URLs)
+  const validFiles = files.filter(file => file instanceof File);
+  
+  if (validFiles.length === 0) {
+    return [];
+  }
+  
+  const uploads = validFiles.map(async (file) => {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "todo_uploads");
+    data.append("cloud_name", "dcr8k5amk");
 
-      const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
-        method: "POST",
-        body: data,
-      });
-
-      const result = await res.json();
-      return result.secure_url;
+    const res = await fetch("https://api.cloudinary.com/v1_1/dcr8k5amk/upload", {
+      method: "POST",
+      body: data,
     });
 
-    return Promise.all(uploads);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-if (customer.company && customer.company !== "URP" && customer.company.length !== 15) {
-  setGstError("GST number must be exactly 15 characters.");
-  toast.error("GST number must be exactly 15 characters.");
-  setSubmitting(false);
-  return;
-}
-// 🔥 Auto-fill URN
-if (!customer.company || customer.company.trim() === "") {
-  customer.company = "URP";
-}
-
-    try {
-      let uploadedUrls = [];
-      if (newFiles.length > 0) {
-        toast.loading("Uploading new documents...");
-        uploadedUrls = await uploadToCloudinary(newFiles);
-        toast.dismiss();
-      }
-
-      const updatedCustomer = {
-        ...customer,
-          createdBy: customer.createdBy, // ✅ ensure it's sent
-        gstDocs: [...(customer.gstDocs || []), ...uploadedUrls],
-      };
-
-      await axiosInstance.put(`/customers/${id}`, updatedCustomer);
-      toast.success("Customer updated successfully");
-      navigate("/customers");
-   } catch (err) {
-  console.error(err);
-
-  const errorMsg =
-    err.response?.data?.error ||
-    err.response?.data?.message ||
-    "Failed to update customer";
-
-  toast.error(errorMsg);
-} finally {
-      setSubmitting(false);
+    if (!res.ok) {
+      throw new Error(`Upload failed: ${res.statusText}`);
     }
-  };
+
+    const result = await res.json();
+    return result.secure_url;
+  });
+
+  return Promise.all(uploads);
+};
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
+  
+  // GST validation
+  if (customer.company && customer.company !== "URP" && customer.company.length !== 15) {
+    setGstError("GST number must be exactly 15 characters.");
+    toast.error("GST number must be exactly 15 characters.");
+    setSubmitting(false);
+    return;
+  }
+  
+  // Auto-fill URP if GST is empty
+  if (!customer.company || customer.company.trim() === "") {
+    customer.company = "URP";
+  }
+
+  try {
+    let uploadedUrls = [];
+    if (newFiles.length > 0) {
+      toast.loading("Uploading new documents...");
+      uploadedUrls = await uploadToCloudinary(newFiles);
+      toast.dismiss();
+    }
+
+    // ✅ IMPORTANT: Use the customer state which already has the updated productionSlips
+    const updatedCustomer = {
+      ...customer,
+      createdBy: customer.createdBy,
+      gstDocs: [...(customer.gstDocs || []), ...uploadedUrls],
+      // Use the customer state directly - it already has the productionSlips from fetchProductionSlips()
+      productionSlips: customer.productionSlips || [],
+      securityCheques: customer.securityCheques || [],
+      samples: customer.samples || [],
+      giftHistory: customer.giftHistory || [],
+      costingSheets: customer.costingSheets || []
+    };
+
+    console.log("Saving customer with productionSlips:", updatedCustomer.productionSlips?.length || 0);
+    console.log("Production slips data:", updatedCustomer.productionSlips);
+    
+    await axiosInstance.put(`/customers/${id}`, updatedCustomer);
+    toast.success("Customer updated successfully");
+    
+    // ✅ Navigate after a small delay to ensure the save is complete
+    setTimeout(() => {
+      navigate("/customers");
+    }, 300);
+    
+  } catch (err) {
+    console.error("Update customer error:", err);
+    console.error("Error response:", err.response?.data);
+
+    const errorMsg =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      "Failed to update customer";
+
+    toast.error(errorMsg);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this customer?")) return;
@@ -413,12 +448,18 @@ if (!customer.company || customer.company.trim() === "") {
     }
   };
 
-  // Function to fetch security cheques
 const fetchSecurityCheques = async () => {
   try {
     const res = await axiosInstance.get(`/customers/${id}/security-cheques`);
     if (res.data.success) {
-      setSecurityCheques(res.data.securityCheques || []);
+      const cheques = res.data.securityCheques || [];
+      setSecurityCheques(cheques);
+      
+      // ✅ ALSO update the customer state with the security cheques
+      setCustomer(prev => ({
+        ...prev,
+        securityCheques: cheques
+      }));
     }
   } catch (err) {
     console.error("Failed to fetch security cheques", err);
@@ -430,7 +471,14 @@ const fetchSamples = async () => {
   try {
     const res = await axiosInstance.get(`/customers/${id}/samples`);
     if (res.data.success) {
-      setSamples(res.data.samples || []);
+      const samples = res.data.samples || [];
+      setSamples(samples);
+      
+      // ✅ ALSO update the customer state with the samples
+      setCustomer(prev => ({
+        ...prev,
+        samples: samples
+      }));
     }
   } catch (err) {
     console.error("Failed to fetch samples", err);
@@ -635,15 +683,23 @@ const handleTestDeleteSecurityCheque = async (chequeId) => {
   }
 };
 
-// Add with your other fetch functions (around line 300-350)
 const fetchProductionSlips = async () => {
   try {
     const res = await axiosInstance.get(`/customers/${id}/production-slips`);
     if (res.data.success) {
-      setProductionSlips(res.data.productionSlips || []);
+      const slips = res.data.productionSlips || [];
+      setProductionSlips(slips);
+      
+      // ✅ ALSO update the customer state with the production slips
+      setCustomer(prev => ({
+        ...prev,
+        productionSlips: slips
+      }));
+    } else {
+      console.error("Failed to fetch production slips: success=false", res.data);
     }
   } catch (err) {
-    console.error("Failed to fetch production slips", err);
+    console.error("Failed to fetch production slips:", err);
   }
 };
 
@@ -1214,10 +1270,20 @@ const handleEditProductionSlip = (e, slip) => {
       
       let chequeFileUrl = securityChequeForm.chequeFile;
       
-      // If chequeFile is a File object (new upload), upload it
-      if (securityChequeForm.chequeFile instanceof File) {
-        const uploadedUrl = await uploadToCloudinary([securityChequeForm.chequeFile]);
-        chequeFileUrl = uploadedUrl[0];
+      // Check if chequeFile is a File object (new upload)
+      if (chequeFileUrl instanceof File) {
+        toast.loading("Uploading cheque file...");
+        const uploadedUrls = await uploadToCloudinary([chequeFileUrl]);
+        toast.dismiss();
+        if (uploadedUrls && uploadedUrls.length > 0) {
+          chequeFileUrl = uploadedUrls[0];
+        } else {
+          toast.error("Failed to upload cheque file");
+          return;
+        }
+      } else if (typeof chequeFileUrl === 'string' && !chequeFileUrl.startsWith('http')) {
+        toast.error("Invalid cheque file");
+        return;
       }
       
       if (!chequeFileUrl) {
@@ -1326,7 +1392,7 @@ const handleEditProductionSlip = (e, slip) => {
       )}
     </div>
     
- <button
+<button
   type="button"
   onClick={async () => {
     try {
@@ -1339,12 +1405,19 @@ const handleEditProductionSlip = (e, slip) => {
       
       // Check if we have new files to upload
       const newFiles = samplesForm.sampleFiles.filter(file => file instanceof File);
-      const existingUrls = samplesForm.sampleFiles.filter(file => typeof file === 'string');
+      const existingUrls = samplesForm.sampleFiles.filter(file => typeof file === 'string' && file.startsWith('http'));
       
       if (newFiles.length > 0) {
-        // Upload new files
+        toast.loading("Uploading sample files...");
         const uploadedUrls = await uploadToCloudinary(newFiles);
-        sampleFilesUrls = [...existingUrls, ...uploadedUrls];
+        toast.dismiss();
+        if (uploadedUrls && uploadedUrls.length > 0) {
+          sampleFilesUrls = [...existingUrls, ...uploadedUrls];
+        } else {
+          toast.error("Failed to upload some files");
+          // Continue with existing files if any
+          sampleFilesUrls = existingUrls;
+        }
       } else {
         sampleFilesUrls = existingUrls;
       }
@@ -1409,20 +1482,32 @@ const handleEditProductionSlip = (e, slip) => {
         </select>
       </div>
       
-      <div>
-        <label className="block mb-1 font-semibold">Upload Files {!editingProductionSlipId && "*"}</label>
-        <input
-          type="file"
-          accept="image/*,.pdf,.doc,.docx"
-          multiple
-          onChange={(e) => setProductionSlipForm(prev => ({ ...prev, files: Array.from(e.target.files) }))}
-          className="w-full border p-2 rounded"
-          required={!editingProductionSlipId}
-        />
-        {editingProductionSlipId && (
-          <p className="text-xs text-gray-500 mt-1">Leave empty to keep existing files</p>
-        )}
-      </div>
+    <div>
+  <label className="block mb-1 font-semibold">Upload Files {!editingProductionSlipId && "*"}</label>
+  <input
+    type="file"
+    accept="image/*,.pdf,.doc,.docx"
+    multiple
+    onChange={(e) => {
+      const files = Array.from(e.target.files);
+      // If editing, we want to add new files to existing ones
+      if (editingProductionSlipId && productionSlipForm.files.length > 0) {
+        // Keep existing files and add new ones
+        setProductionSlipForm(prev => ({ 
+          ...prev, 
+          files: [...prev.files, ...files] 
+        }));
+      } else {
+        setProductionSlipForm(prev => ({ ...prev, files }));
+      }
+    }}
+    className="w-full border p-2 rounded"
+    required={!editingProductionSlipId}
+  />
+  {editingProductionSlipId && (
+    <p className="text-xs text-gray-500 mt-1">Add new files (existing files will be kept)</p>
+  )}
+</div>
       
       <div className="md:col-span-2">
         <label className="block mb-1 font-semibold">Notes</label>
@@ -1492,65 +1577,112 @@ const handleEditProductionSlip = (e, slip) => {
       )}
     </div>
     
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          let uploadedUrls = [];
-          
-          // Check if we have new files to upload (File objects)
-          const newFiles = productionSlipForm.files.filter(file => file instanceof File);
-          const existingUrls = productionSlipForm.files.filter(file => typeof file === 'string');
-          
-          if (newFiles.length > 0) {
-            toast.loading("Uploading files...");
-            uploadedUrls = await uploadToCloudinary(newFiles);
-            toast.dismiss();
-          }
-          
-          const finalFiles = [...existingUrls, ...uploadedUrls];
-          
-          if (finalFiles.length === 0 && !editingProductionSlipId) {
-            toast.error("Please upload at least one file");
-            return;
-          }
-          
-          if (!productionSlipForm.slipType) {
-            toast.error("Please select a slip type");
-            return;
-          }
-          
-          const slipData = {
-            files: finalFiles,
-            notes: productionSlipForm.notes,
-            slipType: productionSlipForm.slipType
-          };
-          
-          if (editingProductionSlipId) {
-            // Update existing slip
-            await axiosInstance.put(`/customers/${id}/production-slip/${editingProductionSlipId}`, slipData);
-            toast.success("Production slip updated successfully!");
-            setEditingProductionSlipId(null);
-          } else {
-            // Add new slip
-            await axiosInstance.post(`/customers/${id}/production-slip`, slipData);
-            toast.success("Production slip added successfully!");
-          }
-          
-          // Reset form and refresh data
-          setProductionSlipForm({ files: [], notes: "", slipType: "production_order" });
-          setShowProductionSlipForm(false);
-          fetchProductionSlips();
-          
-        } catch (err) {
-          console.error("Save production slip error:", err);
-          toast.error(err.response?.data?.error || "Failed to save production slip");
+<button
+  type="button"
+  onClick={async () => {
+    try {
+      console.log("=== SAVING PRODUCTION SLIP ===");
+      let uploadedUrls = [];
+      
+      // Check if we have new files to upload (File objects)
+      const newFiles = productionSlipForm.files.filter(file => file instanceof File);
+      const existingUrls = productionSlipForm.files.filter(file => typeof file === 'string' && file.startsWith('http'));
+      
+      console.log("New files:", newFiles.length);
+      console.log("Existing URLs:", existingUrls.length);
+      
+      if (newFiles.length > 0) {
+        toast.loading("Uploading files...");
+        uploadedUrls = await uploadToCloudinary(newFiles);
+        toast.dismiss();
+        console.log("Uploaded URLs:", uploadedUrls);
+        if (!uploadedUrls || uploadedUrls.length === 0) {
+          toast.error("Failed to upload some files");
+          // Continue with existing files only
         }
-      }}
-      className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-    >
-      {editingProductionSlipId ? "💾 Update Production Slip" : "💾 Save Production Slip"}
-    </button>
+      }
+      
+      // Combine existing and new URLs, but only if we're not editing (or if we are, keep existing)
+      const finalFiles = [...existingUrls];
+      
+      // If we have new uploads, add them
+      if (uploadedUrls && uploadedUrls.length > 0) {
+        finalFiles.push(...uploadedUrls);
+      }
+      
+      console.log("Final files:", finalFiles);
+      
+      // If we're not editing and have no files, show error
+      if (finalFiles.length === 0 && !editingProductionSlipId) {
+        toast.error("Please upload at least one file");
+        return;
+      }
+      
+      // If we're editing and have no files (user removed all), show error
+      if (finalFiles.length === 0 && editingProductionSlipId) {
+        toast.error("Please keep at least one file");
+        return;
+      }
+      
+      if (!productionSlipForm.slipType) {
+        toast.error("Please select a slip type");
+        return;
+      }
+      
+      const slipData = {
+        files: finalFiles,
+        notes: productionSlipForm.notes,
+        slipType: productionSlipForm.slipType
+      };
+      
+      console.log("Sending data:", slipData);
+      
+      let response;
+      if (editingProductionSlipId) {
+        // Update existing slip
+        response = await axiosInstance.put(`/customers/${id}/production-slip/${editingProductionSlipId}`, slipData);
+        console.log("Update response:", response.data);
+        toast.success("Production slip updated successfully!");
+        setEditingProductionSlipId(null);
+      } else {
+        // Add new slip
+        response = await axiosInstance.post(`/customers/${id}/production-slip`, slipData);
+        console.log("Add response:", response.data);
+        toast.success("Production slip added successfully!");
+      }
+      
+      // Reset form and refresh data
+      setProductionSlipForm({ files: [], notes: "", slipType: "production_order" });
+      setShowProductionSlipForm(false);
+      await fetchProductionSlips();
+      
+      // ✅ ADD DEBUG VERIFICATION HERE
+      try {
+        const debugRes = await axiosInstance.get(`/customers/${id}/production-slips-debug`);
+        console.log("=== VERIFICATION AFTER SAVE ===");
+        console.log("Production slips after save:", debugRes.data);
+        console.log("Count:", debugRes.data.count);
+        
+        if (debugRes.data.count === 0) {
+          console.error("❌ PRODUCTION SLIP WAS NOT SAVED!");
+          toast.error("Failed to save production slip - please check console");
+        } else {
+          console.log("✅ Production slip saved successfully!");
+        }
+      } catch (debugErr) {
+        console.error("Debug verification failed:", debugErr);
+      }
+      
+    } catch (err) {
+      console.error("Save production slip error:", err);
+      console.error("Error response:", err.response?.data);
+      toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to save production slip");
+    }
+  }}
+  className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+>
+  {editingProductionSlipId ? "💾 Update Production Slip" : "💾 Save Production Slip"}
+</button>
     
     {editingProductionSlipId && (
       <button
@@ -1852,7 +1984,7 @@ const handleEditProductionSlip = (e, slip) => {
 >
   ✏️ Edit
 </button>
-     <button
+    <button
   type="button"
   onClick={async (e) => {
     e.preventDefault();
@@ -1866,6 +1998,8 @@ const handleEditProductionSlip = (e, slip) => {
       const deleteUrl = `/customers/${id}/production-slip/${slip._id}`;
       const response = await axiosInstance.delete(deleteUrl);
       
+      console.log("Delete response:", response.data);
+      
       if (response.data && response.data.success === true) {
         toast.success("Production slip deleted successfully!");
         // Refresh the list
@@ -1875,7 +2009,8 @@ const handleEditProductionSlip = (e, slip) => {
       }
     } catch (err) {
       console.error("Delete error:", err);
-      toast.error(err.response?.data?.error || "Failed to delete production slip");
+      console.error("Error response:", err.response?.data);
+      toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to delete production slip");
     }
   }}
   className="text-red-600 hover:text-red-800 text-sm px-2 py-1 border border-red-300 rounded hover:bg-red-50"
