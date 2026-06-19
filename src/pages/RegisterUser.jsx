@@ -1417,6 +1417,7 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">ESIC No</th>
                 <th className="px-4 py-2">EPFO No</th>
                 <th className="px-4 py-2">Documents</th>
+                    <th className="px-4 py-2">Registered Face</th>  {/* NEW COLUMN ADDED */}
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -1582,6 +1583,21 @@ const handleDeleteVisitingCard = async () => {
                       ))}
                     </div>
                   </td>
+                  <td className="px-4 py-2">
+  {u.faceUrl ? (
+    <img
+      src={u.faceUrl}
+      alt="Registered Face"
+      className="h-10 w-10 rounded-full object-cover cursor-pointer"
+      loading="lazy"
+      onClick={() => showDocument(u.faceUrl, "Registered Face")}
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+      <span className="text-gray-500 text-xs">No face</span>
+    </div>
+  )}
+</td>
 
                   <td className="px-4 py-2">
                     <div className="flex flex-col sm:flex-row flex-wrap gap-2">
