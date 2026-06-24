@@ -26,7 +26,7 @@ export default function CostingCalculator() {
     heightUnit: "mm",
     density: "",
     customRmRate: "",
-    conversionRate: "",
+    conversionRate: "80",
     freight: ""
   });
   const [result, setResult] = useState(null);
@@ -248,7 +248,7 @@ const handleCalculate = () => {
       heightUnit: "mm",
       density: "",
       customRmRate: rmRate.toString(),
-      conversionRate: "",
+      conversionRate: "80",
       freight: ""
     });
     setResult(null);
@@ -328,7 +328,13 @@ const handleSharePDF = async () => {
             [{ text: 'Best Orientation', style: 'tableLabel' }, { text: result.piecesFromBlock.orientation, style: 'tableValue' }],
             [{ text: 'Pieces Layout', style: 'tableLabel' }, { text: `${result.piecesFromBlock.piecesL} x ${result.piecesFromBlock.piecesB} x ${result.piecesFromBlock.piecesH}`, style: 'tableValue' }],
             [{ text: 'Total Pieces from Block', style: 'tableLabelBold' }, { text: `${result.piecesFromBlock.count} pcs`, style: 'tableValueBold' }],
-            [{ text: 'Price per Piece', style: 'tableLabel' }, { text: `₹${result.pricePerPiece}`, style: 'tableValue' }],
+            [{ text: 'Price per Piece', style: 'tableLabel' }, { 
+              text: [
+                { text: `₹${result.pricePerPiece}`, style: 'tableValueBold' },
+                { text: `  (₹${result.costPerBlock} / ${result.piecesFromBlock.count} pcs)`, style: 'calculationText' }
+              ], 
+              style: 'tableValue' 
+            }],
           ]
         },
         layout: 'noBorders',
@@ -374,6 +380,7 @@ const handleSharePDF = async () => {
       tableValue: { fontSize: 10, color: '#333333' },
       tableLabelBold: { fontSize: 11, bold: true, color: '#1a56db' },
       tableValueBold: { fontSize: 12, bold: true, color: '#16a34a' },
+      calculationText: { fontSize: 9, color: '#888888', italics: true },
       note: { fontSize: 11, italic: true, color: '#ff6600', bold: true, alignment: 'center' },
       footer: { fontSize: 10, italic: true, color: '#888888' }
     },
@@ -415,7 +422,7 @@ const handleSharePDF = async () => {
       const message = `📊 *Thermocol Sheet Costing Report*%0A%0A` +
         `📏 *Dimensions:* ${result.outerDimensions.displayLength} x ${result.outerDimensions.displayBreadth} x ${result.outerDimensions.displayHeight}%0A` +
         `🔢 *Total Pieces from Block:* ${result.piecesFromBlock.count} pcs%0A` +
-        `💰 *Price per Piece:* ₹${result.pricePerPiece}%0A` +
+        `💰 *Price per Piece:* ₹${result.pricePerPiece} (₹${result.costPerBlock} / ${result.piecesFromBlock.count} pcs)%0A` +
         `🚚 *Pieces per Tempo:* ${result.piecesInTempo} pcs%0A` +
         `🚛 *Pieces per Truck:* ${result.piecesInTruck} pcs%0A%0A` +
         `⚠️ *Note:* GST 18% and Freight is Extra%0A%0A` +
@@ -629,20 +636,20 @@ const handleSharePDF = async () => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="conversionRate"
-                      value={formData.conversionRate}
-                      onChange={handleChange}
-                      placeholder="Enter conversion rate"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+  <div>
+    <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
+    <input
+      type="number"
+      step="0.01"
+      name="conversionRate"
+      value={formData.conversionRate}
+      onChange={handleChange}
+      placeholder="Enter conversion rate"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+</div>
                 
                 <div className="flex gap-4">
                   <button
