@@ -268,95 +268,6 @@ const sortByPunchTime = (data) => {
     }
   };
 
-  // Export to CSV
-  const exportToCSV = async () => {
-    try {
-      let url = `/factory-attendance/history?`;
-      if (selectedMonth && selectedYear) {
-        const startDate = `${selectedYear}-${selectedMonth}-01`;
-        const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
-        const endDate = `${selectedYear}-${selectedMonth}-${lastDay}`;
-        url += `startDate=${startDate}&endDate=${endDate}`;
-      } else if (dateRange.startDate && dateRange.endDate) {
-        url += `startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
-      }
-      if (selectedEmployee) {
-        url += `&userId=${selectedEmployee}`;
-      }
-      url += `&limit=10000`;
-
-      const res = await axiosInstance.get(url);
-      const exportData = res.data.data || res.data;
-      
-      if (exportData.length === 0) {
-        Swal.fire({
-          icon: "info",
-          title: "No Data",
-          text: "No attendance records to export",
-        });
-        return;
-      }
-
-      const headers = ["Date", "Employee Name", "Shift", "Sessions", "Total Hours", "Overtime", "Status"];
-      
-      const csvData = exportData.map(record => {
-        let sessionsStr = "";
-        let totalHours = 0;
-        let hasOvertime = false;
-        let overtimeTotal = 0;
-        
-        if (record.sessions && record.sessions.length > 0) {
-          sessionsStr = record.sessions.map((session, idx) => {
-            totalHours += session.totalWorkingHours || 0;
-            if (session.isOvertime) {
-              hasOvertime = true;
-              overtimeTotal += session.overtimeHours || 0;
-            }
-            return `Session${idx+1}:${session.checkInTime ? new Date(session.checkInTime).toLocaleTimeString() : '—'}-${session.checkOutTime ? new Date(session.checkOutTime).toLocaleTimeString() : '—'}(${(session.totalWorkingHours || 0).toFixed(1)}h)`;
-          }).join(" | ");
-        } else {
-          totalHours = record.totalWorkingHours || 0;
-          hasOvertime = record.isOvertime || false;
-          overtimeTotal = record.overtimeHours || 0;
-          sessionsStr = `Session1:${record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : '—'}-${record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : '—'}(${totalHours.toFixed(1)}h)`;
-        }
-        
-        return [
-          record.date,
-          record.user?.name || "N/A",
-          record.shift === "shift1" ? "Shift 1" : record.shift === "shift2" ? "Shift 2" : "Driver",
-          sessionsStr,
-          totalHours.toFixed(1) + " hrs",
-          hasOvertime ? overtimeTotal.toFixed(1) + " hrs" : "No",
-          record.sessions?.some(s => !s.checkOutTime) || (!record.checkOutTime && record.checkInTime) ? "Active" : "Completed"
-        ];
-      });
-
-      const csvContent = [
-        headers.join(","),
-        ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
-      ].join("\n");
-
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url_blob = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url_blob;
-      a.download = `factory-attendance-${selectedYear}-${selectedMonth}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url_blob);
-      
-    } catch (err) {
-      console.error("Error exporting data:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Export Failed",
-        text: "Failed to export attendance data",
-      });
-    }
-  };
-
   // If not guard, show access denied
   if (!userRoles.includes("guard")) {
     return (
@@ -412,13 +323,7 @@ const sortByPunchTime = (data) => {
                 </p>
               </div>
               
-              <button
-                onClick={exportToCSV}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
+            
             </div>
 
             {/* Stats Cards */}
