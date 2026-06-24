@@ -17,6 +17,9 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/campaigns",
+    // "/shopping-products",
+    "/add-potential-customer",
+    "/potential-customers",
     "/factory-act",
     "/weighing-scale",
     "/pollution-department",

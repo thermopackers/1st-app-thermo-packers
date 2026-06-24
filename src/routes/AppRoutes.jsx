@@ -119,6 +119,9 @@ import EditCaremaxQuotation from "../pages/EditCaremaxQuotation";
 import LeadDashboard from '../components/LeadDashboard';
 import TaskAssignmentsList from '../pages/TaskAssignmentsList';
 import ErrorBoundary from "../components/ErrorBoundary";
+import PotentialCustomerList from "../pages/PotentialCustomerList";
+import AddPotentialCustomer from "../pages/AddPotentialCustomer";
+import EditPotentialCustomer from "../pages/EditPotentialCustomer";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -395,6 +398,31 @@ export default function AppRoutes() {
   element={
     <ProtectedRoute allowedRoles={["admin", "sales", "accounts", "production", "dispatch", "packaging", "driver","guard"]}>
       <PageWrapper><EmployeeDashboard /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/potential-customers"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "accounts", "sales"]}>
+      <PageWrapper><PotentialCustomerList /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/add-potential-customer"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts"]}>
+      <PageWrapper><AddPotentialCustomer /></PageWrapper>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/potential-customers/edit/:id"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "sales", "accounts"]}>
+      <PageWrapper><EditPotentialCustomer /></PageWrapper>
     </ProtectedRoute>
   }
 />

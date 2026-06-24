@@ -2559,6 +2559,51 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
         </ActionButton>
       </div>
     </DashboardCard>
+    {/* ⭐ Potential Customers Section */}
+{userRoles.some((role) =>
+  ["admin", "sales", "accounts"].includes(role)
+) && (
+  <DashboardCard>
+    <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+      <span className="text-2xl">⭐</span>
+      Potential Customers
+    </h3>
+    <p className="text-gray-600 text-center text-sm mb-4">
+      Manage Potential Customers, and convert to customers
+    </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <ActionButton
+        to="/add-potential-customer"
+        variant="orange"
+        icon="➕"
+        className="h-full"
+      >
+        <div className="text-sm font-semibold mb-1">
+          Add New Potential Customer
+        </div>
+        <div className="text-orange-100 text-xs opacity-90">
+          Create new Potential Customer
+        </div>
+      </ActionButton>
+
+      <ActionButton
+        to="/potential-customers"
+        variant="emerald"
+        icon="📊"
+        className="h-full"
+      >
+        <div className="text-sm font-semibold mb-1">
+          Manage Potential Customer
+        </div>
+        <div className="text-emerald-100 text-xs opacity-90">
+          View / Edit / Delete Potential Customer
+        </div>
+      </ActionButton>
+    </div>
+
+
+  </DashboardCard>
+)}
   </div>
 )}
             </div>
