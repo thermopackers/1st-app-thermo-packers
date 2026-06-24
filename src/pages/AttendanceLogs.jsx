@@ -204,16 +204,22 @@ useEffect(() => {
     })
   };
 
-  const isLateCheckIn = (checkInTime) => {
-  if (!checkInTime) return false;
+const getCheckInColor = (checkInTime) => {
+  if (!checkInTime) return '';
   const date = new Date(checkInTime);
   const hours = date.getHours();
   const minutes = date.getMinutes();
   
-  // Compare with 9:50 AM (9 hours and 50 minutes)
-  if (hours > 9) return true;
-  if (hours === 9 && minutes > 50) return true;
-  return false;
+  // After 9:45 AM - Red
+  if (hours > 9 || (hours === 9 && minutes > 45)) {
+    return 'bg-red-500 text-white';
+  }
+  // 9:30 AM to 9:45 AM - Orange
+  if (hours === 9 && minutes >= 30 && minutes <= 45) {
+    return 'bg-orange-400 text-white';
+  }
+  // Before 9:30 AM - Normal (no background)
+  return '';
 };
 
   return (
@@ -502,7 +508,7 @@ useEffect(() => {
             {entry.user?.role || "N/A"}
           </td>
         )}
-       <td className={`px-4 py-3 text-sm ${isLateCheckIn(entry.checkIn?.time) ? 'bg-orange-400' : ''}`}>
+     <td className={`px-4 py-3 text-sm ${getCheckInColor(entry.checkIn?.time)}`}>
   {entry.checkIn ? (
     <div className="space-y-1">
       <div className="flex items-center gap-1">
