@@ -1476,9 +1476,12 @@ const handleEditProductionSlip = (e, slip) => {
           className="w-full border p-2 rounded"
           required
         >
-          <option value="production_order">Production Order Slip</option>
-          <option value="raw_block_cutting">Raw Block Cutting Slip</option>
-          <option value="shape_molding">Shape Molding Slip</option>
+          <option value="production_order">1. Draft Order Slip - Block Molding EPS/Thermocol Block Molding Production Section</option>
+          <option value="raw_block_cutting">2. Draft Order Slip - Sheet Cutting EPS/Thermocol Sheet Cutting & Dispatch Section</option>
+          <option value="shape_molding">3. Draft Order Slip - Shape Molding EPS/Thermocol Shape Molding Production Section</option>
+          <option value="dana_beads">4. Draft Order Slip - dana / Beads EPS/Thermocol Dana / Beads Production Section</option>
+          <option value="block_packaging">5. Draft Order Slip - Packaging EPS/Thermocol Shape Molding Packaging & Dispatch Section</option>
+          <option value="cnc_router">6. Draft Order Slip - CNC Section EPS/Thermocol CNC Hot Wire / CNC Router Section</option>                       
         </select>
       </div>
       
@@ -1520,36 +1523,72 @@ const handleEditProductionSlip = (e, slip) => {
         />
       </div>
       
-      {/* Show existing files when editing */}
-      {editingProductionSlipId && productionSlipForm.files.length > 0 && productionSlipForm.files[0]?.startsWith?.('http') && (
-        <div className="md:col-span-2">
-          <p className="text-sm font-medium text-gray-600">Existing Files:</p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {productionSlipForm.files.map((file, index) => (
-              <div key={index} className="relative">
-                {file?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                  <img src={file} alt={`File ${index + 1}`} className="w-16 h-16 object-cover rounded" />
-                ) : (
-                  <a href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
-                    📄 File {index + 1}
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newFiles = [...productionSlipForm.files];
-                    newFiles.splice(index, 1);
-                    setProductionSlipForm(prev => ({ ...prev, files: newFiles }));
-                  }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+  {/* Show existing files when editing */}
+{editingProductionSlipId && productionSlipForm.files.length > 0 && (
+  <div className="md:col-span-2">
+    <p className="text-sm font-medium text-gray-600">Existing Files:</p>
+    <div className="flex flex-wrap gap-2 mt-2">
+      {productionSlipForm.files
+        .filter(file => typeof file === 'string' && file.startsWith('http'))
+        .map((file, index) => {
+          // Check if it's an image
+          const isImage = typeof file === 'string' && file?.match(/\.(jpg|jpeg|png|gif)$/i);
+          return (
+            <div key={index} className="relative">
+              {isImage ? (
+                <img src={file} alt={`File ${index + 1}`} className="w-16 h-16 object-cover rounded border" />
+              ) : (
+                <a href={file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+                  📄 File {index + 1}
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const remainingFiles = productionSlipForm.files.filter(f => f !== file);
+                  setProductionSlipForm(prev => ({ ...prev, files: remainingFiles }));
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs hover:bg-red-600"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+    </div>
+    {productionSlipForm.files.filter(file => typeof file === 'string' && file.startsWith('http')).length === 0 && (
+      <p className="text-sm text-gray-500">No existing files</p>
+    )}
+  </div>
+)}
+
+{/* Show new files to upload */}
+{productionSlipForm.files.length > 0 && productionSlipForm.files.some(file => file instanceof File) && (
+  <div className="md:col-span-2">
+    <p className="text-sm font-medium text-gray-600">New files to upload:</p>
+    <div className="flex flex-wrap gap-2 mt-2">
+      {productionSlipForm.files
+        .filter(file => file instanceof File)
+        .map((file, index) => (
+          <span key={index} className="px-2 py-1 bg-gray-100 rounded text-sm flex items-center gap-2">
+            📄 {file.name}
+            <button
+              type="button"
+              onClick={() => {
+                const newFiles = productionSlipForm.files.filter((_, i) => i !== 
+                  productionSlipForm.files.indexOf(file)
+                );
+                setProductionSlipForm(prev => ({ ...prev, files: newFiles }));
+              }}
+              className="text-red-500 hover:text-red-700"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+    </div>
+  </div>
+)}
       
       {/* Show new files to upload */}
       {productionSlipForm.files.length > 0 && productionSlipForm.files[0] instanceof File && (
@@ -1953,9 +1992,12 @@ const handleEditProductionSlip = (e, slip) => {
                 {new Date(slip.date).toLocaleDateString()}
               </td>
               <td className="p-2 border">
-                {slip.slipType === 'production_order' && '📋 Production Order'}
-                {slip.slipType === 'raw_block_cutting' && '🪨 Raw Block Cutting'}
-                {slip.slipType === 'shape_molding' && '🔧 Shape Molding'}
+                {slip.slipType === 'production_order' && '📋 Draft Order Slip - Block Molding EPS/Thermocol Block Molding Production Section'}
+                {slip.slipType === 'raw_block_cutting' && '🪨 Draft Order Slip - Sheet Cutting EPS/Thermocol Sheet Cutting & Dispatch Section'}
+                {slip.slipType === 'shape_molding' && '🔧 Draft Order Slip - Shape Molding EPS/Thermocol Shape Molding Production Section'}
+                {slip.slipType === 'dana_beads' && '📋 Draft Order Slip - dana / Beads EPS/Thermocol Dana / Beads Production Section'}
+                {slip.slipType === 'block_packaging' && '🪨 Draft Order Slip - Packaging EPS/Thermocol Shape Molding Packaging & Dispatch Section'}
+                {slip.slipType === 'cnc_router' && '🔧 Draft Order Slip - CNC Section EPS/Thermocol CNC Hot Wire / CNC Router Section'}
               </td>
               <td className="p-2 border">
                 <div className="flex flex-wrap gap-2">
