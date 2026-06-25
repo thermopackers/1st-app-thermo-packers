@@ -355,7 +355,7 @@ const generatePDF = async () => {
 
   // Add detailed calculations for each pipe size
   results.forEach((r, index) => {
-    const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece);
+    const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithoutWastage) : parseFloat(r.theoreticalPricePerPiece);
     
     content.push(
       { text: `\n${index + 1}. PIPE SIZE: ${r.pipeSize}" × ${r.thickness}"`, style: 'pipeHeader', margin: [0, 10, 0, 5] }
@@ -396,28 +396,39 @@ const generatePDF = async () => {
 
     // Step 5: Price per Piece (conditional based on showWastage)
     if (!showWastage) {
-      // When checkbox is NOT checked - ONLY show Price without Wastage
+      // When checkbox is NOT checked - Show Price without Wastage with calculation
+      const netCostPerBlock = parseFloat(r.calculationSteps.costPerBlock);
+      const pieces = r.piecesFromBlock;
+      const pricePerPiece = (netCostPerBlock / pieces).toFixed(2);
+      
       content.push(
         { text: '\n5. Price per Piece:', style: 'stepHeader', margin: [0, 5, 0, 2] },
-        { text: `   Price without Wastage = ₹${r.priceWithoutWastage}`, style: 'stepDetailHighlight' }
+        { text: `   Cost per Block = ₹${netCostPerBlock.toFixed(2)}`, style: 'stepDetail' },
+        { text: `   Price per Piece = ₹${netCostPerBlock.toFixed(2)} ÷ ${pieces} = ₹${pricePerPiece}`, style: 'stepDetailHighlight' }
       );
     } else {
-      // When checkbox IS checked - show wastage details and price with wastage
-      content.push(
-        { text: '\n5. Price per Piece:', style: 'stepHeader', margin: [0, 5, 0, 2] },
-        { text: `   Wastage Cost per Piece = ₹${r.wastageCostPerPiece}`, style: 'stepDetail' },
-        { text: `   Price with Wastage = ₹${r.priceWithWastage}`, style: 'stepDetailHighlight' }
-      );
+      // When checkbox IS checked - Show wastage details and price with wastage
+      const netCostPerBlock = parseFloat(r.calculationSteps.costPerBlock) - parseFloat(r.wastage.wastageCost);
+      const pieces = r.piecesFromBlock;
+      const pricePerPiece = (netCostPerBlock / pieces).toFixed(2);
       
-      // Step 6: Block Wastage Analysis (only when showWastage is true)
       content.push(
-        { text: '\n6. Block Wastage Analysis:', style: 'stepHeader', margin: [0, 5, 0, 2] },
+        { text: '\n5. Block Wastage Analysis:', style: 'stepHeader', margin: [0, 5, 0, 2] },
         { text: `   Block Volume = ${r.wastage.blockVolume} m³`, style: 'stepDetail' },
         { text: `   Total Pipe Volume = ${r.wastage.totalPipeVolume} m³`, style: 'stepDetail' },
         { text: `   Wastage Volume = ${r.wastage.wastageVolume} m³`, style: 'stepDetail' },
         { text: `   Wastage Percentage = ${r.wastage.wastagePercentage}%`, style: 'stepDetailHighlight' },
         { text: `   Wastage Weight = ${r.wastage.wastageWeight} kg`, style: 'stepDetail' },
-        { text: `   Wastage Cost = ₹${r.wastage.wastageCost}`, style: 'stepDetail' }
+        { text: `   Wastage Cost = ₹${r.wastage.wastageCost}`, style: 'stepDetail' },
+        { text: `   Wastage Cost per Piece = ₹${r.wastageCostPerPiece}`, style: 'stepDetail' },
+        { text: `   Cost per Block = ₹${r.calculationSteps.costPerBlock}`, style: 'stepDetail' },
+        { text: `   Wastage Cost per Block = ₹${r.wastage.wastageCost}`, style: 'stepDetail' },
+        { text: `   Net Cost per Block = ₹${r.calculationSteps.costPerBlock} - ₹${r.wastage.wastageCost} = ₹${netCostPerBlock.toFixed(2)}`, style: 'stepDetail' }
+      );
+      
+      content.push(
+        { text: '\n6. Price per Piece:', style: 'stepHeader', margin: [0, 5, 0, 2] },
+        { text: `   Price per Piece = ₹${netCostPerBlock.toFixed(2)} ÷ ${pieces} = ₹${pricePerPiece}`, style: 'stepDetailHighlight' }
       );
     }
 
@@ -436,9 +447,9 @@ const generatePDF = async () => {
   // Calculate totals based on showWastage
   let subtotal;
   if (!showWastage) {
-    subtotal = results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0);
-  } else {
     subtotal = results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0);
+  } else {
+    subtotal = results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0);
   }
   
   const totalWithFreight = subtotal + totalFreight;
@@ -468,7 +479,6 @@ const generatePDF = async () => {
   // Add financial summary
   content.push(
     { text: `Subtotal: ₹${subtotal.toFixed(2)}`, style: 'subtotal', alignment: 'right', margin: [0, 5, 0, 5] },
-    { text: `Freight: ₹${totalFreight.toFixed(2)}`, style: 'freight', alignment: 'right', margin: [0, 5, 0, 5] },
     { text: `GST (18%): ₹${gst.toFixed(2)}`, style: 'gst', alignment: 'right', margin: [0, 5, 0, 5] },
     { text: `Grand Total: ₹${grandTotalPrice.toFixed(2)}`, style: 'total', alignment: 'right', margin: [0, 10, 0, 10] },
     { text: 'Thank you for choosing Thermo Packers!', style: 'footer', alignment: 'center', margin: [0, 20, 0, 10] }
@@ -705,7 +715,7 @@ const generatePDF = async () => {
                 <h3 className="font-semibold text-gray-800 mb-3">Calculation Results</h3>
                 <div className="space-y-6">
                   {results.map((r) => {
-const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : parseFloat(r.theoreticalPricePerPiece);
+const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithoutWastage) : parseFloat(r.theoreticalPricePerPiece);
 
                     // Calculate individual order summary for this pipe size
                     const individualSubtotal = displayPrice;
@@ -765,25 +775,120 @@ const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : pa
           {!showWastage ? (
             <>
               <p className="mt-2"><strong>5. Price per Piece:</strong></p>
-              <p className="ml-4 bg-amber-300 p-1 rounded">Price without Wastage = ₹{r.priceWithoutWastage}</p>
-              {/* <p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p> */}
-              {/* <p className="ml-4">Price with Wastage = ₹{r.priceWithWastage}</p> */}
+             <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
+  {/* Header Section */}
+  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
+    <p className="text-white text-sm">
+      <span className="font-semibold">Final Price per Piece without Wastage:</span>
+      <span className="text-lg font-bold ml-1">₹{r.priceWithWastage}</span>
+    </p>
+  </div>
+  
+  {/* Calculation Section */}
+  <div className="p-3">
+    <div className="flex items-start gap-2">
+      <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+        <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Calculation</h4>
+        <p className="text-gray-500 text-xs">Net Cost per Block ÷ Total Pieces</p>
+      </div>
+    </div>
+
+    {/* Formula Display */}
+    <div className="mt-3 bg-purple-50 rounded-md p-2 border border-purple-200">
+      <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">₹{r.calculationSteps.costPerBlock}</div>
+          <div className="text-[10px] text-gray-500">Cost per Block</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">÷</div>
+        
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">{r.piecesFromBlock}</div>
+          <div className="text-[10px] text-gray-500">Pieces</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">=</div>
+        
+        <div className="text-center bg-purple-700 px-2 py-1 rounded-md">
+          <div className="text-sm font-bold text-white">₹{(r.calculationSteps.costPerBlock / r.piecesFromBlock).toFixed(2)}</div>
+          <div className="text-[9px] text-purple-200">per piece</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
             </>
           ) : (
             <>
-              <p className="mt-2"><strong>5. Price per Piece:</strong></p>
-              <p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
-              <p className="ml-4 bg-amber-300 p-1 rounded">Price with Wastage = ₹{r.priceWithWastage}</p>
-              
-              <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
-                <p className="font-bold text-red-700">6. Block Wastage Analysis:</p>
+                          <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+            <p className="font-bold text-red-700">5. Block Wastage Analysis:</p>
                 <p className="ml-4 text-xs">Block Volume = {r.wastage.blockVolume} m³</p>
                 <p className="ml-4 text-xs">Total Pipe Volume = {r.wastage.totalPipeVolume} m³</p>
                 <p className="ml-4 text-xs">Wastage Volume = {r.wastage.wastageVolume} m³</p>
                 <p className="ml-4 text-xs font-bold">Wastage Percentage = {r.wastage.wastagePercentage}%</p>
                 <p className="ml-4 text-xs">Wastage Weight = {r.wastage.wastageWeight} kg</p>
                 <p className="ml-4 text-xs">Wastage Cost = ₹{r.wastage.wastageCost}</p>
-              </div>
+                           </div>
+                 <p className="mt-2"><strong>6. Price per Piece:</strong></p>
+                               <p className="ml-4">Wastage Cost per Piece = ₹{r.wastageCostPerPiece}</p>
+                   <p className="ml-4">Cost per Block = <strong>₹{r.calculationSteps.costPerBlock}</strong></p>
+                <p className="ml-4">Wastage Cost per Block = <strong>₹{r.wastage.wastageCost}</strong></p>
+                <p className="ml-4">Net Cost per Block = ₹{r.calculationSteps.costPerBlock} - ₹{r.wastage.wastageCost} = <strong>₹{r.calculationSteps.costPerBlock - r.wastage.wastageCost}</strong></p>
+              <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
+  {/* Header Section */}
+  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
+    <p className="text-white text-sm">
+      <span className="font-semibold">Final Price per Piece with Wastage:</span>
+      <span className="text-lg font-bold ml-1">₹{r.priceWithoutWastage}</span>
+    </p>
+  </div>
+  
+  {/* Calculation Section */}
+  <div className="p-3">
+    <div className="flex items-start gap-2">
+      <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+        <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Calculation</h4>
+        <p className="text-gray-500 text-xs">Net Cost per Block ÷ Total Pieces</p>
+      </div>
+    </div>
+
+    {/* Formula Display */}
+    <div className="mt-3 bg-purple-50 rounded-md p-2 border border-purple-200">
+      <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">₹{r.calculationSteps.costPerBlock - r.wastage.wastageCost}</div>
+          <div className="text-[10px] text-gray-500">Cost per Block</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">÷</div>
+        
+        <div className="text-center">
+          <div className="text-base font-bold text-purple-700">{r.piecesFromBlock}</div>
+          <div className="text-[10px] text-gray-500">Pieces</div>
+        </div>
+        
+        <div className="text-base font-bold text-purple-400">=</div>
+        
+        <div className="text-center bg-purple-700 px-2 py-1 rounded-md">
+          <div className="text-sm font-bold text-white">₹{((r.calculationSteps.costPerBlock - r.wastage.wastageCost) / r.piecesFromBlock).toFixed(2)}</div>
+          <div className="text-[9px] text-purple-200">per piece</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
+              
             </>
           )}
 
@@ -811,7 +916,7 @@ const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : pa
       <>
         <div className="flex justify-between">
           <span>Price per Piece (wastage not included):</span>
-          <span className="font-medium">₹{r.priceWithoutWastage}</span>
+          <span className="font-medium">₹{r.priceWithWastage}</span>
         </div>
       </>
     ) : (
@@ -841,16 +946,16 @@ const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : pa
       <>
         <div className="flex justify-between">
           <span>Total Subtotal (without wastage):</span>
-          <span className="font-medium">₹{results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0).toFixed(2)}</span>
+          <span className="font-medium">₹{results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
           <span>Total GST:</span>
-          <span className="font-medium">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) * 0.18).toFixed(2)}</span>
+          <span className="font-medium">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0) * 0.18).toFixed(2)}</span>
         </div>
         <div className="border-t border-blue-300 pt-2 mt-2">
           <div className="flex justify-between">
             <span className="font-bold text-lg">Overall Grand Total:</span>
-<span className="font-bold text-lg text-green-700">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) + (results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) * 0.18)).toFixed(2)}</span>
+<span className="font-bold text-lg text-green-700">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0) + (results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0) * 0.18)).toFixed(2)}</span>
           </div>
         </div>
       </>
@@ -862,16 +967,16 @@ const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithWastage) : pa
         </div>
         <div className="flex justify-between">
           <span>Total Subtotal (including wastage):</span>
-          <span className="font-medium">₹{results.reduce((sum, r) => sum + parseFloat(r.priceWithWastage), 0).toFixed(2)}</span>
+          <span className="font-medium">₹{results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
           <span>Total GST:</span>
-          <span className="font-medium">₹{totalGST.toFixed(2)}</span>
+          <span className="font-medium">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) * 0.18).toFixed(2)}</span>
         </div>
         <div className="border-t border-blue-300 pt-2 mt-2">
           <div className="flex justify-between">
             <span className="font-bold text-lg">Overall Grand Total:</span>
-            <span className="font-bold text-lg text-green-700">₹{grandTotal.toFixed(2)}</span>
+<span className="font-bold text-lg text-green-700">₹{(results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) + (results.reduce((sum, r) => sum + parseFloat(r.priceWithoutWastage), 0) * 0.18)).toFixed(2)}</span>
           </div>
         </div>
       </>
