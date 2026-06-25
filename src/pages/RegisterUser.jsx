@@ -527,18 +527,59 @@ setAllowQuotation(false); // Add this line
     fetchUsers(currentPage);
   }, []);
 
-  const showDocument = (url, title) => {
-    Swal.fire({
-      title: title,
-      html: `<div style="text-align:center;">
-             <img src="${url}" alt="${title}" style="max-width:100%; max-height:70vh; border-radius:8px;" />
-           </div>`,
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: "80%",
-      background: "#fff",
-    });
-  };
+const showDocument = (url, title) => {
+  // Check if URL is valid
+  if (!url) {
+    toast.error('Document URL is missing');
+    return;
+  }
+  
+  // Validate URL format
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    toast.error('Invalid document URL');
+    return;
+  }
+  
+  // Enhanced modal with better error handling and full-screen option
+  Swal.fire({
+    title: title,
+    html: `
+      <div style="text-align:center; position:relative;">
+        <div style="max-height:70vh; overflow-y:auto;">
+          <img 
+            src="${url}" 
+            alt="${title}" 
+            style="max-width:100%; max-height:60vh; border-radius:8px; object-fit:contain;"
+            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2214%22%3EImage not available%3C/text%3E%3C/svg%3E';"
+          />
+        </div>
+        <div style="margin-top:10px;">
+          <a href="${url}" target="_blank" rel="noopener noreferrer" 
+             style="display:inline-block; background:#4F46E5; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
+            🔗 Open in New Tab
+          </a>
+        </div>
+      </div>
+    `,
+    showCloseButton: true,
+    showConfirmButton: false,
+    width: "90%",
+    maxWidth: "800px",
+    background: "#fff",
+    customClass: {
+      popup: 'document-viewer-popup'
+    },
+    didOpen: () => {
+      // Add keyboard shortcut for ESC to close
+      document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+          Swal.close();
+          document.removeEventListener('keydown', escHandler);
+        }
+      });
+    }
+  });
+};
 
     const handlePreprocessFaces = async () => {
     // First check current status
@@ -1101,14 +1142,18 @@ const handleDeleteVisitingCard = async () => {
       />
 
       <FileInput
-        label="ESIC Copy"
-        name="esicCopy"
-        onChange={setEsicCopy}
-        multiple
-        resetTrigger={resetTrigger}
-        initialFiles={existingEsicCopy}
-        onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
-      />
+  label="ESIC Copy"
+  name="esicCopy"
+  onChange={(files) => {
+    if (files) {
+      setEsicCopy(Array.isArray(files) ? files : [files]);
+    }
+  }}
+  multiple
+  resetTrigger={resetTrigger}
+  initialFiles={existingEsicCopy}
+  onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
+/>
 
       <FileInput
         label="EPFO Copy"
@@ -1542,15 +1587,19 @@ const handleDeleteVisitingCard = async () => {
                         </button>
                       ))}
 
-                      {u.esicCopy?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `ESIC ${idx + 1}`)}
-                          className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-                        >
-                          ESIC {idx + 1}
-                        </button>
-                      ))}
+                     {u.esicCopy && u.esicCopy.length > 0 ? (
+  u.esicCopy.map((url, idx) => (
+    <button
+      key={idx}
+      onClick={() => showDocument(url, `ESIC Copy ${idx + 1}`)}
+      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition text-xs sm:text-sm"
+    >
+      ESIC {idx + 1}
+    </button>
+  ))
+) : (
+  <span className="text-gray-400 text-xs">No ESIC</span>
+)}
 
                       {u.epfoCopy?.map((url, idx) => (
                         <button
