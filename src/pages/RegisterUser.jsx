@@ -1109,6 +1109,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingFrontFace}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('frontFacePicture', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
 
       <FileInput
@@ -1119,6 +1121,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingAadharCard}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('aadharCard', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
 
       <FileInput
@@ -1129,6 +1133,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingPanCard}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('panCard', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
 
       <FileInput
@@ -1139,6 +1145,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingPassbookCheque}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('passbookCheque', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
 
       <FileInput
@@ -1153,6 +1161,8 @@ const handleDeleteVisitingCard = async () => {
   resetTrigger={resetTrigger}
   initialFiles={existingEsicCopy}
   onRemoveExisting={(fileUrl) => handleRemoveExistingFile('esicCopy', fileUrl)}
+    onViewFile={showDocument}  // ✅ ADD THIS LINE
+
 />
 
       <FileInput
@@ -1163,6 +1173,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingEpfoCopy}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('epfoCopy', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
 
       <FileInput
@@ -1173,6 +1185,8 @@ const handleDeleteVisitingCard = async () => {
     resetTrigger={resetTrigger}
     initialFiles={existingDrivingLicence}
     onRemoveExisting={(fileUrl) => handleRemoveExistingFile('drivingLicence', fileUrl)}
+      onViewFile={showDocument}  // ✅ ADD THIS LINE
+
 />
 
       <FileInput
@@ -1183,6 +1197,8 @@ const handleDeleteVisitingCard = async () => {
         resetTrigger={resetTrigger}
         initialFiles={existingMiscDocuments}
         onRemoveExisting={(fileUrl) => handleRemoveExistingFile('miscDocuments', fileUrl)}
+          onViewFile={showDocument}  // ✅ ADD THIS LINE
+
       />
     </div>
   </div>
