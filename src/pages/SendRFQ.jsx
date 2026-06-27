@@ -377,52 +377,88 @@ const handleSubmit = async (e) => {
       })
     );
 
-    // Build product tables for PDF
-    const productTables = productsWithImages.map((product, index) => {
-      const productRows = [
-        // Product header
-        [{ text: `Product ${index + 1}`, style: 'header', bold: true, fontSize: 12, colSpan: 2, margin: [0, 10, 0, 5] }, {}],
-        
-        // Product images
-        [
-          product.productImagesBase64.length > 0
-            ? {
-                table: {
-                  body: chunkArray(
-                    product.productImagesBase64.map((img) => ({
-                      image: img,
-                      width: 80,
-                      alignment: "center",
-                      margin: [2, 2, 2, 2]
-                    })),
-                    3
-                  )
-                },
-                layout: "noBorders",
-                colSpan: 2
-              }
-            : { text: "(No product image)", alignment: "center", colSpan: 2, italics: true, margin: [0, 5, 0, 5] },
-          {}
-        ],
+// Build product tables for PDF
+const productTables = productsWithImages.map((product, index) => {
+  // Create product rows array
+  const productRows = [
+    // Product header - ensure 2 cells
+    [
+      { text: `Product ${index + 1}`, style: 'header', bold: true, fontSize: 12, colSpan: 2, margin: [0, 10, 0, 5] },
+      {} // Empty second cell
+    ]
+  ];
 
-        // Product details
-        [{ text: "Item Name", bold: true }, product.itemName],
-        [{ text: "Description", bold: true }, product.description],
-        [{ text: "Quantity", bold: true }, product.quantity],
-        [{ text: "Unit", bold: true }, product.unit || "N/A"],
-        [{ text: "HSN Code", bold: true }, product.hsnCode],
-        [{ text: "GST (%)", bold: true }, product.gstPercent],
-        [{ text: "Size", bold: true }, product.size || "N/A"],
-        [{ text: "Remarks", bold: true }, product.remarks || "None"],
-        
-        // Separator between products (except for last product)
-        index < productsWithImages.length - 1 
-          ? [{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#cccccc' }], colSpan: 2, margin: [0, 10, 0, 5] }, {}]
-          : [{ text: "", colSpan: 2 }, {}]
-      ];
+  // Add product images row if there are images
+  if (product.productImagesBase64.length > 0) {
+    // Create image cells with proper structure
+    const imageCells = product.productImagesBase64.map((img) => ({
+      image: img,
+      width: 80,
+      alignment: "center",
+      margin: [2, 2, 2, 2]
+    }));
 
-      return productRows;
-    }).flat();
+    // Group into rows of 3
+    const imageRows = [];
+    for (let i = 0; i < imageCells.length; i += 3) {
+      const row = imageCells.slice(i, i + 3);
+      // Pad the row to always have 3 cells
+      while (row.length < 3) {
+        row.push({ text: "", alignment: "center" }); // Empty cell
+      }
+      imageRows.push(row);
+    }
+
+    // Create image table with explicit column widths
+    const imageTable = {
+      table: {
+        widths: ['auto', 'auto', 'auto'],
+        body: imageRows
+      },
+      layout: "noBorders",
+      margin: [0, 5, 0, 5]
+    };
+
+    productRows.push([imageTable, {}]);
+  } else {
+    // No images
+    productRows.push([
+      { text: "(No product image)", alignment: "center", colSpan: 2, italics: true, margin: [0, 5, 0, 5] },
+      {}
+    ]);
+  }
+
+  // Add product details rows
+  const detailRows = [
+    [{ text: "Item Name", bold: true }, product.itemName || ""],
+    [{ text: "Description", bold: true }, product.description || ""],
+    [{ text: "Quantity", bold: true }, product.quantity || ""],
+    [{ text: "Unit", bold: true }, product.unit || "N/A"],
+    [{ text: "HSN Code", bold: true }, product.hsnCode || ""],
+    [{ text: "GST (%)", bold: true }, product.gstPercent || ""],
+    [{ text: "Size", bold: true }, product.size || "N/A"],
+    [{ text: "Remarks", bold: true }, product.remarks || "None"]
+  ];
+
+  // Add all detail rows
+  detailRows.forEach(row => {
+    productRows.push(row);
+  });
+
+  // Add separator if not last product
+  if (index < productsWithImages.length - 1) {
+    productRows.push([
+      { 
+        canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#cccccc' }], 
+        colSpan: 2, 
+        margin: [0, 10, 0, 5] 
+      },
+      {} // Empty second cell
+    ]);
+  }
+
+  return productRows;
+}).flat();
 
     // Build full RFQ document
     const docDefinition = {
