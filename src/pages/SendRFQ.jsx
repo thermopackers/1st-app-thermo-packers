@@ -67,13 +67,23 @@ const removeProduct = (index) => {
 const updateProduct = (index, field, value) => {
   setForm(prev => ({
     ...prev,
-    products: prev.products.map((product, i) => 
-      i === index ? { ...product, [field]: value } : product
-    )
+    products: prev.products.map((product, i) => {
+      if (i === index) {
+        // If updating img field, ensure it's properly formatted
+        if (field === 'img') {
+          // Ensure img is always an array of objects with url property
+          const imgArray = Array.isArray(value) 
+            ? value.filter(img => img && img.url).map(img => ({ url: img.url }))
+            : [];
+          return { ...product, img: imgArray };
+        }
+        return { ...product, [field]: value };
+      }
+      return product;
+    })
   }));
 };
 
-// Single handleProductSelect function (remove the duplicate)
 const handleProductSelect = async (productId, index) => {
   if (!productId) return;
 
@@ -81,19 +91,41 @@ const handleProductSelect = async (productId, index) => {
     const res = await axiosInstance.get(`/purchase-products/${productId}`);
     const product = res.data;
     
-    updateProduct(index, 'productId', productId);
-    updateProduct(index, 'itemName', product.name || "");
-    updateProduct(index, 'description', product.description || "");
-    updateProduct(index, 'hsnCode', product.hsnCode || "");
-    updateProduct(index, 'gstPercent', product.gstPercent || "");
-    updateProduct(index, 'unit', product.unit || "");
-    updateProduct(index, 'img', Array.isArray(product.files) 
-      ? product.files.map(normalizeImg) 
-      : []);
+    // Create a clean copy of the product data
+    const productData = {
+      productId: productId,
+      itemName: product.name || "",
+      description: product.description || "",
+      hsnCode: product.hsnCode || "",
+      gstPercent: product.gstPercent || "",
+      unit: product.unit || "",
+      // IMPORTANT: Properly handle images - only store URLs, not the entire file objects
+      img: Array.isArray(product.files) 
+        ? product.files
+            .filter(file => file && file.url) // Filter out invalid files
+            .map(file => ({ url: file.url })) // Standardize to { url: string }
+        : []
+    };
+    
+    // Update the product at the specific index
+    setForm(prev => {
+      const updatedProducts = [...prev.products];
+      updatedProducts[index] = {
+        ...updatedProducts[index],
+        ...productData
+      };
+      return {
+        ...prev,
+        products: updatedProducts
+      };
+    });
     
     // Set category from first product
     if (index === 0) {
-      setForm(prev => ({ ...prev, category: product.category || "" }));
+      setForm(prev => ({ 
+        ...prev, 
+        category: product.category?.name || product.category || "" 
+      }));
     }
   } catch (err) {
     console.error(err);
@@ -281,23 +313,42 @@ const handleSubmit = async (e) => {
     const user = JSON.parse(localStorage.getItem("user"));
 
     // Helper to convert image to Base64
-    const getBase64ImageFromURL = (url, maxWidth = 150) =>
-      new Promise((resolve, reject) => {
-        const img = new Image();
-        img.setAttribute("crossOrigin", "anonymous");
-        img.onload = () => {
-          const scale = maxWidth / img.width;
-          const canvas = document.createElement("canvas");
-          canvas.width = maxWidth;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/png", 0.6));
-        };
-        img.onerror = (error) => reject(error);
-        img.src = url;
-      });
-
+  const getBase64ImageFromURL = (url, maxWidth = 150) =>
+  new Promise((resolve, reject) => {
+    // Validate URL
+    if (!url || typeof url !== 'string') {
+      reject(new Error('Invalid image URL'));
+      return;
+    }
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Image loading timeout'));
+    }, 10000); // 10 second timeout
+    
+    const img = new Image();
+    img.setAttribute("crossOrigin", "anonymous");
+    img.onload = () => {
+      clearTimeout(timeoutId);
+      try {
+        const scale = maxWidth / img.width;
+        const canvas = document.createElement("canvas");
+        canvas.width = maxWidth;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png", 0.6));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = (error) => {
+      clearTimeout(timeoutId);
+      reject(error);
+    };
+    img.src = url;
+  });
+  
     // Convert logo
     const logoUrl = "https://res.cloudinary.com/dcr8k5amk/image/upload/todos/mnafzqlnhno1bidybmso.jpg";
     const logoBase64 = await getBase64ImageFromURL(logoUrl);
