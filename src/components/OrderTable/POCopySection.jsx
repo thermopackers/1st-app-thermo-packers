@@ -7,7 +7,6 @@ const POCopySection = ({ order, resolvedPOUrls }) => {
     const isArray = Array.isArray(order.poCopy);
     const title = isArray ? "Upload more PO Copies" : "Upload PO Copy";
     const multiple = isArray;
-
     const { value: files } = await Swal.fire({
       title,
       input: "file",
