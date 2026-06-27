@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import { useNavigate, useLocation } from "react-router-dom";
+import Swal from 'sweetalert2';
 pdfMake.vfs = pdfFonts.vfs; // ✅ works reliably in React
 
 
@@ -602,8 +603,20 @@ const productTables = productsWithImages.map((product, index) => {
   }
 };
 
-
-
+const handleImageClick = (imageUrl) => {
+  Swal.fire({
+    title: 'Product Image',
+    imageUrl: imageUrl,
+    imageWidth: 400,
+    imageHeight: 'auto',
+    imageAlt: 'Product Image',
+    showCloseButton: true,
+    showConfirmButton: false,
+    customClass: {
+      popup: 'swal-modal-with-image'
+    }
+  });
+};
 
 return (
   <>
@@ -787,27 +800,28 @@ return (
               </div>
             </div>
 
-            {/* Product Images */}
-            {product.img.filter(img => img.url).length > 0 && (
-              <div className="mt-4">
-                <label className="block font-semibold">Product Images</label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {product.img.map((image, idx) => (
-                    image.url && (
-                      <img
-                        key={idx}
-                        src={image.url}
-                        alt={`Product ${index + 1} Image ${idx + 1}`}
-                        className="w-20 h-20 object-cover rounded border"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
+         {/* Product Images */}
+{product.img.filter(img => img.url).length > 0 && (
+  <div className="mt-4">
+    <label className="block font-semibold">Product Images</label>
+    <div className="flex flex-wrap gap-2 mt-2">
+      {product.img.map((image, idx) => (
+        image.url && (
+          <img
+            key={idx}
+            src={image.url}
+            alt={`Product ${index + 1} Image ${idx + 1}`}
+            className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => handleImageClick(image.url)}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        )
+      ))}
+    </div>
+  </div>
+)}
           </div>
         ))}
 
