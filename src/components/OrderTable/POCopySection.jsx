@@ -41,6 +41,29 @@ const POCopySection = ({ order, resolvedPOUrls }) => {
     }
   };
 
+  // Function to handle image download
+  const handleDownloadImage = async (imageUrl, fileName) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || 'po-copy-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Download Failed",
+        text: "Unable to download the image. Please try again.",
+      });
+      console.error("Download error:", error);
+    }
+  };
+
   const poCopyArray = Array.isArray(order.poCopy)
     ? order.poCopy
     : order.poCopy
@@ -69,18 +92,49 @@ const POCopySection = ({ order, resolvedPOUrls }) => {
             <button
               key={idx}
               onClick={() => {
+                // Create custom modal content with download button
+                const modalContent = isPdfFile
+                  ? `<div style="height:500px">
+                       <p style="font-size:14px;color:gray;">⏳ Loading PDF preview...</p>
+                       <iframe src="${finalUrl}" width="100%" height="480px" style="border:none;"></iframe>
+                       <p style="font-size:12px;margin-top:10px;">
+                         <a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a>
+                       </p>
+                     </div>`
+                  : `<div>
+                       <img src="${finalUrl}" style="max-width:100%; max-height:500px; display:block; margin:0 auto;" />
+                       <div style="text-align:center; margin-top:15px;">
+                         <button id="downloadImageBtn" style="
+                           background: #4CAF50;
+                           color: white;
+                           padding: 8px 20px;
+                           border: none;
+                           border-radius: 4px;
+                           cursor: pointer;
+                           font-size: 14px;
+                         ">
+                           ⬇️ Download Image
+                         </button>
+                       </div>
+                     </div>`;
+
                 Swal.fire({
                   title: originalName,
-                  html: isPdfFile
-                    ? `<div style="height:500px">
-                         <p style="font-size:14px;color:gray;">⏳ Loading PDF preview...</p>
-                         <iframe src="${finalUrl}" width="100%" height="480px" style="border:none;"></iframe>
-                         <p style="font-size:12px;"><a href="${finalUrl}" target="_blank" style="color:blue;">Open in new tab</a></p>
-                       </div>`
-                    : `<img src="${finalUrl}" style="max-width:100%; max-height:500px;" />`,
+                  html: modalContent,
                   showCancelButton: true,
                   showConfirmButton: false,
                   cancelButtonText: "Close",
+                  didOpen: () => {
+                    // Add download functionality to the button inside modal
+                    if (!isPdfFile) {
+                      const downloadBtn = document.getElementById('downloadImageBtn');
+                      if (downloadBtn) {
+                        downloadBtn.addEventListener('click', () => {
+                          handleDownloadImage(finalUrl, originalName);
+                        });
+                      }
+                    }
+                  }
                 });
               }}
               className="text-blue-600 underline hover:text-blue-800 text-left truncate"
