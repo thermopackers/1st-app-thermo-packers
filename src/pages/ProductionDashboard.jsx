@@ -657,87 +657,129 @@ const renderNarrationImages = (order) => {
       <td className="px-6 py-4">{order.customerName}</td>
       <td className="px-6 py-4">{order.po}</td>
       
-      {/* ✅ PRODUCT NAME - Multi-product support */}
-      <td className="px-4 py-2 text-blue-600 font-bold">
-        {order.products && order.products.length > 0 ? (
-          <div className="space-y-1">
-            {order.products.map((prod, idx) => (
-              <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
-                <button
-                  onClick={() => {
-                    const product = products.find((p) => p.name === prod.productName);
-                    if (product?.images?.length > 0) {
-                      setActiveProductImage({
-                        name: prod.productName,
-                        images: product.images,
-                      });
-                    } else {
-                      Swal.fire({
-                        icon: "info",
-                        title: "No Image",
-                        text: "No images available for this product.",
-                      });
-                    }
-                  }}
-                  className="underline cursor-pointer text-left text-sm"
-                >
-                  {prod.productName}
-                </button>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              const product = products.find((p) => p.name === order.product);
-              if (product?.images?.length > 0) {
-                setActiveProductImage({
-                  name: product.name,
-                  images: product.images,
-                });
-              } else {
-                Swal.fire({
-                  icon: "info",
-                  title: "No Image",
-                  text: "No images available for this product.",
-                });
-              }
-            }}
-            className="underline cursor-pointer"
-          >
-            {order.product}
-          </button>
-        )}
-      </td>
-      
-    {/* ✅ QUANTITY - Show each product's quantity for multi-product orders */}
-<td className="px-6 py-4">
-  {order.products && order.products.length > 0 ? (
-    <div>
+    {/* ✅ PRODUCT NAME - Show from slip data */}
+<td className="px-4 py-2 text-blue-600 font-bold">
+  {(() => {
+    // Get products from the appropriate slip
+    let slipProducts = [];
+    let slipType = '';
+    
+    if (typeFilter === 'shape' || type === 'shape') {
+      slipProducts = order.shapeSlip?.products || [];
+      slipType = 'shape';
+    } else if (typeFilter === 'dana' || type === 'dana') {
+      slipProducts = order.danaSlip?.products || [];
+      slipType = 'dana';
+    } else {
+      // Fallback: show both slips
+      slipProducts = order.shapeSlip?.products?.length > 0 
+        ? order.shapeSlip.products 
+        : order.danaSlip?.products || [];
+      slipType = order.shapeSlip?.products?.length > 0 ? 'shape' : 'dana';
+    }
+    
+    // If no slip products, fallback to order products
+    if (!slipProducts || slipProducts.length === 0) {
+      if (order.products && order.products.length > 0) {
+        slipProducts = order.products;
+      } else {
+        slipProducts = [{ productName: order.product, quantity: order.quantity, size: order.size, density: order.density }];
+      }
+    }
+    
+    return (
       <div className="space-y-1">
-        {order.products.map((prod, idx) => (
-          <div key={idx} className="text-xs">
-            <span className="font-medium">{prod.productName}:</span>{' '}
-            <span className="bg-blue-100 px-2 py-0.5 rounded">
-              {parseFloat(prod.quantity).toFixed(2)}
-            </span>
+        {slipProducts.map((prod, idx) => (
+          <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
+            <button
+              onClick={() => {
+                const product = products.find((p) => p.name === prod.productName);
+                if (product?.images?.length > 0) {
+                  setActiveProductImage({
+                    name: prod.productName,
+                    images: product.images,
+                  });
+                } else {
+                  Swal.fire({
+                    icon: "info",
+                    title: "No Image",
+                    text: "No images available for this product.",
+                  });
+                }
+              }}
+              className="underline cursor-pointer text-left text-sm"
+            >
+              {prod.productName}
+            </button>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Qty: {prod.quantity || prod.quantity} 
+              {prod.size && ` | Size: ${prod.size}`}
+              {(prod.density || prod.dryWeight) && ` | Density: ${prod.density || prod.dryWeight}`}
+            </div>
           </div>
         ))}
       </div>
-      <div className="mt-1 pt-1 border-t border-gray-200">
-        <span className="font-bold text-blue-600">
-          Total: {order.products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0).toFixed(2)}
-        </span>
+    );
+  })()}
+</td>
+      
+  {/* ✅ QUANTITY - Show from slip data */}
+<td className="px-6 py-4">
+  {(() => {
+    // Get products from the appropriate slip
+    let slipProducts = [];
+    let slipType = '';
+    
+    if (typeFilter === 'shape' || type === 'shape') {
+      slipProducts = order.shapeSlip?.products || [];
+      slipType = 'shape';
+    } else if (typeFilter === 'dana' || type === 'dana') {
+      slipProducts = order.danaSlip?.products || [];
+      slipType = 'dana';
+    } else {
+      // Fallback: show both slips
+      slipProducts = order.shapeSlip?.products?.length > 0 
+        ? order.shapeSlip.products 
+        : order.danaSlip?.products || [];
+      slipType = order.shapeSlip?.products?.length > 0 ? 'shape' : 'dana';
+    }
+    
+    // If no slip products, fallback to order products
+    if (!slipProducts || slipProducts.length === 0) {
+      if (order.products && order.products.length > 0) {
+        slipProducts = order.products;
+      } else {
+        slipProducts = [{ productName: order.product, quantity: order.quantity }];
+      }
+    }
+    
+    const totalQuantity = slipProducts.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
+    
+    return (
+      <div>
+        <div className="space-y-1">
+          {slipProducts.map((prod, idx) => (
+            <div key={idx} className="text-xs">
+              <span className="font-medium">{prod.productName}:</span>{' '}
+              <span className="bg-blue-100 px-2 py-0.5 rounded">
+                {parseFloat(prod.quantity).toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1 pt-1 border-t border-gray-200">
+          <span className="font-bold text-blue-600">
+            Total: {totalQuantity.toFixed(2)}
+          </span>
+          {order.remainingToProduce !== undefined && order.remainingToProduce > 0 && (
+            <span className="text-xs text-orange-500 ml-2">
+              (Remaining: {order.remainingToProduce.toFixed(2)})
+            </span>
+          )}
+        </div>
       </div>
-    </div>
-  ) : (
-    <span className="bg-blue-100 px-2 py-0.5 rounded">
-      {parseFloat(order.quantity).toFixed(2)}
-    </span>
-  )}
+    );
+  })()}
 </td>
 
        {/* ✅ Delivery Time - NEW COLUMN */}
@@ -746,28 +788,42 @@ const renderNarrationImages = (order) => {
       </td>
 
       
-      {/* ✅ REMARKS - Show slip remarks and product remarks */}
-      <td className="px-6 py-4">
-        <div className="flex flex-col">   
-          {order.shapeSlip?.remarks && (
-            <div className="text-sm text-green-600">
-              <span className="font-semibold">Shape:</span> {order.shapeSlip.remarks}
-            </div>
-          )}
-          {order.danaSlip?.remarks && (
-            <div className="text-sm text-purple-600">
-              <span className="font-semibold">Dana:</span> {order.danaSlip.remarks}
-            </div>
-          )}
-          {order.products && order.products.length > 0 && (
-            <div className="text-xs text-gray-500 mt-1">
-              {order.products.map((p, idx) => p.productRemarks && (
-                <div key={idx}><strong>{p.productName}:</strong> {p.productRemarks}</div>
-              ))}
-            </div>
-          )}
-        </div>
-      </td>
+ {/* ✅ REMARKS - Show slip remarks and product remarks */}
+<td className="px-6 py-4">
+  <div className="flex flex-col">   
+    {order.shapeSlip?.products?.length > 0 && (
+      <div className="text-sm text-green-600">
+        <span className="font-semibold">Shape:</span> 
+        {order.shapeSlip.products.map((p, idx) => (
+          <div key={idx} className="text-xs">
+            <span className="font-medium">{p.productName}:</span> {p.remarks || p.productRemarks || 'No remarks'}
+          </div>
+        ))}
+      </div>
+    )}
+    {order.danaSlip?.products?.length > 0 && (
+      <div className="text-sm text-purple-600">
+        <span className="font-semibold">Dana:</span>
+        {order.danaSlip.products.map((p, idx) => (
+          <div key={idx} className="text-xs">
+            <span className="font-medium">{p.productName}:</span> {p.remarks || 'No remarks'}
+          </div>
+        ))}
+      </div>
+    )}
+    {!order.shapeSlip?.products?.length && !order.danaSlip?.products?.length && (
+      <div className="text-sm text-gray-500">
+        {order.products && order.products.length > 0 ? (
+          order.products.map((p, idx) => p.productRemarks && (
+            <div key={idx}><strong>{p.productName}:</strong> {p.productRemarks}</div>
+          ))
+        ) : (
+          order.remarks || 'No remarks'
+        )}
+      </div>
+    )}
+  </div>
+</td>
 
        {/* ✅ Narration Images - NEW COLUMN */}
       <td className="px-6 py-4">

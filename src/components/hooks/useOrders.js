@@ -10,8 +10,12 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
   const ordersPerPage = 20;
   const abortControllerRef = useRef(null);
   const requestIdRef = useRef(0);
+  
+  // ✅ Store scroll position
+  const scrollPositionRef = useRef(0);
+  const shouldRestoreScrollRef = useRef(false);
 
-  const fetchOrders = useCallback(async (page = 1) => {
+  const fetchOrders = useCallback(async (page = 1, options = {}) => {
     if (!token) return;
     
     // ✅ Cancel previous request
@@ -22,6 +26,13 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
     // ✅ Create new AbortController and request ID
     abortControllerRef.current = new AbortController();
     const currentRequestId = ++requestIdRef.current;
+    
+    // ✅ Save current scroll position before loading
+    if (!options.preserveScroll) {
+      scrollPositionRef.current = window.scrollY;
+    } else {
+      shouldRestoreScrollRef.current = true;
+    }
     
     setLoading(true);
     try {
@@ -48,10 +59,20 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
 
       // ✅ Only update state if this is the most recent request
       if (currentRequestId === requestIdRef.current) {
-
         setOrders(res.data.orders || []);
         setTotalPages(res.data.totalPages || 1);
         setOrdersFetched(true);
+        
+        // ✅ Restore scroll position if needed
+        if (shouldRestoreScrollRef.current && scrollPositionRef.current > 0) {
+          setTimeout(() => {
+            window.scrollTo({
+              top: scrollPositionRef.current,
+              behavior: 'instant'
+            });
+            shouldRestoreScrollRef.current = false;
+          }, 50);
+        }
       }
     } catch (err) {
       if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
@@ -76,8 +97,8 @@ export const useOrders = (token, currentPage, filters, searchTerm, sortOrder, st
     };
   }, [fetchOrders, currentPage]);
 
-  const refetchOrders = useCallback((page = currentPage) => {
-    fetchOrders(page);
+  const refetchOrders = useCallback((page = currentPage, preserveScroll = false) => {
+    fetchOrders(page, { preserveScroll });
   }, [fetchOrders, currentPage]);
 
   return {

@@ -523,46 +523,48 @@ const exportToExcel = useCallback(async () => {
   }
 }, [filters, searchTerm, sortOrder, statusFilter, dispatchStatusFilter, token]);
 
-  // Section radio change handler
-  const handleSectionRadioChange = useCallback(async (orderId, selectedKey) => {
-    const updatedSections = {};
+// Section radio change handler - NO REFETCH
+const handleSectionRadioChange = useCallback(async (orderId, selectedKey) => {
+  const updatedSections = {};
 
-    sectionsList.forEach(({ key }) => {
-      updatedSections[key] = key === selectedKey;
-    });
+  sectionsList.forEach(({ key }) => {
+    updatedSections[key] = key === selectedKey;
+  });
 
-    try {
-      const { data: updatedOrder } = await axiosInstance.put(
-        `/orders/${orderId}/sections`,
-        { requiredSections: updatedSections }
-      );
+  try {
+    const { data: updatedOrder } = await axiosInstance.put(
+      `/orders/${orderId}/sections`,
+      { requiredSections: updatedSections }
+    );
 
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o._id === orderId
-            ? {
-                ...o,
-                requiredSections: updatedOrder.requiredSections,
-                sentTo: updatedOrder.sentTo,
-              }
-            : o
-        )
-      );
+    // ✅ Update local state immediately - no refetch needed
+    setOrders((prevOrders) =>
+      prevOrders.map((o) =>
+        o._id === orderId
+          ? {
+              ...o,
+              requiredSections: updatedOrder.requiredSections,
+              sentTo: updatedOrder.sentTo,
+            }
+          : o
+      )
+    );
 
-      setLocalSections((prev) => ({
-        ...prev,
-        [orderId]: updatedOrder.requiredSections,
-      }));
+    setLocalSections((prev) => ({
+      ...prev,
+      [orderId]: updatedOrder.requiredSections,
+    }));
 
-      setSelectedRadioByOrder((prev) => ({
-        ...prev,
-        [orderId]: selectedKey,
-      }));
-      refetchOrders(currentPage);
-    } catch (error) {
-      console.error("Error updating section selection:", error);
-    }
-  }, [sectionsList, setOrders, refetchOrders, currentPage]);
+    setSelectedRadioByOrder((prev) => ({
+      ...prev,
+      [orderId]: selectedKey,
+    }));
+        
+  } catch (error) {
+    console.error("Error updating section selection:", error);
+    toast.error("Failed to update section selection");
+  }
+}, [sectionsList, setOrders]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

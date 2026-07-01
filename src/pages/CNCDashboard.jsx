@@ -559,6 +559,57 @@ const renderNarrationImages = (order) => {
   );
 };
 
+// ✅ Helper: Check if CNC slip has products
+const hasCncSlipProducts = (order) => {
+  return order.cncSlip?.products && order.cncSlip.products.length > 0;
+};
+
+// ✅ Helper: Get product details from CNC slip if available
+const getProductDetailsFromSlip = (order) => {
+  // First check if CNC slip has products
+  if (hasCncSlipProducts(order)) {
+    return order.cncSlip.products.map(p => ({
+      name: p.productName,
+      quantity: p.quantity,
+      size: p.size || "N/A",
+      remarks: p.remarks || "",
+      drawingName: p.drawingName || ""
+    }));
+  }
+  
+  // Fallback to order products
+  if (order.products && order.products.length > 0) {
+    return order.products.map(p => ({
+      name: p.productName,
+      quantity: p.quantity,
+      size: p.size || "N/A",
+      density: p.density || "N/A",
+      remarks: p.productRemarks || ""
+    }));
+  }
+  
+  // Single product fallback
+  return [{
+    name: order.product,
+    quantity: order.quantity,
+    size: order.size || "N/A",
+    density: order.density || "N/A",
+    remarks: order.remarks || ""
+  }];
+};
+
+// ✅ Helper: Get total quantity from CNC slip if available
+const getTotalQuantityFromSlip = (order) => {
+  if (hasCncSlipProducts(order)) {
+    return order.cncSlip.products.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
+  }
+  
+  if (order.products && order.products.length > 0) {
+    return order.products.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
+  }
+  return order.quantity;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -716,86 +767,111 @@ const renderNarrationImages = (order) => {
         {/* PO */}
         <td className="px-4 py-2 capitalize">{order.po}</td>
 
-        {/* Product Name - Multi-product support */}
-        <td className="px-4 py-2">
-          {hasMultipleProducts ? (
-            <div className="space-y-1">
-              {productList.map((prod, idx) => (
-                <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
-                  <button
-                    onClick={() => {
-                      const product = products.find((p) => p.name === prod.productName);
-                      if (product?.images?.length > 0) {
-                        setActiveProductImage({ name: prod.productName, images: product.images });
-                      } else {
-                        Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
-                      }
-                    }}
-                    className="text-blue-600 underline cursor-pointer text-left text-sm"
-                  >
-                    {prod.productName}
-                  </button>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
+        {/* Product Name - From CNC slip if available */}
+<td className="px-4 py-2">
+  {(() => {
+    const productList = getProductDetailsFromSlip(order);
+    const isMulti = productList.length > 1;
+    
+    if (!isMulti) {
+      const p = productList[0];
+      return (
+        <button
+          onClick={() => {
+            const product = products.find((prod) => prod.name === p.name);
+            if (product?.images?.length > 0) {
+              setActiveProductImage({ name: p.name, images: product.images });
+            } else {
+              Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
+            }
+          }}
+          className="text-blue-600 underline cursor-pointer"
+        >
+          {p.name}
+        </button>
+      );
+    }
+    
+    return (
+      <div className="space-y-1">
+        {productList.map((p, idx) => (
+          <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
             <button
               onClick={() => {
-                const product = products.find((p) => p.name === order.product);
+                const product = products.find((prod) => prod.name === p.name);
                 if (product?.images?.length > 0) {
-                  setActiveProductImage({ name: order.product, images: product.images });
+                  setActiveProductImage({ name: p.name, images: product.images });
                 } else {
                   Swal.fire({ icon: "info", title: "No Image", text: "No images available for this product." });
                 }
               }}
-              className="text-blue-600 underline cursor-pointer"
+              className="text-blue-600 underline cursor-pointer text-left text-sm"
             >
-              {order.product}
+              {p.name}
             </button>
-          )}
-        </td>
-
-        {/* Size - Multi-product support */}
-        <td className="px-4 py-2">
-          {hasMultipleProducts ? (
-            <div className="space-y-1 text-xs">
-              {productList.map((prod, idx) => (
-                <div key={idx}>{prod.size || "N/A"}</div>
-              ))}
+            <div className="text-xs text-gray-500 mt-0.5">
+              Qty: {p.quantity} | Size: {p.size || "N/A"}
+              {p.drawingName && <span className="ml-2 text-purple-600">| Drawing: {p.drawingName}</span>}
+              {p.remarks && <span className="ml-2 text-blue-600">| Note: {p.remarks}</span>}
             </div>
-          ) : (
-            order.size || "N/A"
-          )}
-        </td>
-
-  {/* Quantity - Show each product's quantity for multi-product orders */}
-<td className="px-4 py-2">
-  {hasMultipleProducts ? (
-    <div>
-      <div className="space-y-1">
-        {productList.map((prod, idx) => (
-          <div key={idx} className="text-xs">
-            <span className="font-medium">{prod.productName}:</span>{' '}
-            <span className="bg-blue-100 px-2 py-0.5 rounded">
-              {parseFloat(prod.quantity).toFixed(2)}
-            </span>
           </div>
         ))}
       </div>
-      <div className="mt-1 pt-1 border-t border-gray-200">
-        <span className="font-bold text-blue-600">
-          Total: {productList.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0).toFixed(2)}
-        </span>
-      </div>
-    </div>
-  ) : (
-    <span className="bg-blue-100 px-2 py-0.5 rounded">
-      {parseFloat(order.quantity).toFixed(2)}
-    </span>
-  )}
+    );
+  })()}
+</td>
+
+       {/* Size - From CNC slip if available */}
+<td className="px-4 py-2">
+  {(() => {
+    const productList = getProductDetailsFromSlip(order);
+    if (productList.length > 1) {
+      return (
+        <div className="space-y-1 text-xs">
+          {productList.map((p, idx) => (
+            <div key={idx}>{p.size || "N/A"}</div>
+          ))}
+        </div>
+      );
+    }
+    return productList[0]?.size || order.size || "N/A";
+  })()}
+</td>
+
+  {/* Quantity - From CNC slip if available */}
+<td className="px-4 py-2">
+  {(() => {
+    const productList = getProductDetailsFromSlip(order);
+    const isMulti = productList.length > 1;
+    
+    if (isMulti) {
+      return (
+        <div>
+          <div className="space-y-1">
+            {productList.map((p, idx) => (
+              <div key={idx} className="text-xs">
+                <span className="font-medium">{p.name}:</span>{' '}
+                <span className="bg-blue-100 px-2 py-0.5 rounded">
+                  {parseFloat(p.quantity).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 pt-1 border-t border-gray-200">
+            <span className="font-bold text-blue-600">
+              Total: {getTotalQuantityFromSlip(order)}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <span className="bg-blue-100 px-2 py-0.5 rounded">
+        {parseFloat(productList[0]?.quantity || 0).toFixed(2)}
+      </span>
+    );
+  })()}
 </td>
 
          {/* ✅ Delivery Time - NEW COLUMN */}
@@ -804,19 +880,48 @@ const renderNarrationImages = (order) => {
         </td>
 
 
-        {/* Remarks - Multi-product support */}
-        <td className="px-4 py-2">
-          {hasMultipleProducts ? (
-            <div className="space-y-1 text-xs">
-              {productList.map((prod, idx) => prod.productRemarks && (
-                <div key={idx}><strong>{prod.productName}:</strong> {prod.productRemarks}</div>
+       {/* Remarks - From CNC slip if available */}
+<td className="px-4 py-2">
+  {(() => {
+    const productList = getProductDetailsFromSlip(order);
+    const slipRemarks = order.cncSlip?.remarks || order.cncSlip?.slipRemarks;
+    
+    // Show slip-level remarks if they exist
+    if (slipRemarks) {
+      return (
+        <div>
+          <div className="text-sm font-medium text-blue-700">{slipRemarks}</div>
+          {productList.length > 1 && (
+            <div className="text-xs text-gray-500 mt-1 space-y-1">
+              {productList.map((p, idx) => p.remarks && (
+                <div key={idx}>
+                  <strong>{p.name}:</strong> {p.remarks}
+                </div>
               ))}
-              {!productList.some(p => p.productRemarks) && <span className="text-gray-400">-</span>}
             </div>
-          ) : (
-            order.cncSlip?.remarks || order.remarks || "-"
           )}
-        </td>
+        </div>
+      );
+    }
+    
+    // Fallback to product-level remarks
+    if (productList.length > 1) {
+      const hasRemarks = productList.some(p => p.remarks);
+      if (hasRemarks) {
+        return (
+          <div className="space-y-1 text-xs">
+            {productList.map((p, idx) => p.remarks && (
+              <div key={idx}><strong>{p.name}:</strong> {p.remarks}</div>
+            ))}
+          </div>
+        );
+      }
+      return <span className="text-gray-400">-</span>;
+    }
+    
+    return productList[0]?.remarks || order.remarks || "-";
+  })()}
+</td>
 
           {/* ✅ Narration Images - NEW COLUMN */}
       <td className="px-6 py-4">

@@ -860,7 +860,388 @@ const handleDeleteVisitingCard = async () => {
   </button>
 )}
     </div> 
-<div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">      
+
+
+        <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+  <h3 className="text-xl font-bold text-gray-800">
+    All Registered Users and Employees
+  </h3>
+  <input
+    type="text"
+    placeholder="🔍 Search by name..."
+    value={searchQuery}
+  onChange={(e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    fetchUsers(1, value); // always reset to page 1 when searching
+  }}
+  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+  />
+</div>
+
+          <table className="w-full text-sm text-left text-gray-600">
+            <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
+              <tr>
+                <th className="px-4 py-2">#</th>
+                <th className="px-4 py-2">WhatsApp/Gmail Profile Photo</th>
+                <th className="px-4 py-2">Front Face Picture</th>  {/* NEW COLUMN */}
+                <th className="px-4 py-2">Visiting Card</th>
+                <th className="px-4 py-2">Name</th>
+                <th className="px-4 py-2">Email</th>
+                <th className="px-4 py-2">Role</th>
+                <th className="px-4 py-2">Prod. Section</th>
+                <th className="px-4 py-2">Phone</th>
+                <th className="px-4 py-2">Attendance</th>
+                <th className="px-4 py-2">DOB</th>
+                <th className="px-4 py-2">Gender</th>
+                <th className="px-4 py-2">Address</th>
+                <th className="px-4 py-2">Emergency No.</th>
+                <th className="px-4 py-2">Designation</th>
+                <th className="px-4 py-2">ESIC No</th>
+                <th className="px-4 py-2">EPFO No</th>
+                <th className="px-4 py-2">Documents</th>
+                    <th className="px-4 py-2">Registered Face</th>  {/* NEW COLUMN ADDED */}
+                <th className="px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+           {users.map((u, i) => (
+                <tr key={u._id} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-2">{i + 1}</td>
+                  <td className="px-4 py-2">
+                    {u.profilePicture ? (
+                      <img
+                        src={u.profilePicture}
+                        alt="Profile"
+                        className="h-10 w-10 rounded-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500 text-xs">No photo</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+  {u.frontFacePicture ? (
+    <img
+      src={u.frontFacePicture}
+      alt="Front Face"
+      className="h-10 w-10 rounded-full object-cover cursor-pointer"
+      loading="lazy"
+      onClick={() => showDocument(u.frontFacePicture, "Front Face")}
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+      <span className="text-gray-500 text-xs">No photo</span>
+    </div>
+  )}
+</td>
+                  <td className="px-4 py-2">
+                    {u.visitingCard ? (
+                      <a href={u.visitingCard} target="_blank" rel="noopener noreferrer">
+                        <img src={u.visitingCard} alt="Visiting Card" className="h-12 w-20 object-cover rounded" />
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 italic">None</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">{u.name}</td>
+                  <td className="px-4 py-2">{u.email}</td>
+                 <td className="px-4 py-2">
+  {Array.isArray(u.role) && u.role.length > 0 
+    ? u.role.map(r => ({
+        sales: 'Sales',
+        accounts: 'Accounts',
+        dispatch: 'Dispatch',
+        production: 'Production',
+        packaging: 'Packaging',
+        suppliers: 'Suppliers',
+      }[r] || r)).join(', ')
+    : '-'}
+</td>
+                  <td className="px-4 py-2 capitalize">
+                    {Array.isArray(u.productionSection) && u.productionSection.length > 0
+                      ? u.productionSection.join(', ')
+                      : '-'}
+                  </td>
+                 <td className="px-4 py-2">
+  <div className="flex flex-col text-xs">
+    <span>
+      📞 Company: {u.phone || "-"}
+    </span>
+    <span>
+      📱 Personal: {u.personalPhone || "-"}
+    </span>
+    <span>
+      🚨 Emergency: {u.emergencyNumber || "-"}
+    </span>
+  </div>
+</td>
+
+                  <td className="px-4 py-2">
+                    {u.allowAttendance ? 'Yes' : 'No'}
+                  </td>
+
+                  <td className="px-4 py-2">{u.dob ? new Date(u.dob).toLocaleDateString() : "-"}</td>
+                  <td className="px-4 py-2 capitalize">{u.gender || 'male'}</td>
+                  <td className="px-4 py-2">{u.address || "-"}</td>
+                  <td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
+                  <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
+                  <td className="px-4 py-2">{u.esicNo || "-"}</td>
+                  <td className="px-4 py-2">{u.epfoNo || "-"}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-col gap-2 text-xs">
+                      
+
+                      {u.aadharCard?.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => showDocument(url, `Aadhar ${idx + 1}`)}
+                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                        >
+                          Aadhar {idx + 1}
+                        </button>
+                      ))}
+
+                      {u.panCard?.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => showDocument(url, `PAN ${idx + 1}`)}
+                          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+                        >
+                          PAN {idx + 1}
+                        </button>
+                      ))}
+
+                      {u.passbookCheque?.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => showDocument(url, `Passbook / Cheque ${idx + 1}`)}
+                          className="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition"
+                        >
+                          Passbook {idx + 1}
+                        </button>
+                      ))}
+
+                     {u.esicCopy && u.esicCopy.length > 0 ? (
+  u.esicCopy.map((url, idx) => (
+    <button
+      key={idx}
+      onClick={() => showDocument(url, `ESIC Copy ${idx + 1}`)}
+      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition text-xs sm:text-sm"
+    >
+      ESIC {idx + 1}
+    </button>
+  ))
+) : (
+  <span className="text-gray-400 text-xs">No ESIC</span>
+)}
+
+                      {u.epfoCopy?.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => showDocument(url, `EPFO ${idx + 1}`)}
+                          className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+                        >
+                          EPFO {idx + 1}
+                        </button>
+                      ))}
+
+                      {u.drivingLicence?.map((url, idx) => (
+    <button
+        key={idx}
+        onClick={() => showDocument(url, `Driving Licence ${idx + 1}`)}
+        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+    >
+        Driving Licence {idx + 1}
+    </button>
+))}
+
+                      {u.miscDocuments?.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => showDocument(url, `Misc Document ${idx + 1}`)}
+                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                        >
+                          Misc {idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2">
+  {u.faceUrl ? (
+    <img
+      src={u.faceUrl}
+      alt="Registered Face"
+      className="h-10 w-10 rounded-full object-cover cursor-pointer"
+      loading="lazy"
+      onClick={() => showDocument(u.faceUrl, "Registered Face")}
+    />
+  ) : (
+    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+      <span className="text-gray-500 text-xs">No face</span>
+    </div>
+  )}
+</td>
+
+                  <td className="px-4 py-2">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                      <button
+                        onClick={() => handleEdit(u)}
+                        className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded shadow transition"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u._id)}
+                        className="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded shadow transition"
+                      >
+                        🗑️ Delete
+                      </button>
+                      {u.role !== "suppliers" && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setModalVisible(true);
+                            }}
+                            className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded shadow transition"
+                          >
+                            👤 Register Face
+                          </button>
+                          {u.faceUrl && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const confirm = window.confirm("Are you sure you want to delete the registered face?");
+                                  if (!confirm) return;
+                                  await axiosInstance.post("/users/delete-face-url", { userId: u._id });
+                                  toast.success("Face deleted successfully");
+                                  fetchUsers();
+                                } catch (err) {
+                                  toast.error(err.response?.data?.error || "Failed to delete face");
+                                }
+                              }}
+                              className="text-sm text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded shadow transition"
+                            >
+                              ❌ Delete Face
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                    </div>
+                    {u.role !== "suppliers" && (
+
+                      <div className="mt-2 text-sm text-gray-700">
+                        {u.faceUrl ? (
+                          <span className="text-green-600">✅ Face Registered</span>
+                        ) : (
+                          <span className="text-red-600">❌ Face Not Registered</span>
+                        )}
+                      </div>)}
+                  </td>
+                </tr>
+              ))}
+             
+{users.length === 0 && (
+  <tr>
+    <td colSpan="17" className="text-center py-4 text-gray-400">
+      No users found.
+    </td>
+  </tr>
+)}
+</tbody>
+</table>
+
+{/* Pagination Controls */}
+<div className="flex justify-between items-center mt-4">
+  <div className="text-sm text-gray-600">
+    Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalUsers)} of {totalUsers} users
+  </div>
+  
+ <div className="flex space-x-2">
+  {/* First */}
+  <button
+    onClick={() => fetchUsers(1, searchQuery)}
+    disabled={currentPage === 1}
+    className={`px-3 py-1 rounded border ${
+      currentPage === 1 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    First
+  </button>
+
+  {/* Previous */}
+  <button
+    onClick={() => fetchUsers(currentPage - 1, searchQuery)}
+    disabled={currentPage === 1}
+    className={`px-3 py-1 rounded border ${
+      currentPage === 1 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Previous
+  </button>
+
+  {/* Page Numbers */}
+  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+    if (pageNum > totalPages) return null;
+
+    return (
+      <button
+        key={pageNum}
+        onClick={() => fetchUsers(pageNum, searchQuery)} 
+        className={`px-3 py-1 rounded border ${
+          currentPage === pageNum
+            ? 'bg-blue-600 text-white'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        {pageNum}
+      </button>
+    );
+  })}
+
+  {/* Next */}
+  <button
+    onClick={() => fetchUsers(currentPage + 1, searchQuery)} 
+    disabled={currentPage === totalPages}
+    className={`px-3 py-1 rounded border ${
+      currentPage === totalPages 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Next
+  </button>
+
+  {/* Last */}
+  <button
+    onClick={() => fetchUsers(totalPages, searchQuery)} 
+    disabled={currentPage === totalPages}
+    className={`px-3 py-1 rounded border ${
+      currentPage === totalPages 
+        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    Last
+  </button>
+</div>
+
+</div>
+        </div>
+        
+      </div>
+      <div className="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-10">      
       <h2 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-6 flex items-center gap-2">
             Add New Employee/User
           </h2>
@@ -1438,385 +1819,6 @@ const handleDeleteVisitingCard = async () => {
             </div>
           )}
         </div>
-
-        <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl p-4 sm:p-6 overflow-x-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-  <h3 className="text-xl font-bold text-gray-800">
-    All Registered Users and Employees
-  </h3>
-  <input
-    type="text"
-    placeholder="🔍 Search by name..."
-    value={searchQuery}
-  onChange={(e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    fetchUsers(1, value); // always reset to page 1 when searching
-  }}
-  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
-  />
-</div>
-
-          <table className="w-full text-sm text-left text-gray-600">
-            <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">WhatsApp/Gmail Profile Photo</th>
-                <th className="px-4 py-2">Front Face Picture</th>  {/* NEW COLUMN */}
-                <th className="px-4 py-2">Visiting Card</th>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Prod. Section</th>
-                <th className="px-4 py-2">Phone</th>
-                <th className="px-4 py-2">Attendance</th>
-                <th className="px-4 py-2">DOB</th>
-                <th className="px-4 py-2">Gender</th>
-                <th className="px-4 py-2">Address</th>
-                <th className="px-4 py-2">Emergency No.</th>
-                <th className="px-4 py-2">Designation</th>
-                <th className="px-4 py-2">ESIC No</th>
-                <th className="px-4 py-2">EPFO No</th>
-                <th className="px-4 py-2">Documents</th>
-                    <th className="px-4 py-2">Registered Face</th>  {/* NEW COLUMN ADDED */}
-                <th className="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-           {users.map((u, i) => (
-                <tr key={u._id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2">{i + 1}</td>
-                  <td className="px-4 py-2">
-                    {u.profilePicture ? (
-                      <img
-                        src={u.profilePicture}
-                        alt="Profile"
-                        className="h-10 w-10 rounded-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-gray-500 text-xs">No photo</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-  {u.frontFacePicture ? (
-    <img
-      src={u.frontFacePicture}
-      alt="Front Face"
-      className="h-10 w-10 rounded-full object-cover cursor-pointer"
-      loading="lazy"
-      onClick={() => showDocument(u.frontFacePicture, "Front Face")}
-    />
-  ) : (
-    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-      <span className="text-gray-500 text-xs">No photo</span>
-    </div>
-  )}
-</td>
-                  <td className="px-4 py-2">
-                    {u.visitingCard ? (
-                      <a href={u.visitingCard} target="_blank" rel="noopener noreferrer">
-                        <img src={u.visitingCard} alt="Visiting Card" className="h-12 w-20 object-cover rounded" />
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 italic">None</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">{u.name}</td>
-                  <td className="px-4 py-2">{u.email}</td>
-                 <td className="px-4 py-2">
-  {Array.isArray(u.role) && u.role.length > 0 
-    ? u.role.map(r => ({
-        sales: 'Sales',
-        accounts: 'Accounts',
-        dispatch: 'Dispatch',
-        production: 'Production',
-        packaging: 'Packaging',
-        suppliers: 'Suppliers',
-      }[r] || r)).join(', ')
-    : '-'}
-</td>
-                  <td className="px-4 py-2 capitalize">
-                    {Array.isArray(u.productionSection) && u.productionSection.length > 0
-                      ? u.productionSection.join(', ')
-                      : '-'}
-                  </td>
-                 <td className="px-4 py-2">
-  <div className="flex flex-col text-xs">
-    <span>
-      📞 Company: {u.phone || "-"}
-    </span>
-    <span>
-      📱 Personal: {u.personalPhone || "-"}
-    </span>
-    <span>
-      🚨 Emergency: {u.emergencyNumber || "-"}
-    </span>
-  </div>
-</td>
-
-                  <td className="px-4 py-2">
-                    {u.allowAttendance ? 'Yes' : 'No'}
-                  </td>
-
-                  <td className="px-4 py-2">{u.dob ? new Date(u.dob).toLocaleDateString() : "-"}</td>
-                  <td className="px-4 py-2 capitalize">{u.gender || 'male'}</td>
-                  <td className="px-4 py-2">{u.address || "-"}</td>
-                  <td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
-                  <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
-                  <td className="px-4 py-2">{u.esicNo || "-"}</td>
-                  <td className="px-4 py-2">{u.epfoNo || "-"}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col gap-2 text-xs">
-                      
-
-                      {u.aadharCard?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `Aadhar ${idx + 1}`)}
-                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                        >
-                          Aadhar {idx + 1}
-                        </button>
-                      ))}
-
-                      {u.panCard?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `PAN ${idx + 1}`)}
-                          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
-                        >
-                          PAN {idx + 1}
-                        </button>
-                      ))}
-
-                      {u.passbookCheque?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `Passbook / Cheque ${idx + 1}`)}
-                          className="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition"
-                        >
-                          Passbook {idx + 1}
-                        </button>
-                      ))}
-
-                     {u.esicCopy && u.esicCopy.length > 0 ? (
-  u.esicCopy.map((url, idx) => (
-    <button
-      key={idx}
-      onClick={() => showDocument(url, `ESIC Copy ${idx + 1}`)}
-      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition text-xs sm:text-sm"
-    >
-      ESIC {idx + 1}
-    </button>
-  ))
-) : (
-  <span className="text-gray-400 text-xs">No ESIC</span>
-)}
-
-                      {u.epfoCopy?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `EPFO ${idx + 1}`)}
-                          className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
-                        >
-                          EPFO {idx + 1}
-                        </button>
-                      ))}
-
-                      {u.drivingLicence?.map((url, idx) => (
-    <button
-        key={idx}
-        onClick={() => showDocument(url, `Driving Licence ${idx + 1}`)}
-        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-    >
-        Driving Licence {idx + 1}
-    </button>
-))}
-
-                      {u.miscDocuments?.map((url, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => showDocument(url, `Misc Document ${idx + 1}`)}
-                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-                        >
-                          Misc {idx + 1}
-                        </button>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-  {u.faceUrl ? (
-    <img
-      src={u.faceUrl}
-      alt="Registered Face"
-      className="h-10 w-10 rounded-full object-cover cursor-pointer"
-      loading="lazy"
-      onClick={() => showDocument(u.faceUrl, "Registered Face")}
-    />
-  ) : (
-    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-      <span className="text-gray-500 text-xs">No face</span>
-    </div>
-  )}
-</td>
-
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                      <button
-                        onClick={() => handleEdit(u)}
-                        className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded shadow transition"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u._id)}
-                        className="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded shadow transition"
-                      >
-                        🗑️ Delete
-                      </button>
-                      {u.role !== "suppliers" && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setModalVisible(true);
-                            }}
-                            className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded shadow transition"
-                          >
-                            👤 Register Face
-                          </button>
-                          {u.faceUrl && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const confirm = window.confirm("Are you sure you want to delete the registered face?");
-                                  if (!confirm) return;
-                                  await axiosInstance.post("/users/delete-face-url", { userId: u._id });
-                                  toast.success("Face deleted successfully");
-                                  fetchUsers();
-                                } catch (err) {
-                                  toast.error(err.response?.data?.error || "Failed to delete face");
-                                }
-                              }}
-                              className="text-sm text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded shadow transition"
-                            >
-                              ❌ Delete Face
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                    </div>
-                    {u.role !== "suppliers" && (
-
-                      <div className="mt-2 text-sm text-gray-700">
-                        {u.faceUrl ? (
-                          <span className="text-green-600">✅ Face Registered</span>
-                        ) : (
-                          <span className="text-red-600">❌ Face Not Registered</span>
-                        )}
-                      </div>)}
-                  </td>
-                </tr>
-              ))}
-             
-{users.length === 0 && (
-  <tr>
-    <td colSpan="17" className="text-center py-4 text-gray-400">
-      No users found.
-    </td>
-  </tr>
-)}
-</tbody>
-</table>
-
-{/* Pagination Controls */}
-<div className="flex justify-between items-center mt-4">
-  <div className="text-sm text-gray-600">
-    Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalUsers)} of {totalUsers} users
-  </div>
-  
- <div className="flex space-x-2">
-  {/* First */}
-  <button
-    onClick={() => fetchUsers(1, searchQuery)}
-    disabled={currentPage === 1}
-    className={`px-3 py-1 rounded border ${
-      currentPage === 1 
-        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-        : 'bg-white text-gray-700 hover:bg-gray-100'
-    }`}
-  >
-    First
-  </button>
-
-  {/* Previous */}
-  <button
-    onClick={() => fetchUsers(currentPage - 1, searchQuery)}
-    disabled={currentPage === 1}
-    className={`px-3 py-1 rounded border ${
-      currentPage === 1 
-        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-        : 'bg-white text-gray-700 hover:bg-gray-100'
-    }`}
-  >
-    Previous
-  </button>
-
-  {/* Page Numbers */}
-  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-    if (pageNum > totalPages) return null;
-
-    return (
-      <button
-        key={pageNum}
-        onClick={() => fetchUsers(pageNum, searchQuery)} 
-        className={`px-3 py-1 rounded border ${
-          currentPage === pageNum
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-gray-700 hover:bg-gray-100'
-        }`}
-      >
-        {pageNum}
-      </button>
-    );
-  })}
-
-  {/* Next */}
-  <button
-    onClick={() => fetchUsers(currentPage + 1, searchQuery)} 
-    disabled={currentPage === totalPages}
-    className={`px-3 py-1 rounded border ${
-      currentPage === totalPages 
-        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-        : 'bg-white text-gray-700 hover:bg-gray-100'
-    }`}
-  >
-    Next
-  </button>
-
-  {/* Last */}
-  <button
-    onClick={() => fetchUsers(totalPages, searchQuery)} 
-    disabled={currentPage === totalPages}
-    className={`px-3 py-1 rounded border ${
-      currentPage === totalPages 
-        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-        : 'bg-white text-gray-700 hover:bg-gray-100'
-    }`}
-  >
-    Last
-  </button>
-</div>
-
-</div>
-        </div>
-      </div>
       <FaceRegistrationModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
