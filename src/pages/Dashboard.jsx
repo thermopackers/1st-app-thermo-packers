@@ -79,6 +79,7 @@ const [searchLoading, setSearchLoading] = useState(false);
 const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
 const [expiringCertificates, setExpiringCertificates] = useState([]);
+const [showProductRates, setShowProductRates] = useState(false);
 // Add these new state variables
 const [expiringAirReceiverCertificates, setExpiringAirReceiverCertificates] = useState([]);
 const [expiringManualChainPullyCertificates, setExpiringManualChainPullyCertificates] = useState([]);
@@ -166,102 +167,21 @@ useEffect(() => {
   fetchVehicle();
 }, [user,userRoles]);
 
-// Fetch expiring Air Receiver Certificates
-useEffect(() => {
-  if (!user) return;
-  
-  const fetchExpiringAirReceiverCertificates = async () => {
-    try {
-      const res = await axiosInstance.get("/air-receiver-certificate/expiring");
-      if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringAirReceiverCertificates(res.data.certificates);
-      }
-    } catch (err) {
-      console.error("Error fetching expiring air receiver certificates:", err);
-    }
-  };
-  
-  fetchExpiringAirReceiverCertificates();
-}, [user]);
-
-// Fetch expiring Manual Chain Pully Certificates
-useEffect(() => {
-  if (!user) return;
-  
-  const fetchExpiringManualChainPullyCertificates = async () => {
-    try {
-      const res = await axiosInstance.get("/manual-chain-pully-certificate/expiring");
-      if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringManualChainPullyCertificates(res.data.certificates);
-      }
-    } catch (err) {
-      console.error("Error fetching expiring manual chain pully certificates:", err);
-    }
-  };
-  
-  fetchExpiringManualChainPullyCertificates();
-}, [user]);
-
-// Fetch expiring Air Pollution Certificates
-useEffect(() => {
-  if (!user) return;
-  
-  const fetchExpiringAirPollutionCertificates = async () => {
-    try {
-      const res = await axiosInstance.get("/air-pollution-certificate/expiring");
-      if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringAirPollutionCertificates(res.data.certificates);
-      }
-    } catch (err) {
-      console.error("Error fetching expiring air pollution certificates:", err);
-    }
-  };
-  
-  fetchExpiringAirPollutionCertificates();
-}, [user]);
-
-// Fetch expiring Water Pollution Certificates
-useEffect(() => {
-  if (!user) return;
-  
-  const fetchExpiringWaterPollutionCertificates = async () => {
-    try {
-      const res = await axiosInstance.get("/water-pollution-certificate/expiring");
-      if (res.data.success && res.data.certificates.length > 0) {
-        setExpiringWaterPollutionCertificates(res.data.certificates);
-      }
-    } catch (err) {
-      console.error("Error fetching expiring water pollution certificates:", err);
-    }
-  };
-  
-  fetchExpiringWaterPollutionCertificates();
-}, [user]);
-
-// Fetch all expiring certificates (combined)
+// Fetch ALL expiring certificates in one API call
 useEffect(() => {
   if (!user) return;
   
   const fetchAllExpiringCertificates = async () => {
     try {
-      const endpoints = [
-        { key: 'boiler', url: '/boiler-certificate/expiring', setter: setExpiringCertificates },
-        { key: 'factory', url: '/factory-act-certificate/expiring', setter: setExpiringFactoryCertificates },
-        { key: 'airReceiver', url: '/air-receiver-certificate/expiring', setter: setExpiringAirReceiverCertificates },
-        { key: 'manualChain', url: '/manual-chain-pully-certificate/expiring', setter: setExpiringManualChainPullyCertificates },
-        { key: 'airPollution', url: '/air-pollution-certificate/expiring', setter: setExpiringAirPollutionCertificates },
-        { key: 'waterPollution', url: '/water-pollution-certificate/expiring', setter: setExpiringWaterPollutionCertificates }
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          const res = await axiosInstance.get(endpoint.url);
-          if (res.data.success && res.data.certificates.length > 0) {
-            endpoint.setter(res.data.certificates);
-          }
-        } catch (err) {
-          console.error(`Error fetching ${endpoint.key} certificates:`, err);
-        }
+      // Create a single combined API call
+      const res = await axiosInstance.get("/certificates/expiring/all");
+      if (res.data) {
+        setExpiringCertificates(res.data.boiler || []);
+        setExpiringFactoryCertificates(res.data.factory || []);
+        setExpiringAirReceiverCertificates(res.data.airReceiver || []);
+        setExpiringManualChainPullyCertificates(res.data.manualChain || []);
+        setExpiringAirPollutionCertificates(res.data.airPollution || []);
+        setExpiringWaterPollutionCertificates(res.data.waterPollution || []);
       }
     } catch (err) {
       console.error("Error fetching expiring certificates:", err);
@@ -271,9 +191,15 @@ useEffect(() => {
   fetchAllExpiringCertificates();
 }, [user]);
 
+
 // Enhanced useEffect to fetch birthday users with localStorage tracking
 useEffect(() => {
   if (!user) return;
+  
+  // Skip if already shown today
+  const today = new Date().toDateString();
+  const lastShownDate = localStorage.getItem('birthdayShownDate');
+  if (lastShownDate === today) return;
   
   const fetchBirthdays = async () => {
     try {
@@ -283,21 +209,13 @@ useEffect(() => {
       });
       
       if (res.data && res.data.length > 0) {
-        // Check if we've already shown birthday notification today
-        const today = new Date().toDateString();
-        const lastShownDate = localStorage.getItem('birthdayShownDate');
-        const hasShownToday = lastShownDate === today;
+        setBirthdayUsers(res.data);
         
-        // Only set birthday users if not shown today
-        if (!hasShownToday) {
-          setBirthdayUsers(res.data);
-          
-          // Auto-show confetti if it's the current user's birthday
-          const isMyBirthday = res.data.some(birthdayUser => birthdayUser._id === user?._id);
-          if (isMyBirthday) {
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 5000);
-          }
+        // Auto-show confetti if it's the current user's birthday
+        const isMyBirthday = res.data.some(birthdayUser => birthdayUser._id === user?._id);
+        if (isMyBirthday) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 5000);
         }
       }
     } catch (err) {
@@ -2525,13 +2443,20 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
         </ActionButton>
       </div>
       {/* Product Rate Checker - Only for accounts role */}
+{/* Product Rate Checker - Only for accounts role */}
 {userRoles.includes("accounts") && (
   <>
   <div className="relative">
     <ProductRateChecker />
   </div>
     <div className="mt-6">
-      <ProductRateTable />
+      <button
+        onClick={() => setShowProductRates(!showProductRates)}
+        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+      >
+        {showProductRates ? '📊 Hide Product Rate Table' : '📊 Show Product Rate Table'}
+      </button>
+      {showProductRates && <ProductRateTable />}
     </div>
     </>
 )}
