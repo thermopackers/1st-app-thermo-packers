@@ -2530,9 +2530,9 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
   <div className="relative">
     <ProductRateChecker />
   </div>
-    {/* <div className="mt-6">
+    <div className="mt-6">
       <ProductRateTable />
-    </div> */}
+    </div>
     </>
 )}
     </DashboardCard>
