@@ -638,15 +638,18 @@ const generatePDF = async () => {
                     {sizes.map((size) => (
                       <tr key={size.id} className="hover:bg-gray-50">
                         <td className="p-3 border">
-                          <select
-                            value={size.pipeSize}
-                            onChange={(e) => updateSize(size.id, 'pipeSize', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            {Object.keys(pipeData).map(pipe => (
-                              <option key={pipe} value={pipe}>{pipe}" ({pipeData[pipe].bore}mm bore / {pipeData[pipe].od}mm OD)</option>
-                            ))}
-                          </select>
+                         <select
+  value={size.pipeSize}
+  onChange={(e) => updateSize(size.id, 'pipeSize', e.target.value)}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  {Object.keys(pipeData)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(pipe => (
+      <option key={pipe} value={pipe}>{pipe}" ({pipeData[pipe].bore}mm bore / {pipeData[pipe].od}mm OD)</option>
+    ))}
+</select>
                         </td>
                         <td className="p-3 border">
                           <div className="flex gap-2">

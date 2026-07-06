@@ -101,6 +101,9 @@ const [isDeletingVisitingCard, setIsDeletingVisitingCard] = useState(false);
     const [user, setUser] = useState(null);
     const [existingDrivingLicence, setExistingDrivingLicence] = useState([]); // ✅ ADD THIS LINE
   const [miscDocuments, setMiscDocuments] = useState([]);
+  // Add these with other state variables
+const [unNo, setUnNo] = useState(''); // ✅ ADD THIS
+const [isActive, setIsActive] = useState(true); // ✅ ADD THIS
   const [filesToRemove, setFilesToRemove] = useState({
     aadharCard: [],
     panCard: [],
@@ -212,6 +215,8 @@ formData.append("personalPhone", personalPhone);
       formData.append("designation", designation);
       formData.append("esicNo", esicNo);
       formData.append("epfoNo", epfoNo);
+        formData.append("unNo", unNo); // ✅ ADD THIS LINE
+    formData.append("isActive", isActive); // ✅ ADD THIS LINE
       formData.append('filesToRemove', JSON.stringify(filesToRemove));
 
       if (frontFacePicture) formData.append("frontFacePicture", frontFacePicture);
@@ -423,6 +428,8 @@ setGender(user.gender || 'male');
     setDesignation(user.designation || "");
     setEsicNo(user.esicNo || "");
     setEpfoNo(user.epfoNo || "");
+     setUnNo(user.unNo || ""); // ✅ ADD THIS LINE
+  setIsActive(user.isActive !== undefined ? user.isActive : true); // ✅ ADD THIS LINE
 
     // Previews for files (Cloudinary URLs are already saved in DB)
     setProfilePicturePreview(user.profilePicture || "");
@@ -491,8 +498,9 @@ setAllowQuotation(false); // Add this line
     setPersonalPhone("");
     setDesignation("");
     setEsicNo("");
-    setEpfoNo("");
 
+     setUnNo(""); // ✅ ADD THIS LINE
+  setIsActive(true); // ✅ ADD THIS LINE
     setProfilePicture(null);
     setProfilePicturePreview("");
     setVisitingCard(null);
@@ -554,6 +562,7 @@ const showDocument = (url, title) => {
           />
         </div>
         <div style="margin-top:10px;">
+        <span>Click here to see image</span>
           <a href="${url}" target="_blank" rel="noopener noreferrer" 
              style="display:inline-block; background:#4F46E5; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
             🔗 Open in New Tab
@@ -900,6 +909,8 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">Designation</th>
                 <th className="px-4 py-2">ESIC No</th>
                 <th className="px-4 py-2">EPFO No</th>
+                 <th className="px-4 py-2">UN No</th> {/* ✅ ADD THIS */}
+    <th className="px-4 py-2">Status</th> {/* ✅ ADD THIS */}
                 <th className="px-4 py-2">Documents</th>
                     <th className="px-4 py-2">Registered Face</th>  {/* NEW COLUMN ADDED */}
                 <th className="px-4 py-2">Actions</th>
@@ -992,6 +1003,16 @@ const handleDeleteVisitingCard = async () => {
                   <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
                   <td className="px-4 py-2">{u.esicNo || "-"}</td>
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
+                  <td className="px-4 py-2">{u.unNo || "-"}</td> {/* ✅ ADD THIS */}
+<td className="px-4 py-2">
+  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+    u.isActive !== false 
+      ? 'bg-green-100 text-green-800' 
+      : 'bg-red-100 text-red-800'
+  }`}>
+    {u.isActive !== false ? '🟢 Active' : '🔴 Inactive'}
+  </span>
+</td>
                   <td className="px-4 py-2">
                     <div className="flex flex-col gap-2 text-xs">
                       
@@ -1087,63 +1108,63 @@ const handleDeleteVisitingCard = async () => {
   )}
 </td>
 
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                      <button
-                        onClick={() => handleEdit(u)}
-                        className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded shadow transition"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u._id)}
-                        className="text-sm text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded shadow transition"
-                      >
-                        🗑️ Delete
-                      </button>
-                      {u.role !== "suppliers" && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setModalVisible(true);
-                            }}
-                            className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded shadow transition"
-                          >
-                            👤 Register Face
-                          </button>
-                          {u.faceUrl && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const confirm = window.confirm("Are you sure you want to delete the registered face?");
-                                  if (!confirm) return;
-                                  await axiosInstance.post("/users/delete-face-url", { userId: u._id });
-                                  toast.success("Face deleted successfully");
-                                  fetchUsers();
-                                } catch (err) {
-                                  toast.error(err.response?.data?.error || "Failed to delete face");
-                                }
-                              }}
-                              className="text-sm text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded shadow transition"
-                            >
-                              ❌ Delete Face
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                    </div>
-                    {u.role !== "suppliers" && (
-
-                      <div className="mt-2 text-sm text-gray-700">
-                        {u.faceUrl ? (
-                          <span className="text-green-600">✅ Face Registered</span>
-                        ) : (
-                          <span className="text-red-600">❌ Face Not Registered</span>
-                        )}
-                      </div>)}
-                  </td>
+                <td className="px-4 py-2">
+  <div className="grid grid-cols-2 gap-1">
+    <button
+      onClick={() => handleEdit(u)}
+      className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded shadow transition"
+    >
+      ✏️
+    </button>
+    <button
+      onClick={() => handleDelete(u._id)}
+      className="text-xs text-white bg-red-600 hover:bg-red-700 px-2 py-1 rounded shadow transition"
+    >
+      🗑️
+    </button>
+    <div className='flex flex-col w-[70px] gap-1'>
+    {u.role !== "suppliers" && (
+      <>
+        <button
+          onClick={() => {
+            setSelectedUser(u);
+            setModalVisible(true);
+          }}
+          className="text-xs text-white bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded shadow transition"
+        >
+          Register Face
+        </button>
+        {u.faceUrl && (
+          <button
+            onClick={async () => {
+              try {
+                const confirm = window.confirm("Are you sure you want to delete the registered face?");
+                if (!confirm) return;
+                await axiosInstance.post("/users/delete-face-url", { userId: u._id });
+                toast.success("Face deleted successfully");
+                fetchUsers();
+              } catch (err) {
+                toast.error(err.response?.data?.error || "Failed to delete face");
+              }
+            }}
+            className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow transition"
+          >
+             Delete Face
+          </button>
+        )}
+      </>
+    )}</div>
+  </div>
+  {u.role !== "suppliers" && (
+    <div className="mt-1 text-xs text-gray-700 text-center">
+      {u.faceUrl ? (
+        <span className="text-green-600 text-[8px]">✅ Face Registered</span>
+      ) : (
+        <span className="text-red-600 text-[8px]">❌ Face Not Registered</span>
+      )}
+    </div>
+  )}
+</td>
                 </tr>
               ))}
              
@@ -1351,6 +1372,10 @@ const handleDeleteVisitingCard = async () => {
         <label className="block text-sm">EPFO No</label>
         <input type="text" value={epfoNo} onChange={e => setEpfoNo(e.target.value)} className="w-full border p-2 rounded" />
       </div>
+      <div>
+  <label className="block text-sm">UN No (Udyam Registration Number)</label>
+  <input type="text" value={unNo} onChange={e => setUnNo(e.target.value)} className="w-full border p-2 rounded" />
+</div>
     </div>
 
     {/* Right Column */}
@@ -1773,6 +1798,18 @@ const handleDeleteVisitingCard = async () => {
       Allow for Dana / Beads Production Section
     </label>
   </div>
+   <div className="flex items-center space-x-2 mt-2">
+      <input
+        type="checkbox"
+        id="isActive"
+        checked={isActive}
+        onChange={() => setIsActive(!isActive)}
+        className="w-4 h-4"
+      />
+      <label htmlFor="isActive" className="text-sm text-gray-700">
+        {isActive ? '🟢 Active' : '🔴 Inactive'}
+      </label>
+    </div>
                 </>
               )}
             </div>

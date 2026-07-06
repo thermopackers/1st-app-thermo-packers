@@ -17,6 +17,8 @@ import { Calendar } from "lucide-react"; // Add Calendar icon to existing import
 import UserGoogleCalendar from "../components/UserGoogleCalendar";
 import TaskAssignmentModal from "../components/TaskAssignmentModal";
 import ViewAllUsersModal from "../components/ViewAllUsersModal";
+import ProductRateChecker from "../components/calculateProductPrice";
+import ProductRateTable from "../components/ProductRateTable";
 
 
 export default function Dashboard() {
@@ -2522,6 +2524,17 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           </div>
         </ActionButton>
       </div>
+      {/* Product Rate Checker - Only for accounts role */}
+{userRoles.includes("accounts") && (
+  <>
+  <div className="relative">
+    <ProductRateChecker />
+  </div>
+    <div className="mt-6">
+      <ProductRateTable />
+    </div>
+    </>
+)}
     </DashboardCard>
 
     <DashboardCard>

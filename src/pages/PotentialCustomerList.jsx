@@ -48,13 +48,24 @@ const parseUserRoles = (user) => {
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
   const [salesUsers, setSalesUsers] = useState([]);
+  // Remarks states
+const [editingRemarks, setEditingRemarks] = useState(null);
+const [remarksData, setRemarksData] = useState({});
+const [savingRemarks, setSavingRemarks] = useState({});
 const [selectedSalesId, setSelectedSalesId] = useState("");
 const [productFilter, setProductFilter] = useState("");
 const [hasDiwaliGift, setHasDiwaliGift] = useState(""); // "yes", "no", or ""
 const [giftProducts, setGiftProducts] = useState([]); // Add this state
 const [selectedGift, setSelectedGift] = useState(""); // Change from hasDiwaliGift
-console.log("customers",customers);
-
+// Follow-up states
+const [followUps, setFollowUps] = useState({});
+const [loadingFollowUps, setLoadingFollowUps] = useState({});
+const [showFollowUpForm, setShowFollowUpForm] = useState({});
+const [editingFollowUpId, setEditingFollowUpId] = useState({});
+const [followUpFormData, setFollowUpFormData] = useState({});
+const [followUpPage, setFollowUpPage] = useState({});
+const [followUpTotalPages, setFollowUpTotalPages] = useState({});
+const [followUpTotal, setFollowUpTotal] = useState({});
   // ✅ NEW: Category states
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
@@ -78,6 +89,15 @@ useEffect(() => {
   
   fetchCategories();
 }, []);
+
+// Initialize remarks data when customers load
+useEffect(() => {
+  const initialRemarks = {};
+  customers.forEach(c => {
+    initialRemarks[c._id] = c.remarks || '';
+  });
+  setRemarksData(prev => ({ ...prev, ...initialRemarks }));
+}, [customers]);
   
   // ✅ NEW: Function to add category
 const handleAddCategory = async () => {
@@ -249,17 +269,55 @@ const exportToExcel = async () => {
         search, 
         addedBy: addedBySearch, 
         createdBy: selectedSalesId,
-  giftType: selectedGift // ✅ Change to giftType
-        },
+        giftType: selectedGift,
+        category: selectedCategory // ✅ Add category filter to export
+      },
     });
 
     if (res.data.success && res.data.data.length > 0) {
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(res.data.data);
+      // ✅ Enhance the data with additional fields
+      const enhancedData = res.data.data.map((item, index) => {
+        // Find the full customer data from state
+        const customer = customers.find(c => c.name === item["Customer Name"]);
+        
+        return {
+          ...item,
+          // ✅ Add follow-up status
+          "Follow-up Status": customer?.latestFollowUpStatus || 'No Follow-up',
+          // ✅ Add remarks
+          "Remarks": customer?.remarks || '',
+          // ✅ Add latest follow-up date
+          "Last Follow-up Date": customer?.lastFollowUpDate 
+            ? new Date(customer.lastFollowUpDate).toLocaleDateString() 
+            : '',
+          // ✅ Add total follow-ups count
+          "Total Follow-ups": customer?.followUps?.length || 0,
+          // ✅ Add sales category (already in data but ensure it's there)
+          "Sales Category": customer?.salesCategory || '',
+          // ✅ Add converted status
+          "Converted": customer?.convertedToCustomerId ? 'Yes' : 'No',
+        };
+      });
+
+      // Create worksheet with all columns
+      const worksheet = XLSX.utils.json_to_sheet(enhancedData);
       
+      // ✅ Auto-size columns for better readability
+      const colWidths = [];
+      const headers = Object.keys(enhancedData[0] || {});
+      headers.forEach((key, idx) => {
+        let maxLength = key.length;
+        enhancedData.forEach(row => {
+          const value = row[key] ? String(row[key]) : '';
+          if (value.length > maxLength) maxLength = value.length;
+        });
+        colWidths[idx] = { wch: Math.min(Math.max(maxLength + 2, 12), 40) };
+      });
+      worksheet['!cols'] = colWidths;
+
       // Create workbook
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Potential Customers");
       
       // Generate Excel file
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -268,16 +326,214 @@ const exportToExcel = async () => {
       });
       
       // Save file
-      saveAs(data, `customers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success(`Exported ${res.data.total} customers successfully!`);
+      saveAs(data, `potential_customers_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`Exported ${enhancedData.length} customers successfully!`);
     } else {
       toast.error("No data to export");
     }
   } catch (err) {
     console.error("Export failed", err);
-    toast.error("Failed to export customers");
+    toast.error(err.response?.data?.error || "Failed to export customers");
   }
 };
+
+// FOLLOW-UP FUNCTIONS
+
+const fetchFollowUps = async (customerId, page = 1) => {
+  if (!customerId) return;
+  
+  setLoadingFollowUps(prev => ({ ...prev, [customerId]: true }));
+  try {
+    const res = await axiosInstance.get(`/potential-customers/${customerId}/follow-ups`, {
+      params: { page, limit: 5 }
+    });
+    
+    if (res.data.success) {
+      setFollowUps(prev => ({ 
+        ...prev, 
+        [customerId]: res.data.followUps || [] 
+      }));
+      setFollowUpTotalPages(prev => ({ 
+        ...prev, 
+        [customerId]: Math.ceil((res.data.total || 0) / 5) 
+      }));
+      setFollowUpTotal(prev => ({ 
+        ...prev, 
+        [customerId]: res.data.total || 0 
+      }));
+      setFollowUpPage(prev => ({ 
+        ...prev, 
+        [customerId]: page 
+      }));
+    }
+  } catch (err) {
+    console.error('Failed to fetch follow-ups:', err);
+  } finally {
+    setLoadingFollowUps(prev => ({ ...prev, [customerId]: false }));
+  }
+};
+
+const handleAddFollowUp = async (customerId) => {
+  const formData = followUpFormData[customerId] || { status: 'pending', notes: '', nextFollowUpDate: '' };
+  
+  if (!formData.status) {
+    toast.error('Status is required');
+    return;
+  }
+
+  try {
+    const res = await axiosInstance.post(`/potential-customers/${customerId}/follow-up`, formData);
+    if (res.data.success) {
+      toast.success('Follow-up added successfully');
+      setFollowUpFormData(prev => ({ ...prev, [customerId]: { status: 'pending', notes: '', nextFollowUpDate: '' } }));
+      setShowFollowUpForm(prev => ({ ...prev, [customerId]: false }));
+      setEditingFollowUpId(prev => ({ ...prev, [customerId]: null }));
+      fetchFollowUps(customerId, followUpPage[customerId] || 1);
+      // Refresh the customer list to update the latest status
+      fetchCustomers();
+    }
+  } catch (err) {
+    console.error('Failed to add follow-up:', err);
+    toast.error(err.response?.data?.error || 'Failed to add follow-up');
+  }
+};
+
+const handleUpdateFollowUp = async (customerId, followUpId) => {
+  const formData = followUpFormData[customerId] || { status: 'pending', notes: '', nextFollowUpDate: '' };
+  
+  if (!formData.status) {
+    toast.error('Status is required');
+    return;
+  }
+
+  try {
+    const res = await axiosInstance.put(`/potential-customers/${customerId}/follow-up/${followUpId}`, formData);
+    if (res.data.success) {
+      toast.success('Follow-up updated successfully');
+      setFollowUpFormData(prev => ({ ...prev, [customerId]: { status: 'pending', notes: '', nextFollowUpDate: '' } }));
+      setShowFollowUpForm(prev => ({ ...prev, [customerId]: false }));
+      setEditingFollowUpId(prev => ({ ...prev, [customerId]: null }));
+      fetchFollowUps(customerId, followUpPage[customerId] || 1);
+      // Refresh the customer list to update the latest status
+      fetchCustomers();
+    }
+  } catch (err) {
+    console.error('Failed to update follow-up:', err);
+    toast.error(err.response?.data?.error || 'Failed to update follow-up');
+  }
+};
+
+const handleDeleteFollowUp = async (customerId, followUpId) => {
+  if (!window.confirm('Are you sure you want to delete this follow-up?')) return;
+
+  try {
+    const res = await axiosInstance.delete(`/potential-customers/${customerId}/follow-up/${followUpId}`);
+    if (res.data.success) {
+      toast.success('Follow-up deleted successfully');
+      fetchFollowUps(customerId, followUpPage[customerId] || 1);
+      fetchCustomers(); // Refresh to update status
+    }
+  } catch (err) {
+    console.error('Failed to delete follow-up:', err);
+    toast.error('Failed to delete follow-up');
+  }
+};
+
+const handleEditFollowUp = (customerId, followUp) => {
+  setFollowUpFormData(prev => ({
+    ...prev,
+    [customerId]: {
+      status: followUp.status,
+      notes: followUp.notes || '',
+      nextFollowUpDate: followUp.nextFollowUpDate ? new Date(followUp.nextFollowUpDate).toISOString().split('T')[0] : ''
+    }
+  }));
+  setEditingFollowUpId(prev => ({ ...prev, [customerId]: followUp._id }));
+  setShowFollowUpForm(prev => ({ ...prev, [customerId]: true }));
+};
+
+const cancelFollowUpForm = (customerId) => {
+  setFollowUpFormData(prev => ({ ...prev, [customerId]: { status: 'pending', notes: '', nextFollowUpDate: '' } }));
+  setEditingFollowUpId(prev => ({ ...prev, [customerId]: null }));
+  setShowFollowUpForm(prev => ({ ...prev, [customerId]: false }));
+};
+
+const toggleFollowUpForm = (customerId) => {
+  setShowFollowUpForm(prev => ({ 
+    ...prev, 
+    [customerId]: !prev[customerId] 
+  }));
+  if (!showFollowUpForm[customerId]) {
+    // Initialize form data if not exists
+    if (!followUpFormData[customerId]) {
+      setFollowUpFormData(prev => ({
+        ...prev,
+        [customerId]: { status: 'pending', notes: '', nextFollowUpDate: '' }
+      }));
+    }
+    fetchFollowUps(customerId, 1);
+  } else {
+    cancelFollowUpForm(customerId);
+  }
+};
+
+const getFollowUpStatusColor = (status) => {
+  switch(status) {
+    case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+    case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
+    case 'rescheduled': return 'bg-purple-100 text-purple-800 border-purple-300';
+    default: return 'bg-gray-100 text-gray-600 border-gray-300';
+  }
+};
+
+const getFollowUpStatusLabel = (status) => {
+  switch(status) {
+    case 'completed': return '✅ Completed';
+    case 'pending': return '⏳ Pending';
+    case 'cancelled': return '❌ Cancelled';
+    case 'rescheduled': return '🔄 Rescheduled';
+    default: return '—';
+  }
+};
+
+// Handle follow-up form field changes
+const handleFollowUpFormChange = (customerId, field, value) => {
+  setFollowUpFormData(prev => ({
+    ...prev,
+    [customerId]: {
+      ...(prev[customerId] || { status: 'pending', notes: '', nextFollowUpDate: '' }),
+      [field]: value
+    }
+  }));
+};
+
+// REMARKS FUNCTIONS
+const handleSaveRemarks = async (customerId) => {
+  const remarks = remarksData[customerId] || '';
+  
+  setSavingRemarks(prev => ({ ...prev, [customerId]: true }));
+  try {
+    const res = await axiosInstance.put(`/potential-customers/${customerId}/remarks`, { remarks });
+    if (res.data.success) {
+      toast.success('Remarks updated successfully');
+      setEditingRemarks(null);
+      // Update the customer in the list
+      setCustomers(prev => prev.map(c => 
+        c._id === customerId 
+          ? { ...c, remarks: res.data.remarks }
+          : c
+      ));
+    }
+  } catch (err) {
+    console.error('Failed to update remarks:', err);
+    toast.error(err.response?.data?.error || 'Failed to update remarks');
+  } finally {
+    setSavingRemarks(prev => ({ ...prev, [customerId]: false }));
+  }
+};
+
+
 
   return (
     <>
@@ -600,216 +856,314 @@ const exportToExcel = async () => {
             <thead className="bg-gray-100 text-gray-800 font-semibold">
               <tr>
                 <th className="p-3 border">Name</th>
-                <th className="p-3 border">GST No.</th>
-                    <th className="p-3 border">Frequently Bought Products</th> {/* NEW COLUMN */}
-                        <th className="p-3 border">Gifts Given</th>
+                {/* <th className="p-3 border">GST No.</th> */}
+                    {/* <th className="p-3 border">Frequently Bought Products</th>  */}
+                        {/* <th className="p-3 border">Gifts Given</th> */}
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
                 <th className="p-3 border">Address</th>
-                                <th className="p-3 border">Instructions</th>
+                                {/* <th className="p-3 border">Instructions</th> */}
                                     <th className="p-3 border">Sales Category</th> {/* ✅ NEW COLUMN */}
-                <th className="p-3 border">Google Map</th>
-                <th className="p-3 border">Documents</th>
+                {/* <th className="p-3 border">Google Map</th> */}
+                {/* <th className="p-3 border">Documents</th> */}
                 <th className="p-3 border">Customer Handled / Managed By</th>
-                    <th className="p-3 border text-center">Costing Sheet</th>  {/* NEW COLUMN */}
+                    {/* <th className="p-3 border text-center">Costing Sheet</th>   */}
                 <th className="p-3 border text-center">Actions</th>
                 <th className="p-3 border text-center">Status</th>
+                 <th className="p-3 border">Follow-up Status</th>
+    <th className="p-3 border">Remarks</th>
               </tr>
             </thead>
-            <tbody>
-              {customers.map((c) => (
-                <tr key={c._id} className="hover:bg-gray-50 transition">
-<td className="p-3 border">
-  <button
-    onClick={() => navigate(`/orders?customer=${encodeURIComponent(c.name)}`)}
-    className="text-blue-600 hover:underline cursor-pointer text-left"
-  >
-    {c.name}
-  </button>
-</td>                  <td className="p-3 border">{c.company}</td>
-                      <td className="p-3 border text-sm">
-      {c.frequentProducts && c.frequentProducts.length > 0 ? (
-        <div className="max-w-[200px]">
-          {c.frequentProducts.slice(0, 3).map((product, index) => (
-            <div key={index} className="mb-1 last:mb-0">
-              <span className="font-medium text-gray-700">{product.product}</span>
-              <span className="text-xs text-gray-500 ml-1">
-                (×{product.timesOrdered})
-              </span>
-            </div>
-          ))}
-          {c.frequentProducts.length > 3 && (
-            <div className="text-xs text-gray-500 mt-1">
-              +{c.frequentProducts.length - 3} more
-            </div>
+           <tbody>
+  {customers.map((c) => {
+    const customerFollowUps = followUps[c._id] || [];
+    const isLoading = loadingFollowUps[c._id] || false;
+    const showForm = showFollowUpForm[c._id] || false;
+    const editingId = editingFollowUpId[c._id] || null;
+    const formData = followUpFormData[c._id] || { status: 'pending', notes: '', nextFollowUpDate: '' };
+    const currentPage = followUpPage[c._id] || 1;
+    const totalPages = followUpTotalPages[c._id] || 1;
+    
+    // Get status color
+    const getStatusColor = (status) => {
+      switch(status) {
+        case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+        case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
+        case 'rescheduled': return 'bg-purple-100 text-purple-800 border-purple-300';
+        default: return 'bg-gray-100 text-gray-600 border-gray-300';
+      }
+    };
+
+    const getStatusLabel = (status) => {
+      switch(status) {
+        case 'completed': return '✅ Completed';
+        case 'pending': return '⏳ Pending';
+        case 'cancelled': return '❌ Cancelled';
+        case 'rescheduled': return '🔄 Rescheduled';
+        default: return '—';
+      }
+    };
+
+    return (
+      <tr key={c._id} className="hover:bg-gray-50 transition">
+        <td className="p-3 border">
+          <span className="text-blue-600 text-left">{c.name}</span>
+        </td>
+        <td className="p-3 border">{c.phone}</td>
+        <td className="p-3 border">{c.email}</td>
+        <td className="p-3 border whitespace-pre-line">{c.address}</td>
+        <td className="p-3 border">
+          {c.salesCategory ? (
+            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+              {c.salesCategory}
+            </span>
+          ) : (
+            <span className="text-gray-400">—</span>
           )}
-        </div>
-      ) : (
-        <span className="text-gray-400">—</span>
-      )}
-    </td>
-    <td className="p-3 border">
-  {c.giftHistory && c.giftHistory.length > 0 ? (
-    <div className="max-w-[150px]">
-      <div className="text-sm text-gray-700">
-        Total: {c.giftHistory.length} Diwali gifts
-      </div>
-<button
-  onClick={() => {
-    navigate(`/potential-customers/edit/${c._id}#gifts`);
-  }}
-  className="text-blue-600 hover:underline text-sm mt-1"
->
-  View Details
-</button>
-    </div>
-  ) : (
-    <span className="text-gray-400">—</span>
-  )}
-</td>
-                  <td className="p-3 border">{c.phone}</td>
-                  <td className="p-3 border">{c.email}</td>
-                  <td className="p-3 border whitespace-pre-line">{c.address}</td>
-                   <td className="p-3 border max-w-xs"> {/* ✅ NEW CELL */}
-                    {c.instructions ? (
-                      <div 
-                        className="whitespace-pre-line text-sm text-gray-700 max-h-20 overflow-y-auto"
-                        title={c.instructions}
-                      >
-                        {c.instructions.length > 100 
-                          ? `${c.instructions.substring(0, 100)}...` 
-                          : c.instructions
-                        }
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 border">
-  {c.salesCategory ? (
-    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-      {c.salesCategory}
-    </span>
-  ) : (
-    <span className="text-gray-400">—</span>
-  )}
-</td>
-                  <td className="p-3 border">
-  {c.locationLink ? (
-    <a
-      href={c.locationLink}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-600 hover:underline"
-    >
-      📍 View Map
-    </a>
-  ) : (
-    <span className="text-gray-400">—</span>
-  )}
-</td>
-
-                  <td className="p-3 border space-y-1 text-sm">
-                    {c.gstDocs?.length > 0 ? (
-                      <div className="flex flex-col gap-1 max-w-[180px]">
-                       {c.gstDocs?.length > 0 ? (
-  <div className="flex flex-col gap-1 max-w-[180px]">
-    {c.gstDocs.map((url, i) => {
-      if (!url || typeof url !== "string") return null; // ✅ Skip null/invalid entries
-
-      const isImage = url.match(/\.(jpeg|jpg|png|gif)$/i);
-      const isPDF = url.endsWith(".pdf");
-
-      return (
-        <a
-          key={i}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline truncate flex items-center gap-1"
-        >
-          {isImage ? (
+        </td>
+        <td className="p-3 border text-sm text-gray-700">
+          {c.createdBy ? (
             <>
-              🖼️ <span className="truncate">Image {i + 1}</span>
-            </>
-          ) : isPDF ? (
-            <>
-              📄 <span className="truncate">PDF {i + 1}</span>
+              <div>{c.createdBy.name}</div>
+              <div className="text-xs text-gray-500">{c.createdBy.email}</div>
             </>
           ) : (
-            <span>📎 File {i + 1}</span>
+            <span className="text-gray-400">—</span>
           )}
-        </a>
-      );
-    })}
-  </div>
-) : (
-  <span className="text-gray-400">—</span>
-)}
-
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 border text-sm text-gray-700">
-  {c.createdBy ? (
-    <>
-      <div>{c.createdBy.name}</div>
-      <div className="text-xs text-gray-500">{c.createdBy.email}</div>
-    </>
-  ) : (
-    <span className="text-gray-400">—</span>
-  )}
-</td>
- <td className="p-3 border text-center">
-        <button
-          onClick={() => navigate(`/potential-customers/edit/${c._id}?openCostingSheet=true`)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-sm flex items-center gap-1 mx-auto transition-colors duration-200"
-          title="Open Costing Sheet"
-        >
-          <Calculator size={16} />
-          Costing Sheet
-        </button>
-      </td>
-
-                  <td className="p-3 border text-center space-x-2">
-                    <Link
-                      to={`/potential-customers/edit/${c._id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      ✏️ Edit
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(c._id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      🗑️ Delete
-                    </button>
-                  </td>
-                  <td className="p-3 border text-center">
-  {c.convertedToCustomerId ? (
-    <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium border border-green-300">
-      <span className="text-green-600">✅</span>
-      Converted
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
-      <span className="text-gray-400">○</span>
-      {c.status ? c.status.charAt(0).toUpperCase() + c.status.slice(1) : 'New'}
-    </span>
-  )}
-</td>
-                </tr>
-              ))}
-              {customers.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center p-6 text-gray-500">
-                    No Potential customers found.
-                  </td>
-                </tr>
+        </td>
+        <td className="p-3 border text-center space-x-2">
+          <Link
+            to={`/potential-customers/edit/${c._id}`}
+            className="text-blue-600 hover:underline"
+          >
+            ✏️ Edit
+          </Link>
+          <button
+            onClick={() => handleDelete(c._id)}
+            className="text-red-600 hover:underline"
+          >
+            🗑️ Delete
+          </button>
+        </td>
+        <td className="p-3 border text-center">
+          {c.convertedToCustomerId ? (
+            <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium border border-green-300">
+              <span className="text-green-600">✅</span>
+              Converted
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+              <span className="text-gray-400">○</span>
+              {c.status ? c.status.charAt(0).toUpperCase() + c.status.slice(1) : 'New'}
+            </span>
+          )}
+        </td>
+        
+        {/* FOLLOW-UP STATUS COLUMN */}
+        <td className="p-3 border">
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => toggleFollowUpForm(c._id)}
+              className="w-full text-left"
+            >
+              {c.latestFollowUpStatus ? (
+                <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(c.latestFollowUpStatus)}`}>
+                  {getStatusLabel(c.latestFollowUpStatus)}
+                </span>
+              ) : (
+                <span className="text-gray-400 text-sm hover:text-blue-500 transition">
+                  ➕ Add
+                </span>
               )}
-            </tbody>
+            </button>
+            
+            {/* Follow-up form - shown inline */}
+            {showForm && (
+              <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="space-y-2">
+                  <select
+                    value={formData.status}
+                    onChange={(e) => handleFollowUpFormChange(c._id, 'status', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  >
+                    <option value="pending">⏳ Pending</option>
+                    <option value="completed">✅ Completed</option>
+                    <option value="cancelled">❌ Cancelled</option>
+                    <option value="rescheduled">🔄 Rescheduled</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={formData.nextFollowUpDate}
+                    onChange={(e) => handleFollowUpFormChange(c._id, 'nextFollowUpDate', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                    placeholder="Next date"
+                  />
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => handleFollowUpFormChange(c._id, 'notes', e.target.value)}
+                    rows="2"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                    placeholder="Notes..."
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => {
+                        if (editingId) {
+                          handleUpdateFollowUp(c._id, editingId);
+                        } else {
+                          handleAddFollowUp(c._id);
+                        }
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      {editingId ? 'Update' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => cancelFollowUpForm(c._id)}
+                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Follow-up history list */}
+            {showForm && customerFollowUps.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                {customerFollowUps.map((followUp) => (
+                  <div key={followUp._id} className="flex items-start justify-between text-xs p-1 bg-white rounded border border-gray-100">
+                    <div className="flex-1">
+                      <span className={`px-1 py-0.5 text-xs rounded-full border ${getStatusColor(followUp.status)}`}>
+                        {getStatusLabel(followUp.status)}
+                      </span>
+                      {followUp.notes && (
+                        <span className="ml-1 text-gray-600">{followUp.notes.substring(0, 30)}</span>
+                      )}
+                      {followUp.nextFollowUpDate && (
+                        <span className="ml-1 text-blue-500 text-xs">
+                          📅 {new Date(followUp.nextFollowUpDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 ml-1">
+                      <button
+                        onClick={() => handleEditFollowUp(c._id, followUp)}
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFollowUp(c._id, followUp._id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Pagination for follow-ups */}
+            {showForm && totalPages > 1 && (
+              <div className="flex gap-1 mt-1 justify-center">
+                <button
+                  onClick={() => fetchFollowUps(c._id, currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-0.5 text-xs bg-gray-200 rounded disabled:opacity-50"
+                >
+                  ◀
+                </button>
+                <span className="text-xs text-gray-500">
+                  {currentPage}/{totalPages}
+                </span>
+                <button
+                  onClick={() => fetchFollowUps(c._id, currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-0.5 text-xs bg-gray-200 rounded disabled:opacity-50"
+                >
+                  ▶
+                </button>
+              </div>
+            )}
+            
+            {isLoading && <span className="text-xs text-gray-400">Loading...</span>}
+          </div>
+        </td>
+        
+       {/* REMARKS COLUMN - Inline editable */}
+<td className="p-3 border">
+  <div className="flex flex-col gap-1">
+    {editingRemarks === c._id ? (
+      <div className="flex flex-col gap-1">
+        <textarea
+          value={remarksData[c._id] || ''}
+          onChange={(e) => {
+            setRemarksData(prev => ({
+              ...prev,
+              [c._id]: e.target.value
+            }));
+          }}
+          rows="2"
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          placeholder="Enter remarks..."
+          autoFocus
+        />
+        <div className="flex gap-1">
+          <button
+            onClick={() => handleSaveRemarks(c._id)}
+            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => {
+              setEditingRemarks(null);
+              setRemarksData(prev => ({
+                ...prev,
+                [c._id]: c.remarks || ''
+              }));
+            }}
+            className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div 
+        onClick={() => {
+          setEditingRemarks(c._id);
+          setRemarksData(prev => ({
+            ...prev,
+            [c._id]: c.remarks || ''
+          }));
+        }}
+        className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-[40px] flex items-center"
+      >
+        {c.remarks ? (
+          <span className="text-sm text-gray-700 line-clamp-2">{c.remarks}</span>
+        ) : (
+          <span className="text-gray-400 text-sm">Click to add remarks</span>
+        )}
+      </div>
+    )}
+  </div>
+</td>
+      </tr>
+    );
+  })}
+  {customers.length === 0 && (
+    <tr>
+      <td colSpan={11} className="text-center p-6 text-gray-500">
+        No Potential customers found.
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
         </div>
 
