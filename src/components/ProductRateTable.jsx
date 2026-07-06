@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
-import { Download, Search, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, Search, RefreshCw, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -14,6 +14,11 @@ export default function ProductRateTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [paginatedProducts, setPaginatedProducts] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -93,6 +98,7 @@ export default function ProductRateTable() {
   const handleSearch = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
+    setCurrentPage(1); // Reset to first page on search
     
     if (term.trim() === "") {
       setFilteredProducts(products);
@@ -113,6 +119,7 @@ export default function ProductRateTable() {
       setSortField(field);
       setSortDirection("asc");
     }
+    setCurrentPage(1); // Reset to first page on sort
   };
 
   const getSortedProducts = () => {
@@ -158,6 +165,27 @@ export default function ProductRateTable() {
       return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
     });
     return sorted;
+  };
+
+  // Get current page items
+  useEffect(() => {
+    const sorted = getSortedProducts();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedProducts(sorted.slice(startIndex, endIndex));
+  }, [filteredProducts, sortField, sortDirection, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
   };
 
   const exportToExcel = () => {
@@ -243,10 +271,13 @@ export default function ProductRateTable() {
               </h3>
               <p className="text-sm text-gray-500">
                 {sortedProducts.length} products • RM Rate: ₹{rmRate.toFixed(2)}/kg
+                {filteredProducts.length > 0 && (
+                  <span className="ml-2">• Showing {paginatedProducts.length} of {filteredProducts.length}</span>
+                )}
               </p>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={fetchData}
                 className="flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg transition-colors duration-200"
@@ -285,110 +316,171 @@ export default function ProductRateTable() {
               <span className="ml-3 text-gray-600">Loading products...</span>
             </div>
           ) : (
-            /* Table */
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("name")}
-                    >
-                      Product Name {sortField === "name" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("unit")}
-                    >
-                      Unit {sortField === "unit" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("weight")}
-                    >
-                      Weight {sortField === "weight" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("conversion")}
-                    >
-                      Conversion {sortField === "conversion" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total(RM Rate + Conversion)
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("pricePerPiece")}
-                    >
-                     Basic Price/Packet {sortField === "pricePerPiece" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("gstAmount")}
-                    >
-                      GST 18% {sortField === "gstAmount" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("finalPrice")}
-                    >
-                      total Price Ex-Factory {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedProducts.length === 0 ? (
+            <>
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
-                        No products found
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("name")}
+                      >
+                        Product Name {sortField === "name" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("unit")}
+                      >
+                        Unit {sortField === "unit" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("weight")}
+                      >
+                        Weight {sortField === "weight" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("conversion")}
+                      >
+                        Conversion {sortField === "conversion" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total(RM Rate + Conversion)
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("pricePerPiece")}
+                      >
+                        Basic Price/Packet {sortField === "pricePerPiece" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("gstAmount")}
+                      >
+                        GST 18% {sortField === "gstAmount" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("finalPrice")}
+                      >
+                        Total Price Ex-Factory {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
+                          No products found
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedProducts.map((product) => {
+                        const calc = calculatePrice(product);
+                        if (!calc) return null;
+                        
+                        return (
+                          <tr key={product._id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2.5 text-gray-800 min-w-[200px] max-w-[300px] break-words" title={product.name}>
+                              {product.name}
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              {product.unit || '-'}
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              {calc.weightInGrams > 0 ? `${calc.weightInGrams}g` : '-'}
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              ₹{calc.conversionRate.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2.5 text-green-600 font-medium">
+                              ₹{calc.totalPerKg.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2.5 font-semibold text-purple-600">
+                              ₹{calc.pricePerPiece.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2.5 text-orange-600">
+                              ₹{calc.gstAmount.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2.5 font-bold text-green-700">
+                              ₹{calc.finalPrice.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan="8" className="px-3 py-3 text-sm text-gray-500">
+                        Total Products: {sortedProducts.length} • RM Rate: ₹{rmRate.toFixed(2)}/kg
                       </td>
                     </tr>
-                  ) : (
-                    sortedProducts.map((product) => {
-                      const calc = calculatePrice(product);
-                      if (!calc) return null;
-                      
-                      return (
-                        <tr key={product._id} className="hover:bg-gray-50">
-                         <td className="px-3 py-2.5 text-gray-800 min-w-[200px] max-w-[300px] break-words" title={product.name}>
-  {product.name}
-</td>
-                          <td className="px-3 py-2.5 text-gray-600">
-                            {product.unit || '-'}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-600">
-                            {calc.weightInGrams > 0 ? `${calc.weightInGrams}g` : '-'}
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-600">
-                            ₹{calc.conversionRate.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2.5 text-green-600 font-medium">
-                            ₹{calc.totalPerKg.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2.5 font-semibold text-purple-600">
-                            ₹{calc.pricePerPiece.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2.5 text-orange-600">
-                            ₹{calc.gstAmount.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2.5 font-bold text-green-700">
-                            ₹{calc.finalPrice.toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-                <tfoot className="bg-gray-50">
-                  <tr>
-                    <td colSpan="8" className="px-3 py-3 text-sm text-gray-500">
-                      Total Products: {sortedProducts.length} • RM Rate: ₹{rmRate.toFixed(2)}/kg
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredProducts.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Rows per page:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={handleItemsPerPageChange}
+                      className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={30}>30</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span className="text-sm text-gray-500 ml-2">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    
+                    <span className="text-sm text-gray-600 px-3">
+                      Page {currentPage} of {totalPages || 1}
+                    </span>
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
