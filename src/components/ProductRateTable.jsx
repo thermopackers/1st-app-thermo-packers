@@ -310,7 +310,7 @@ export default function ProductRateTable() {
           </div>
 
           {/* Search and Pagination Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          {/* <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={18} className="text-gray-400" />
@@ -337,7 +337,7 @@ export default function ProductRateTable() {
                 <option value={100}>100</option>
               </select>
             </div>
-          </div>
+          </div> */}
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
@@ -362,15 +362,15 @@ export default function ProductRateTable() {
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("conversion")}>
                         Conversion {sortField === "conversion" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total/kg</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total(RM Rate + Conversion)</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("pricePerPiece")}>
-                        Basic Price {sortField === "pricePerPiece" && (sortDirection === "asc" ? "↑" : "↓")}
+                        Basic Price/Packet {sortField === "pricePerPiece" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("gstAmount")}>
                         GST 18% {sortField === "gstAmount" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("finalPrice")}>
-                        Final Price {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
+                        Total Price Ex-Factory {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                     </tr>
                   </thead>
