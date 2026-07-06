@@ -668,9 +668,32 @@ const fetchDieselEntries = async () => {
     const res = await axiosInstance.get("/diesel/entries", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    setDieselEntries(res.data);
+    
+    // ✅ FIX: Ensure we always set an array
+    // Check if response.data is an array, if not, try to extract it
+    let entriesData = res.data;
+    
+    // If response is an object with a data property that is an array
+    if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
+      if (Array.isArray(res.data.data)) {
+        entriesData = res.data.data;
+      } else if (Array.isArray(res.data.entries)) {
+        entriesData = res.data.entries;
+      } else {
+        // If it's a single object, wrap it in an array
+        entriesData = [res.data];
+      }
+    }
+    
+    // Ensure we always have an array
+    if (!Array.isArray(entriesData)) {
+      entriesData = [];
+    }
+    
+    setDieselEntries(entriesData);
   } catch (err) {
     console.error("Failed to fetch diesel entries:", err);
+    setDieselEntries([]); // ✅ Set to empty array on error
   } finally {
     setLoadingDieselEntries(false);
   }
@@ -1059,11 +1082,22 @@ useEffect(() => {
 }, [token]);
 
 // Helper function to get diesel entry for a specific plan
+// Helper function to get diesel entry for a specific plan
 const getDieselEntryForPlan = (planId) => {
   if (!planId) return null;
-  return dieselEntries.find(entry => entry.planId === planId);
+  
+  // ✅ FIX: Ensure dieselEntries is an array before calling find
+  if (!Array.isArray(dieselEntries)) {
+    console.warn('dieselEntries is not an array:', dieselEntries);
+    return null;
+  }
+  
+  return dieselEntries.find(entry => {
+    // Handle different possible ID field names
+    const entryPlanId = entry.planId || entry.plan_id || entry.dispatchPlanId;
+    return entryPlanId === planId;
+  });
 };
-
 // Form submission for table format
 const handleTableSubmit = async () => {
   const { vehicleNumber, driverName, remarks, dateOfTrip } = formData;
