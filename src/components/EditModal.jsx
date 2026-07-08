@@ -54,7 +54,7 @@ const EditModal = ({ order, onSave, onClose }) => {
 
   const [allProducts, setAllProducts] = useState([]);
 
-  // Debug - Remove this after fixing
+  // Debug - Remove after fixing
   useEffect(() => {
     console.log("🔍 EditModal - Order data:", order);
     console.log("🔍 EditModal - Has multiple products:", hasMultipleProducts);
@@ -69,7 +69,10 @@ const EditModal = ({ order, onSave, onClose }) => {
     gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
     axiosInstance
       .get("/products/all-backend-products")
-      .then((res) => setAllProducts(res.data))
+      .then((res) => {
+        console.log("📦 All products loaded:", res.data);
+        setAllProducts(res.data);
+      })
       .catch(console.error);
   }, []);
 
@@ -208,6 +211,12 @@ const EditModal = ({ order, onSave, onClose }) => {
                           className="border border-gray-300 p-2 rounded w-full text-sm"
                         >
                           <option value="">Select Product</option>
+                          {/* ✅ If current product name doesn't exist in the list, show it as an option */}
+                          {prod.productName && !allProducts.some(p => p.name === prod.productName) && (
+                            <option value={prod.productName} selected>
+                              {prod.productName} (Current)
+                            </option>
+                          )}
                           {allProducts.map((p) => (
                             <option key={p._id} value={p.name}>
                               {p.name}
