@@ -57,7 +57,7 @@ const EditModal = ({ order, onSave, onClose }) => {
   useEffect(() => {
     gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
     axiosInstance
-      .get("/products/all-backend-products")
+      .get("/products/all-backend-products-edit")
       .then((res) => setAllProducts(res.data))
       .catch(console.error);
   }, []);
