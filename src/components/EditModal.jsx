@@ -204,18 +204,20 @@ const EditModal = ({ order, onSave, onClose }) => {
                 <tbody>
                   {updatedOrder.products.map((prod, idx) => (
                     <tr key={idx}>
-                     <td className="p-2 border">
+                     <td className="p-2 border" style={{ minWidth: '200px', maxWidth: '300px' }}>
   <select
     value={prod.productName}
     onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
-    className="border border-gray-300 p-2 rounded w-full text-sm"
+    className="border border-gray-300 p-2 rounded w-full text-sm truncate"
     style={{ 
       maxWidth: '100%',
+      display: 'block',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
+      whiteSpace: 'nowrap',
+      paddingRight: '20px'
     }}
-    title={prod.productName} // ✅ This shows full name on hover
+    title={prod.productName || 'Select Product'}
   >
     <option value="">Select Product</option>
     {/* ✅ If current product name doesn't exist in the list, show it as an option */}
