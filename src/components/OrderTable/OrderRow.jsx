@@ -221,6 +221,14 @@ const saveSingleDelivered = async (newValue) => {
   }
 };
 
+// Determine row background color for sticky columns
+const getStickyBgClass = () => {
+  if (order.status === "cancelled") return "bg-red-50";
+  if (Math.abs(remainingBalance) < 0.01 && totalDelivered > 0) return "bg-green-300";
+  if (remainingBalance > 0.01 && totalDelivered > 0) return "bg-yellow-300";
+  return ""; // Will use odd/even from parent
+};
+
   return (
     <tr className={`order-row hover:bg-gray-100 ${getRowClass()}`} data-order-id={order._id}>
       
@@ -281,58 +289,25 @@ const saveSingleDelivered = async (newValue) => {
       </OrderCell>
 
       {/* Customer Name */}
-      <OrderCell className="whitespace-nowrap">
-        {order.customer?.name || order.customerName}
-      </OrderCell>
-
-      {/* Order Actions */}
-      <OrderCell>
-        <OrderActions
-          order={order}
-          handleComplete={handleComplete}
-          handleCancel={handleCancel}
-        />
+      {/* Customer Name */}
+      <OrderCell className="sticky !text-[9px] md:!text-sm left-0 z-25 min-w-[80px] max-w-[100px] bg-white break-words">
+        <div>
+          {order.customer?.name || order.customerName}
+        </div>
       </OrderCell>
 
       {/* PRODUCT NAME */}
-      <OrderCell className="text-indigo-600 font-bold">
+ <OrderCell className="text-indigo-600 !text-[9px] md:!text-sm font-bold sticky md:left-[110px] left-[80px] z-25 min-w-[100px] max-w-[250px] bg-white break-words">
         {hasMultipleProducts ? (
-          <div className="space-y-2">
-            {productList.map((prod, idx) => (
-              <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
-                <button
-                  onClick={() => {
-                    const product = products.find((p) => p.name === prod.productName);
-                    if (product?.images?.length > 0) {
-                      setActiveProductImage({
-                        name: prod.productName,
-                        images: product.images,
-                      });
-                    } else {
-                      Swal.fire({
-                        icon: "info",
-                        title: "No Image",
-                        text: "No images available for this product.",
-                      });
-                    }
-                  }}
-                  className="underline cursor-pointer text-left"
-                >
-                  {prod.productName}
-                </button>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
+    <div className="space-y-2">
+      {productList.map((prod, idx) => (
+        <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
           <button
             onClick={() => {
-              const product = products.find((p) => p.name === order.product);
+              const product = products.find((p) => p.name === prod.productName);
               if (product?.images?.length > 0) {
                 setActiveProductImage({
-                  name: product.name,
+                  name: prod.productName,
                   images: product.images,
                 });
               } else {
@@ -343,11 +318,47 @@ const saveSingleDelivered = async (newValue) => {
                 });
               }
             }}
-            className="underline cursor-pointer"
+            className="underline cursor-pointer text-left"
           >
-            {order.product}
+            {prod.productName}
           </button>
-        )}
+          <div className="text-xs text-gray-500 mt-0.5 !text-[9px] md:!text-sm">
+            Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <button
+      onClick={() => {
+        const product = products.find((p) => p.name === order.product);
+        if (product?.images?.length > 0) {
+          setActiveProductImage({
+            name: product.name,
+            images: product.images,
+          });
+        } else {
+          Swal.fire({
+            icon: "info",
+            title: "No Image",
+            text: "No images available for this product.",
+          });
+        }
+      }}
+      className="underline cursor-pointer"
+    >
+      {order.product}
+    </button>
+  )}
+</OrderCell>
+
+       {/* Order Actions */}
+      <OrderCell>
+        <OrderActions
+          order={order}
+          handleComplete={handleComplete}
+          handleCancel={handleCancel}
+        />
       </OrderCell>
 
       {/* Narration */}
@@ -440,7 +451,7 @@ const saveSingleDelivered = async (newValue) => {
       <div className="space-y-1">
         {productList.map((prod, idx) => (
           <div key={idx} className="text-xs">
-            {prod.productName}: <span className='bg-blue-200 p-1 rounded'>{parseFloat(prod.quantity).toFixed(2)}</span>
+            <span className='bg-blue-200 p-1 rounded'>{parseFloat(prod.quantity).toFixed(2)}</span>
           </div>
         ))}
       </div>
@@ -463,7 +474,6 @@ const saveSingleDelivered = async (newValue) => {
         
         return (
           <div key={idx} className="text-sm">
-            <span className="text-gray-600 text-xs">{prod.productName}:</span>
             {role.includes("accounts") ? (
               isEditing ? (
                 <div className="flex items-center gap-1 mt-1">
@@ -626,7 +636,6 @@ const saveSingleDelivered = async (newValue) => {
 const remaining = (parseFloat(prod.quantity) || 0) - delivered;
               return (
                 <div key={idx} className="text-sm">
-                  <span className="text-gray-600 text-xs">{prod.productName}:</span>
                  <span className={`ml-2 px-1 py-0.5 rounded text-xs ${
   remaining === 0 
     ? "bg-green-100 text-green-800" 
@@ -675,7 +684,7 @@ const remaining = (parseFloat(order.quantity) || 0) - (parseFloat(order.delivere
     <div className="space-y-1">
       {productList.map((prod, idx) => (
         <div key={idx} className="text-xs">
-<span className="font-medium">{prod.productName}:</span> <span className="bg-blue-200 p-1 rounded">₹{parseFloat(prod.price) || 0}</span>        </div>
+ <span className="bg-blue-200 p-1 rounded">₹{parseFloat(prod.price) || 0}</span>        </div>
       ))}
     </div>
   ) : (
@@ -689,7 +698,7 @@ const remaining = (parseFloat(order.quantity) || 0) - (parseFloat(order.delivere
           <div className="space-y-1">
             {productList.map((prod, idx) => (
               <div key={idx} className="text-xs">
-                {prod.productName}: <span className="bg-blue-200 p-1 rounded">{prod.density || "N/A"}</span> kg/m³
+                <span className="bg-blue-200 p-1 rounded">{prod.density || "N/A"}</span> kg/m³
               </div>
             ))}
           </div>
