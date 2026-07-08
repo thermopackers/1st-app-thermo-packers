@@ -60,8 +60,6 @@ const EditModal = ({ order, onSave, onClose }) => {
     console.log("🔍 EditModal - Has multiple products:", hasMultipleProducts);
     if (hasMultipleProducts) {
       console.log("🔍 EditModal - Products array:", order.products);
-      console.log("🔍 EditModal - First product keys:", Object.keys(order.products[0] || {}));
-      console.log("🔍 EditModal - First product:", order.products[0]);
     }
   }, [order, hasMultipleProducts]);
 
@@ -85,6 +83,16 @@ const EditModal = ({ order, onSave, onClose }) => {
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...updatedOrder.products];
     updatedProducts[index] = { ...updatedProducts[index], [field]: value };
+    setUpdatedOrder((prev) => ({ ...prev, products: updatedProducts }));
+  };
+
+  // ✅ Handle product selection from dropdown
+  const handleProductSelect = (index, productName) => {
+    const updatedProducts = [...updatedOrder.products];
+    updatedProducts[index] = { 
+      ...updatedProducts[index], 
+      productName: productName 
+    };
     setUpdatedOrder((prev) => ({ ...prev, products: updatedProducts }));
   };
 
@@ -188,111 +196,126 @@ const EditModal = ({ order, onSave, onClose }) => {
                 + Add Product
               </button>
             </div>
-          <div className="overflow-x-auto">
-  <table className="min-w-full border border-gray-200 text-sm">
-    <thead className="bg-gray-100">
-      <tr>
-        <th className="p-2 border" style={{ minWidth: '280px' }}>Product Name</th>
-        <th className="p-2 border" style={{ minWidth: '80px' }}>Quantity</th>
-        <th className="p-2 border" style={{ minWidth: '80px' }}>Price</th>
-        <th className="p-2 border" style={{ minWidth: '80px' }}>Size</th>
-        <th className="p-2 border" style={{ minWidth: '80px' }}>Density</th>
-        <th className="p-2 border" style={{ minWidth: '120px' }}>Remarks</th>
-        <th className="p-2 border" style={{ minWidth: '50px' }}>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {updatedOrder.products.map((prod, idx) => (
-        <tr key={idx}>
-          <td className="p-2 border" style={{ minWidth: '280px', maxWidth: '350px' }}>
-            <select
-              value={prod.productName}
-              onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-full text-sm"
-              style={{ 
-                width: '100%',
-                maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-              title={prod.productName || 'Select Product'}
-            >
-              <option value="">Select Product</option>
-              {/* ✅ If current product name doesn't exist in the list, show it as an option */}
-              {prod.productName && !allProducts.some(p => p.name === prod.productName) && (
-                <option value={prod.productName} selected>
-                  {prod.productName} (Current)
-                </option>
-              )}
-              {allProducts.map((p) => (
-                <option key={p._id} value={p.name} title={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </td>
-          <td className="p-2 border">
-            <input
-              type="number"
-              value={prod.quantity || ""}
-              onChange={(e) => handleProductChange(idx, "quantity", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-24"
-              placeholder="Qty"
-            />
-          </td>
-          <td className="p-2 border">
-            <input
-              type="number"
-              step="0.01"
-              value={prod.price || ""}
-              onChange={(e) => handleProductChange(idx, "price", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-24"
-              placeholder="Price"
-            />
-          </td>
-          <td className="p-2 border">
-            <input
-              type="text"
-              value={prod.size || ""}
-              onChange={(e) => handleProductChange(idx, "size", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-24"
-              placeholder="Size"
-            />
-          </td>
-          <td className="p-2 border">
-            <input
-              type="text"
-              value={prod.density || ""}
-              onChange={(e) => handleProductChange(idx, "density", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-24"
-              placeholder="Density"
-            />
-          </td>
-          <td className="p-2 border">
-            <input
-              type="text"
-              value={prod.productRemarks || ""}
-              onChange={(e) => handleProductChange(idx, "productRemarks", e.target.value)}
-              className="border border-gray-300 p-2 rounded w-32"
-              placeholder="Remarks"
-            />
-          </td>
-          <td className="p-2 border text-center">
-            <button
-              type="button"
-              onClick={() => removeProductRow(idx)}
-              className="text-red-500 hover:text-red-700 text-xl font-bold"
-              disabled={updatedOrder.products.length <= 1}
-            >
-              ×
-            </button>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full border border-gray-200 text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border" style={{ minWidth: '300px' }}>Product Name</th>
+                    <th className="p-2 border" style={{ minWidth: '80px' }}>Quantity</th>
+                    <th className="p-2 border" style={{ minWidth: '80px' }}>Price</th>
+                    <th className="p-2 border" style={{ minWidth: '80px' }}>Size</th>
+                    <th className="p-2 border" style={{ minWidth: '80px' }}>Density</th>
+                    <th className="p-2 border" style={{ minWidth: '120px' }}>Remarks</th>
+                    <th className="p-2 border" style={{ minWidth: '50px' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {updatedOrder.products.map((prod, idx) => {
+                    // Check if this product exists in the product list
+                    const productExists = allProducts.some(p => p.name === prod.productName);
+                    
+                    return (
+                      <tr key={idx}>
+                        <td className="p-2 border">
+                          <div className="flex flex-col gap-1">
+                            {/* ✅ Show product name in a textarea/input for full visibility */}
+                            <textarea
+                              value={prod.productName}
+                              onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
+                              className="border border-gray-300 p-2 rounded w-full text-sm"
+                              rows="2"
+                              placeholder="Enter product name"
+                              style={{ resize: 'vertical', minHeight: '40px' }}
+                            />
+                            
+                            {/* ✅ Dropdown to select from existing products */}
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleProductSelect(idx, e.target.value);
+                                }
+                              }}
+                              className="border border-gray-300 p-1 rounded w-full text-sm bg-gray-50"
+                            >
+                              <option value="">-- Select from products --</option>
+                              {allProducts.map((p) => (
+                                <option key={p._id} value={p.name}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            {/* ✅ Show warning if product doesn't exist in list */}
+                            {prod.productName && !productExists && (
+                              <span className="text-xs text-amber-600">
+                                ⚠️ This product is not in the current product list
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="number"
+                            value={prod.quantity || ""}
+                            onChange={(e) => handleProductChange(idx, "quantity", e.target.value)}
+                            className="border border-gray-300 p-2 rounded w-24"
+                            placeholder="Qty"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={prod.price || ""}
+                            onChange={(e) => handleProductChange(idx, "price", e.target.value)}
+                            className="border border-gray-300 p-2 rounded w-24"
+                            placeholder="Price"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="text"
+                            value={prod.size || ""}
+                            onChange={(e) => handleProductChange(idx, "size", e.target.value)}
+                            className="border border-gray-300 p-2 rounded w-24"
+                            placeholder="Size"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="text"
+                            value={prod.density || ""}
+                            onChange={(e) => handleProductChange(idx, "density", e.target.value)}
+                            className="border border-gray-300 p-2 rounded w-24"
+                            placeholder="Density"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="text"
+                            value={prod.productRemarks || ""}
+                            onChange={(e) => handleProductChange(idx, "productRemarks", e.target.value)}
+                            className="border border-gray-300 p-2 rounded w-32"
+                            placeholder="Remarks"
+                          />
+                        </td>
+                        <td className="p-2 border text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeProductRow(idx)}
+                            className="text-red-500 hover:text-red-700 text-xl font-bold"
+                            disabled={updatedOrder.products.length <= 1}
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
