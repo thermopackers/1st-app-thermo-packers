@@ -13,12 +13,12 @@ const EditModal = ({ order, onSave, onClose }) => {
       // For multi-product orders, store products array
       return {
         products: order.products.map(prod => ({
-          productName: prod.productName,
+          productName: prod.productName || prod.product || "",
           quantity: prod.quantity,
           price: prod.price,
           size: prod.size || "",
           density: prod.density || "",
-          productRemarks: prod.productRemarks || "",
+          productRemarks: prod.productRemarks || prod.remarks || "",
         })),
         freight: order.freight || "",
         freightAmount: order.freightAmount || "",
@@ -53,6 +53,17 @@ const EditModal = ({ order, onSave, onClose }) => {
   });
 
   const [allProducts, setAllProducts] = useState([]);
+
+  // Debug - Remove this after fixing
+  useEffect(() => {
+    console.log("🔍 EditModal - Order data:", order);
+    console.log("🔍 EditModal - Has multiple products:", hasMultipleProducts);
+    if (hasMultipleProducts) {
+      console.log("🔍 EditModal - Products array:", order.products);
+      console.log("🔍 EditModal - First product keys:", Object.keys(order.products[0] || {}));
+      console.log("🔍 EditModal - First product:", order.products[0]);
+    }
+  }, [order, hasMultipleProducts]);
 
   useEffect(() => {
     gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
@@ -101,7 +112,7 @@ const EditModal = ({ order, onSave, onClose }) => {
   const handleSave = async () => {
     let dataToSave;
     
-    if (hasMultipleProducts || updatedOrder.products) {
+    if (hasMultipleProducts || (updatedOrder.products && updatedOrder.products.length > 1)) {
       // For multi-product orders
       dataToSave = {
         products: updatedOrder.products,
@@ -161,8 +172,8 @@ const EditModal = ({ order, onSave, onClose }) => {
       <div className="modal-content bg-white p-6 rounded-lg shadow-lg max-w-5xl w-full my-10 max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold mb-4">Edit Order</h2>
         
-        {/* ✅ Multi-Product Table */}
-        {(hasMultipleProducts || updatedOrder.products) && updatedOrder.products && (
+        {/* ✅ Multi-Product Table - Only show if order actually has multiple products */}
+        {(hasMultipleProducts || (updatedOrder.products && updatedOrder.products.length > 1)) && (
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-bold text-blue-700">Products</h3>
@@ -255,6 +266,7 @@ const EditModal = ({ order, onSave, onClose }) => {
                           type="button"
                           onClick={() => removeProductRow(idx)}
                           className="text-red-500 hover:text-red-700 text-xl font-bold"
+                          disabled={updatedOrder.products.length <= 1}
                         >
                           ×
                         </button>
@@ -267,8 +279,8 @@ const EditModal = ({ order, onSave, onClose }) => {
           </div>
         )}
 
-        {/* ✅ Single Product Fields (shown only for non-multi-product orders) */}
-        {!hasMultipleProducts && !updatedOrder.products && (
+        {/* ✅ Single Product Fields - Only show if order is single product */}
+        {!hasMultipleProducts && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Quantity" name="quantity" value={updatedOrder.quantity} onChange={handleChange} />
             <Input label="Price" name="price" value={updatedOrder.price} onChange={handleChange} />
