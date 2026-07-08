@@ -54,13 +54,13 @@ const EditModal = ({ order, onSave, onClose }) => {
 
   const [allProducts, setAllProducts] = useState([]);
 
-  useEffect(() => {
-    gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
-    axiosInstance
-      .get("/products/all-backend-products")
-      .then((res) => setAllProducts(res.data))
-      .catch(console.error);
-  }, []);
+useEffect(() => {
+  gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
+  axiosInstance
+    .get("/products/dropdown-products")
+    .then((res) => setAllProducts(res.data))
+    .catch(console.error);
+}, []);
 
   // Add this right after the useState initialization
 useEffect(() => {
