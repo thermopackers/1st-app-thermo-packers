@@ -7,6 +7,9 @@ const EditModal = ({ order, onSave, onClose }) => {
   // ✅ Check if multi-product order
   const hasMultipleProducts = order.products && order.products.length > 0;
   
+  // ✅ Add loading state
+  const [isSaving, setIsSaving] = useState(false);
+  
   // ✅ Initialize state for multi-product orders
   const [updatedOrder, setUpdatedOrder] = useState(() => {
     if (hasMultipleProducts) {
@@ -54,24 +57,24 @@ const EditModal = ({ order, onSave, onClose }) => {
 
   const [allProducts, setAllProducts] = useState([]);
 
-useEffect(() => {
-  gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
-  axiosInstance
-    .get("/products/dropdown-products")
-    .then((res) => setAllProducts(res.data))
-    .catch(console.error);
-}, []);
+  useEffect(() => {
+    gsap.from(".modal-content", { opacity: 0, y: -50, duration: 0.5 });
+    axiosInstance
+      .get("/products/dropdown-products")
+      .then((res) => setAllProducts(res.data))
+      .catch(console.error);
+  }, []);
 
   // Add this right after the useState initialization
-useEffect(() => {
-  console.log("🔍 EditModal - Order data:", order);
-  console.log("🔍 EditModal - Has multiple products:", hasMultipleProducts);
-  if (hasMultipleProducts) {
-    console.log("🔍 EditModal - Products array:", order.products);
-    console.log("🔍 EditModal - First product keys:", Object.keys(order.products[0] || {}));
-    console.log("🔍 EditModal - First product:", order.products[0]);
-  }
-}, [order, hasMultipleProducts]);
+  useEffect(() => {
+    console.log("🔍 EditModal - Order data:", order);
+    console.log("🔍 EditModal - Has multiple products:", hasMultipleProducts);
+    if (hasMultipleProducts) {
+      console.log("🔍 EditModal - Products array:", order.products);
+      console.log("🔍 EditModal - First product keys:", Object.keys(order.products[0] || {}));
+      console.log("🔍 EditModal - First product:", order.products[0]);
+    }
+  }, [order, hasMultipleProducts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -110,46 +113,57 @@ useEffect(() => {
   };
 
   const handleSave = async () => {
-    let dataToSave;
+    // ✅ Set loading state to true
+    setIsSaving(true);
     
-    if (hasMultipleProducts || updatedOrder.products) {
-      // For multi-product orders
-      dataToSave = {
-        products: updatedOrder.products,
-        freight: updatedOrder.freight,
-        freightAmount: updatedOrder.freightAmount,
-        packagingCharge: updatedOrder.packagingCharge,
-        paymentTerms: updatedOrder.paymentTerms,
-        remarks: updatedOrder.remarks,
-        billTo: updatedOrder.billTo,
-        shipTo: updatedOrder.shipTo,
-        date: updatedOrder.date,
-        deliveryOption: updatedOrder.deliveryOption,
-      };
-    } else {
-      // For single product orders
-      dataToSave = {
-        quantity: updatedOrder.quantity,
-        price: updatedOrder.price,
-        freight: updatedOrder.freight,
-        freightAmount: updatedOrder.freightAmount,
-        product: updatedOrder.product,
-        density: updatedOrder.density,
-        packagingCharge: updatedOrder.packagingCharge,
-        paymentTerms: updatedOrder.paymentTerms,
-        remarks: updatedOrder.remarks,
-        billTo: updatedOrder.billTo,
-        shipTo: updatedOrder.shipTo,
-        size: updatedOrder.size,
-        unit: updatedOrder.unit,
-        date: updatedOrder.date,
-        deliveryOption: updatedOrder.deliveryOption,
-      };
+    try {
+      let dataToSave;
+      
+      if (hasMultipleProducts || updatedOrder.products) {
+        // For multi-product orders
+        dataToSave = {
+          products: updatedOrder.products,
+          freight: updatedOrder.freight,
+          freightAmount: updatedOrder.freightAmount,
+          packagingCharge: updatedOrder.packagingCharge,
+          paymentTerms: updatedOrder.paymentTerms,
+          remarks: updatedOrder.remarks,
+          billTo: updatedOrder.billTo,
+          shipTo: updatedOrder.shipTo,
+          date: updatedOrder.date,
+          deliveryOption: updatedOrder.deliveryOption,
+        };
+      } else {
+        // For single product orders
+        dataToSave = {
+          quantity: updatedOrder.quantity,
+          price: updatedOrder.price,
+          freight: updatedOrder.freight,
+          freightAmount: updatedOrder.freightAmount,
+          product: updatedOrder.product,
+          density: updatedOrder.density,
+          packagingCharge: updatedOrder.packagingCharge,
+          paymentTerms: updatedOrder.paymentTerms,
+          remarks: updatedOrder.remarks,
+          billTo: updatedOrder.billTo,
+          shipTo: updatedOrder.shipTo,
+          size: updatedOrder.size,
+          unit: updatedOrder.unit,
+          date: updatedOrder.date,
+          deliveryOption: updatedOrder.deliveryOption,
+        };
+      }
+      
+      await onSave(order._id, dataToSave);
+      onClose();
+      toast.success("Order updated successfully!");
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast.error("Failed to update order. Please try again.");
+    } finally {
+      // ✅ Set loading state back to false
+      setIsSaving(false);
     }
-    
-    await onSave(order._id, dataToSave);
-    onClose();
-    toast.success("Order updated successfully!");
   };
 
   const Input = ({ label, name, value, onChange, type = "text", required = false }) => (
@@ -163,6 +177,7 @@ useEffect(() => {
         value={value || ""}
         onChange={onChange}
         className="border border-gray-300 p-3 rounded-lg w-full"
+        disabled={isSaving}
       />
     </div>
   );
@@ -181,6 +196,7 @@ useEffect(() => {
                 type="button"
                 onClick={addProductRow}
                 className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                disabled={isSaving}
               >
                 + Add Product
               </button>
@@ -206,6 +222,7 @@ useEffect(() => {
                           value={prod.productName}
                           onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-full text-sm"
+                          disabled={isSaving}
                         >
                           <option value="">Select Product</option>
                           {allProducts.map((p) => (
@@ -222,6 +239,7 @@ useEffect(() => {
                           onChange={(e) => handleProductChange(idx, "quantity", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-24"
                           placeholder="Qty"
+                          disabled={isSaving}
                         />
                       </td>
                       <td className="p-2 border">
@@ -232,6 +250,7 @@ useEffect(() => {
                           onChange={(e) => handleProductChange(idx, "price", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-24"
                           placeholder="Price"
+                          disabled={isSaving}
                         />
                       </td>
                       <td className="p-2 border">
@@ -241,6 +260,7 @@ useEffect(() => {
                           onChange={(e) => handleProductChange(idx, "size", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-24"
                           placeholder="Size"
+                          disabled={isSaving}
                         />
                       </td>
                       <td className="p-2 border">
@@ -250,6 +270,7 @@ useEffect(() => {
                           onChange={(e) => handleProductChange(idx, "density", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-24"
                           placeholder="Density"
+                          disabled={isSaving}
                         />
                       </td>
                       <td className="p-2 border">
@@ -259,6 +280,7 @@ useEffect(() => {
                           onChange={(e) => handleProductChange(idx, "productRemarks", e.target.value)}
                           className="border border-gray-300 p-2 rounded w-32"
                           placeholder="Remarks"
+                          disabled={isSaving}
                         />
                       </td>
                       <td className="p-2 border text-center">
@@ -266,6 +288,7 @@ useEffect(() => {
                           type="button"
                           onClick={() => removeProductRow(idx)}
                           className="text-red-500 hover:text-red-700 text-xl font-bold"
+                          disabled={isSaving}
                         >
                           ×
                         </button>
@@ -293,6 +316,7 @@ useEffect(() => {
                 value={updatedOrder.product}
                 onChange={handleChange}
                 className="border border-gray-300 p-3 rounded-lg w-full"
+                disabled={isSaving}
               >
                 <option value="">Select Product</option>
                 {allProducts.map((p) => (
@@ -323,6 +347,7 @@ useEffect(() => {
               value={updatedOrder.paymentTerms}
               onChange={handleChange}
               className="border border-gray-300 p-3 rounded-lg w-full"
+              disabled={isSaving}
             >
               <option value="">Select Option</option>
               <option value="100% Advance">100% Advance</option>
@@ -340,6 +365,7 @@ useEffect(() => {
               value={updatedOrder.deliveryOption}
               onChange={handleChange}
               className="border border-gray-300 p-3 rounded-lg w-full"
+              disabled={isSaving}
             >
               <option value="">Select Delivery Option</option>
               <option value="1week">Within 1 Week</option>
@@ -353,14 +379,28 @@ useEffect(() => {
           <button
             className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded-lg"
             onClick={onClose}
+            disabled={isSaving}
           >
             ❌ Cancel
           </button>
           <button
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
+            className={`bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 ${
+              isSaving ? "opacity-70 cursor-not-allowed" : ""
+            }`}
             onClick={handleSave}
+            disabled={isSaving}
           >
-            📑 Save
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              "📑 Save"
+            )}
           </button>
         </div>
       </div>
