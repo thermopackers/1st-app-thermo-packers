@@ -204,26 +204,33 @@ const EditModal = ({ order, onSave, onClose }) => {
                 <tbody>
                   {updatedOrder.products.map((prod, idx) => (
                     <tr key={idx}>
-                      <td className="p-2 border">
-                        <select
-                          value={prod.productName}
-                          onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
-                          className="border border-gray-300 p-2 rounded w-full text-sm"
-                        >
-                          <option value="">Select Product</option>
-                          {/* ✅ If current product name doesn't exist in the list, show it as an option */}
-                          {prod.productName && !allProducts.some(p => p.name === prod.productName) && (
-                            <option value={prod.productName} selected>
-                              {prod.productName} (Current)
-                            </option>
-                          )}
-                          {allProducts.map((p) => (
-                            <option key={p._id} value={p.name}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                     <td className="p-2 border">
+  <select
+    value={prod.productName}
+    onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
+    className="border border-gray-300 p-2 rounded w-full text-sm"
+    style={{ 
+      maxWidth: '100%',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }}
+    title={prod.productName} // ✅ This shows full name on hover
+  >
+    <option value="">Select Product</option>
+    {/* ✅ If current product name doesn't exist in the list, show it as an option */}
+    {prod.productName && !allProducts.some(p => p.name === prod.productName) && (
+      <option value={prod.productName} selected>
+        {prod.productName} (Current)
+      </option>
+    )}
+    {allProducts.map((p) => (
+      <option key={p._id} value={p.name} title={p.name}>
+        {p.name}
+      </option>
+    ))}
+  </select>
+</td>
                       <td className="p-2 border">
                         <input
                           type="number"
