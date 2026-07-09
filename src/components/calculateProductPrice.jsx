@@ -17,19 +17,20 @@ export default function ProductRateChecker() {
     fetchRMRate();
   }, []);
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get("/products-multer?limit=1000");
-      setProducts(res.data.products || []);
-      setFilteredProducts(res.data.products || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchProducts = async () => {
+  setLoading(true);
+  try {
+    // ✅ Use dashboard-fast endpoint - returns only id and name
+    const res = await axiosInstance.get("/products-multer/dashboard-fast?limit=1000");
+    setProducts(res.data.products || []);
+    setFilteredProducts(res.data.products || []);
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    toast.error("Failed to load products");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchRMRate = async () => {
     try {
