@@ -2445,9 +2445,11 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
       </div>
       {/* Product Rate Checker - Only for accounts role */}
 {/* Product Rate Checker - Only for accounts role */}
-{userRoles.includes("accounts") && (
+{userRoles.some((role) =>
+  ["admin", "sales", "accounts"].includes(role)
+) && (
   <>
-  <div className="relative">
+  <div className="relative mt-6">
     <ProductRateChecker />
   </div>
     <div className="mt-6">
