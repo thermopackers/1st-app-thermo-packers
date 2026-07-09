@@ -334,7 +334,7 @@ useEffect(() => {
     try {
       const [purchaseRes, salesRes] = await Promise.all([
         axiosInstance.get(`/purchase-products?search=${query}&limit=5`),
-        axiosInstance.get(`/products-multer?search=${query}&limit=5`),
+        axiosInstance.get(`/products/fast?search=${query}&limit=5`),
       ]);
 
       const purchaseProducts = purchaseRes.data.data || [];
