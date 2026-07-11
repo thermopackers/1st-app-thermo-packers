@@ -153,61 +153,6 @@ export default function ProductRateTable() {
     return sorted;
   };
 
-  // Export - load all products temporarily
-  const exportToExcel = async () => {
-    toast.loading("Loading all products for export...", { id: "export" });
-    
-    try {
-      const allProductsData = await loadAllProductsForExport();
-      
-      if (allProductsData.length === 0) {
-        toast.error("No products to export", { id: "export" });
-        return;
-      }
-      
-      const excelData = allProductsData.map(product => {
-        const calc = calculatePrice(product);
-        return {
-          "Product Name": product.name || "",
-          "Unit": product.unit || "",
-          "Weight (kg)": product.weight || "",
-          "Weight (g)": calc?.weightInGrams || 0,
-          "Conversion Rate": calc?.conversionRate || 0,
-          "RM Rate": rmRate,
-          "Total/kg": calc?.totalPerKg?.toFixed(2) || 0,
-          "Price/Piece": calc?.pricePerPiece?.toFixed(2) || 0,
-          "GST (18%)": calc?.gstAmount?.toFixed(2) || 0,
-          "Final Price": calc?.finalPrice?.toFixed(2) || 0,
-          "HSN Code": product.hsnCode || "",
-          "GST %": product.gstPercent || 0,
-          "Sales Category": product.salesCategory || ""
-        };
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Product Rates");
-      
-      const colWidths = [
-        { wch: 50 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, 
-        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 20 }
-      ];
-      worksheet['!cols'] = colWidths;
-
-      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      const data = new Blob([excelBuffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      
-      saveAs(data, `product_rates_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success(`Exported ${allProductsData.length} products successfully!`, { id: "export" });
-    } catch (err) {
-      console.error("Export error:", err);
-      toast.error("Failed to export", { id: "export" });
-    }
-  };
-
   const calculatePrice = (product) => {
     const conversionRate = product.conversion || 0;
     const totalPerKg = rmRate + conversionRate;
@@ -299,13 +244,7 @@ export default function ProductRateTable() {
                 <RefreshCw size={16} />
                 Refresh
               </button>
-              <button
-                onClick={exportToExcel}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
-              >
-                <Download size={18} />
-                Export Excel
-              </button>
+             
             </div>
           </div>
 
