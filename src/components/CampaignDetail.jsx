@@ -591,25 +591,45 @@ const clearRecipientFilters = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {recipients
-                              .filter(r => r.status === 'restricted')
-                              .slice(0, 10) // Show only first 10
-                              .map((recipient, idx) => (
-                                <tr key={idx} className="border-t">
-                                  <td className="p-2">{recipient.customer?.name || 'Unknown'}</td>
-                                  <td className="p-2">{recipient.customer?.phone || '-'}</td>
-                                  <td className="p-2">
-                                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">
-                                      Restricted
-                                    </span>
-                                  </td>
-                                  <td className="p-2">
-                                    <span className="text-sm text-orange-700">
-                                      Ask customer to reply "YES" on WhatsApp
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
+                          {recipients
+  .filter(r => r.status === 'restricted')
+  .slice(0, 10)
+  .map((recipient, idx) => {
+    // Get the correct contact info
+    let contactInfo = null;
+    let displayName = 'Unknown';
+    let phoneNumber = '-';
+    
+    if (recipient.recipientType === 'supplier') {
+      contactInfo = recipient.supplier;
+    } else if (recipient.recipientType === 'potential_customer') {
+      contactInfo = recipient.potentialCustomer;
+    } else {
+      contactInfo = recipient.customer;
+    }
+    
+    if (contactInfo) {
+      displayName = contactInfo.name || contactInfo.company || 'Unknown';
+      phoneNumber = contactInfo.phone || contactInfo.phone2 || '-';
+    }
+    
+    return (
+      <tr key={idx} className="border-t">
+        <td className="p-2">{displayName}</td>
+        <td className="p-2">{phoneNumber}</td>
+        <td className="p-2">
+          <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">
+            Restricted
+          </span>
+        </td>
+        <td className="p-2">
+          <span className="text-sm text-orange-700">
+            Ask recipient to reply "YES" on WhatsApp
+          </span>
+        </td>
+      </tr>
+    );
+  })}
                           </tbody>
                         </table>
                       </div>
@@ -789,51 +809,92 @@ const clearRecipientFilters = () => {
               </tr>
             </thead>
             <tbody>
-              {recipients.map((recipient, index) => {
-                // Determine if this is a customer or supplier
-                const isSupplier = recipient.recipientType === 'supplier';
-                const contactInfo = isSupplier ? recipient.supplier : recipient.customer;
-                
-                return (
-                  <tr key={index} className="border-t hover:bg-gray-50">
-                    <td className="p-3">
-                      <div className="font-medium">
-                        {contactInfo?.name || contactInfo?.company || 'Unknown'}
-                        {isSupplier && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                            Supplier
-                          </span>
-                        )}
-                      </div>
-                      {!isSupplier && recipient.customer?.salesCategory && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {recipient.customer.salesCategory}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3 font-mono">
-                      {contactInfo?.phone || contactInfo?.phone2 || '-'}
-                    </td>
-                    <td className="p-3">{contactInfo?.email || '-'}</td>
-                    <td className="p-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRecipientStatusColor(recipient.status)}`}>
-                        {recipient.status}
-                      </span>
-                      {recipient.whatsappRestricted && (
-                        <div className="text-xs text-orange-600 mt-1">WhatsApp Restricted</div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {recipient.sentAt ? format(new Date(recipient.sentAt), 'dd/MM/yyyy HH:mm') : '-'}
-                    </td>
-                    <td className="p-3">
-                      <span className="text-red-500 text-sm max-w-xs truncate inline-block" title={recipient.error}>
-                        {recipient.error || '-'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+             {recipients.map((recipient, index) => {
+  // Determine the recipient type and get the correct contact info
+  const isSupplier = recipient.recipientType === 'supplier';
+  const isPotentialCustomer = recipient.recipientType === 'potential_customer';
+  
+  let contactInfo = null;
+  let recipientLabel = '';
+  
+  if (isSupplier) {
+    contactInfo = recipient.supplier;
+    recipientLabel = 'Supplier';
+  } else if (isPotentialCustomer) {
+    contactInfo = recipient.potentialCustomer;
+    recipientLabel = 'Potential';
+  } else {
+    contactInfo = recipient.customer;
+    recipientLabel = '';
+  }
+  
+  // Get the display name
+  let displayName = 'Unknown';
+  if (contactInfo) {
+    displayName = contactInfo.name || contactInfo.company || 'Unknown';
+  }
+  
+  // Get phone number
+  let phoneNumber = '-';
+  if (contactInfo) {
+    phoneNumber = contactInfo.phone || contactInfo.phone2 || '-';
+  }
+  
+  // Get email
+  let email = '-';
+  if (contactInfo) {
+    email = contactInfo.email || '-';
+  }
+  
+  // Get sales category (only for customers)
+  let salesCategory = null;
+  if (!isSupplier && !isPotentialCustomer && recipient.customer?.salesCategory) {
+    salesCategory = recipient.customer.salesCategory;
+  } else if (isPotentialCustomer && contactInfo?.salesCategory) {
+    salesCategory = contactInfo.salesCategory;
+  }
+  
+  return (
+    <tr key={index} className="border-t hover:bg-gray-50">
+      <td className="p-3">
+        <div className="font-medium">
+          {displayName}
+          {recipientLabel && (
+            <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+              isSupplier ? 'bg-blue-100 text-blue-800' : 
+              isPotentialCustomer ? 'bg-purple-100 text-purple-800' : ''
+            }`}>
+              {recipientLabel}
+            </span>
+          )}
+        </div>
+        {salesCategory && (
+          <div className="text-xs text-gray-500 mt-1">
+            {salesCategory}
+          </div>
+        )}
+      </td>
+      <td className="p-3 font-mono">{phoneNumber}</td>
+      <td className="p-3">{email}</td>
+      <td className="p-3">
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRecipientStatusColor(recipient.status)}`}>
+          {recipient.status}
+        </span>
+        {recipient.whatsappRestricted && (
+          <div className="text-xs text-orange-600 mt-1">WhatsApp Restricted</div>
+        )}
+      </td>
+      <td className="p-3">
+        {recipient.sentAt ? format(new Date(recipient.sentAt), 'dd/MM/yyyy HH:mm') : '-'}
+      </td>
+      <td className="p-3">
+        <span className="text-red-500 text-sm max-w-xs truncate inline-block" title={recipient.error}>
+          {recipient.error || '-'}
+        </span>
+      </td>
+    </tr>
+  );
+})}
             </tbody>
           </table>
         </div>

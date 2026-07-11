@@ -39,6 +39,13 @@ export default function CampaignForm() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   
+  // Potential Customer states - NEW
+  const [selectedPotentialCustomers, setSelectedPotentialCustomers] = useState([]);
+  const [potentialCustomerSearchQuery, setPotentialCustomerSearchQuery] = useState("");
+  const [potentialCustomerSearchResults, setPotentialCustomerSearchResults] = useState([]);
+  const [isSearchingPotentialCustomers, setIsSearchingPotentialCustomers] = useState(false);
+  const [showPotentialCustomerResults, setShowPotentialCustomerResults] = useState(false);
+  
   // Supplier states
   const [selectedSuppliers, setSelectedSuppliers] = useState([]);
   const [supplierSearchQuery, setSupplierSearchQuery] = useState("");
@@ -46,8 +53,8 @@ export default function CampaignForm() {
   const [isSearchingSuppliers, setIsSearchingSuppliers] = useState(false);
   const [showSupplierResults, setShowSupplierResults] = useState(false);
   
-  // Target type state
-  const [targetType, setTargetType] = useState('customers'); // 'customers', 'suppliers', or 'both'
+  // Target type state - UPDATED to include potential customers
+  const [targetType, setTargetType] = useState('customers'); // 'customers', 'potential_customers', 'suppliers', 'both', 'all'
   
   // Other states
   const [categories, setCategories] = useState([]);
@@ -82,7 +89,7 @@ export default function CampaignForm() {
   
   const loadCategories = async () => {
     try {
-      const res = await axiosInstance.get("/customers/settings/categories");
+      const res = await axiosInstance.get("/potential-customers/settings/categories");
       setCategories(res.data.categories || []);
     } catch (err) {
       console.error("Failed to load categories", err);
@@ -134,6 +141,29 @@ export default function CampaignForm() {
     }
   };
 
+  // Potential Customer search - NEW
+  const handlePotentialCustomerSearchChange = async (value) => {
+    setPotentialCustomerSearchQuery(value);
+    
+    if (value.trim().length < 2) {
+      setPotentialCustomerSearchResults([]);
+      setShowPotentialCustomerResults(false);
+      return;
+    }
+    
+    setIsSearchingPotentialCustomers(true);
+    try {
+      const res = await axiosInstance.get(`/potential-customers/search?q=${encodeURIComponent(value)}`);
+      setPotentialCustomerSearchResults(res.data.customers || []);
+      setShowPotentialCustomerResults(true);
+    } catch (err) {
+      console.error("Potential customer search error:", err);
+      setPotentialCustomerSearchResults([]);
+    } finally {
+      setIsSearchingPotentialCustomers(false);
+    }
+  };
+
   // Supplier search
   const handleSupplierSearchChange = async (value) => {
     setSupplierSearchQuery(value);
@@ -182,6 +212,29 @@ export default function CampaignForm() {
     }
   };
 
+  // Add potential customer - NEW
+  const addPotentialCustomerManually = async (potentialCustomer) => {
+    if (potentialCustomer && potentialCustomer._id) {
+      const exists = selectedPotentialCustomers.some(
+        selected => selected._id === potentialCustomer._id
+      );
+      
+      if (exists) {
+        toast.error("Potential customer already selected");
+      } else {
+        const updatedPotentialCustomers = [...selectedPotentialCustomers, potentialCustomer];
+        setSelectedPotentialCustomers(updatedPotentialCustomers);
+        
+        // Clear search
+        setPotentialCustomerSearchQuery("");
+        setPotentialCustomerSearchResults([]);
+        setShowPotentialCustomerResults(false);
+        
+        toast.success(`${potentialCustomer.name} added successfully`);
+      }
+    }
+  };
+
   // Add supplier
   const addSupplierManually = async (supplier) => {
     if (supplier && supplier._id) {
@@ -214,6 +267,15 @@ export default function CampaignForm() {
     setFilteredCustomers(updatedCustomers);
     setTotalCustomers(updatedCustomers.length);
     toast.success("Customer removed from selection");
+  };
+
+  // Remove potential customer - NEW
+  const removePotentialCustomer = (potentialCustomerId) => {
+    const updatedPotentialCustomers = selectedPotentialCustomers.filter(
+      potentialCustomer => potentialCustomer._id !== potentialCustomerId
+    );
+    setSelectedPotentialCustomers(updatedPotentialCustomers);
+    toast.success("Potential customer removed from selection");
   };
 
   // Remove supplier
@@ -397,18 +459,58 @@ export default function CampaignForm() {
     return localDate.toLocaleString('en-US', options);
   };
 
+  // UPDATED: applyFilters for customers only (can be extended for potential customers)
   const applyFilters = async () => {
-    setApplyingFilters(true);
-    try {
-      const res = await axiosInstance.post("/campaigns/get-filtered-customers", {
-        filters: {
+  setApplyingFilters(true);
+  try {
+    // Determine which endpoint to call based on target type
+    let endpoint = "/campaigns/get-filtered-customers";
+    let filterData = {
+      filters: {
+        search: formData.filters.search,
+        categories: formData.filters.categories,
+        createdBy: formData.filters.createdBy,
+        giftType: formData.filters.giftType,
+        product: formData.filters.product
+      }
+    };
+    
+    // If target is potential customers, use the potential-customers endpoint
+    if (targetType === 'potential_customers' || targetType === 'all') {
+      // For potential customers, we need to use the potential-customers endpoint
+      // But we'll handle this differently - fetch potential customers directly
+      const res = await axiosInstance.get("/potential-customers", {
+        params: {
           search: formData.filters.search,
-          categories: formData.filters.categories,
+          category: formData.filters.categories.length > 0 ? formData.filters.categories[0] : '',
           createdBy: formData.filters.createdBy,
           giftType: formData.filters.giftType,
-          product: formData.filters.product
+          product: formData.filters.product,
+          page: 1,
+          limit: 100 // Get up to 100 potential customers
         }
       });
+      
+      const newPotentialCustomers = res.data.customers || [];
+      const combinedPotentialCustomers = [...selectedPotentialCustomers];
+      
+      newPotentialCustomers.forEach(newPC => {
+        const exists = combinedPotentialCustomers.some(
+          existing => existing._id === newPC._id
+        );
+        
+        if (!exists) {
+          combinedPotentialCustomers.push(newPC);
+        }
+      });
+      
+      setSelectedPotentialCustomers(combinedPotentialCustomers);
+      
+      toast.success(`Found ${res.data.total} potential customers. Added ${newPotentialCustomers.length} new unique potential customers to selection. Total selected: ${combinedPotentialCustomers.length}`);
+      
+    } else {
+      // Regular customers
+      const res = await axiosInstance.post(endpoint, filterData);
       
       const newCustomers = res.data.customers || [];
       const combinedCustomers = [...selectedCustomers];
@@ -449,15 +551,17 @@ export default function CampaignForm() {
       }
       
       toast.success(`Found ${res.data.total} customers. Added ${newCustomers.length} new unique customers to selection. Total selected: ${combinedCustomers.length}`);
-      
-    } catch (err) {
-      toast.error("Failed to apply filters");
-      console.error("Filter error:", err);
-    } finally {
-      setApplyingFilters(false);
     }
-  };
+    
+  } catch (err) {
+    toast.error("Failed to apply filters");
+    console.error("Filter error:", err);
+  } finally {
+    setApplyingFilters(false);
+  }
+};
   
+  // UPDATED: handleSubmit to support potential customers
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -482,13 +586,14 @@ export default function CampaignForm() {
       }
     }
     
-    // Check if any recipients are selected based on target type
+    // Check if any recipients are selected based on target type - UPDATED
     const totalRecipients = 
-      (targetType === 'customers' || targetType === 'both' ? selectedCustomers.length : 0) +
-      (targetType === 'suppliers' || targetType === 'both' ? selectedSuppliers.length : 0);
+      (targetType === 'customers' || targetType === 'both' || targetType === 'all' ? selectedCustomers.length : 0) +
+      (targetType === 'potential_customers' || targetType === 'both' || targetType === 'all' ? selectedPotentialCustomers.length : 0) +
+      (targetType === 'suppliers' || targetType === 'both' || targetType === 'all' ? selectedSuppliers.length : 0);
     
     if (totalRecipients === 0) {
-      toast.error(`No ${targetType} selected. Please search and add ${targetType} first.`);
+      toast.error(`No recipients selected. Please search and add recipients first.`);
       return;
     }
     
@@ -500,7 +605,7 @@ export default function CampaignForm() {
         scheduledAtISO = localDate.toISOString();
       }
 
-      // Prepare campaign data
+      // Prepare campaign data - UPDATED with potential customers
       const campaignData = {
         title: formData.title,
         type: type,
@@ -512,10 +617,15 @@ export default function CampaignForm() {
         timezone: formData.timezone,
         longMessageWithMedia: formData.longMessageWithMedia || false,
         targetType: targetType,
-        // Send both customer and supplier IDs
+        // Send customer IDs
         selectedCustomerIds: selectedCustomers
           .filter(customer => customer._id && customer._id.length === 24)
           .map(customer => customer._id),
+        // NEW: Send potential customer IDs
+        selectedPotentialCustomerIds: selectedPotentialCustomers
+          .filter(pc => pc._id && pc._id.length === 24)
+          .map(pc => pc._id),
+        // Send supplier IDs
         selectedSupplierIds: selectedSuppliers
           .filter(supplier => supplier._id && supplier._id.length === 24)
           .map(supplier => supplier._id)
@@ -556,174 +666,159 @@ export default function CampaignForm() {
   };
 
   // WhatsApp Preview Component
-const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessageWithMedia, uploadedMedia, previewUrl }) => {
-  const hasMedia = mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
-  
-  // Format the message as it would appear on WhatsApp
-  const getPreviewMessage = () => {
-    if (!message && !hasMedia) return "No message content";
+  const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessageWithMedia, uploadedMedia, previewUrl }) => {
+    const hasMedia = mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
     
-    if (hasMedia && !longMessageWithMedia) {
-      // Media campaign with short message
-      const displayName = customerName || "Customer";
-      const messageText = message || "";
-      return `${displayName}: ${messageText}`;
-    } else if (hasMedia && longMessageWithMedia) {
-      // Long message with media - show both
-      return message || "Long message will be sent after media";
-    } else {
-      // Text only
-      return message || "No message";
-    }
-  };
-
-  const previewMessage = getPreviewMessage();
-  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div className="mt-6 border rounded-lg overflow-hidden bg-gray-100">
-      <div className="bg-green-600 text-white px-4 py-2 flex items-center gap-2">
-        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-          <span className="text-green-600 text-xs">✓</span>
-        </div>
-        <span className="font-medium">WhatsApp Preview</span>
-        <span className="text-xs ml-auto">How recipients will see it</span>
-      </div>
+    const getPreviewMessage = () => {
+      if (!message && !hasMedia) return "No message content";
       
-      <div className="p-4 bg-[#e5ded8]">
-        {/* Phone Frame */}
-        <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border-8 border-gray-900">
-          {/* Phone Header */}
-          <div className="bg-[#075e54] text-white px-4 py-3 flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#128C7E] rounded-full flex items-center justify-center">
-              <span className="text-xs">📱</span>
-            </div>
-            <div className="flex-1">
-              <div className="font-medium text-sm">WhatsApp</div>
-              <div className="text-xs opacity-80">Online</div>
-            </div>
-            <div className="flex gap-2">
-              <span>📞</span>
-              <span>⋯</span>
-            </div>
+      if (hasMedia && !longMessageWithMedia) {
+        const displayName = customerName || "Customer";
+        const messageText = message || "";
+        return `${displayName}: ${messageText}`;
+      } else if (hasMedia && longMessageWithMedia) {
+        return message || "Long message will be sent after media";
+      } else {
+        return message || "No message";
+      }
+    };
+
+    const previewMessage = getPreviewMessage();
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      <div className="mt-6 border rounded-lg overflow-hidden bg-gray-100">
+        <div className="bg-green-600 text-white px-4 py-2 flex items-center gap-2">
+          <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+            <span className="text-green-600 text-xs">✓</span>
           </div>
-          
-          {/* Chat Area */}
-          <div className="bg-[#e5ded8] p-3 min-h-[300px]">
-            <div className="flex justify-start mb-2">
-              <div className="bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] shadow">
-                {/* Media Preview */}
-                {hasMedia && (
-                  <div className="mb-2">
-                    {uploadedMedia && uploadedMedia.length > 0 ? (
-                      // Multiple media preview
-                      <div className="space-y-2">
-                        {uploadedMedia.slice(0, 2).map((media, idx) => (
-                          <div key={idx} className="border rounded overflow-hidden">
-                            {media.type === 'image' ? (
-                              <img 
-                                src={URL.createObjectURL(media.file)} 
-                                alt={`Preview ${idx + 1}`}
-                                className="w-full h-32 object-cover"
-                              />
-                            ) : (
-                              <div className="bg-gray-100 p-2 text-center text-sm">
-                                {media.type === 'video' ? '🎬 Video File' : 
-                                 media.type === 'pdf' ? '📕 PDF Document' : '📄 Document'}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {uploadedMedia.length > 2 && (
-                          <div className="text-xs text-gray-500">
-                            +{uploadedMedia.length - 2} more files
-                          </div>
-                        )}
-                      </div>
-                    ) : mediaUrl && (
-                      // Single media preview
-                      <div className="border rounded overflow-hidden">
-                        {mediaType === 'image' ? (
-                          <img 
-                            src={previewUrl || mediaUrl} 
-                            alt="Media preview"
-                            className="w-full h-40 object-cover"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://via.placeholder.com/300x200?text=Image+Preview';
-                            }}
-                          />
-                        ) : (
-                          <div className="bg-gray-100 p-4 text-center">
-                            <span className="text-4xl">
-                              {mediaType === 'video' ? '🎬' : 
-                               mediaType === 'pdf' ? '📕' : '📄'}
-                            </span>
-                            <p className="text-sm mt-2">
-                              {mediaType === 'video' ? 'Video File' : 
-                               mediaType === 'pdf' ? 'PDF Document' : 'Document'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+          <span className="font-medium">WhatsApp Preview</span>
+          <span className="text-xs ml-auto">How recipients will see it</span>
+        </div>
+        
+        <div className="p-4 bg-[#e5ded8]">
+          <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border-8 border-gray-900">
+            <div className="bg-[#075e54] text-white px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#128C7E] rounded-full flex items-center justify-center">
+                <span className="text-xs">📱</span>
+              </div>
+              <div className="flex-1">
+                <div className="font-medium text-sm">WhatsApp</div>
+                <div className="text-xs opacity-80">Online</div>
+              </div>
+              <div className="flex gap-2">
+                <span>📞</span>
+                <span>⋯</span>
+              </div>
+            </div>
+            
+            <div className="bg-[#e5ded8] p-3 min-h-[300px]">
+              <div className="flex justify-start mb-2">
+                <div className="bg-white rounded-lg rounded-tl-none p-3 max-w-[80%] shadow">
+                  {hasMedia && (
+                    <div className="mb-2">
+                      {uploadedMedia && uploadedMedia.length > 0 ? (
+                        <div className="space-y-2">
+                          {uploadedMedia.slice(0, 2).map((media, idx) => (
+                            <div key={idx} className="border rounded overflow-hidden">
+                              {media.type === 'image' ? (
+                                <img 
+                                  src={URL.createObjectURL(media.file)} 
+                                  alt={`Preview ${idx + 1}`}
+                                  className="w-full h-32 object-cover"
+                                />
+                              ) : (
+                                <div className="bg-gray-100 p-2 text-center text-sm">
+                                  {media.type === 'video' ? '🎬 Video File' : 
+                                   media.type === 'pdf' ? '📕 PDF Document' : '📄 Document'}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {uploadedMedia.length > 2 && (
+                            <div className="text-xs text-gray-500">
+                              +{uploadedMedia.length - 2} more files
+                            </div>
+                          )}
+                        </div>
+                      ) : mediaUrl && (
+                        <div className="border rounded overflow-hidden">
+                          {mediaType === 'image' ? (
+                            <img 
+                              src={previewUrl || mediaUrl} 
+                              alt="Media preview"
+                              className="w-full h-40 object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://via.placeholder.com/300x200?text=Image+Preview';
+                              }}
+                            />
+                          ) : (
+                            <div className="bg-gray-100 p-4 text-center">
+                              <span className="text-4xl">
+                                {mediaType === 'video' ? '🎬' : 
+                                 mediaType === 'pdf' ? '📕' : '📄'}
+                              </span>
+                              <p className="text-sm mt-2">
+                                {mediaType === 'video' ? 'Video File' : 
+                                 mediaType === 'pdf' ? 'PDF Document' : 'Document'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {previewMessage && (
+                    <div className="text-gray-800 text-sm whitespace-pre-wrap break-words">
+                      {previewMessage}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end items-center gap-1 mt-1">
+                    <span className="text-[10px] text-gray-500">{currentTime}</span>
+                    <span className="text-[10px] text-blue-500">✓✓</span>
                   </div>
-                )}
-                
-                {/* Message Text */}
-                {previewMessage && (
-                  <div className="text-gray-800 text-sm whitespace-pre-wrap break-words">
-                    {previewMessage}
-                  </div>
-                )}
-                
-                {/* Time and Status */}
-                <div className="flex justify-end items-center gap-1 mt-1">
-                  <span className="text-[10px] text-gray-500">{currentTime}</span>
-                  <span className="text-[10px] text-blue-500">✓✓</span>
+                </div>
+              </div>
+              
+              <div className="flex justify-start opacity-50">
+                <div className="bg-white rounded-full px-3 py-2 text-xs text-gray-500">
+                  <span className="animate-pulse">⋯</span> Typing
                 </div>
               </div>
             </div>
             
-            {/* Typing indicator (just for show) */}
-            <div className="flex justify-start opacity-50">
-              <div className="bg-white rounded-full px-3 py-2 text-xs text-gray-500">
-                <span className="animate-pulse">⋯</span> Typing
+            <div className="bg-[#f0f0f0] px-3 py-2 flex items-center gap-2">
+              <span className="text-gray-600">😊</span>
+              <span className="text-gray-600">📎</span>
+              <div className="flex-1 bg-white rounded-full px-4 py-1 text-sm text-gray-400">
+                Type a message
               </div>
+              <span className="text-gray-600">🎤</span>
             </div>
           </div>
-          
-          {/* Input Bar */}
-          <div className="bg-[#f0f0f0] px-3 py-2 flex items-center gap-2">
-            <span className="text-gray-600">😊</span>
-            <span className="text-gray-600">📎</span>
-            <div className="flex-1 bg-white rounded-full px-4 py-1 text-sm text-gray-400">
-              Type a message
-            </div>
-            <span className="text-gray-600">🎤</span>
+        </div>
+        
+        <div className="bg-gray-50 px-4 py-2 text-xs text-gray-600 border-t">
+          <div className="flex justify-between">
+            <span>Character count: {message?.length || 0}</span>
+            {hasMedia && !longMessageWithMedia && (
+              <span className="text-yellow-600">
+                Media campaign: Name + message = {(customerName?.length || 8) + 2 + (message?.length || 0)} chars
+              </span>
+            )}
+            {longMessageWithMedia && (
+              <span className="text-purple-600">
+                Long message mode: Media + {message?.length || 0} chars text
+              </span>
+            )}
           </div>
         </div>
       </div>
-      
-      {/* Message Info */}
-      <div className="bg-gray-50 px-4 py-2 text-xs text-gray-600 border-t">
-        <div className="flex justify-between">
-          <span>Character count: {message?.length || 0}</span>
-          {hasMedia && !longMessageWithMedia && (
-            <span className="text-yellow-600">
-              Media campaign: Name + message = {(customerName?.length || 8) + 2 + (message?.length || 0)} chars
-            </span>
-          )}
-          {longMessageWithMedia && (
-            <span className="text-purple-600">
-              Long message mode: Media + {message?.length || 0} chars text
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
   const getTypeIcon = () => {
     switch(type) {
@@ -758,6 +853,8 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
     setAverageNameLength(12);
     setSampleCustomer(null);
     setCustomerNames([]);
+    setSelectedPotentialCustomers([]);
+    setSelectedSuppliers([]);
   };
   
   const getDisplayCustomerName = () => {
@@ -1013,7 +1110,7 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                 </div>
               )}
 
-                   {/* WhatsApp Preview - Only show for WhatsApp campaigns */}
+              {/* WhatsApp Preview - Only show for WhatsApp campaigns */}
               {type === 'whatsapp' && (
                 <div className="md:col-span-2">
                   <WhatsAppPreview 
@@ -1044,7 +1141,7 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
               </div>
             </div>
             
-            {/* Target Audience Selection */}
+            {/* Target Audience Selection - UPDATED */}
             <div className="border-t pt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-800">🎯 Target Audience</h3>
@@ -1053,11 +1150,11 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                   onClick={clearAllFilters}
                   className="text-sm text-red-600 hover:text-red-800"
                 >
-                  Clear All Filters
+                  Clear All
                 </button>
               </div>
               
-              {/* Target Type Selection */}
+              {/* Target Type Selection - UPDATED */}
               <div className="mb-6">
                 <label className="block mb-2 font-medium text-gray-700">
                   Select Target Type
@@ -1073,6 +1170,17 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                     }`}
                   >
                     Customers Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetType('potential_customers')}
+                    className={`px-4 py-2 rounded-md transition-colors ${
+                      targetType === 'potential_customers' 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Potential Customers
                   </button>
                   <button
                     type="button"
@@ -1094,13 +1202,24 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    Both Customers & Suppliers
+                    Customers + Suppliers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetType('all')}
+                    className={`px-4 py-2 rounded-md transition-colors ${
+                      targetType === 'all' 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    All (Customers + Potential + Suppliers)
                   </button>
                 </div>
               </div>
               
               {/* Customer Search Section */}
-              {(targetType === 'customers' || targetType === 'both') && (
+              {(targetType === 'customers' || targetType === 'both' || targetType === 'all') && (
                 <div className="mb-6 border rounded-lg p-4">
                   <h3 className="font-medium text-gray-800 mb-3">Add Customers</h3>
                   
@@ -1185,8 +1304,104 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                 </div>
               )}
 
+              {/* Potential Customer Search Section - NEW */}
+              {(targetType === 'potential_customers' || targetType === 'all') && (
+                <div className="mb-6 border rounded-lg p-4 border-purple-200 bg-purple-50">
+                  <h3 className="font-medium text-gray-800 mb-3">Add Potential Customers</h3>
+                  
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      value={potentialCustomerSearchQuery}
+                      onChange={(e) => handlePotentialCustomerSearchChange(e.target.value)}
+                      placeholder="Search potential customers by name, phone, or email..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-purple-400"
+                    />
+                    {isSearchingPotentialCustomers && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Potential Customer Search Results Dropdown */}
+                  {showPotentialCustomerResults && potentialCustomerSearchResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full max-w-lg bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {potentialCustomerSearchResults.map((potentialCustomer) => (
+                        <div
+                          key={potentialCustomer._id}
+                          onClick={() => addPotentialCustomerManually(potentialCustomer)}
+                          className="p-3 hover:bg-purple-50 cursor-pointer border-b last:border-b-0"
+                        >
+                          <div className="font-medium">{potentialCustomer.name}</div>
+                          <div className="text-sm text-gray-600">
+                            {potentialCustomer.phone} • {potentialCustomer.email}
+                          </div>
+                          {potentialCustomer.salesCategory && (
+                            <div className="text-xs text-purple-600 mt-1">
+                              {potentialCustomer.salesCategory}
+                            </div>
+                          )}
+                          {potentialCustomer.status && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Status: {potentialCustomer.status}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Selected Potential Customers */}
+                  {selectedPotentialCustomers.length > 0 && (
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">
+                          Selected Potential Customers ({selectedPotentialCustomers.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPotentialCustomers([]);
+                            toast.success("All potential customers removed");
+                          }}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto border rounded p-2">
+                        {selectedPotentialCustomers.map((potentialCustomer) => (
+                          <div key={potentialCustomer._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                            <div>
+                              <span className="font-medium">{potentialCustomer.name}</span>
+                              <span className="text-sm text-gray-600 ml-2">
+                                {potentialCustomer.phone} • {potentialCustomer.salesCategory || 'No category'}
+                              </span>
+                              {potentialCustomer.status && (
+                                <span className="text-xs text-gray-500 ml-2">
+                                  ({potentialCustomer.status})
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removePotentialCustomer(potentialCustomer._id)}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Supplier Search Section */}
-              {(targetType === 'suppliers' || targetType === 'both') && (
+              {(targetType === 'suppliers' || targetType === 'both' || targetType === 'all') && (
                 <div className="mb-6 border rounded-lg p-4">
                   <h3 className="font-medium text-gray-800 mb-3">Add Suppliers</h3>
                   
@@ -1267,112 +1482,106 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                 </div>
               )}
 
-              {/* Total Count */}
+              {/* Total Count - UPDATED */}
               <div className="text-center p-4 bg-blue-50 rounded-lg mb-6">
                 <p className="font-bold text-blue-800 text-lg">
                   Total Selected: {
-                    (targetType === 'customers' ? selectedCustomers.length : 0) +
-                    (targetType === 'suppliers' ? selectedSuppliers.length : 0) +
-                    (targetType === 'both' ? selectedCustomers.length + selectedSuppliers.length : 0)
+                    (targetType === 'customers' || targetType === 'both' || targetType === 'all' ? selectedCustomers.length : 0) +
+                    (targetType === 'potential_customers' || targetType === 'all' ? selectedPotentialCustomers.length : 0) +
+                    (targetType === 'suppliers' || targetType === 'both' || targetType === 'all' ? selectedSuppliers.length : 0)
                   }
                 </p>
-                {targetType === 'both' && (
-                  <p className="text-sm text-blue-600 mt-1">
-                    ({selectedCustomers.length} customers, {selectedSuppliers.length} suppliers)
-                  </p>
-                )}
+                <div className="text-sm text-blue-600 mt-1 flex flex-wrap justify-center gap-4">
+                  {(targetType === 'customers' || targetType === 'both' || targetType === 'all') && (
+                    <span>{selectedCustomers.length} customers</span>
+                  )}
+                  {(targetType === 'potential_customers' || targetType === 'all') && (
+                    <span>{selectedPotentialCustomers.length} potential customers</span>
+                  )}
+                  {(targetType === 'suppliers' || targetType === 'both' || targetType === 'all') && (
+                    <span>{selectedSuppliers.length} suppliers</span>
+                  )}
+                </div>
               </div>
               
               {/* Customer Filters (only shown for customers) */}
-              {(targetType === 'customers' || targetType === 'both') && (
-                <>
-                  <h4 className="font-medium text-gray-700 mb-3">Customer Filters</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    {/* Search */}
-                    {/* <div>
-                      <label className="block mb-1 text-sm font-medium text-gray-700">
-                        Search
-                      </label>
-                      <input
-                        type="text"
-                        name="search"
-                        value={formData.filters.search}
-                        onChange={handleFilterChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400"
-                        placeholder="Name, phone, email, category"
-                      />
-                    </div> */}
-                    
-                    {/* Sales Person */}
-                    <div>
-                      <label className="block mb-1 text-sm font-medium text-gray-700">
-                        Sales Person
-                      </label>
-                      <select
-                        name="createdBy"
-                        value={formData.filters.createdBy}
-                        onChange={handleFilterChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400"
-                      >
-                        <option value="">All Sales</option>
-                        {salesUsers.map(user => (
-                          <option key={user._id} value={user._id}>
-                            {user.name} ({user.email})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Categories */}
-                  <div className="mb-4">
-                    <label className="block mb-2 text-sm font-medium text-gray-700">
-                      Sales Categories
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {categories.map(category => (
-                        <button
-                          type="button"
-                          key={category}
-                          onClick={() => handleCategoryToggle(category)}
-                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                            formData.filters.categories?.includes(category)
-                              ? 'bg-blue-600 text-white hover:bg-blue-700'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                        >
-                          {category}
-                          {formData.filters.categories?.includes(category) && ' ✓'}
-                        </button>
-                      ))}
-                      {categories.length === 0 && (
-                        <p className="text-sm text-gray-500">
-                          No categories defined yet. Add categories in Customer List page.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Apply Filters Button */}
-                  <div className="mb-6">
-                    <button
-                      type="button"
-                      onClick={applyFilters}
-                      disabled={applyingFilters}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {applyingFilters ? (
-                        <span className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Searching...
-                        </span>
-                      ) : (
-                        'Search & Add Customers'
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
+              {/* Customer Filters (shown for customers and potential customers) */}
+{(targetType === 'customers' || targetType === 'potential_customers' || targetType === 'both' || targetType === 'all') && (
+  <>
+    <h4 className="font-medium text-gray-700 mb-3">
+      {targetType === 'potential_customers' ? 'Potential Customer Filters' : 'Customer Filters'}
+    </h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+      {/* Sales Person */}
+      <div>
+        <label className="block mb-1 text-sm font-medium text-gray-700">
+          Sales Person
+        </label>
+        <select
+          name="createdBy"
+          value={formData.filters.createdBy}
+          onChange={handleFilterChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="">All Sales</option>
+          {salesUsers.map(user => (
+            <option key={user._id} value={user._id}>
+              {user.name} ({user.email})
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+    
+    {/* Categories */}
+    <div className="mb-4">
+      <label className="block mb-2 text-sm font-medium text-gray-700">
+        Sales Categories
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {categories.map(category => (
+          <button
+            type="button"
+            key={category}
+            onClick={() => handleCategoryToggle(category)}
+            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+              formData.filters.categories?.includes(category)
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {category}
+            {formData.filters.categories?.includes(category) && ' ✓'}
+          </button>
+        ))}
+        {categories.length === 0 && (
+          <p className="text-sm text-gray-500">
+            No categories defined yet. Add categories in Potential Customer List page.
+          </p>
+        )}
+      </div>
+    </div>
+    
+    {/* Apply Filters Button - Different text for potential customers */}
+    <div className="mb-6">
+      <button
+        type="button"
+        onClick={applyFilters}
+        disabled={applyingFilters}
+        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {applyingFilters ? (
+          <span className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Searching...
+          </span>
+        ) : (
+          targetType === 'potential_customers' ? 'Search & Add Potential Customers' : 'Search & Add Customers'
+        )}
+      </button>
+    </div>
+  </>
+)}
             </div>
             
             {/* Template Status Display (for WhatsApp campaigns) */}
@@ -1410,7 +1619,7 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
               </div>
             )}
             
-            {/* Submit Button */}
+            {/* Submit Button - UPDATED validation */}
             <div className="flex justify-end gap-4 pt-6 border-t">
               <button
                 type="button"
@@ -1424,8 +1633,10 @@ const WhatsAppPreview = ({ message, mediaUrl, mediaType, customerName, longMessa
                 type="submit"
                 disabled={loading || (
                   (targetType === 'customers' && selectedCustomers.length === 0) ||
+                  (targetType === 'potential_customers' && selectedPotentialCustomers.length === 0) ||
                   (targetType === 'suppliers' && selectedSuppliers.length === 0) ||
-                  (targetType === 'both' && selectedCustomers.length === 0 && selectedSuppliers.length === 0)
+                  (targetType === 'both' && selectedCustomers.length === 0 && selectedSuppliers.length === 0) ||
+                  (targetType === 'all' && selectedCustomers.length === 0 && selectedPotentialCustomers.length === 0 && selectedSuppliers.length === 0)
                 )}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
