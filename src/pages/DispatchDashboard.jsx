@@ -17,7 +17,8 @@ const DispatchDashboard = () => {
   const [endDate, setEndDate] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
 const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
-  
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
   const [products, setProducts] = useState([]);
     const [activeProductImage, setActiveProductImage] = useState(null);
 
@@ -59,17 +60,25 @@ const handlePageChange = (page) => {
       .catch((err) => console.error("Error fetching products:", err));
   }, []);
 
-
-
+// Reset page when filters change (excluding searchTerm)
 useEffect(() => {
-  // Reset page to 1 whenever filters or searchTerm change
   setSearchParams((prev) => {
     const params = new URLSearchParams(prev);
     params.set("page", 1);
     return params;
   });
-}, [searchTerm, statusFilter, startDate, endDate]);
+}, [statusFilter, startDate, endDate]);
 
+// Debounce search term
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedSearchTerm(searchTerm);
+  }, 1500); // Wait 500ms after user stops typing
+
+  return () => clearTimeout(timer);
+}, [searchTerm]);
+
+// Fetch orders with debounced search
 useEffect(() => {
   const fetchOrders = async () => {
     try {
@@ -84,13 +93,13 @@ useEffect(() => {
           startDate,
           endDate,
           status: statusFilter,
-          search: searchTerm,
-            sort: sortOrder, // ✅ add this line
+          search: debouncedSearchTerm, // Use debounced version
+          sort: sortOrder,
         },
       });
 
       setOrders(res.data.orders);
-      setFilteredOrders(res.data.orders); // Already paginated, no slicing needed
+      setFilteredOrders(res.data.orders);
       setTotalPages(res.data.totalPages);
     } catch (err) {
       console.error("Error fetching orders:", err);
@@ -101,8 +110,7 @@ useEffect(() => {
   };
 
   fetchOrders();
-}, [currentPage, startDate, endDate, statusFilter, searchTerm,sortOrder]);
-
+}, [currentPage, startDate, endDate, statusFilter, debouncedSearchTerm, sortOrder]); // Use debouncedSearchTerm here
 
 
   useEffect(() => {
@@ -546,13 +554,16 @@ EPS/Thermocol Sheet Cutting & Dispatch Section        </h2>
 
   <div className="flex flex-col w-full md:w-1/2">
     <label className="mb-1 text-sm font-medium text-gray-700">Search Orders:</label>
-    <input
-      type="text"
-      placeholder="🔍 Search by Po, Order ID, Customer or Product..."
-      className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-    />
+   <input
+  type="text"
+  placeholder="🔍 Search by Po, Order ID, Customer or Product..."
+  className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+/>
+{searchTerm !== debouncedSearchTerm && (
+  <span className="text-xs text-gray-500 ml-2">Searching...</span>
+)}
   </div>
 
   <div className="flex flex-col">
