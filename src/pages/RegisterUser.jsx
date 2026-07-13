@@ -548,10 +548,41 @@ const showDocument = (url, title) => {
     return;
   }
   
-  // Enhanced modal with better error handling and full-screen option
-  Swal.fire({
-    title: title,
-    html: `
+  // Check if it's a PDF
+  const isPdf = url.toLowerCase().includes('.pdf') || 
+                url.toLowerCase().includes('application/pdf') ||
+                url.includes('pdf');
+  
+  // Check if it's an image
+  const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg|heic|heif|tiff?)$/i.test(url);
+  
+  let contentHtml = '';
+  
+  if (isPdf) {
+    // For PDFs - use iframe with Google PDF viewer or direct embed
+    contentHtml = `
+      <div style="width:100%; height:70vh; position:relative;">
+        <iframe 
+          src="${url}" 
+          style="width:100%; height:100%; border:none; border-radius:8px;"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
+        <div style="margin-top:10px; text-align:center;">
+          <a href="${url}" target="_blank" rel="noopener noreferrer" 
+             style="display:inline-block; background:#4F46E5; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px; margin-right:10px;">
+            📄 Download PDF
+          </a>
+          <a href="${url}" target="_blank" rel="noopener noreferrer" 
+             style="display:inline-block; background:#10B981; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
+            🔗 Open in New Tab
+          </a>
+        </div>
+      </div>
+    `;
+  } else if (isImage) {
+    // For images - use img tag with error handling
+    contentHtml = `
       <div style="text-align:center; position:relative;">
         <div style="max-height:70vh; overflow-y:auto;">
           <img 
@@ -562,18 +593,36 @@ const showDocument = (url, title) => {
           />
         </div>
         <div style="margin-top:10px;">
-        <span>Click here to see image</span>
           <a href="${url}" target="_blank" rel="noopener noreferrer" 
              style="display:inline-block; background:#4F46E5; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
             🔗 Open in New Tab
           </a>
         </div>
       </div>
-    `,
+    `;
+  } else {
+    // For other file types - try to display or provide download
+    contentHtml = `
+      <div style="text-align:center; padding:20px;">
+        <p style="color:#666; margin-bottom:20px;">This file type cannot be previewed directly.</p>
+        <div style="margin-top:10px;">
+          <a href="${url}" target="_blank" rel="noopener noreferrer" 
+             style="display:inline-block; background:#4F46E5; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
+            📥 Download File
+          </a>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Enhanced modal with better error handling and full-screen option
+  Swal.fire({
+    title: title,
+    html: contentHtml,
     showCloseButton: true,
     showConfirmButton: false,
     width: "90%",
-    maxWidth: "800px",
+    maxWidth: "900px",
     background: "#fff",
     customClass: {
       popup: 'document-viewer-popup'
@@ -907,10 +956,10 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">Address</th>
                 <th className="px-4 py-2">Emergency No.</th>
                 <th className="px-4 py-2">Designation</th>
+                    <th className="px-4 py-2">Status</th> {/* ✅ MOVED HERE - AFTER DESIGNATION */}
                 <th className="px-4 py-2">ESIC No</th>
                 <th className="px-4 py-2">EPFO No</th>
-                 <th className="px-4 py-2">UN No</th> {/* ✅ ADD THIS */}
-    <th className="px-4 py-2">Status</th> {/* ✅ ADD THIS */}
+                 <th className="px-4 py-2">UAN No</th> {/* ✅ ADD THIS */}
                 <th className="px-4 py-2">Documents</th>
                     <th className="px-4 py-2">Registered Face</th>  {/* NEW COLUMN ADDED */}
                 <th className="px-4 py-2">Actions</th>
@@ -940,7 +989,7 @@ const handleDeleteVisitingCard = async () => {
     <img
       src={u.frontFacePicture}
       alt="Front Face"
-      className="h-10 w-10 rounded-full object-cover cursor-pointer"
+      className="h-20 w-20 rounded-full object-cover cursor-pointer"
       loading="lazy"
       onClick={() => showDocument(u.frontFacePicture, "Front Face")}
     />
@@ -1001,18 +1050,18 @@ const handleDeleteVisitingCard = async () => {
                   <td className="px-4 py-2">{u.address || "-"}</td>
                   <td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
                   <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
+                   <td className="px-4 py-2">
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+        u.isActive !== false 
+          ? 'bg-green-100 text-green-800' 
+          : 'bg-red-100 text-red-800'
+      }`}>
+        {u.isActive !== false ? '🟢 Active' : '🔴 Inactive'}
+      </span>
+    </td>
                   <td className="px-4 py-2">{u.esicNo || "-"}</td>
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
                   <td className="px-4 py-2">{u.unNo || "-"}</td> {/* ✅ ADD THIS */}
-<td className="px-4 py-2">
-  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-    u.isActive !== false 
-      ? 'bg-green-100 text-green-800' 
-      : 'bg-red-100 text-red-800'
-  }`}>
-    {u.isActive !== false ? '🟢 Active' : '🔴 Inactive'}
-  </span>
-</td>
                   <td className="px-4 py-2">
                     <div className="flex flex-col gap-2 text-xs">
                       
@@ -1334,7 +1383,7 @@ const handleDeleteVisitingCard = async () => {
   </div>
 </div>
 
-     <div>
+   <div>
   <label className="block text-sm">Designation <span className="text-red-500">*</span></label>
   <select 
     value={designation} 
@@ -1348,6 +1397,27 @@ const handleDeleteVisitingCard = async () => {
     <option value="driver">Driver</option>
     <option value="staff">Staff</option>
   </select>
+</div>
+
+{/* ✅ ADD ACTIVE/INACTIVE TOGGLE RIGHT AFTER DESIGNATION */}
+<div className="flex items-center space-x-3 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+  <label className="text-sm font-medium text-gray-700">Status:</label>
+  <div className="flex items-center space-x-2">
+    <input
+      type="checkbox"
+      id="isActive"
+      checked={isActive}
+      onChange={() => setIsActive(!isActive)}
+      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+    />
+    <label htmlFor="isActive" className="text-sm font-semibold cursor-pointer">
+      {isActive ? (
+        <span className="text-green-600">🟢 Active</span>
+      ) : (
+        <span className="text-red-600">🔴 Inactive</span>
+      )}
+    </label>
+  </div>
 </div>
 
       {(designation === 'staff' || designation === 'driver') && (
@@ -1373,7 +1443,7 @@ const handleDeleteVisitingCard = async () => {
         <input type="text" value={epfoNo} onChange={e => setEpfoNo(e.target.value)} className="w-full border p-2 rounded" />
       </div>
       <div>
-  <label className="block text-sm">UN No (Udyam Registration Number)</label>
+  <label className="block text-sm">UAN No (Unique Account Number)</label>
   <input type="text" value={unNo} onChange={e => setUnNo(e.target.value)} className="w-full border p-2 rounded" />
 </div>
     </div>
@@ -1798,18 +1868,6 @@ const handleDeleteVisitingCard = async () => {
       Allow for Dana / Beads Production Section
     </label>
   </div>
-   <div className="flex items-center space-x-2 mt-2">
-      <input
-        type="checkbox"
-        id="isActive"
-        checked={isActive}
-        onChange={() => setIsActive(!isActive)}
-        className="w-4 h-4"
-      />
-      <label htmlFor="isActive" className="text-sm text-gray-700">
-        {isActive ? '🟢 Active' : '🔴 Inactive'}
-      </label>
-    </div>
                 </>
               )}
             </div>
