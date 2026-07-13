@@ -504,6 +504,14 @@ export default function AddCaremaxQuotation() {
                       ) : (
                         <td>{p.gst}%</td>
                       )}
+                      {/* {form.inPunjab ? (
+                        <>
+                          <td>{((p.gst || 0) / 2).toFixed(2)}%</td>
+                          <td>{((p.gst || 0) / 2).toFixed(2)}%</td>
+                        </>
+                      ) : (
+                        <td>{p.gst || 0}%</td>
+                      )} */}
                       <td>{(total).toFixed(2)}</td>
                       <td>
                         <button

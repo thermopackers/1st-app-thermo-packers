@@ -507,7 +507,7 @@ const handleProductSelect = (index, selectedOption) => {
                           onChange={(e) => updateProductField(index, 'rate', Number(e.target.value))}
                         />
                       </td>
-                      {form.inPunjab ? (
+                                           {form.inPunjab ? (
                         <>
                           <td className="p-2 text-center">{((product.gst || 0) / 2).toFixed(2)}%</td>
                           <td className="p-2 text-center">{((product.gst || 0) / 2).toFixed(2)}%</td>
