@@ -128,16 +128,16 @@ const SectionActions = ({
   return (
     <button
       className="bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isSectionAlreadySent}
+      // disabled={isSectionAlreadySent}
       onClick={async () => {
-        if (isSectionAlreadySent) {
-          Swal.fire({
-            icon: "info",
-            title: "Already Sent",
-            text: `This section (${selectedKey}) has already been sent.`,
-          });
-          return;
-        }
+        // if (isSectionAlreadySent) {
+        //   Swal.fire({
+        //     icon: "info",
+        //     title: "Already Sent",
+        //     text: `This section (${selectedKey}) has already been sent.`,
+        //   });
+        //   return;
+        // }
 
         const result = await swalWithTailwindButtons.fire({
           title: "Are you sure?",
@@ -169,7 +169,8 @@ const SectionActions = ({
         }
       }}
     >
-      {isSectionAlreadySent ? "✅ Sent" : "🏭 Send to Production"}
+      {/* {isSectionAlreadySent ? "✅ Sent" : "🏭 Send to Production"} */}
+      🏭 Send to Production
     </button>
   );
 };
