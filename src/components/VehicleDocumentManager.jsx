@@ -18,6 +18,7 @@ const DOCUMENT_TYPES = {
   payment_receipts: "Tempo Challan Copy & Payment Receipts",
     vin_chassis_photo: "VIN - Chassis Number Photo", // Add this line
       punjab_permit: "Punjab Permit (Goods Permit)", // Add this new option
+        fastag: "Fastag", // Add this new option
 };
 
 export default function VehicleDocumentManager({ vehicleNumber }) {
@@ -33,6 +34,10 @@ export default function VehicleDocumentManager({ vehicleNumber }) {
     expiryDate: '',
     notes: '',
       mobileNumber: '', // Add this line
+       fastagCompanyName: '',
+  fastagNumber: '',
+  fastagRechargeCode: '',
+    companyName: '', // Add this for GPS and Insurance
     documents: []
   });
 
@@ -99,11 +104,11 @@ const handleSubmit = async (e) => {
   const submitData = new FormData();
 
   // Append normal fields (skip `documents`)
-  Object.keys(formData).forEach((key) => {
-    if (key !== "documents" && formData[key] !== null && formData[key] !== "") {
-      submitData.append(key, formData[key]);
-    }
-  });
+Object.keys(formData).forEach((key) => {
+  if (key !== "documents" && formData[key] !== null && formData[key] !== "") {
+    submitData.append(key, formData[key]);
+  }
+});
 
   // Separate existing URLs and new files
   const existingUrls = [];
@@ -147,13 +152,18 @@ const handleSubmit = async (e) => {
     // Reset form
     setShowForm(false);
     setEditingDoc(null);
-    setFormData({
-      documentType: "",
-      issueDate: "",
-      expiryDate: "",
-      notes: "",
-      documents: []
-    });
+ setFormData({
+  documentType: "",
+  issueDate: "",
+  expiryDate: "",
+  notes: "",
+  mobileNumber: "",
+  fastagCompanyName: "",
+  fastagNumber: "",
+  fastagRechargeCode: "",
+    companyName: "", // Add this
+  documents: []
+});
 
     fetchDocuments();
   } catch (err) {
@@ -167,18 +177,22 @@ const handleSubmit = async (e) => {
 
 
 
-  const handleEdit = (doc) => {
-    setEditingDoc(doc);
-    setFormData({
-      documentType: doc.documentType,
-      issueDate: doc.issueDate.split('T')[0],
-      expiryDate: doc.expiryDate.split('T')[0],
-      notes: doc.notes || '',
-        mobileNumber: doc.mobileNumber || '', // Add this line
-    documents: doc.documentUrls?.map(url => ({ url, isExisting: true })) || [] // ✅ preload existing
-    });
-    setShowForm(true);
-  };
+const handleEdit = (doc) => {
+  setEditingDoc(doc);
+  setFormData({
+    documentType: doc.documentType,
+    issueDate: doc.issueDate ? doc.issueDate.split('T')[0] : '',
+    expiryDate: doc.expiryDate ? doc.expiryDate.split('T')[0] : '',
+    notes: doc.notes || '',
+    mobileNumber: doc.mobileNumber || '',
+    fastagCompanyName: doc.fastagCompanyName || '',
+    fastagNumber: doc.fastagNumber || '',
+    fastagRechargeCode: doc.fastagRechargeCode || '',
+        companyName: doc.companyName || '', // Add this
+    documents: doc.documentUrls?.map(url => ({ url, isExisting: true })) || []
+  });
+  setShowForm(true);
+};
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -215,6 +229,10 @@ const handleSubmit = async (e) => {
     return new Date(expiryDate) < new Date();
   };
 
+  const getDocumentLabel = (docType) => {
+  return DOCUMENT_TYPES[docType] || 'Document';
+};
+
   if (loading) {
     return <div className="text-center py-4">Loading documents...</div>;
   }
@@ -235,52 +253,62 @@ const handleSubmit = async (e) => {
 <form 
   onSubmit={handleSubmit} 
   className="bg-white p-4 rounded shadow mb-6 max-h-[80vh] overflow-y-auto"
->          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Document Type</label>
-              <select
-                name="documentType"
-                value={formData.documentType}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                required
-              >
-                <option value="">Select Type</option>
-                {Object.entries(DOCUMENT_TYPES).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-{/* <div>
-  <label className="block text-sm font-medium mb-1">Mobile Number</label>
-  <input
-    type="tel"
-    name="mobileNumber"
-    value={formData.mobileNumber}
-    onChange={handleInputChange}
-    className="w-full p-2 border rounded"
-    placeholder="Enter mobile number"
-  />
-</div> */}
-{editingDoc && (
-  <div>
-    <label className="block text-sm font-medium mb-1">Document Number</label>
-    <input
-      type="text"
-      value={editingDoc.documentNumber}
-      readOnly
-      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-    />
-  </div>
-)}
-
-{!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts"].includes(formData.documentType) && (
-  <>
+>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
-      <label className="block text-sm font-medium mb-1">Issue Date</label>
+      <label className="block text-sm font-medium mb-1">Document Type</label>
+      <select
+        name="documentType"
+        value={formData.documentType}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        required
+      >
+        <option value="">Select Type</option>
+        {Object.entries(DOCUMENT_TYPES).map(([value, label]) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
+    </div>
+    {editingDoc && (
+      <div>
+        <label className="block text-sm font-medium mb-1">Document Number</label>
+        <input
+          type="text"
+          value={editingDoc.documentNumber}
+          readOnly
+          className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
+        />
+      </div>
+    )}
+
+  {!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts", "fastag"].includes(formData.documentType) && (
+  <>
+    {/* Show company name for GPS and Insurance */}
+    {["insurance_renewal", "gps_renewal"].includes(formData.documentType) && (
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          {formData.documentType ? `${getDocumentLabel(formData.documentType)} Company Name` : 'Company Name'}
+        </label>
+        <input
+          type="text"
+          name="companyName"
+          value={formData.companyName || ''}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          placeholder={`Enter ${getDocumentLabel(formData.documentType)} company name`}
+          required
+        />
+      </div>
+    )}
+
+    <div>
+      <label className="block text-sm font-medium mb-1">
+        {formData.documentType ? `${getDocumentLabel(formData.documentType)} Issue Date` : 'Issue Date'}
+      </label>
       <input
         type="date"
-         lang="en-GB"
+        lang="en-GB"
         name="issueDate"
         value={formData.issueDate}
         onChange={handleInputChange}
@@ -290,10 +318,12 @@ const handleSubmit = async (e) => {
     </div>
 
     <div>
-      <label className="block text-sm font-medium mb-1">Expiry Date</label>
+      <label className="block text-sm font-medium mb-1">
+        {formData.documentType ? `${getDocumentLabel(formData.documentType)} Expiry Date` : 'Expiry Date'}
+      </label>
       <input
         type="date"
-         lang="en-GB"
+        lang="en-GB"
         name="expiryDate"
         value={formData.expiryDate}
         onChange={handleInputChange}
@@ -304,108 +334,180 @@ const handleSubmit = async (e) => {
   </>
 )}
 
+ {formData.documentType === "fastag" && (
+  <>
+    <div>
+      <label className="block text-sm font-medium mb-1">Fastag Company Name</label>
+      <input
+        type="text"
+        name="fastagCompanyName"
+        value={formData.fastagCompanyName || ''}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        placeholder="Enter Fastag company name"
+        required
+      />
+    </div>
 
-           <div className="md:col-span-2">
-  <label className="block text-sm font-medium mb-1">Document File</label>
-  <input
-    type="file"
-    onChange={handleFileChange}
-    className="w-full p-2 border rounded"
-    required={!editingDoc}
-    accept=".pdf,.jpg,.jpeg,.png"
-    multiple
-  />
-  <p className="text-xs text-gray-600 mt-1">
-    📌 Note: Don’t delete any old documents, instead upload the new ones along with the previous documents.
-  </p>
-</div>
+    <div>
+      <label className="block text-sm font-medium mb-1">Fastag Number</label>
+      <input
+        type="text"
+        name="fastagNumber"
+        value={formData.fastagNumber || ''}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        placeholder="Enter Fastag number"
+        required
+      />
+    </div>
 
-{formData.documents.length > 0 && (
-  <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded">
-    {formData.documents.map((file, idx) => (
-      <div key={idx} className="relative border rounded p-1">
-        {file.isExisting ? (
-          // ✅ Existing file from server
-          file.url.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
-            <img src={file.url} alt={`preview-${idx}`} className="h-32 object-contain w-full rounded" />
-          ) : (
-            <div className="flex items-center justify-center h-32 bg-gray-100 text-sm">
-              📄 {file.url.split('/').pop()}
-            </div>
-          )
-        ) : (
-          // ✅ New file selected locally
-          file.type?.includes("image") ? (
-            <img
-              src={URL.createObjectURL(file)}
-              alt={`preview-${idx}`}
-              className="h-32 object-contain w-full rounded"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-32 bg-gray-100 text-sm">
-              📄 {file.name}
-            </div>
-          )
-        )}
-        <button
-          type="button"
-          onClick={() =>
-  setFormData(prev => {
-    const updatedDocs = prev.documents.filter((_, i) => i !== idx);
-    return { ...prev, documents: updatedDocs };
-  })
-}
+    <div>
+      <label className="block text-sm font-medium mb-1">Fastag Recharge Code</label>
+      <input
+        type="text"
+        name="fastagRechargeCode"
+        value={formData.fastagRechargeCode || ''}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        placeholder="Enter Fastag recharge code"
+        required
+      />
+    </div>
 
-          className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded-full"
-        >
-          ❌
-        </button>
-      </div>
-    ))}
-  </div>
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium mb-1">Fastag Document File</label>
+      <input
+        type="file"
+        onChange={handleFileChange}
+        className="w-full p-2 border rounded"
+        required={!editingDoc}
+        accept=".pdf,.jpg,.jpeg,.png"
+        multiple
+      />
+      <p className="text-xs text-gray-600 mt-1">
+        📌 Note: Don't delete any old documents, instead upload the new ones along with the previous documents.
+      </p>
+    </div>
+
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium mb-1">Fastag Notes</label>
+      <textarea
+        name="notes"
+        value={formData.notes}
+        onChange={handleInputChange}
+        className="w-full p-2 border rounded"
+        rows="3"
+      />
+    </div>
+  </>
 )}
 
+    {formData.documentType !== "fastag" && (
+      <>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium mb-1">
+            {formData.documentType ? `${getDocumentLabel(formData.documentType)} Document File` : 'Document File'}
+          </label>
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="w-full p-2 border rounded"
+            required={!editingDoc}
+            accept=".pdf,.jpg,.jpeg,.png"
+            multiple
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            📌 Note: Don't delete any old documents, instead upload the new ones along with the previous documents.
+          </p>
+        </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                rows="3"
-              />
-            </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium mb-1">
+            {formData.documentType ? `${getDocumentLabel(formData.documentType)} Notes` : 'Notes'}
+          </label>
+          <textarea
+            name="notes"
+            value={formData.notes}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded"
+            rows="3"
+          />
+        </div>
+      </>
+    )}
+
+    {formData.documents.length > 0 && (
+      <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded md:col-span-2">
+        {formData.documents.map((file, idx) => (
+          <div key={idx} className="relative border rounded p-1">
+            {file.isExisting ? (
+              file.url.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
+                <img src={file.url} alt={`preview-${idx}`} className="h-32 object-contain w-full rounded" />
+              ) : (
+                <div className="flex items-center justify-center h-32 bg-gray-100 text-sm">
+                  📄 {file.url.split('/').pop()}
+                </div>
+              )
+            ) : (
+              file.type?.includes("image") ? (
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt={`preview-${idx}`}
+                  className="h-32 object-contain w-full rounded"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-32 bg-gray-100 text-sm">
+                  📄 {file.name}
+                </div>
+              )
+            )}
+            <button
+              type="button"
+              onClick={() =>
+                setFormData(prev => {
+                  const updatedDocs = prev.documents.filter((_, i) => i !== idx);
+                  return { ...prev, documents: updatedDocs };
+                })
+              }
+              className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded-full"
+            >
+              ❌
+            </button>
           </div>
+        ))}
+      </div>
+    )}
+  </div>
 
-          <button
-            type="submit"
-            className="mt-4 bg-green-600 text-white px-4 py-2 rounded"
-          >
-            {editingDoc ? 'Update Document' : 'Add Document'}
-          </button>
-        </form>
+  <button
+    type="submit"
+    className="mt-4 bg-green-600 text-white px-4 py-2 rounded"
+  >
+    {editingDoc ? 'Update Document' : 'Add Document'}
+  </button>
+</form>
       )}
 
      <div className="overflow-x-auto overflow-y-auto">
   <table className="min-w-full bg-white rounded shadow">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="p-3 text-left">Type</th>
-              <th className="p-3 text-left">Issue Date</th>
-              <th className="p-3 text-left">Expiry Date</th>
-              <th className="p-3 text-left">Notes</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Actions</th>
-                {/* <th className="p-3 text-left">Mobile Number Linked</th> */}
-            </tr>
+          <tr className="bg-gray-100">
+  <th className="p-3 text-left">Type</th>
+  <th className="p-3 text-left">Issue Date</th>
+  <th className="p-3 text-left">Expiry Date</th>
+  <th className="p-3 text-left">Company/Details</th>
+  <th className="p-3 text-left">Notes</th>
+  <th className="p-3 text-left">Status</th>
+  <th className="p-3 text-left">Actions</th>
+</tr>
           </thead>
           <tbody>
             {documents.map((doc) => {
             let status = "Valid";
 let statusClass = "bg-green-100 text-green-800";
 
-if (!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts"].includes(doc.documentType)) {
+if (!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts","fastag"].includes(doc.documentType)) {
   const expiring = isExpiring(doc.expiryDate);
   const expired = isExpired(doc.expiryDate);
 
@@ -420,75 +522,87 @@ if (!["vehicle_images", "vin_chassis_photo", "rc_copy", "payment_receipts"].incl
 
               
               return (
-                <tr key={doc._id} className="border-b">
-                  <td className="p-3">{DOCUMENT_TYPES[doc.documentType]}</td>
-           <td className="p-3">
-  {doc.documentType !== "vehicle_images" && doc.issueDate
-    ? new Date(doc.issueDate).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
-    : "—"}
-</td>
-
-<td className="p-3">
-  {doc.documentType !== "vehicle_images" && doc.expiryDate
-    ? new Date(doc.expiryDate).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
-    : "—"}
-</td>
-
-
-
+              <tr key={doc._id} className="border-b">
+  <td className="p-3">{DOCUMENT_TYPES[doc.documentType]}</td>
+  <td className="p-3">
+    {doc.documentType !== "vehicle_images" && doc.issueDate && doc.documentType !== "fastag"
+      ? new Date(doc.issueDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : doc.documentType === "fastag" 
+        ? "—" 
+        : "—"}
+  </td>
+  <td className="p-3">
+    {doc.documentType !== "vehicle_images" && doc.expiryDate && doc.documentType !== "fastag"
+      ? new Date(doc.expiryDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : doc.documentType === "fastag" 
+        ? "—" 
+        : "—"}
+  </td>
 <td className="p-3 whitespace-normal break-words max-w-xs">
-  {doc.notes}
-</td>
-                  <td className="p-3">
-  <span className={`px-2 py-1 rounded-full text-xs ${statusClass}`}>
-    {status}
-  </span>
-</td>
-
-                  <td className="p-3">
-                 <div className="flex flex-wrap gap-2">
-  {doc.documentUrls?.map((url, idx) => (
-    <div key={idx} className="relative w-24 h-24 border rounded">
-      {url.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
-        <img src={url} className="w-full h-full object-contain rounded" />
-      ) : (
-        <embed src={url} type="application/pdf" className="w-full h-full rounded" />
-      )}
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center"
-      >
-        View
-      </a>
+  {doc.documentType === "fastag" ? (
+    <div className="text-xs">
+      <div><strong>Company:</strong> {doc.fastagCompanyName || '—'}</div>
+      <div><strong>Number:</strong> {doc.fastagNumber || '—'}</div>
+      <div><strong>Recharge Code:</strong> {doc.fastagRechargeCode || '—'}</div>
     </div>
-  ))}
-</div>
-
-                    <button
-                      onClick={() => handleEdit(doc)}
-                      className="text-yellow-600 hover:underline mr-3"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc._id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                      {/* <td className="p-3">{doc.mobileNumber || "—"}</td> */}
-                </tr>
+  ) : ["insurance_renewal", "gps_renewal"].includes(doc.documentType) ? (
+    <div className="text-xs">
+      <div><strong>Company:</strong> {doc.companyName || '—'}</div>
+    </div>
+  ) : (
+    "—"
+  )}
+</td>
+  <td className="p-3 whitespace-normal break-words max-w-xs">
+    {doc.notes}
+  </td>
+  <td className="p-3">
+    <span className={`px-2 py-1 rounded-full text-xs ${statusClass}`}>
+      {status}
+    </span>
+  </td>
+  <td className="p-3">
+    <div className="flex flex-wrap gap-2">
+      {doc.documentUrls?.map((url, idx) => (
+        <div key={idx} className="relative w-24 h-24 border rounded">
+          {url.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
+            <img src={url} className="w-full h-full object-contain rounded" />
+          ) : (
+            <embed src={url} type="application/pdf" className="w-full h-full rounded" />
+          )}
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center"
+          >
+            View
+          </a>
+        </div>
+      ))}
+    </div>
+    <button
+      onClick={() => handleEdit(doc)}
+      className="text-yellow-600 hover:underline mr-3"
+    >
+      Edit
+    </button>
+    <button
+      onClick={() => handleDelete(doc._id)}
+      className="text-red-600 hover:underline"
+    >
+      Delete
+    </button>
+  </td>
+</tr>
               );
             })}
           </tbody>

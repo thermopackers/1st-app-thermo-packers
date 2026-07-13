@@ -3,15 +3,20 @@ import * as faceapi from "face-api.js";
 import ReactWebcam from "react-webcam";
 import Swal from "sweetalert2";
 import axiosInstance from "../axiosInstance";
-import axios from "axios";
 import { loadLabeledDescriptorForUser } from "../utils/labeledDescriptors";
 import { useUserContext } from "../context/UserContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, UserCheck, MapPin, Clock, Loader, X, CheckCircle, AlertCircle } from "lucide-react";
+import { 
+  Camera, UserCheck, MapPin, Clock, Loader, X, CheckCircle, AlertCircle, 
+  Map, Globe, Check, Shield 
+} from "lucide-react";
+import { getUserLocation, isWithinGeoFence, calculateDistance } from "../utils/locationUtils";
+
+// Exempt users from geo-fencing
+const EXEMPT_EMAILS = ['it.thermopackers@gmail.com'];
 
 export default function AttendanceCapture() {
-   const parseUserRoles = (user) => {
-    // ✅ Add null check
+  const parseUserRoles = (user) => {
     if (!user || !user.role) {
       return [];
     }
@@ -38,6 +43,7 @@ export default function AttendanceCapture() {
     }
     return userRoles;
   };
+
   const { user, token } = useUserContext();
   const webcamRef = useRef(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -50,56 +56,70 @@ export default function AttendanceCapture() {
   const [isSaving, setIsSaving] = useState(false);
   const [locationStatus, setLocationStatus] = useState("pending");
   const [currentLocation, setCurrentLocation] = useState(null);
+  
+  // NEW: State for geo-fencing and on-tour
+  const [onTour, setOnTour] = useState(false);
+  const [geoFenceCheck, setGeoFenceCheck] = useState(null);
+  const [isExemptUser, setIsExemptUser] = useState(false);
+  const [isSalesUser, setIsSalesUser] = useState(false);
+  
   const userRoles = user ? parseUserRoles(user) : [];
 
-const captureImageWithTimestamp = () => {
-  return new Promise((resolve, reject) => {
-    const screenshot = webcamRef.current?.getScreenshot();
-
-    if (!screenshot || screenshot.length < 1000) {
-      console.warn("❌ Screenshot is blank or invalid");
-      return reject("Invalid screenshot");
+  // Check if user is exempt from geo-fencing or is a sales user
+  useEffect(() => {
+    if (user?.email) {
+      setIsExemptUser(EXEMPT_EMAILS.includes(user.email.toLowerCase()));
     }
+    // Check if user has sales role
+    const roles = parseUserRoles(user);
+    setIsSalesUser(roles.includes('sales'));
+  }, [user]);
 
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+  const captureImageWithTimestamp = () => {
+    return new Promise((resolve, reject) => {
+      const screenshot = webcamRef.current?.getScreenshot();
 
-      const timestamp = new Date().toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "medium",
-      });
+      if (!screenshot || screenshot.length < 1000) {
+        console.warn("❌ Screenshot is blank or invalid");
+        return reject("Invalid screenshot");
+      }
 
-      // Add timestamp overlay
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(10, canvas.height - 40, 280, 30);
-      
-      ctx.fillStyle = "white";
-      ctx.font = "14px monospace";
-      ctx.fillText(timestamp, 20, canvas.height - 20);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
 
-      // Add a tiny random pixel to ensure uniqueness (optional)
-      ctx.fillStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
-      ctx.fillRect(0, 0, 1, 1);
+        const timestamp = new Date().toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "medium",
+        });
 
-      const finalImage = canvas.toDataURL("image/jpeg", 0.9);
-      resolve(finalImage);
-    };
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(10, canvas.height - 40, 280, 30);
+        
+        ctx.fillStyle = "white";
+        ctx.font = "14px monospace";
+        ctx.fillText(timestamp, 20, canvas.height - 20);
 
-    img.onerror = () => {
-      console.error("❌ Failed to load captured image");
-      reject("Failed to load captured image");
-    };
+        ctx.fillStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+        ctx.fillRect(0, 0, 1, 1);
 
-    img.src = screenshot;
-  });
-};
+        const finalImage = canvas.toDataURL("image/jpeg", 0.9);
+        resolve(finalImage);
+      };
 
-  // ✅ Load face-api models
+      img.onerror = () => {
+        console.error("❌ Failed to load captured image");
+        reject("Failed to load captured image");
+      };
+
+      img.src = screenshot;
+    });
+  };
+
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -158,541 +178,573 @@ const captureImageWithTimestamp = () => {
     });
   };
 
-const getLocation = () => {
-  return new Promise((resolve, reject) => {
+  // MODIFIED: Enhanced location check with geo-fencing
+  const getLocationWithGeoFence = async (skipGeoFence = false) => {
     setLocationStatus("fetching");
     
-    if (!navigator.geolocation) {
-      setLocationStatus("unsupported");
-      return resolve({ lat: null, lng: null });
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const location = { 
-          lat: pos.coords.latitude, 
-          lng: pos.coords.longitude
-          // Remove accuracy check entirely
-        };
-        setCurrentLocation(location);
+    try {
+      const location = await getUserLocation();
+      setCurrentLocation(location);
+      
+      // Check if user is exempt
+      if (isExemptUser) {
+        console.log("🔓 User is exempt from geo-fencing");
+        setGeoFenceCheck({ isWithinFence: true, distance: 0, isExempt: true });
         setLocationStatus("success");
-        resolve(location);
-      },
-      (err) => {
-        console.warn("Geolocation error:", err);
+        return location;
+      }
+      
+      // Check if on tour (skip geo-fencing)
+      if (skipGeoFence) {
+        console.log("🚗 User is on tour - skipping geo-fencing");
+        setGeoFenceCheck({ isWithinFence: true, distance: 0, isOnTour: true });
+        setLocationStatus("success");
+        return location;
+      }
+      
+      // Check geo-fence
+      const fenceResult = isWithinGeoFence(location.lat, location.lng);
+      setGeoFenceCheck({ ...fenceResult, isExempt: false, isOnTour: false });
+      
+      if (!fenceResult.isWithinFence) {
         setLocationStatus("failed");
-        // Reject instead of resolve so we can catch the error properly
-        reject(err);
-      },
-      { 
-        // Remove enableHighAccuracy to use default settings
-        timeout: 10000,
-        maximumAge: 60000 
+        throw new Error(
+          `You are ${fenceResult.distance} meters away from the office. Maximum allowed distance is ${fenceResult.maxDistance} meters.`
+        );
       }
-    );
-  });
-};
+      
+      setLocationStatus("success");
+      return location;
+    } catch (err) {
+      console.error("Location error:", err);
+      setLocationStatus("failed");
+      throw err;
+    }
+  };
 
-const getDescriptor = async () => {
-  // Clear cache if user changes
-  if (descriptorCache && descriptorCache.userId !== user?._id) {
-    console.log("🔄 User changed, clearing descriptor cache");
-    setDescriptorCache(null);
-    return null;
-  }
-  
-  if (descriptorCache) {
-    console.log("✅ Using cached descriptor for user:", user?.name);
-    return descriptorCache.descriptor;
-  }
-  
-  try {
-    console.log("🔍 Loading descriptor for user:", user?.name, "ID:", user?._id);
-    const labeledDescriptor = await loadLabeledDescriptorForUser(user.name);
-    
-    if (labeledDescriptor) {
-      console.log("✅ Descriptor loaded successfully, type:", labeledDescriptor.constructor.name);
-      
-      // Extract the actual descriptor array from LabeledFaceDescriptors
-      // LabeledFaceDescriptors has a property 'descriptors' which is an array of descriptors
-      // Usually it's the first (and only) descriptor
-      let descriptorArray = null;
-      
-      if (labeledDescriptor.descriptors && labeledDescriptor.descriptors.length > 0) {
-        // Get the first descriptor from the descriptors array
-        descriptorArray = labeledDescriptor.descriptors[0];
-        console.log("📊 Extracted descriptor from LabeledFaceDescriptors, length:", descriptorArray.length);
-      } else if (labeledDescriptor.descriptor) {
-        // Some versions might have a direct descriptor property
-        descriptorArray = labeledDescriptor.descriptor;
-        console.log("📊 Extracted descriptor from property, length:", descriptorArray.length);
-      } else {
-        console.error("❌ Could not extract descriptor from LabeledFaceDescriptors:", labeledDescriptor);
-        return null;
-      }
-      
-      // Ensure it's a Float32Array
-      let finalDescriptor;
-      if (descriptorArray instanceof Float32Array) {
-        finalDescriptor = descriptorArray;
-      } else if (Array.isArray(descriptorArray)) {
-        console.log("🔄 Converting array to Float32Array");
-        finalDescriptor = new Float32Array(descriptorArray);
-      } else {
-        console.error("❌ Unknown descriptor format:", typeof descriptorArray);
-        return null;
-      }
-      
-      console.log("✅ Final descriptor ready, type:", finalDescriptor.constructor.name, "length:", finalDescriptor.length);
-      
-      // Store with user ID to handle user switching
-      setDescriptorCache({
-        userId: user?._id,
-        descriptor: finalDescriptor
-      });
-      return finalDescriptor;
-    } else {
-      console.error("❌ No descriptor found for user:", user?.name);
+  const getDescriptor = async () => {
+    if (descriptorCache && descriptorCache.userId !== user?._id) {
+      console.log("🔄 User changed, clearing descriptor cache");
+      setDescriptorCache(null);
       return null;
     }
-  } catch (err) {
-    console.error("❌ Error loading descriptor:", err);
-    return null;
-  }
-};
-
-const saveAttendance = async () => {
-  if (isSaving) return;
-
-  if (!modelsLoaded) {
-    Swal.fire({
-      icon: "info",
-      title: "Please Wait",
-      text: "Face recognition models are still loading.",
-      confirmButtonColor: "#B0BC27",
-    });
-    return;
-  }
-
-  // 🚫 Block if face is not registered
-  if (!user?.faceUrl) {
-    Swal.fire({
-      icon: "error",
-      title: "Face Not Registered",
-      html: `
-        <div class="text-center">
-          <div class="text-6xl mb-4">👤</div>
-          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
-        </div>
-      `,
-      confirmButtonColor: "#B0BC27",
-    });
-    return;
-  }
-
-  // 🔴 Check and request location permission
-  let location = null;
-  try {
-    location = await getLocation();
     
-    if (!location.lat || !location.lng) {
-      Swal.fire({
-        icon: "warning",
-        title: "Location Required",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">📍</div>
-            <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
-            <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
+    if (descriptorCache) {
+      console.log("✅ Using cached descriptor for user:", user?.name);
+      return descriptorCache.descriptor;
     }
     
-  } catch (err) {
-    console.warn("Location error:", err);
-    Swal.fire({
-      icon: "error",
-      title: "Location Error",
-      text: "Could not access your location. Please check your device settings and allow location access.",
-      confirmButtonColor: "#B0BC27",
-    });
-    setIsSaving(false);
-    return;
-  }
-
-  console.time("🕒 Total Attendance Time");
-  setIsSaving(true);
-
-  try {
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
-
-    // 📸 Capture single image
-    const image1 = await captureImageWithTimestamp();
-    if (!image1 || image1.length < 1000) {
-      Swal.fire({
-        icon: "error",
-        title: "Camera Error",
-        text: "Camera capture failed. Please try again.",
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
-    }
-
-    const img1 = await faceapi.fetchImage(image1);
-
-    // Face detection
-    const face1 = await faceapi
-      .detectSingleFace(img1, options)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!face1) {
-      Swal.fire({
-        icon: "error",
-        title: "Face Not Detected",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">🔍</div>
-            <p class="text-gray-600 mb-2">Make sure your face is clearly visible and centered.</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      setIsSaving(false);
-      return;
-    }
-
-    console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
-
-    // ✅ Face match
-    console.log("🔍 Getting descriptor for user:", user?.name, "ID:", user?._id);
-    const descriptorData = await getDescriptor();
-    
-    let descriptor;
-    if (!descriptorData) {
-      console.error("❌ No descriptor found in cache/DB");
+    try {
+      console.log("🔍 Loading descriptor for user:", user?.name, "ID:", user?._id);
+      const labeledDescriptor = await loadLabeledDescriptorForUser(user.name);
       
-      try {
-        console.log("🔄 Attempting to fetch descriptor directly from API...");
-        const response = await axiosInstance.get("/users/preprocessed-descriptors");
-        const descriptors = response.data;
-        console.log(`📊 API returned ${descriptors.length} descriptors`);
+      if (labeledDescriptor) {
+        console.log("✅ Descriptor loaded successfully, type:", labeledDescriptor.constructor.name);
         
-        const userDescriptor = descriptors.find(d => d._id === user._id);
-        if (userDescriptor && userDescriptor.descriptor) {
-          console.log("✅ Found descriptor in API response");
-          const descriptorArray = new Float32Array(userDescriptor.descriptor);
-          setDescriptorCache({
-            userId: user._id,
-            descriptor: descriptorArray
-          });
-          descriptor = descriptorArray;
+        let descriptorArray = null;
+        
+        if (labeledDescriptor.descriptors && labeledDescriptor.descriptors.length > 0) {
+          descriptorArray = labeledDescriptor.descriptors[0];
+          console.log("📊 Extracted descriptor from LabeledFaceDescriptors, length:", descriptorArray.length);
+        } else if (labeledDescriptor.descriptor) {
+          descriptorArray = labeledDescriptor.descriptor;
+          console.log("📊 Extracted descriptor from property, length:", descriptorArray.length);
         } else {
+          console.error("❌ Could not extract descriptor from LabeledFaceDescriptors:", labeledDescriptor);
+          return null;
+        }
+        
+        let finalDescriptor;
+        if (descriptorArray instanceof Float32Array) {
+          finalDescriptor = descriptorArray;
+        } else if (Array.isArray(descriptorArray)) {
+          console.log("🔄 Converting array to Float32Array");
+          finalDescriptor = new Float32Array(descriptorArray);
+        } else {
+          console.error("❌ Unknown descriptor format:", typeof descriptorArray);
+          return null;
+        }
+        
+        console.log("✅ Final descriptor ready, type:", finalDescriptor.constructor.name, "length:", finalDescriptor.length);
+        
+        setDescriptorCache({
+          userId: user?._id,
+          descriptor: finalDescriptor
+        });
+        return finalDescriptor;
+      } else {
+        console.error("❌ No descriptor found for user:", user?.name);
+        return null;
+      }
+    } catch (err) {
+      console.error("❌ Error loading descriptor:", err);
+      return null;
+    }
+  };
+
+  // MODIFIED: saveAttendance with geo-fencing and onTour flag
+  const saveAttendance = async () => {
+    if (isSaving) return;
+
+    if (!modelsLoaded) {
+      Swal.fire({
+        icon: "info",
+        title: "Please Wait",
+        text: "Face recognition models are still loading.",
+        confirmButtonColor: "#B0BC27",
+      });
+      return;
+    }
+
+    if (!user?.faceUrl) {
+      Swal.fire({
+        icon: "error",
+        title: "Face Not Registered",
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">👤</div>
+            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+      });
+      return;
+    }
+
+    // Get location with geo-fencing
+    let location = null;
+    try {
+      // Check if we should skip geo-fencing (exempt user or on tour)
+      const skipGeoFence = isExemptUser || onTour;
+      location = await getLocationWithGeoFence(skipGeoFence);
+      
+      if (!location.lat || !location.lng) {
+        Swal.fire({
+          icon: "warning",
+          title: "Location Required",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">📍</div>
+              <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
+              <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Location/Geo-fence error:", err);
+      
+      // Show detailed geo-fence error
+      if (err.message.includes("meters away")) {
+        Swal.fire({
+          icon: "error",
+          title: "Outside Office Area",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">📍</div>
+              <p class="text-gray-600 mb-4">${err.message}</p>
+              <p class="text-sm text-gray-500 mb-4">Please move closer to the office or enable "On Tour" mode if you're traveling.</p>
+              <div class="bg-blue-50 p-3 rounded-lg mt-2">
+                <p class="text-xs text-blue-600">📌 Office Location: 31.342061, 75.509983</p>
+              </div>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Location Error",
+          text: err.message || "Could not access your location. Please check your device settings.",
+          confirmButtonColor: "#B0BC27",
+        });
+      }
+      setIsSaving(false);
+      return;
+    }
+
+    console.time("🕒 Total Attendance Time");
+    setIsSaving(true);
+
+    try {
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
+
+      const image1 = await captureImageWithTimestamp();
+      if (!image1 || image1.length < 1000) {
+        Swal.fire({
+          icon: "error",
+          title: "Camera Error",
+          text: "Camera capture failed. Please try again.",
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      const img1 = await faceapi.fetchImage(image1);
+
+      const face1 = await faceapi
+        .detectSingleFace(img1, options)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!face1) {
+        Swal.fire({
+          icon: "error",
+          title: "Face Not Detected",
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">🔍</div>
+              <p class="text-gray-600 mb-2">Make sure your face is clearly visible and centered.</p>
+            </div>
+          `,
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
+
+      console.log("🔍 Getting descriptor for user:", user?.name, "ID:", user?._id);
+      const descriptorData = await getDescriptor();
+      
+      let descriptor;
+      if (!descriptorData) {
+        console.error("❌ No descriptor found in cache/DB");
+        
+        try {
+          console.log("🔄 Attempting to fetch descriptor directly from API...");
+          const response = await axiosInstance.get("/users/preprocessed-descriptors");
+          const descriptors = response.data;
+          console.log(`📊 API returned ${descriptors.length} descriptors`);
+          
+          const userDescriptor = descriptors.find(d => d._id === user._id);
+          if (userDescriptor && userDescriptor.descriptor) {
+            console.log("✅ Found descriptor in API response");
+            const descriptorArray = new Float32Array(userDescriptor.descriptor);
+            setDescriptorCache({
+              userId: user._id,
+              descriptor: descriptorArray
+            });
+            descriptor = descriptorArray;
+          } else {
+            Swal.fire({
+              icon: "error",
+              title: "Face Data Missing",
+              text: "Your face descriptor data is missing. Please contact admin.",
+              confirmButtonColor: "#B0BC27",
+            });
+            setIsSaving(false);
+            return;
+          }
+        } catch (fetchErr) {
+          console.error("❌ Failed to fetch descriptors:", fetchErr);
           Swal.fire({
             icon: "error",
-            title: "Face Data Missing",
-            text: "Your face descriptor data is missing. Please contact admin.",
+            title: "Error",
+            text: "Failed to load face recognition data.",
             confirmButtonColor: "#B0BC27",
           });
           setIsSaving(false);
           return;
         }
-      } catch (fetchErr) {
-        console.error("❌ Failed to fetch descriptors:", fetchErr);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to load face recognition data.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-    } else {
-      if (descriptorData instanceof Float32Array) {
-        descriptor = descriptorData;
-      } else if (Array.isArray(descriptorData)) {
-        console.log("🔄 Converting regular array to Float32Array");
-        descriptor = new Float32Array(descriptorData);
       } else {
-        console.error("❌ Descriptor is in unknown format:", typeof descriptorData);
-        Swal.fire({
-          icon: "error",
-          title: "Format Error",
-          text: "Face descriptor is in wrong format. Please contact admin.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-    }
-
-    const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.7);
-    const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
-    console.log("🔍 Match result:", {
-      label: bestMatch.label,
-      distance: bestMatch.distance,
-    });
-    
-    if (bestMatch.label === "unknown") {
-      console.log("🔄 Retrying with lower threshold (0.6)...");
-      const faceMatcherLower = new faceapi.FaceMatcher([descriptor], 0.6);
-      const retryMatch = faceMatcherLower.findBestMatch(face1.descriptor);
-      
-      if (retryMatch.label === "unknown") {
-        Swal.fire({
-          icon: "error",
-          title: "Face Not Recognized",
-          text: "Face doesn't match your registered profile.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-    }
-
-    // 🗜️ Compress image MORE aggressively
-    console.log("🖼️ Original image size:", Math.round(image1.length / 1024), "KB");
-    
-    // Compress with lower quality (0.2 instead of 0.3)
-    let compressedImage = await compressImage(image1, 0.2);
-    
-    // If still too large (> 150KB), compress further
-    let quality = 0.2;
-    let imageSizeKB = compressedImage.length / 1024;
-    
-    while (imageSizeKB > 150 && quality > 0.1) {
-      quality -= 0.05;
-      console.log(`🔄 Re-compressing with quality ${quality}, current size: ${Math.round(imageSizeKB)}KB`);
-      compressedImage = await compressImage(image1, quality);
-      imageSizeKB = compressedImage.length / 1024;
-    }
-    
-    console.log("✅ Final compressed size:", Math.round(imageSizeKB), "KB");
-
-    const photoPayload = compressedImage.startsWith("data:")
-      ? compressedImage
-      : `data:image/jpeg;base64,${compressedImage}`;
-
-    // Determine user type
-    const workerDesignations = ["operator", "helper", "driver"];
-    const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
-    const now = new Date();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
-
-    // Function to make API call with retry
-    const makeApiCallWithRetry = async (apiCall, maxRetries = 2) => {
-      let lastError;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          console.log(`📡 API attempt ${attempt} of ${maxRetries}...`);
-          
-          // Set timeout for the request (30 seconds)
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Request timeout")), 30000);
+        if (descriptorData instanceof Float32Array) {
+          descriptor = descriptorData;
+        } else if (Array.isArray(descriptorData)) {
+          console.log("🔄 Converting regular array to Float32Array");
+          descriptor = new Float32Array(descriptorData);
+        } else {
+          console.error("❌ Descriptor is in unknown format:", typeof descriptorData);
+          Swal.fire({
+            icon: "error",
+            title: "Format Error",
+            text: "Face descriptor is in wrong format. Please contact admin.",
+            confirmButtonColor: "#B0BC27",
           });
-          
-          const apiPromise = apiCall();
-          const response = await Promise.race([apiPromise, timeoutPromise]);
-          
-          console.log(`✅ API call successful on attempt ${attempt}`);
-          return response;
-        } catch (err) {
-          lastError = err;
-          console.error(`❌ Attempt ${attempt} failed:`, err.message);
-          
-          if (attempt < maxRetries) {
-            // Wait before retrying (exponential backoff)
-            const waitTime = attempt * 2000;
-            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.7);
+      const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
+      console.log("🔍 Match result:", {
+        label: bestMatch.label,
+        distance: bestMatch.distance,
+      });
+      
+      if (bestMatch.label === "unknown") {
+        console.log("🔄 Retrying with lower threshold (0.6)...");
+        const faceMatcherLower = new faceapi.FaceMatcher([descriptor], 0.6);
+        const retryMatch = faceMatcherLower.findBestMatch(face1.descriptor);
+        
+        if (retryMatch.label === "unknown") {
+          Swal.fire({
+            icon: "error",
+            title: "Face Not Recognized",
+            text: "Face doesn't match your registered profile.",
+            confirmButtonColor: "#B0BC27",
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      console.log("🖼️ Original image size:", Math.round(image1.length / 1024), "KB");
+      
+      let compressedImage = await compressImage(image1, 0.2);
+      
+      let quality = 0.2;
+      let imageSizeKB = compressedImage.length / 1024;
+      
+      while (imageSizeKB > 150 && quality > 0.1) {
+        quality -= 0.05;
+        console.log(`🔄 Re-compressing with quality ${quality}, current size: ${Math.round(imageSizeKB)}KB`);
+        compressedImage = await compressImage(image1, quality);
+        imageSizeKB = compressedImage.length / 1024;
+      }
+      
+      console.log("✅ Final compressed size:", Math.round(imageSizeKB), "KB");
+
+      const photoPayload = compressedImage.startsWith("data:")
+        ? compressedImage
+        : `data:image/jpeg;base64,${compressedImage}`;
+
+      // Determine user type
+      const workerDesignations = ["operator", "helper", "driver"];
+      const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
+      const now = new Date();
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
+
+      // Function to make API call with retry
+      const makeApiCallWithRetry = async (apiCall, maxRetries = 2) => {
+        let lastError;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            console.log(`📡 API attempt ${attempt} of ${maxRetries}...`);
+            
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error("Request timeout")), 30000);
+            });
+            
+            const apiPromise = apiCall();
+            const response = await Promise.race([apiPromise, timeoutPromise]);
+            
+            console.log(`✅ API call successful on attempt ${attempt}`);
+            return response;
+          } catch (err) {
+            lastError = err;
+            console.error(`❌ Attempt ${attempt} failed:`, err.message);
+            
+            if (attempt < maxRetries) {
+              const waitTime = attempt * 2000;
+              console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
           }
         }
-      }
-      throw lastError;
-    };
+        throw lastError;
+      };
 
-    // For staff, check check-in status before check-out
-    if (!isWorker && type === "check-out") {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        console.log("📅 Checking for check-in on:", today);
-        
-        const attendanceResponse = await axiosInstance.get("/attendance", {
-          params: { date: today },
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000
-        });
-        
-        let attendanceData = [];
-        if (attendanceResponse.data.logs) {
-          attendanceData = attendanceResponse.data.logs;
-        } else if (Array.isArray(attendanceResponse.data)) {
-          attendanceData = attendanceResponse.data;
-        }
-        
-        const hasCheckIn = attendanceData.some(record => {
-          const recordUserId = record.user?._id || record.user;
-          if (recordUserId !== user._id) return false;
+      // For staff, check check-in status before check-out
+      if (!isWorker && type === "check-out") {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          console.log("📅 Checking for check-in on:", today);
           
-          const isCheckIn = record.type === "check-in" || 
-                            (record.checkIn && record.checkIn.time) ||
-                            (record.checkInTime);
+          const attendanceResponse = await axiosInstance.get("/attendance", {
+            params: { date: today },
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 10000
+          });
           
-          const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
+          let attendanceData = [];
+          if (attendanceResponse.data.logs) {
+            attendanceData = attendanceResponse.data.logs;
+          } else if (Array.isArray(attendanceResponse.data)) {
+            attendanceData = attendanceResponse.data;
+          }
           
-          return recordDate === today && isCheckIn;
-        });
-        
-        if (!hasCheckIn) {
+          const hasCheckIn = attendanceData.some(record => {
+            const recordUserId = record.user?._id || record.user;
+            if (recordUserId !== user._id) return false;
+            
+            const isCheckIn = record.type === "check-in" || 
+                              (record.checkIn && record.checkIn.time) ||
+                              (record.checkInTime);
+            
+            const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
+            
+            return recordDate === today && isCheckIn;
+          });
+          
+          if (!hasCheckIn) {
+            Swal.fire({
+              icon: "error",
+              title: "Cannot Check Out",
+              text: "You haven't checked in today. Please check in first.",
+              confirmButtonColor: "#B0BC27",
+            });
+            setIsSaving(false);
+            return;
+          }
+        } catch (checkErr) {
+          console.error("❌ Error checking attendance:", checkErr);
           Swal.fire({
             icon: "error",
-            title: "Cannot Check Out",
-            text: "You haven't checked in today. Please check in first.",
+            title: "Verification Failed",
+            text: "Could not verify your check-in status. Please try again.",
             confirmButtonColor: "#B0BC27",
           });
           setIsSaving(false);
           return;
         }
-      } catch (checkErr) {
-        console.error("❌ Error checking attendance:", checkErr);
-        Swal.fire({
-          icon: "error",
-          title: "Verification Failed",
-          text: "Could not verify your check-in status. Please try again.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-    }
-
-    // Make the API call with retry logic
-    let response;
-    try {
-      if (isWorker) {
-        console.log("👷 Worker detected, using factory attendance system");
-        response = await makeApiCallWithRetry(() =>
-          axiosInstance.post(
-            "/factory-attendance/mark",
-            { 
-              type, 
-              photo: photoPayload, 
-              location,
-              userId: user._id,
-              shift: currentShift,
-              source: 'portal'
-            },
-            { 
-              headers: { Authorization: `Bearer ${token}` },
-              timeout: 30000
-            }
-          )
-        );
-      } else {
-        console.log("👔 Staff detected, using regular attendance system");
-        response = await makeApiCallWithRetry(() =>
-          axiosInstance.post(
-            "/attendance/mark",
-            { type, photo: photoPayload, location },
-            { 
-              headers: { Authorization: `Bearer ${token}` },
-              timeout: 30000
-            }
-          )
-        );
       }
 
-      // Show success message
-      Swal.fire({
-        icon: "success",
-        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-        html: `
+      // Make the API call with retry logic
+      let response;
+      try {
+        // Prepare payload with onTour flag
+        const attendancePayload = { 
+          type, 
+          photo: photoPayload, 
+          location,
+          onTour: onTour && isSalesUser // Only send onTour flag if sales user
+        };
+        
+        if (isWorker) {
+          console.log("👷 Worker detected, using factory attendance system");
+          response = await makeApiCallWithRetry(() =>
+            axiosInstance.post(
+              "/factory-attendance/mark",
+              { 
+                ...attendancePayload,
+                userId: user._id,
+                shift: currentShift,
+                source: 'portal'
+              },
+              { 
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 30000
+              }
+            )
+          );
+        } else {
+          console.log("👔 Staff detected, using regular attendance system");
+          response = await makeApiCallWithRetry(() =>
+            axiosInstance.post(
+              "/attendance/mark",
+              attendancePayload,
+              { 
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 30000
+              }
+            )
+          );
+        }
+
+        // Show success message with onTour info if applicable
+        let successMessage = `
           <div class="text-center">
             <div class="text-6xl mb-4">✅</div>
             <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
             <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+        `;
+        
+        if (onTour && isSalesUser) {
+          successMessage += `
+            <div class="bg-amber-100 border border-amber-300 rounded-lg p-2 mb-4">
+              <p class="text-xs text-amber-700 font-medium">📍 On Tour Mode - Location: ${location.lat}, ${location.lng}</p>
+            </div>
+          `;
+        }
+        
+        successMessage += `
             <a href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}" 
                class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
               View Attendance Logs
             </a>
           </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-        showConfirmButton: false,
-        timer: 3000
-      });
+        `;
 
-      setCapturing(false);
-      console.log("✅ Attendance saved successfully");
+        Swal.fire({
+          icon: "success",
+          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+          html: successMessage,
+          confirmButtonColor: "#B0BC27",
+          showConfirmButton: false,
+          timer: 3000
+        });
+
+        setCapturing(false);
+        console.log("✅ Attendance saved successfully");
+
+      } catch (err) {
+        setCapturing(false);
+        
+        if (err.message === "Request timeout") {
+          Swal.fire({
+            icon: "error",
+            title: "Network Timeout",
+            text: "Request took too long. Please check your internet connection and try again.",
+            confirmButtonColor: "#B0BC27",
+          });
+        } else if (err.response?.data?.error?.includes("already marked")) {
+          Swal.fire({
+            icon: "info",
+            title: "Already Marked",
+            text: `You already marked ${type} for today.`,
+            confirmButtonColor: "#B0BC27",
+          });
+        } else if (err.response?.data?.error?.includes("location")) {
+          Swal.fire({
+            icon: "error",
+            title: "Location Error",
+            text: "Location is required for attendance. Please enable location services.",
+            confirmButtonColor: "#B0BC27",
+          });
+        } else {
+          // Store failed attempt in localStorage for later retry
+          const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+          failedUploads.push({
+            data: { type, photo: photoPayload, location, onTour: onTour && isSalesUser },
+            timestamp: new Date().toISOString(),
+            userId: user._id,
+            isWorker: isWorker
+          });
+          if (failedUploads.length > 10) failedUploads.shift();
+          localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
+          
+          Swal.fire({
+            icon: "error",
+            title: "Save Failed",
+            text: err.response?.data?.error || err.message || "Failed to save attendance. It will be retried automatically.",
+            confirmButtonColor: "#B0BC27",
+          });
+        }
+      }
 
     } catch (err) {
-      setCapturing(false);
-      
-      if (err.message === "Request timeout") {
-        Swal.fire({
-          icon: "error",
-          title: "Network Timeout",
-          text: "Request took too long. Please check your internet connection and try again.",
-          confirmButtonColor: "#B0BC27",
-        });
-      } else if (err.response?.data?.error?.includes("already marked")) {
-        Swal.fire({
-          icon: "info",
-          title: "Already Marked",
-          text: `You already marked ${type} for today.`,
-          confirmButtonColor: "#B0BC27",
-        });
-      } else if (err.response?.data?.error?.includes("location")) {
-        Swal.fire({
-          icon: "error",
-          title: "Location Error",
-          text: "Location is required for attendance. Please enable location services.",
-          confirmButtonColor: "#B0BC27",
-        });
-      } else {
-        // Store failed attempt in localStorage for later retry
-        const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
-        failedUploads.push({
-          data: { type, photo: photoPayload, location },
-          timestamp: new Date().toISOString(),
-          userId: user._id,
-          isWorker: isWorker
-        });
-        // Keep only last 10 failed attempts
-        if (failedUploads.length > 10) failedUploads.shift();
-        localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
-        
-        Swal.fire({
-          icon: "error",
-          title: "Save Failed",
-          text: err.response?.data?.error || err.message || "Failed to save attendance. It will be retried automatically.",
-          confirmButtonColor: "#B0BC27",
-        });
-      }
+      console.error("Error marking attendance:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Attendance Failed",
+        text: "An unexpected error occurred. Please try again.",
+        confirmButtonColor: "#B0BC27",
+      });
+    } finally {
+      setIsSaving(false);
+      console.timeEnd("🕒 Total Attendance Time");
     }
-
-  } catch (err) {
-    console.error("Error marking attendance:", err);
-    Swal.fire({
-      icon: "error",
-      title: "Attendance Failed",
-      text: "An unexpected error occurred. Please try again.",
-      confirmButtonColor: "#B0BC27",
-    });
-  } finally {
-    setIsSaving(false);
-    console.timeEnd("🕒 Total Attendance Time");
-  }
-};
+  };
 
   const retryFailedUploads = async () => {
     const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
@@ -715,7 +767,6 @@ const saveAttendance = async () => {
       }
     }
     
-    // Remove successful retries
     const remainingUploads = failedUploads.filter(
       upload => !successfulRetries.includes(upload)
     );
@@ -723,12 +774,11 @@ const saveAttendance = async () => {
     localStorage.setItem('failedAttendanceUploads', JSON.stringify(remainingUploads));
   };
 
-// Call this on component mount or when connection is restored
-useEffect(() => {
-  if (navigator.onLine) {
-    retryFailedUploads();
-  }
-}, [token]);
+  useEffect(() => {
+    if (navigator.onLine) {
+      retryFailedUploads();
+    }
+  }, [token]);
 
   const handleCapture = (captureType) => {
     if (!modelsLoaded) {
@@ -913,6 +963,74 @@ useEffect(() => {
             </div>
           </motion.div>
 
+          {/* NEW: On Tour Checkbox - ONLY SHOW FOR SALES USERS */}
+          {isSalesUser && !isExemptUser && (
+            <motion.div 
+              className="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-200"
+              variants={itemVariants}
+            >
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={onTour}
+                  onChange={(e) => setOnTour(e.target.checked)}
+                  className="w-5 h-5 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+                />
+                <div>
+                  <span className="font-medium text-amber-800 flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    On Tour
+                  </span>
+                  <p className="text-xs text-amber-600 mt-1">
+                    {onTour 
+                      ? "✓ Geo-fencing disabled. You can mark attendance from anywhere." 
+                      : "Check this if you're On Tour today."}
+                  </p>
+                </div>
+              </label>
+              
+              {/* Show current geo-fence status when not on tour */}
+              {!onTour && geoFenceCheck && !geoFenceCheck.isExempt && (
+                <div className={`mt-3 text-xs p-2 rounded-lg ${
+                  geoFenceCheck.isWithinFence 
+                    ? "bg-green-100 text-green-700" 
+                    : "bg-red-100 text-red-700"
+                }`}>
+                  {geoFenceCheck.isWithinFence ? (
+                    <span>✅ Within office area ({geoFenceCheck.distance}m from office)</span>
+                  ) : (
+                    <span>⚠️ {geoFenceCheck.distance}m from office (max {geoFenceCheck.maxDistance}m)</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Show on tour status when enabled */}
+              {onTour && (
+                <div className="mt-3 text-xs bg-amber-100 text-amber-700 p-2 rounded-lg">
+                  🌍 On Tour Mode Active - Location tracking still enabled for attendance records
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Show exempt status for IT user */}
+          {isExemptUser && (
+            <motion.div 
+              className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200"
+              variants={itemVariants}
+            >
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5 text-blue-600" />
+                <div>
+                  <span className="font-medium text-blue-800">Geo-fencing Disabled</span>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Your account is exempt from location restrictions.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Action Buttons */}
           <motion.div 
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
@@ -963,6 +1081,16 @@ useEffect(() => {
               <li>• Remove sunglasses or face coverings</li>
               <li>• Stay still during face capture</li>
               <li>• Allow location access when prompted</li>
+              {isSalesUser && !isExemptUser && (
+                <li className="text-amber-600 font-medium">
+                  • You must be within 100 meters of the office (unless "On Tour" is checked)
+                </li>
+              )}
+              {isExemptUser && (
+                <li className="text-blue-600 font-medium">
+                  • Geo-fencing is disabled for your account
+                </li>
+              )}
             </ul>
           </motion.div>
         </motion.div>
@@ -983,6 +1111,11 @@ useEffect(() => {
             >
               <h3 className="text-2xl font-bold text-white mb-2 capitalize">
                 {type} - Face Verification
+                {onTour && isSalesUser && (
+                  <span className="ml-2 text-sm bg-amber-500 text-white px-2 py-1 rounded-lg">
+                    🌍 On Tour
+                  </span>
+                )}
               </h3>
               <p className="text-gray-300">
                 Please look directly at the camera and stay still
@@ -1055,49 +1188,48 @@ useEffect(() => {
         )}
       </AnimatePresence>
 
-     {/* Face Capture Overlay */}
-<AnimatePresence>
-  {showLivenessPrompt && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50"
-    >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 sm:p-10 text-center text-white max-w-md mx-4 shadow-2xl"
-      >
-        <motion.div
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 1, repeat: Infinity }}
-          className="text-6xl mb-6"
-        >
-          📸
-        </motion.div>
-        
-        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-          Capturing Face
-        </h2>
-        
-        <p className="text-lg text-blue-100 mb-6 leading-relaxed">
-          Please look directly at the camera
-        </p>
+      {/* Face Capture Overlay */}
+      <AnimatePresence>
+        {showLivenessPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 sm:p-10 text-center text-white max-w-md mx-4 shadow-2xl"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="text-6xl mb-6"
+              >
+                📸
+              </motion.div>
+              
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+                Capturing Face
+              </h2>
+              
+              <p className="text-lg text-blue-100 mb-6 leading-relaxed">
+                Please look directly at the camera
+              </p>
 
-        <motion.div
-          key={livenessCountdown}
-          initial={{ scale: 1.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-8xl font-bold text-yellow-300 mb-4"
-        >
-          {livenessCountdown}
-        </motion.div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+              <motion.div
+                key={livenessCountdown}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-8xl font-bold text-yellow-300 mb-4"
+              >
+                {livenessCountdown}
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
-

@@ -222,6 +222,21 @@ const getCheckInColor = (checkInTime) => {
   return '';
 };
 
+// Add near other helper functions
+const getOnTourBadge = (entry) => {
+  if (entry.checkIn?.onTour) {
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+      🌍 On Tour
+    </span>;
+  }
+  if (entry.checkOut?.onTour) {
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+      🌍 On Tour
+    </span>;
+  }
+  return null;
+};
+
   return (
     <>
       <InternalNavbar />
@@ -588,6 +603,9 @@ const getCheckInColor = (checkInTime) => {
             {entry.checkIn && entry.checkOut ? "Complete" : "Incomplete"}
           </span>
         </td>
+        <td className="px-4 py-3">
+  {getOnTourBadge(entry)}
+</td>
       </motion.tr>
     ))}
   </AnimatePresence>

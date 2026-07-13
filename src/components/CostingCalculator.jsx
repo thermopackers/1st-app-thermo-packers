@@ -17,6 +17,7 @@ export default function CostingCalculator() {
   const [rmRate, setRmRate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showWastage, setShowWastage] = useState(false); // Added state for wastage checkbox
   const [formData, setFormData] = useState({
     length: "",
     lengthUnit: "mm",
@@ -27,7 +28,8 @@ export default function CostingCalculator() {
     density: "",
     customRmRate: "",
     conversionRate: "80",
-    freight: ""
+    freight: "",
+    wastageRate: "40"
   });
   const [result, setResult] = useState(null);
 
@@ -61,28 +63,23 @@ export default function CostingCalculator() {
     }
   };
 
-// Calculate required volume in m³ with 0.5mm extra on all dimensions
-const calculateRequiredVolume = () => {
-  // Convert input to mm first
-  let lengthMM = convertToMM(formData.length, formData.lengthUnit);
-  let breadthMM = convertToMM(formData.breadth, formData.breadthUnit);
-  let heightMM = convertToMM(formData.height, formData.heightUnit);
-  
-  // ✅ Add 0.5mm extra to each dimension
-  lengthMM = lengthMM + 0.5;
-  breadthMM = breadthMM + 0.5;
-  heightMM = heightMM + 0.5;
-  
-  // Convert to meters
-  const lengthM = lengthMM / 1000;
-  const breadthM = breadthMM / 1000;
-  const heightM = heightMM / 1000;
-  
-  // Volume in m³
-  const volume = lengthM * breadthM * heightM;
-  
-  return { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM };
-};
+  // Calculate required volume in m³ with 0.5mm extra on all dimensions
+  const calculateRequiredVolume = () => {
+    let lengthMM = convertToMM(formData.length, formData.lengthUnit);
+    let breadthMM = convertToMM(formData.breadth, formData.breadthUnit);
+    let heightMM = convertToMM(formData.height, formData.heightUnit);
+    
+    lengthMM = lengthMM + 0.5;
+    breadthMM = breadthMM + 0.5;
+    heightMM = heightMM + 0.5;
+    
+    const lengthM = lengthMM / 1000;
+    const breadthM = breadthMM / 1000;
+    const heightM = heightMM / 1000;
+    const volume = lengthM * breadthM * heightM;
+    
+    return { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM };
+  };
 
   // Calculate best number of pieces from raw block
   const calculateBestPieces = (requiredL, requiredB, requiredH) => {
@@ -128,115 +125,138 @@ const calculateRequiredVolume = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-const handleCalculate = () => {
-  setLoading(true);
-  
-  try {
-    if (!formData.length || !formData.breadth || !formData.height) {
-      toast.error("Please enter all dimensions");
-      setLoading(false);
-      return;
-    }
+  const handleCalculate = () => {
+    setLoading(true);
     
-    if (!formData.density) {
-      toast.error("Please enter density");
-      setLoading(false);
-      return;
-    }
-    
-    const { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM } = calculateRequiredVolume();
-    
-    if (volume === 0) {
-      toast.error("Invalid dimensions");
-      setLoading(false);
-      return;
-    }
-    
-    // Use the dimensions WITH 0.5mm extra for piece calculation
-    const { maxPieces, bestOrientation } = calculateBestPieces(lengthMM, breadthMM, heightMM);
-    
-    const blockVolume = 4.6;
-    const density = parseFloat(formData.density);
-    const weightPerBlock = density * blockVolume;
-    const effectiveRmRate = parseFloat(formData.customRmRate) || rmRate;
-    const conversionRate = parseFloat(formData.conversionRate) || 0;
-    const totalPerKg = effectiveRmRate + conversionRate;
-    const costPerBlock = weightPerBlock * totalPerKg;
-    const pricePerPiece = maxPieces > 0 ? costPerBlock / maxPieces : 0;
-    const freight = parseFloat(formData.freight) || 0;
-    const totalWithFreight = pricePerPiece + (freight / maxPieces);
-    const gst = totalWithFreight * 0.18;
-    const finalPrice = totalWithFreight + gst;
-    const outerDimensionM3 = volume;
-    const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
-    const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
-    
-    // Calculate display dimensions with the +0.5mm addition
-    const displayLengthMM = lengthMM;
-    const displayBreadthMM = breadthMM;
-    const displayHeightMM = heightMM;
-    
-    setResult({
-      outerDimensions: {
-        length: lengthM.toFixed(3),
-        breadth: breadthM.toFixed(3),
-        height: heightM.toFixed(3),
-        volume: volume.toFixed(6),
-        displayLength: `${formData.length} ${formData.lengthUnit} (+0.5mm = ${displayLengthMM.toFixed(1)}mm)`,
-        displayBreadth: `${formData.breadth} ${formData.breadthUnit} (+0.5mm = ${displayBreadthMM.toFixed(1)}mm)`,
-        displayHeight: `${formData.height} ${formData.heightUnit} (+0.5mm = ${displayHeightMM.toFixed(1)}mm)`
-      },
-      density: density,
-      blockVolume: blockVolume,
-      weightPerBlock: weightPerBlock.toFixed(2),
-      rmRate: effectiveRmRate,
-      conversionRate: conversionRate,
-      totalPerKg: totalPerKg.toFixed(2),
-      costPerBlock: costPerBlock.toFixed(2),
-      piecesFromBlock: {
-        count: maxPieces,
-        orientation: bestOrientation?.orientation,
-        piecesL: bestOrientation?.piecesL,
-        piecesB: bestOrientation?.piecesB,
-        piecesH: bestOrientation?.piecesH
-      },
-      pricePerPiece: pricePerPiece.toFixed(2),
-      freight: freight,
-      freightPerPiece: (freight / maxPieces).toFixed(2),
-      totalWithFreight: totalWithFreight.toFixed(2),
-      gst: gst.toFixed(2),
-      finalPrice: finalPrice.toFixed(2),
-      piecesInTempo: piecesInTempo,
-      piecesInTruck: piecesInTruck,
-      outerDimensionM3: outerDimensionM3.toFixed(6),
-      // Store the extra dimensions for reference
-      extraDimensions: {
-        original: {
-          length: formData.length,
-          breadth: formData.breadth,
-          height: formData.height
-        },
-        added: {
-          length: 0.5,
-          breadth: 0.5,
-          height: 0.5
-        },
-        final: {
-          length: displayLengthMM.toFixed(1),
-          breadth: displayBreadthMM.toFixed(1),
-          height: displayHeightMM.toFixed(1)
-        }
+    try {
+      if (!formData.length || !formData.breadth || !formData.height) {
+        toast.error("Please enter all dimensions");
+        setLoading(false);
+        return;
       }
-    });
-    
-    toast.success("Calculation completed with +0.5mm added to all dimensions!");
-  } catch (err) {
-    console.error("Calculation error:", err);
-    toast.error("Failed to calculate");
-  } finally {
-    setLoading(false);
-  }
-};
+      
+      if (!formData.density) {
+        toast.error("Please enter density");
+        setLoading(false);
+        return;
+      }
+      
+      const { volume, lengthM, breadthM, heightM, lengthMM, breadthMM, heightMM } = calculateRequiredVolume();
+      
+      if (volume === 0) {
+        toast.error("Invalid dimensions");
+        setLoading(false);
+        return;
+      }
+      
+      const { maxPieces, bestOrientation } = calculateBestPieces(lengthMM, breadthMM, heightMM);
+      
+      const blockVolume = 4.6;
+      const density = parseFloat(formData.density);
+      const effectiveRmRate = parseFloat(formData.customRmRate) || rmRate;
+      const conversionRate = parseFloat(formData.conversionRate) || 0;
+      const wastageRatePerKg = parseFloat(formData.wastageRate) || 0;
+      
+      const totalPerKg = effectiveRmRate + conversionRate;
+      const weightPerBlock = density * blockVolume;
+      const costPerBlock = weightPerBlock * totalPerKg;
+      
+      const totalSheetVolume = maxPieces * volume;
+      const wastageVolume = blockVolume - totalSheetVolume;
+      const wastageWeight = wastageVolume * density;
+      const wastageCost = wastageWeight * wastageRatePerKg;
+      
+      const netCostPerBlock = costPerBlock - wastageCost;
+      const priceWithoutWastage = maxPieces > 0 ? costPerBlock / maxPieces : 0;
+      const priceWithWastage = maxPieces > 0 ? netCostPerBlock / maxPieces : 0;
+      
+      const wastagePercentage = (wastageVolume / blockVolume) * 100;
+      
+      const freight = parseFloat(formData.freight) || 0;
+      const totalWithFreight = priceWithWastage + (freight / maxPieces);
+      const gst = totalWithFreight * 0.18;
+      const finalPrice = totalWithFreight + gst;
+      
+      const outerDimensionM3 = volume;
+      const piecesInTempo = outerDimensionM3 > 0 ? Math.floor(12 / outerDimensionM3) : 0;
+      const piecesInTruck = outerDimensionM3 > 0 ? Math.floor(40 / outerDimensionM3) : 0;
+      
+      const displayLengthMM = lengthMM;
+      const displayBreadthMM = breadthMM;
+      const displayHeightMM = heightMM;
+      
+      setResult({
+        outerDimensions: {
+          length: lengthM.toFixed(3),
+          breadth: breadthM.toFixed(3),
+          height: heightM.toFixed(3),
+          volume: volume.toFixed(6),
+          displayLength: `${formData.length} ${formData.lengthUnit} (+0.5mm = ${displayLengthMM.toFixed(1)}mm)`,
+          displayBreadth: `${formData.breadth} ${formData.breadthUnit} (+0.5mm = ${displayBreadthMM.toFixed(1)}mm)`,
+          displayHeight: `${formData.height} ${formData.heightUnit} (+0.5mm = ${displayHeightMM.toFixed(1)}mm)`
+        },
+        density: density,
+        blockVolume: blockVolume,
+        weightPerBlock: weightPerBlock.toFixed(2),
+        rmRate: effectiveRmRate,
+        conversionRate: conversionRate,
+        wastageRate: wastageRatePerKg,
+        totalPerKg: totalPerKg.toFixed(2),
+        costPerBlock: costPerBlock.toFixed(2),
+        piecesFromBlock: {
+          count: maxPieces,
+          orientation: bestOrientation?.orientation,
+          piecesL: bestOrientation?.piecesL,
+          piecesB: bestOrientation?.piecesB,
+          piecesH: bestOrientation?.piecesH
+        },
+        formulaDetails: {
+          totalSheetVolume: totalSheetVolume.toFixed(4),
+          wastageVolume: wastageVolume.toFixed(4),
+          wastageWeight: wastageWeight.toFixed(2),
+          wastageCost: wastageCost.toFixed(2),
+          wastagePercentage: wastagePercentage.toFixed(2),
+          netCostPerBlock: netCostPerBlock.toFixed(2),
+          priceWithoutWastage: priceWithoutWastage.toFixed(2),
+          priceWithWastage: priceWithWastage.toFixed(2)
+        },
+        priceWithoutWastage: priceWithoutWastage.toFixed(2),
+        priceWithWastage: priceWithWastage.toFixed(2),
+        freight: freight,
+        freightPerPiece: (freight / maxPieces).toFixed(2),
+        totalWithFreight: totalWithFreight.toFixed(2),
+        gst: gst.toFixed(2),
+        finalPrice: finalPrice.toFixed(2),
+        piecesInTempo: piecesInTempo,
+        piecesInTruck: piecesInTruck,
+        outerDimensionM3: outerDimensionM3.toFixed(6),
+        extraDimensions: {
+          original: {
+            length: formData.length,
+            breadth: formData.breadth,
+            height: formData.height
+          },
+          added: {
+            length: 0.5,
+            breadth: 0.5,
+            height: 0.5
+          },
+          final: {
+            length: displayLengthMM.toFixed(1),
+            breadth: displayBreadthMM.toFixed(1),
+            height: displayHeightMM.toFixed(1)
+          }
+        }
+      });
+      
+      toast.success("Calculation completed with +0.5mm added to all dimensions!");
+    } catch (err) {
+      console.error("Calculation error:", err);
+      toast.error("Failed to calculate");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleReset = () => {
     setFormData({
@@ -249,13 +269,16 @@ const handleCalculate = () => {
       density: "",
       customRmRate: rmRate.toString(),
       conversionRate: "80",
-      freight: ""
+      freight: "",
+      wastageRate: "40"
     });
     setResult(null);
+    setShowWastage(false);
   };
 
-// Generate and share PDF
-const handleSharePDF = async () => {
+  // Generate and share PDF
+// Generate and download PDF
+const handleDownloadPDF = async () => {
   if (!result) {
     toast.error("Please calculate first");
     return;
@@ -268,6 +291,47 @@ const handleSharePDF = async () => {
     month: '2-digit',
     year: 'numeric'
   });
+  
+  // Build the table body based on showWastage
+  let tableBody = [
+    [{ text: 'Length', style: 'tableLabel' }, { text: result.outerDimensions.displayLength, style: 'tableValue' }],
+    [{ text: 'Breadth/Width', style: 'tableLabel' }, { text: result.outerDimensions.displayBreadth, style: 'tableValue' }],
+    [{ text: 'Height/Thickness', style: 'tableLabel' }, { text: result.outerDimensions.displayHeight, style: 'tableValue' }],
+    [{ text: 'Density', style: 'tableLabel' }, { text: `${result.density} kg/m³`, style: 'tableValue' }],
+    [{ text: 'RM Rate', style: 'tableLabel' }, { text: `₹${result.rmRate}/kg`, style: 'tableValue' }],
+    [{ text: 'Conversion Rate', style: 'tableLabel' }, { text: `₹${result.conversionRate}/kg`, style: 'tableValue' }]
+  ];
+  
+  // Only add wastage rate row if showWastage is true
+  if (showWastage) {
+    tableBody.push([{ text: 'Wastage Rate', style: 'tableLabel' }, { text: `₹${result.wastageRate || 0}/kg`, style: 'tableValue' }]);
+  }
+  
+  // Build calculation results table body
+  let calcTableBody = [
+    [{ text: 'Outer Volume per Piece', style: 'tableLabel' }, { text: `${result.outerDimensions.volume} m³`, style: 'tableValue' }],
+    [{ text: 'Raw Block Volume', style: 'tableLabel' }, { text: `${result.blockVolume} m³`, style: 'tableValue' }],
+    [{ text: 'Weight per Block', style: 'tableLabel' }, { text: `${result.weightPerBlock} kg`, style: 'tableValue' }],
+    [{ text: 'Total/kg', style: 'tableLabel' }, { text: `₹${result.totalPerKg}`, style: 'tableValue' }],
+    [{ text: 'Cost per Block', style: 'tableLabel' }, { text: `₹${result.costPerBlock}`, style: 'tableValue' }],
+    [{ text: 'Best Orientation', style: 'tableLabel' }, { text: result.piecesFromBlock.orientation, style: 'tableValue' }],
+    [{ text: 'Pieces Layout', style: 'tableLabel' }, { text: `${result.piecesFromBlock.piecesL} x ${result.piecesFromBlock.piecesB} x ${result.piecesFromBlock.piecesH}`, style: 'tableValue' }],
+    [{ text: 'Total Pieces from Block', style: 'tableLabelBold' }, { text: `${result.piecesFromBlock.count} pcs`, style: 'tableValueBold' }]
+  ];
+  
+  // Only add wastage analysis row if showWastage is true
+  if (showWastage) {
+    calcTableBody.push([{ text: 'Wastage Analysis', style: 'tableLabel' }, { text: `${result.formulaDetails?.wastagePercentage || '0.00'}% (₹${result.formulaDetails?.wastageCost || '0.00'})`, style: 'tableValue' }]);
+  }
+  
+  // Add price per piece row
+  calcTableBody.push([{ text: 'Price per Piece', style: 'tableLabel' }, { 
+    text: [
+      { text: `₹${showWastage ? result.priceWithWastage : result.priceWithoutWastage}`, style: 'tableValueBold' },
+      { text: `  (₹${showWastage ? (result.costPerBlock - (result.formulaDetails?.wastageCost || 0)).toFixed(2) : result.costPerBlock} / ${result.piecesFromBlock.count} pcs)`, style: 'calculationText' }
+    ], 
+    style: 'tableValue' 
+  }]);
   
   const docDefinition = {
     pageSize: 'A4',
@@ -299,14 +363,7 @@ const handleSharePDF = async () => {
       {
         table: {
           widths: ['40%', '60%'],
-          body: [
-            [{ text: 'Length', style: 'tableLabel' }, { text: result.outerDimensions.displayLength, style: 'tableValue' }],
-            [{ text: 'Breadth/Width', style: 'tableLabel' }, { text: result.outerDimensions.displayBreadth, style: 'tableValue' }],
-            [{ text: 'Height/Thickness', style: 'tableLabel' }, { text: result.outerDimensions.displayHeight, style: 'tableValue' }],
-            [{ text: 'Density', style: 'tableLabel' }, { text: `${result.density} kg/m³`, style: 'tableValue' }],
-            [{ text: 'RM Rate', style: 'tableLabel' }, { text: `₹${result.rmRate}/kg`, style: 'tableValue' }],
-            [{ text: 'Conversion Rate', style: 'tableLabel' }, { text: `₹${result.conversionRate}/kg`, style: 'tableValue' }],
-          ]
+          body: tableBody
         },
         layout: 'noBorders',
         margin: [0, 0, 0, 15]
@@ -319,23 +376,7 @@ const handleSharePDF = async () => {
       {
         table: {
           widths: ['40%', '60%'],
-          body: [
-            [{ text: 'Outer Volume per Piece', style: 'tableLabel' }, { text: `${result.outerDimensions.volume} m³`, style: 'tableValue' }],
-            [{ text: 'Raw Block Volume', style: 'tableLabel' }, { text: `${result.blockVolume} m³`, style: 'tableValue' }],
-            [{ text: 'Weight per Block', style: 'tableLabel' }, { text: `${result.weightPerBlock} kg`, style: 'tableValue' }],
-            [{ text: 'Total/kg', style: 'tableLabel' }, { text: `₹${result.totalPerKg}`, style: 'tableValue' }],
-            [{ text: 'Cost per Block', style: 'tableLabel' }, { text: `₹${result.costPerBlock}`, style: 'tableValue' }],
-            [{ text: 'Best Orientation', style: 'tableLabel' }, { text: result.piecesFromBlock.orientation, style: 'tableValue' }],
-            [{ text: 'Pieces Layout', style: 'tableLabel' }, { text: `${result.piecesFromBlock.piecesL} x ${result.piecesFromBlock.piecesB} x ${result.piecesFromBlock.piecesH}`, style: 'tableValue' }],
-            [{ text: 'Total Pieces from Block', style: 'tableLabelBold' }, { text: `${result.piecesFromBlock.count} pcs`, style: 'tableValueBold' }],
-            [{ text: 'Price per Piece', style: 'tableLabel' }, { 
-              text: [
-                { text: `₹${result.pricePerPiece}`, style: 'tableValueBold' },
-                { text: `  (₹${result.costPerBlock} / ${result.piecesFromBlock.count} pcs)`, style: 'calculationText' }
-              ], 
-              style: 'tableValue' 
-            }],
-          ]
+          body: calcTableBody
         },
         layout: 'noBorders',
         margin: [0, 0, 0, 15]
@@ -387,53 +428,11 @@ const handleSharePDF = async () => {
     defaultStyle: { font: 'Roboto' }
   };
   
-  pdfMake.createPdf(docDefinition).getBlob((blob) => {
-    const file = new File([blob], `Costing_Calculation_${currentDate.replace(/\//g, '-')}.pdf`, { type: 'application/pdf' });
-    
-    // For mobile with Web Share API
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({
-        files: [file],
-        title: 'Thermocol Sheet Costing',
-        text: `Calculation for ${result.outerDimensions.displayLength} x ${result.outerDimensions.displayBreadth} x ${result.outerDimensions.displayHeight}`
-      }).catch((error) => {
-        console.log('Share failed:', error);
-        // Fallback: download and show message
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Costing_Calculation_${currentDate.replace(/\//g, '-')}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-        alert('PDF downloaded. You can now share it via WhatsApp from your device.');
-      });
-    } 
-    // For desktop or when Web Share API not available
-    else {
-      // Download the file
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Costing_Calculation_${currentDate.replace(/\//g, '-')}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
-      
-      // Open WhatsApp with a message
-      const message = `📊 *Thermocol Sheet Costing Report*%0A%0A` +
-        `📏 *Dimensions:* ${result.outerDimensions.displayLength} x ${result.outerDimensions.displayBreadth} x ${result.outerDimensions.displayHeight}%0A` +
-        `🔢 *Total Pieces from Block:* ${result.piecesFromBlock.count} pcs%0A` +
-        `💰 *Price per Piece:* ₹${result.pricePerPiece} (₹${result.costPerBlock} / ${result.piecesFromBlock.count} pcs)%0A` +
-        `🚚 *Pieces per Tempo:* ${result.piecesInTempo} pcs%0A` +
-        `🚛 *Pieces per Truck:* ${result.piecesInTruck} pcs%0A%0A` +
-        `⚠️ *Note:* GST 18% and Freight is Extra%0A%0A` +
-        `📎 *PDF attached for detailed report*`;
-      
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-      toast.success('PDF downloaded! WhatsApp opened with calculation summary.');
-    }
-    
-    setSharing(false);
-  });
+  // Download the PDF directly
+  pdfMake.createPdf(docDefinition).download(`Costing_Calculation_${currentDate.replace(/\//g, '-')}.pdf`);
+  toast.success("PDF downloaded successfully!");
+  
+  setSharing(false);
 };
 
   if (!activeCalculator) {
@@ -460,17 +459,16 @@ const handleSharePDF = async () => {
                 <h2 className="text-xl font-bold text-gray-800 mb-2">EPS/Thermocol Sheet Costing Calculator</h2>
                 <p className="text-gray-500 text-sm">Calculate costing for thermocol sheets based on dimensions, density, and more</p>
               </button>
-                {/* New Calculator Button */}
-  <button
-    onClick={() => setActiveCalculator("pipeSection")}
-    className="bg-white rounded-2xl shadow-xl p-8 text-center hover:shadow-2xl transition-all duration-200 border-2 border-transparent hover:border-purple-500"
-  >
-    <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <Package size={40} className="text-purple-600" />
-    </div>
-    <h2 className="text-xl font-bold text-gray-800 mb-2">EPS/Thermocol Tongue & Groove Pipe-section Calculator</h2>
-    <p className="text-gray-500 text-sm">Calculate pipe section meters based on pipe size and thermocol thickness</p>
-  </button>
+              <button
+                onClick={() => setActiveCalculator("pipeSection")}
+                className="bg-white rounded-2xl shadow-xl p-8 text-center hover:shadow-2xl transition-all duration-200 border-2 border-transparent hover:border-purple-500"
+              >
+                <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package size={40} className="text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">EPS/Thermocol Tongue & Groove Pipe-section Calculator</h2>
+                <p className="text-gray-500 text-sm">Calculate pipe section meters based on pipe size and thermocol thickness</p>
+              </button>
             </div>
             
             <div className="mt-8 text-center">
@@ -487,13 +485,12 @@ const handleSharePDF = async () => {
     );
   }
 
-    if (activeCalculator === "thermocol") {
+  if (activeCalculator === "thermocol") {
     return (
       <>
         <InternalNavbar />
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-6 px-4">
           <div className="max-w-full mx-auto">
-            {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={() => setActiveCalculator(null)}
@@ -505,7 +502,6 @@ const handleSharePDF = async () => {
               <div className="w-20"></div>
             </div>
             
-            {/* Form Card */}
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -516,7 +512,6 @@ const handleSharePDF = async () => {
               
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  {/* Dimension inputs - same as before */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Length of EPS/Thermocol Sheet</label>
                     <div className="flex gap-2">
@@ -636,20 +631,49 @@ const handleSharePDF = async () => {
                   </div>
                 </div>
                 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-  <div>
-    <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
-    <input
-      type="number"
-      step="0.01"
-      name="conversionRate"
-      value={formData.conversionRate}
-      onChange={handleChange}
-      placeholder="Enter conversion rate"
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-  </div>
-</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Conversion Rate (₹/kg)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="conversionRate"
+                      value={formData.conversionRate}
+                      onChange={handleChange}
+                      placeholder="Enter conversion rate"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Wastage Rate (₹/kg)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="wastageRate"
+                      value={formData.wastageRate}
+                      onChange={handleChange}
+                      placeholder="Enter wastage rate"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500">Enter wastage cost per kg (e.g., 40)</p>
+                  </div>
+                </div>
+                
+                {/* Wastage Options - Checkbox */}
+                <div className="mb-4 flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showWastage"
+                      checked={showWastage}
+                      onChange={(e) => setShowWastage(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="showWastage" className="text-sm font-medium text-gray-700">
+                      Show Block Wastage Analysis
+                    </label>
+                  </div>
+                </div>
                 
                 <div className="flex gap-4">
                   <button
@@ -669,25 +693,25 @@ const handleSharePDF = async () => {
               </div>
             </div>
             
-            {/* Results Card */}
             {result && (
               <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
                 <div className="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-4 flex justify-between items-center">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     Calculation Results
                   </h2>
-                  <button
-                    onClick={handleSharePDF}
-                    disabled={sharing}
-                    className="flex items-center gap-2 bg-white text-green-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
-                  >
-                    <Share2 size={18} />
-                    {sharing ? "Sharing..." : "Share PDF"}
-                  </button>
+             <button
+  onClick={handleDownloadPDF}
+  disabled={sharing}
+  className="flex items-center gap-2 bg-white text-green-700 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
+>
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3M4 18h16M4 6h16" />
+  </svg>
+  {sharing ? "Generating..." : "Download PDF"}
+</button>
                 </div>
                 
                 <div className="p-6 space-y-4">
-                  {/* Outer Dimensions */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-800 mb-2">📏 Outer Dimensions of Thermocol Sheet</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
@@ -698,7 +722,6 @@ const handleSharePDF = async () => {
                     </div>
                   </div>
                   
-                  {/* Costing Details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h3 className="font-semibold text-gray-800 mb-2">💰 Costing Details (Raw Block size: 6100x1220x620 mm)</h3>
@@ -710,6 +733,9 @@ const handleSharePDF = async () => {
                         <p><span className="text-gray-600">Conversion Rate:</span> ₹{result.conversionRate}/kg</p>
                         <p><span className="text-gray-600">Total/kg:</span> ₹{result.totalPerKg}</p>
                         <p><span className="text-gray-600">Cost per Block:</span> ₹{result.costPerBlock}</p>
+                        {showWastage && (
+                          <p><span className="text-gray-600">Wastage Rate:</span> ₹{result.wastageRate}/kg</p>
+                        )}
                       </div>
                     </div>
                     
@@ -719,60 +745,170 @@ const handleSharePDF = async () => {
                         <p><span className="text-gray-600">Best Orientation:</span> {result.piecesFromBlock.orientation}</p>
                         <p><span className="text-gray-600">Pieces Layout:</span> {result.piecesFromBlock.piecesL} x {result.piecesFromBlock.piecesB} x {result.piecesFromBlock.piecesH}</p>
                         <p><span className="font-bold text-green-600">Total Pieces from Block:</span> {result.piecesFromBlock.count} pcs</p>
-<div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
-  {/* Header Section */}
-  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
-    <p className="text-white text-sm">
-      <span className="font-semibold">Final Price per Piece:</span>
-      <span className="text-lg font-bold ml-1">₹{result.pricePerPiece}</span>
-    </p>
-  </div>
-  
-  {/* Calculation Section */}
-  <div className="p-3">
-    <div className="flex items-start gap-2">
-      <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
-        <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
-        </svg>
-      </div>
-      <div className="flex-1">
-        <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Calculation</h4>
-        <p className="text-gray-500 text-xs">Cost per Block ÷ Total Pieces</p>
-      </div>
-    </div>
-
-    {/* Formula Display */}
-    <div className="mt-3 bg-purple-50 rounded-md p-2 border border-purple-200">
-      <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
-        <div className="text-center">
-          <div className="text-base font-bold text-purple-700">₹{result.costPerBlock}</div>
-          <div className="text-[10px] text-gray-500">Cost per Block</div>
-        </div>
-        
-        <div className="text-base font-bold text-purple-400">÷</div>
-        
-        <div className="text-center">
-          <div className="text-base font-bold text-purple-700">{result.piecesFromBlock.count}</div>
-          <div className="text-[10px] text-gray-500">Pieces</div>
-        </div>
-        
-        <div className="text-base font-bold text-purple-400">=</div>
-        
-        <div className="text-center bg-purple-700 px-2 py-1 rounded-md">
-          <div className="text-sm font-bold text-white">₹{(result.costPerBlock / result.piecesFromBlock.count).toFixed(2)}</div>
-          <div className="text-[9px] text-purple-200">per piece</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>                        
-<p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
                       </div>
                     </div>
                   </div>
+
+                  {/* Formula Breakdown - Only show when wastage is checked */}
+                  {showWastage && (
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <h3 className="font-semibold text-blue-800 mb-3">📐 Formula Breakdown</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="bg-white rounded p-3">
+                          <p className="font-medium text-blue-700">Step 1: Calculate Cost per Block</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Cost per Block = Block Volume × Density × (RM Rate + Conversion Rate)
+                          </p>
+                          <p className="text-xs mt-1">
+                            = {result.blockVolume} × {result.density} × ({result.rmRate} + {result.conversionRate}) = <span className="font-bold text-green-600">₹{result.costPerBlock}</span>
+                          </p>
+                        </div>
+                        
+                        <div className="bg-white rounded p-3">
+                          <p className="font-medium text-blue-700">Step 2: Calculate Wastage</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Wastage Volume = Block Volume - (Volume per Sheet × Total Pieces)
+                          </p>
+                          <p className="text-xs mt-1">
+                            = {result.blockVolume} - ({result.outerDimensions.volume} × {result.piecesFromBlock.count}) = <span className="font-bold text-red-600">{result.formulaDetails?.wastageVolume || '0.0000'} m³</span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Wastage Cost = Wastage Volume × Density × Wastage Rate
+                          </p>
+                          <p className="text-xs mt-1">
+                            = {result.formulaDetails?.wastageVolume || '0.0000'} × {result.density} × {result.wastageRate || 0} = <span className="font-bold text-red-600">₹{result.formulaDetails?.wastageCost || '0.00'}</span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Wastage Percentage = (Wastage Volume / Block Volume) × 100
+                          </p>
+                          <p className="text-xs mt-1">
+                            = ({result.formulaDetails?.wastageVolume || '0.0000'} / {result.blockVolume}) × 100 = <span className="font-bold text-orange-600">{result.formulaDetails?.wastagePercentage || '0.00'}%</span>
+                          </p>
+                        </div>
+                        
+                        <div className="bg-white rounded p-3">
+                          <p className="font-medium text-blue-700">Step 3: Calculate Price per Piece</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Price per Piece (without wastage) = Cost per Block / Total Pieces
+                          </p>
+                          <p className="text-xs mt-1">
+                            = {result.costPerBlock} / {result.piecesFromBlock.count} = <span className="font-bold text-purple-600">₹{result.priceWithoutWastage}</span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Price per Piece (with wastage) = (Cost per Block - Wastage Cost) / Total Pieces
+                          </p>
+                          <p className="text-xs mt-1">
+                            = ({result.costPerBlock} - {result.formulaDetails?.wastageCost || '0.00'}) / {result.piecesFromBlock.count} = <span className="font-bold text-green-600">₹{result.priceWithWastage}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Wastage Analysis - Only show when wastage is checked */}
+                  {showWastage && (
+                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                      <h3 className="font-semibold text-red-700 mb-2">🗑️ Wastage Analysis</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                        <p><span className="text-gray-600">Wastage Rate:</span> ₹{result.wastageRate || 0}/kg</p>
+                        <p><span className="text-gray-600">Wastage Volume:</span> {result.formulaDetails?.wastageVolume || '0.0000'} m³</p>
+                        <p><span className="text-gray-600">Wastage Weight:</span> {result.formulaDetails?.wastageWeight || '0.00'} kg</p>
+                        <p><span className="text-gray-600">Wastage Cost:</span> ₹{result.formulaDetails?.wastageCost || '0.00'}</p>
+                        <p><span className="text-gray-600">Wastage Percentage:</span> {result.formulaDetails?.wastagePercentage || '0.00'}%</p>
+                      </div>
+                    </div>
+                  )}
                   
-                  {/* Transport Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
+                      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
+                        <p className="text-white text-sm">
+                          <span className="font-semibold">Price per Piece (with wastage):</span>
+                          <span className="text-lg font-bold ml-1">₹{showWastage ? result.priceWithWastage : result.priceWithoutWastage}</span>
+                        </p>
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+                            <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Calculation</h4>
+                            <p className="text-gray-500 text-xs">
+                              {showWastage ? '(Cost per Block - Wastage Cost) ÷ Total Pieces' : 'Cost per Block ÷ Total Pieces'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 bg-purple-50 rounded-md p-2 border border-purple-200">
+                          <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+                            <div className="text-center">
+                              <div className="text-base font-bold text-purple-700">
+                                ₹{showWastage ? (result.costPerBlock - (result.formulaDetails?.wastageCost || 0)).toFixed(2) : result.costPerBlock}
+                              </div>
+                              <div className="text-[10px] text-gray-500">{showWastage ? 'Net Cost' : 'Cost per Block'}</div>
+                            </div>
+                            <div className="text-base font-bold text-purple-400">÷</div>
+                            <div className="text-center">
+                              <div className="text-base font-bold text-purple-700">{result.piecesFromBlock.count}</div>
+                              <div className="text-[10px] text-gray-500">Pieces</div>
+                            </div>
+                            <div className="text-base font-bold text-purple-400">=</div>
+                            <div className="text-center bg-purple-700 px-2 py-1 rounded-md">
+                              <div className="text-sm font-bold text-white">₹{showWastage ? result.priceWithWastage : result.priceWithoutWastage}</div>
+                              <div className="text-[9px] text-purple-200">per piece</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {showWastage && (
+                      <div className="bg-gradient-to-br from-white to-green-50/30 rounded-lg shadow-sm border border-green-100 overflow-hidden">
+                        <div className="bg-gradient-to-r from-green-600 to-green-700 px-3 py-2">
+                          <p className="text-white text-sm">
+                            <span className="font-semibold">Price per Piece (without wastage):</span>
+                            <span className="text-lg font-bold ml-1">₹{result.priceWithoutWastage}</span>
+                          </p>
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-shrink-0 w-6 h-6 bg-green-100 rounded-md flex items-center justify-center">
+                              <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-6 3H7.5A2.5 2.5 0 015 14.5v-5A2.5 2.5 0 017.5 7H9m6 0h1.5a2.5 2.5 0 012.5 2.5v5a2.5 2.5 0 01-2.5 2.5H15M9 7h6"></path>
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-xs font-semibold text-green-700 uppercase tracking-wide">For Reference</h4>
+                              <p className="text-gray-500 text-xs">Price without wastage deduction</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 bg-green-50 rounded-md p-2 border border-green-200">
+                            <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+                              <div className="text-center">
+                                <div className="text-base font-bold text-green-700">₹{result.costPerBlock}</div>
+                                <div className="text-[10px] text-gray-500">Cost per Block</div>
+                              </div>
+                              <div className="text-base font-bold text-green-400">÷</div>
+                              <div className="text-center">
+                                <div className="text-base font-bold text-green-700">{result.piecesFromBlock.count}</div>
+                                <div className="text-[10px] text-gray-500">Pieces</div>
+                              </div>
+                              <div className="text-base font-bold text-green-400">=</div>
+                              <div className="text-center bg-green-700 px-2 py-1 rounded-md">
+                                <div className="text-sm font-bold text-white">₹{result.priceWithoutWastage}</div>
+                                <div className="text-[9px] text-green-200">per piece</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="bg-yellow-200 p-2 rounded mt-2"><span className="font-black">Note:</span> GST 18% and Freight is Extra</p>
+                  
                   <div>
                     <span className="bg-yellow-200 text-sm font-bold p-2 rounded">Material Loading Estimate in Tempo/Truck</span>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
