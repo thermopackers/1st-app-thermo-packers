@@ -47,7 +47,11 @@ const SlipFormModal = ({
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
   const [gradeProducts, setGradeProducts] = useState([]);
   const [filteredGrades, setFilteredGrades] = useState([]);
-  
+  const [showDanaBeadsGradeDropdown, setShowDanaBeadsGradeDropdown] = useState(false);
+const [danaBeadsGradeProducts, setDanaBeadsGradeProducts] = useState([]);
+const [filteredDanaBeadsGrades, setFilteredDanaBeadsGrades] = useState([]);
+const [selectedDanaBeadsProductFiles, setSelectedDanaBeadsProductFiles] = useState([]);
+
   // ✅ Use selectedProducts as an array of booleans
   const [selectedProducts, setSelectedProducts] = useState([]);
 
@@ -96,6 +100,46 @@ const SlipFormModal = ({
   });
 
   const [loading, setLoading] = useState(false);
+// Fetch grade products for Dana Beads
+useEffect(() => {
+  const fetchDanaBeadsGradeProducts = async () => {
+    try {
+      const categoriesResponse = await axiosInstance.get('/categories');
+      const categories = categoriesResponse.data || [];
+      const danaCategory = categories.find(cat => cat.name === "Thermocol Dana Raw Material");
+      
+      if (danaCategory) {
+        const response = await axiosInstance.get(`/purchase-products?category=${danaCategory._id}`);
+        setDanaBeadsGradeProducts(response.data.data || []);
+        setFilteredDanaBeadsGrades(response.data.data || []);
+      } else {
+        setDanaBeadsGradeProducts([]);
+        setFilteredDanaBeadsGrades([]);
+      }
+    } catch (error) {
+      console.error('Error fetching Dana Beads grade products:', error);
+      setDanaBeadsGradeProducts([]);
+      setFilteredDanaBeadsGrades([]);
+    }
+  };
+  
+  if (isOpen && type === "dana-beads") {
+    fetchDanaBeadsGradeProducts();
+  }
+}, [isOpen, type]);
+
+// Filter Dana Beads grade products
+useEffect(() => {
+  if (danaBeadsFormData.nextGrade) {
+    const filtered = danaBeadsGradeProducts.filter(product =>
+      product.name.toLowerCase().includes(danaBeadsFormData.nextGrade.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(danaBeadsFormData.nextGrade.toLowerCase()))
+    );
+    setFilteredDanaBeadsGrades(filtered);
+  } else {
+    setFilteredDanaBeadsGrades(danaBeadsGradeProducts);
+  }
+}, [danaBeadsFormData.nextGrade, danaBeadsGradeProducts]);
 
   // ✅ Initialize selectedProducts when modal opens
   useEffect(() => {
@@ -155,6 +199,10 @@ const SlipFormModal = ({
       if (!event.target.closest('.grade-dropdown-container')) {
         setShowGradeDropdown(false);
       }
+
+       if (!event.target.closest('.dana-beads-grade-dropdown-container')) {
+      setShowDanaBeadsGradeDropdown(false);
+    }
     };
 
     if (showGradeDropdown) {
@@ -316,25 +364,32 @@ const SlipFormModal = ({
       }
 
       // ✅ Dana/Beads Slip
-      const initialDanaBeadsFormData = {
-        productName: isMultiProduct ? "Multiple Products" : (selectedOrder.product || ""),
-        recycleDana: "no",
-        nextGrade: "",
-        remarks: selectedOrder.remarks || "",
-      };
+// ✅ Dana/Beads Slip
+const initialDanaBeadsFormData = {
+  productName: isMultiProduct ? "Multiple Products" : (selectedOrder.product || ""),
+  recycleDana: "no",
+  nextGrade: "",
+  remarks: selectedOrder.remarks || "",
+};
 
-      // Add per-product fields for multi-product Dana/Beads
-      if (isMultiProduct) {
-        productList.forEach((product, idx) => {
-          initialDanaBeadsFormData[`density_${idx}`] = product.density || "";
-          initialDanaBeadsFormData[`quantity_${idx}`] = product.quantity;
-          initialDanaBeadsFormData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-        });
-      } else {
-        initialDanaBeadsFormData.density = selectedOrder.density || "";
-        initialDanaBeadsFormData.quantity = selectedOrder.quantity || "";
-      }
-      setDanaBeadsFormData(initialDanaBeadsFormData);
+// Add per-product fields for multi-product Dana/Beads
+if (isMultiProduct) {
+  productList.forEach((product, idx) => {
+    // 🔍 Find the product in the products list to get its unit
+    const productFromList = products.find(p => p.name === product.productName);
+    initialDanaBeadsFormData[`density_${idx}`] = product.density || "";
+    initialDanaBeadsFormData[`quantity_${idx}`] = product.quantity;
+    initialDanaBeadsFormData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+    initialDanaBeadsFormData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ Auto-fetch unit
+  });
+} else {
+  initialDanaBeadsFormData.density = selectedOrder.density || "";
+  initialDanaBeadsFormData.quantity = selectedOrder.quantity || "";
+  // 🔍 Find the product in the products list for single product
+  const productFromList = products.find(p => p.name === selectedOrder?.product);
+  initialDanaBeadsFormData.productUnit = productFromList?.unit || selectedOrder?.productUnit || ""; // ✅ Auto-fetch unit
+}
+setDanaBeadsFormData(initialDanaBeadsFormData);
     }
   }, [isOpen, selectedOrder, hasMultipleProducts, productList]);
 
@@ -894,6 +949,9 @@ const handleSubmit = async (e) => {
               remarks: danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
                 ? danaBeadsFormData[`remarks_${originalIdx}`] 
                 : (product.productRemarks || ""),
+                 productUnit: danaBeadsFormData[`productUnit_${originalIdx}`] !== undefined 
+            ? danaBeadsFormData[`productUnit_${originalIdx}`] 
+            : (product.productUnit || ""),
             };
           });
         }
@@ -1425,6 +1483,7 @@ const getFilteredProductList = () => {
         <thead className="bg-gray-100 sticky top-0">
           <tr>
             <th className="p-2 border">Product Name</th>
+                <th className="p-2 border">Product Unit</th> {/* ✅ Added */}
             <th className="p-2 border">Density (kg/m³)</th>
             <th className="p-2 border">Quantity</th>
             <th className="p-2 border">Remarks</th>
@@ -1434,62 +1493,78 @@ const getFilteredProductList = () => {
           {getFilteredProductList().map((product, idx) => {
             const originalIdx = productList.indexOf(product);
             return (
-              <tr key={originalIdx}>
-                <td className="p-2 border">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{product.productName}</span>
-                    <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
-                  </div>
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="text"
-                    value={danaBeadsFormData[`density_${originalIdx}`] !== undefined 
-                      ? danaBeadsFormData[`density_${originalIdx}`] 
-                      : (product.density || "")}
-                    onChange={(e) => {
-                      setDanaBeadsFormData(prev => ({
-                        ...prev,
-                        [`density_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Density"
-                    className="w-28 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="number"
-                    value={danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
-                      ? danaBeadsFormData[`quantity_${originalIdx}`] 
-                      : product.quantity}
-                    onChange={(e) => {
-                      setDanaBeadsFormData(prev => ({
-                        ...prev,
-                        [`quantity_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Quantity"
-                    className="w-24 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="text"
-                    value={danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
-                      ? danaBeadsFormData[`remarks_${originalIdx}`] 
-                      : (product.productRemarks || "")}
-                    onChange={(e) => {
-                      setDanaBeadsFormData(prev => ({
-                        ...prev,
-                        [`remarks_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Remarks"
-                    className="w-40 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-              </tr>
+            <tr key={originalIdx}>
+  <td className="p-2 border">
+    <div className="flex items-center gap-2">
+      <span className="font-medium">{product.productName}</span>
+      <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
+    </div>
+  </td>
+  <td className="p-2 border">
+    <input
+      type="text"
+      value={danaBeadsFormData[`productUnit_${originalIdx}`] !== undefined 
+        ? danaBeadsFormData[`productUnit_${originalIdx}`] 
+        : (product.productUnit || "")}
+      onChange={(e) => {
+        setDanaBeadsFormData(prev => ({
+          ...prev,
+          [`productUnit_${originalIdx}`]: e.target.value
+        }));
+      }}
+      placeholder="Unit"
+      className="w-24 p-1 border border-gray-300 rounded"
+    />
+  </td>
+  <td className="p-2 border">
+    <input
+      type="text"
+      value={danaBeadsFormData[`density_${originalIdx}`] !== undefined 
+        ? danaBeadsFormData[`density_${originalIdx}`] 
+        : (product.density || "")}
+      onChange={(e) => {
+        setDanaBeadsFormData(prev => ({
+          ...prev,
+          [`density_${originalIdx}`]: e.target.value
+        }));
+      }}
+      placeholder="Density"
+      className="w-28 p-1 border border-gray-300 rounded"
+    />
+  </td>
+  <td className="p-2 border">
+    <input
+      type="number"
+      value={danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
+        ? danaBeadsFormData[`quantity_${originalIdx}`] 
+        : product.quantity}
+      onChange={(e) => {
+        setDanaBeadsFormData(prev => ({
+          ...prev,
+          [`quantity_${originalIdx}`]: e.target.value
+        }));
+      }}
+      placeholder="Quantity"
+      className="w-24 p-1 border border-gray-300 rounded"
+    />
+  </td>
+  <td className="p-2 border">
+    <input
+      type="text"
+      value={danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
+        ? danaBeadsFormData[`remarks_${originalIdx}`] 
+        : (product.productRemarks || "")}
+      onChange={(e) => {
+        setDanaBeadsFormData(prev => ({
+          ...prev,
+          [`remarks_${originalIdx}`]: e.target.value
+        }));
+      }}
+      placeholder="Remarks"
+      className="w-40 p-1 border border-gray-300 rounded"
+    />
+  </td>
+</tr>
             );
           })}
           {getFilteredProductList().length === 0 && (
@@ -1552,16 +1627,54 @@ const getFilteredProductList = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="font-bold text-xl">Grade of Raw Material / Thermocol Dana:</label>
-                    <input
-                      type="text"
-                      value={danaBeadsFormData.nextGrade}
-                      onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, nextGrade: e.target.value })}
-                      className={inputClass("nextGrade")}
-                      placeholder="Enter grade name"
-                    />
-                  </div>
+                 <div>
+  <label className="font-bold text-xl">Grade of Raw Material / Thermocol Dana:</label>
+  <div className="relative dana-beads-grade-dropdown-container">
+    <input
+      type="text"
+      placeholder="Search or select grade..."
+      value={danaBeadsFormData.nextGrade}
+      onChange={(e) => {
+        setDanaBeadsFormData({ ...danaBeadsFormData, nextGrade: e.target.value });
+        setShowDanaBeadsGradeDropdown(true);
+      }}
+      onFocus={() => setShowDanaBeadsGradeDropdown(true)}
+      className={inputClass("nextGrade")}
+    />
+    
+    {showDanaBeadsGradeDropdown && (
+      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        {filteredDanaBeadsGrades.length > 0 ? (
+          filteredDanaBeadsGrades.map((product) => (
+            <div
+              key={product._id}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+              onClick={() => {
+                setDanaBeadsFormData({ 
+                  ...danaBeadsFormData, 
+                  nextGrade: product.name 
+                });
+                setShowDanaBeadsGradeDropdown(false);
+                setSelectedDanaBeadsProductFiles(product.files || []);
+              }}
+            >
+              <div className="font-medium">{product.name}</div>
+              {product.description && (
+                <div className="text-sm text-gray-500 truncate">
+                  {product.description}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-gray-500">
+            {danaBeadsGradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</div>
                 </div>
               </div>
             </section>
