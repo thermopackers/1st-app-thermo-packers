@@ -51,6 +51,8 @@ const SlipFormModal = ({
 const [danaBeadsGradeProducts, setDanaBeadsGradeProducts] = useState([]);
 const [filteredDanaBeadsGrades, setFilteredDanaBeadsGrades] = useState([]);
 const [selectedDanaBeadsProductFiles, setSelectedDanaBeadsProductFiles] = useState([]);
+const [activeGradeIndex, setActiveGradeIndex] = useState(null);
+const [activeNextGradeIndex, setActiveNextGradeIndex] = useState(null);
 
   // ✅ Use selectedProducts as an array of booleans
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -181,38 +183,46 @@ useEffect(() => {
   }, [isOpen, type]);
 
   // Filter grade products
+  // Filter grade products
   useEffect(() => {
-    if (danaFormData.grade) {
-      const filtered = gradeProducts.filter(product =>
-        product.name.toLowerCase().includes(danaFormData.grade.toLowerCase()) ||
-        (product.description && product.description.toLowerCase().includes(danaFormData.grade.toLowerCase()))
-      );
-      setFilteredGrades(filtered);
+    if (activeGradeIndex !== null) {
+      const gradeValue = danaFormData[`grade_${activeGradeIndex}`] || "";
+      if (gradeValue) {
+        const filtered = gradeProducts.filter(product =>
+          product.name.toLowerCase().includes(gradeValue.toLowerCase()) ||
+          (product.description && product.description.toLowerCase().includes(gradeValue.toLowerCase()))
+        );
+        setFilteredGrades(filtered);
+      } else {
+        setFilteredGrades(gradeProducts);
+      }
     } else {
       setFilteredGrades(gradeProducts);
     }
-  }, [danaFormData.grade, gradeProducts]);
+  }, [danaFormData, activeGradeIndex, gradeProducts]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.grade-dropdown-container')) {
         setShowGradeDropdown(false);
+        setActiveGradeIndex(null);
       }
 
        if (!event.target.closest('.dana-beads-grade-dropdown-container')) {
       setShowDanaBeadsGradeDropdown(false);
+      setActiveNextGradeIndex(null);
     }
     };
 
-    if (showGradeDropdown) {
+    if (showGradeDropdown || showDanaBeadsGradeDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showGradeDropdown]);
+  }, [showGradeDropdown, showDanaBeadsGradeDropdown]);
 
   // ✅ Toggle product selection
   const toggleProduct = (idx) => {
@@ -259,39 +269,41 @@ useEffect(() => {
       }
 
       // Dana Slip - Initialize with per-product fields for multi-product
-      const densityParts = selectedOrder.density?.split(" ") || ["", ""];
+  // Dana Slip - Initialize with per-product fields for multi-product
+const densityParts = selectedOrder.density?.split(" ") || ["", ""];
 
-      if (isMultiProduct) {
-        const initialDanaData = {
-          typeOfRawBlock: "",
-          densityValue: densityParts[0],
-          densityType: densityParts[1],
-          recycledDana: "",
-          weight: "",
-          grade: "",
-          productName: "Multiple Products",
-          remarks: selectedOrder.remarks || "",
-        };
-        // Add per-product fields
-        productList.forEach((product, idx) => {
-          initialDanaData[`quantity_${idx}`] = product.quantity;
-          initialDanaData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-        });
-        setDanaFormData(initialDanaData);
-      } else {
-        setDanaFormData({
-          productName: selectedOrder.product || "",
-          quantity: selectedOrder.quantity || "",
-          remarks: selectedOrder.remarks || "",
-          density: selectedOrder.density || "",
-          densityValue: densityParts[0],
-          densityType: densityParts[1],
-          typeOfRawBlock: "",
-          recycledDana: "",
-          weight: "",
-          grade: "",
-        });
-      }
+if (isMultiProduct) {
+  const initialDanaData = {
+    productName: "Multiple Products",
+    remarks: selectedOrder.remarks || "",
+  };
+  // Add per-product fields for each Dana batch setting
+  productList.forEach((product, idx) => {
+    initialDanaData[`typeOfRawBlock_${idx}`] = "";
+    initialDanaData[`typeOfRawBlockCustom_${idx}`] = "";
+    initialDanaData[`densityValue_${idx}`] = "";
+    initialDanaData[`densityType_${idx}`] = "";
+    initialDanaData[`recycledDana_${idx}`] = "";
+    initialDanaData[`weight_${idx}`] = "";
+    initialDanaData[`grade_${idx}`] = "";
+    initialDanaData[`quantity_${idx}`] = product.quantity;
+    initialDanaData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+  });
+  setDanaFormData(initialDanaData);
+} else {
+  setDanaFormData({
+    productName: selectedOrder.product || "",
+    quantity: selectedOrder.quantity || "",
+    remarks: selectedOrder.remarks || "",
+    density: selectedOrder.density || "",
+    densityValue: densityParts[0],
+    densityType: densityParts[1],
+    typeOfRawBlock: "",
+    recycledDana: "",
+    weight: "",
+    grade: "",
+  });
+}
 
       // Packaging Slip - Initialize with per-product fields for multi-product
       if (isMultiProduct) {
@@ -339,31 +351,30 @@ useEffect(() => {
         });
       }
 
-      // ✅ CNC Slip - Initialize with per-product fields for multi-product
-      if (isMultiProduct) {
-        const initialCNCData = {
-          productName: "Multiple Products",
-          drawingName: "",
-          remarks: selectedOrder.remarks || "",
-        };
-        // Add per-product fields
-        productList.forEach((product, idx) => {
-          initialCNCData[`size_${idx}`] = product.size || "";
-          initialCNCData[`quantity_${idx}`] = product.quantity;
-          initialCNCData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-        });
-        setCNCFormData(initialCNCData);
-      } else {
-        setCNCFormData({
-          productName: selectedOrder.product || "",
-          size: selectedOrder.size || "",
-          quantity: selectedOrder.quantity || "",
-          drawingName: "",
-          remarks: selectedOrder.remarks || "",
-        });
-      }
+// ✅ CNC Slip - Initialize with per-product fields for multi-product
+if (isMultiProduct) {
+  const initialCNCData = {
+    productName: "Multiple Products",
+    remarks: selectedOrder.remarks || "",
+  };
+  // Add per-product fields
+  productList.forEach((product, idx) => {
+    initialCNCData[`size_${idx}`] = product.size || "";
+    initialCNCData[`quantity_${idx}`] = product.quantity;
+    initialCNCData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+    initialCNCData[`drawingName_${idx}`] = ""; // ✅ Add per-product drawing name
+  });
+  setCNCFormData(initialCNCData);
+} else {
+  setCNCFormData({
+    productName: selectedOrder.product || "",
+    size: selectedOrder.size || "",
+    quantity: selectedOrder.quantity || "",
+    drawingName: "",
+    remarks: selectedOrder.remarks || "",
+  });
+}
 
-      // ✅ Dana/Beads Slip
 // ✅ Dana/Beads Slip
 const initialDanaBeadsFormData = {
   productName: isMultiProduct ? "Multiple Products" : (selectedOrder.product || ""),
@@ -380,14 +391,16 @@ if (isMultiProduct) {
     initialDanaBeadsFormData[`density_${idx}`] = product.density || "";
     initialDanaBeadsFormData[`quantity_${idx}`] = product.quantity;
     initialDanaBeadsFormData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-    initialDanaBeadsFormData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ Auto-fetch unit
+    initialDanaBeadsFormData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || "";
+    initialDanaBeadsFormData[`recycleDana_${idx}`] = "no";
+    initialDanaBeadsFormData[`nextGrade_${idx}`] = "";
   });
 } else {
   initialDanaBeadsFormData.density = selectedOrder.density || "";
   initialDanaBeadsFormData.quantity = selectedOrder.quantity || "";
   // 🔍 Find the product in the products list for single product
   const productFromList = products.find(p => p.name === selectedOrder?.product);
-  initialDanaBeadsFormData.productUnit = productFromList?.unit || selectedOrder?.productUnit || ""; // ✅ Auto-fetch unit
+  initialDanaBeadsFormData.productUnit = productFromList?.unit || selectedOrder?.productUnit || "";
 }
 setDanaBeadsFormData(initialDanaBeadsFormData);
     }
@@ -512,37 +525,55 @@ const handleSubmit = async (e) => {
   console.log("🔍 Filtered products:", filteredProductList.length);
 
   // Validation for each type
-  if (type === "dana") {
-    // Check batch settings fields
-    const batchFields = ["typeOfRawBlock", "densityValue", "densityType", "recycledDana", "weight", "grade"];
+if (type === "dana") {
+  // For multi-product, check each selected product's fields
+  if (hasMultipleProducts) {
+    const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
+    for (let idx = 0; idx < productList.length; idx++) {
+      if (selected[idx]) {
+        // Check Type of Raw Block (either from select or custom input)
+        const typeOfRawBlock = danaFormData[`typeOfRawBlock_${idx}`] || danaFormData[`typeOfRawBlockCustom_${idx}`];
+        if (!typeOfRawBlock?.toString().trim()) {
+          console.log(`❌ Missing typeOfRawBlock for selected product ${idx}`);
+          missing.push(`typeOfRawBlock_${idx}`);
+        }
+        if (!danaFormData[`densityValue_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing densityValue for selected product ${idx}`);
+          missing.push(`densityValue_${idx}`);
+        }
+        if (!danaFormData[`densityType_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing densityType for selected product ${idx}`);
+          missing.push(`densityType_${idx}`);
+        }
+        if (!danaFormData[`recycledDana_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing recycledDana for selected product ${idx}`);
+          missing.push(`recycledDana_${idx}`);
+        }
+        if (!danaFormData[`weight_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing weight for selected product ${idx}`);
+          missing.push(`weight_${idx}`);
+        }
+        if (!danaFormData[`grade_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing grade for selected product ${idx}`);
+          missing.push(`grade_${idx}`);
+        }
+        if (!danaFormData[`quantity_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing quantity for selected product ${idx}`);
+          missing.push(`quantity_${idx}`);
+        }
+      }
+    }
+  } else {
+    // Single product - check regular fields
+    const batchFields = ["typeOfRawBlock", "densityValue", "densityType", "recycledDana", "weight", "grade", "quantity"];
     batchFields.forEach(field => {
       if (!danaFormData[field]?.toString().trim()) {
         console.log(`❌ Missing batch field: ${field}`);
         missing.push(field);
       }
     });
-    
-    // For multi-product, check only selected products
-    if (hasMultipleProducts) {
-      const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
-      for (let idx = 0; idx < productList.length; idx++) {
-        if (selected[idx]) {
-          const quantity = danaFormData[`quantity_${idx}`];
-          if (!quantity?.toString().trim()) {
-            console.log(`❌ Missing quantity for selected product ${idx}`);
-            missing.push(`quantity_${idx}`);
-          }
-          // remarks are optional
-        }
-      }
-    } else {
-      // Single product - check regular quantity
-      if (!danaFormData.quantity?.toString().trim()) {
-        console.log(`❌ Missing quantity`);
-        missing.push("quantity");
-      }
-    }
-  } else if (type === "production") {
+  }
+} else if (type === "production") {
     // For multi-product, check only selected products
     if (hasMultipleProducts) {
       const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
@@ -638,28 +669,28 @@ const handleSubmit = async (e) => {
       // remarks are optional
     }
   } else if (type === "dana-beads") {
-    // For multi-product, check only selected products
-    if (hasMultipleProducts) {
-      const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
-      for (let idx = 0; idx < productList.length; idx++) {
-        if (selected[idx]) {
-          if (!danaBeadsFormData[`density_${idx}`]?.toString().trim()) {
-            console.log(`❌ Missing density for selected product ${idx}`);
-            missing.push(`density_${idx}`);
-          }
-          if (!danaBeadsFormData[`quantity_${idx}`]?.toString().trim()) {
-            console.log(`❌ Missing quantity for selected product ${idx}`);
-            missing.push(`quantity_${idx}`);
-          }
+  // For multi-product, check only selected products
+  if (hasMultipleProducts) {
+    const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
+    for (let idx = 0; idx < productList.length; idx++) {
+      if (selected[idx]) {
+        if (!danaBeadsFormData[`density_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing density for selected product ${idx}`);
+          missing.push(`density_${idx}`);
+        }
+        if (!danaBeadsFormData[`quantity_${idx}`]?.toString().trim()) {
+          console.log(`❌ Missing quantity for selected product ${idx}`);
+          missing.push(`quantity_${idx}`);
         }
       }
-    } else {
-      // Single product - check regular fields
-      if (!danaBeadsFormData.productName?.toString().trim()) missing.push("productName");
-      if (!danaBeadsFormData.density?.toString().trim()) missing.push("density");
-      if (!danaBeadsFormData.quantity?.toString().trim()) missing.push("quantity");
     }
+  } else {
+    // Single product - check regular fields
+    if (!danaBeadsFormData.productName?.toString().trim()) missing.push("productName");
+    if (!danaBeadsFormData.density?.toString().trim()) missing.push("density");
+    if (!danaBeadsFormData.quantity?.toString().trim()) missing.push("quantity");
   }
+}
 
   if (missing.length > 0) {
     setMissingFields(missing);
@@ -670,53 +701,62 @@ const handleSubmit = async (e) => {
   setMissingFields([]);
 
   try {
-    if (type === "dana") {
-      const finalDensity = danaFormData.densityValue && danaFormData.densityType
-        ? `${danaFormData.densityValue} ${danaFormData.densityType}`
-        : "";
-
-      // Filter products based on selection
-      let productsData = null;
-      if (hasMultipleProducts) {
-        const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
-        const filteredProducts = productList.filter((_, idx) => selected[idx]);
-        if (filteredProducts.length > 0) {
-          productsData = filteredProducts.map((product) => {
-            const originalIdx = productList.indexOf(product);
-            return {
-              productName: product.productName,
-              quantity: danaFormData[`quantity_${originalIdx}`] !== undefined 
-                ? danaFormData[`quantity_${originalIdx}`] 
-                : product.quantity,
-              remarks: danaFormData[`remarks_${originalIdx}`] !== undefined 
-                ? danaFormData[`remarks_${originalIdx}`] 
-                : (product.productRemarks || ""),
-            };
-          });
+if (type === "dana") {
+  // Filter products based on selection
+  let productsData = null;
+  let topLevelTypeOfRawBlock = "";
+  let topLevelDensity = "";
+  
+  if (hasMultipleProducts) {
+    const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
+    const filteredProducts = productList.filter((_, idx) => selected[idx]);
+    if (filteredProducts.length > 0) {
+      productsData = filteredProducts.map((product) => {
+        const originalIdx = productList.indexOf(product);
+        const typeOfRawBlock = danaFormData[`typeOfRawBlock_${originalIdx}`] || danaFormData[`typeOfRawBlockCustom_${originalIdx}`] || "";
+        const densityValue = danaFormData[`densityValue_${originalIdx}`] || "";
+        const densityType = danaFormData[`densityType_${originalIdx}`] || "";
+        const density = `${densityValue} ${densityType}`.trim();
+        
+        // Use first product's values for top-level fields
+        if (originalIdx === filteredProducts[0] && productsData === null) {
+          topLevelTypeOfRawBlock = typeOfRawBlock;
+          topLevelDensity = density;
         }
-      }
-
-      console.log("📤 Sending dana data:", {
-        danaFormData: {
-          ...danaFormData,
-          density: finalDensity,
-          productName: hasMultipleProducts ? "Multiple Products" : (selectedOrder?.product || ""),
-        },
-        isMultiProduct: hasMultipleProducts,
-        productsData,
-        selectedCount: productsData?.length || 0,
+        
+        return {
+          productName: product.productName,
+          typeOfRawBlock: typeOfRawBlock,
+          density: density,
+          densityValue: densityValue,
+          densityType: densityType,
+          recycledDana: danaFormData[`recycledDana_${originalIdx}`] || "",
+          weight: danaFormData[`weight_${originalIdx}`] || "",
+          grade: danaFormData[`grade_${originalIdx}`] || "",
+          quantity: danaFormData[`quantity_${originalIdx}`] !== undefined 
+            ? danaFormData[`quantity_${originalIdx}`] 
+            : product.quantity,
+          remarks: danaFormData[`remarks_${originalIdx}`] !== undefined 
+            ? danaFormData[`remarks_${originalIdx}`] 
+            : (product.productRemarks || ""),
+        };
       });
+    }
+  }
 
-      await onSubmit({
-        danaFormData: {
-          ...danaFormData,
-          density: finalDensity,
-          productName: hasMultipleProducts ? "Multiple Products" : (selectedOrder?.product || ""),
-          isMultiProduct: hasMultipleProducts,
-          products: productsData,
-        },
-      });
-    } else if (type === "production") {
+  await onSubmit({
+    danaFormData: {
+      ...danaFormData,
+      productName: hasMultipleProducts ? "Multiple Products" : (selectedOrder?.product || ""),
+      isMultiProduct: hasMultipleProducts,
+      // Add these top-level fields required by backend
+      typeOfRawBlock: hasMultipleProducts ? topLevelTypeOfRawBlock : danaFormData.typeOfRawBlock,
+      density: hasMultipleProducts ? topLevelDensity : danaFormData.density,
+      products: productsData,
+    },
+  });
+}
+ else if (type === "production") {
       // Filter products based on selection
       let productsData = null;
       if (hasMultipleProducts) {
@@ -841,49 +881,43 @@ const handleSubmit = async (e) => {
       }
       console.log("📤 All uploaded drawing URLs:", uploadedUrls);
 
-      // Filter products based on selection
-      let productsData = null;
-      if (hasMultipleProducts) {
-        const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
-        const filteredProducts = productList.filter((_, idx) => selected[idx]);
-        if (filteredProducts.length > 0) {
-          productsData = filteredProducts.map((product) => {
-            const originalIdx = productList.indexOf(product);
-            return {
-              productName: product.productName,
-              size: cncFormData[`size_${originalIdx}`] !== undefined 
-                ? cncFormData[`size_${originalIdx}`] 
-                : (product.size || ""),
-              quantity: cncFormData[`quantity_${originalIdx}`] !== undefined 
-                ? cncFormData[`quantity_${originalIdx}`] 
-                : product.quantity,
-              remarks: cncFormData[`remarks_${originalIdx}`] !== undefined 
-                ? cncFormData[`remarks_${originalIdx}`] 
-                : (product.productRemarks || ""),
-            };
-          });
-        }
-      }
-
-      console.log("📤 Submitting CNC slip:", {
-        isMultiProduct: hasMultipleProducts,
-        productsData,
-        selectedCount: productsData?.length || 0,
-        drawingName: cncFormData.drawingName,
-        overallRemarks: cncFormData.remarks,
-        drawingFilesCount: uploadedUrls.length
+   // Filter products based on selection
+  let productsData = null;
+  if (hasMultipleProducts) {
+    const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
+    const filteredProducts = productList.filter((_, idx) => selected[idx]);
+    if (filteredProducts.length > 0) {
+      productsData = filteredProducts.map((product) => {
+        const originalIdx = productList.indexOf(product);
+        return {
+          productName: product.productName,
+          size: cncFormData[`size_${originalIdx}`] !== undefined 
+            ? cncFormData[`size_${originalIdx}`] 
+            : (product.size || ""),
+          quantity: cncFormData[`quantity_${originalIdx}`] !== undefined 
+            ? cncFormData[`quantity_${originalIdx}`] 
+            : product.quantity,
+          drawingName: cncFormData[`drawingName_${originalIdx}`] !== undefined 
+            ? cncFormData[`drawingName_${originalIdx}`] 
+            : "",
+          remarks: cncFormData[`remarks_${originalIdx}`] !== undefined 
+            ? cncFormData[`remarks_${originalIdx}`] 
+            : (product.productRemarks || ""),
+        };
       });
+    }
+  }
 
-      await onSubmit({
-        cncFormData: {
-          productName: cncFormData.productName,
-          drawingName: cncFormData.drawingName,
-          remarks: cncFormData.remarks,
-          drawingFiles: uploadedUrls,
-          isMultiProduct: hasMultipleProducts,
-          products: productsData,
-        },
-      });
+  await onSubmit({
+    cncFormData: {
+      productName: cncFormData.productName,
+      drawingName: cncFormData.drawingName,
+      remarks: cncFormData.remarks,
+      drawingFiles: uploadedUrls,
+      isMultiProduct: hasMultipleProducts,
+      products: productsData,
+    },
+  });
     } else if (type === "packaging" || type === "shape-packaging") {
       // Filter products based on selection
       let productsData = null;
@@ -929,47 +963,47 @@ const handleSubmit = async (e) => {
           products: productsData,
         },
       });
-    } else if (type === "dana-beads") {
-      // Filter products based on selection
-      let productsData = null;
-      if (hasMultipleProducts) {
-        const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
-        const filteredProducts = productList.filter((_, idx) => selected[idx]);
-        if (filteredProducts.length > 0) {
-          productsData = filteredProducts.map((product) => {
-            const originalIdx = productList.indexOf(product);
-            return {
-              productName: product.productName,
-              density: danaBeadsFormData[`density_${originalIdx}`] !== undefined 
-                ? danaBeadsFormData[`density_${originalIdx}`] 
-                : product.density,
-              quantity: danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
-                ? danaBeadsFormData[`quantity_${originalIdx}`] 
-                : product.quantity,
-              remarks: danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
-                ? danaBeadsFormData[`remarks_${originalIdx}`] 
-                : (product.productRemarks || ""),
-                 productUnit: danaBeadsFormData[`productUnit_${originalIdx}`] !== undefined 
-            ? danaBeadsFormData[`productUnit_${originalIdx}`] 
-            : (product.productUnit || ""),
-            };
-          });
-        }
-      }
-
-      console.log("📤 Submitting Dana/Beads with productsData:", JSON.stringify(productsData, null, 2));
-
-      await onSubmit({ 
-        danaBeadsFormData: {
-          productName: danaBeadsFormData.productName,
-          recycleDana: danaBeadsFormData.recycleDana,
-          nextGrade: danaBeadsFormData.nextGrade,
-          remarks: danaBeadsFormData.remarks,
-          isMultiProduct: hasMultipleProducts,
-          products: productsData,
-        },
+} else if (type === "dana-beads") {
+  // Filter products based on selection
+  let productsData = null;
+  if (hasMultipleProducts) {
+    const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
+    const filteredProducts = productList.filter((_, idx) => selected[idx]);
+    if (filteredProducts.length > 0) {
+      productsData = filteredProducts.map((product) => {
+        const originalIdx = productList.indexOf(product);
+        return {
+          productName: product.productName,
+          density: danaBeadsFormData[`density_${originalIdx}`] !== undefined 
+            ? danaBeadsFormData[`density_${originalIdx}`] 
+            : product.density,
+          quantity: danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
+            ? danaBeadsFormData[`quantity_${originalIdx}`] 
+            : product.quantity,
+          remarks: danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
+            ? danaBeadsFormData[`remarks_${originalIdx}`] 
+            : (product.productRemarks || ""),
+          // ✅ Add recycleDana and nextGrade per product
+          recycleDana: danaBeadsFormData[`recycleDana_${originalIdx}`] || danaBeadsFormData.recycleDana || "no",
+          nextGrade: danaBeadsFormData[`nextGrade_${originalIdx}`] || danaBeadsFormData.nextGrade || "",
+          // ✅ Add productUnit per product
+          productUnit: danaBeadsFormData[`productUnit_${originalIdx}`] || product.productUnit || "",
+        };
       });
     }
+  }
+
+  await onSubmit({ 
+    danaBeadsFormData: {
+      productName: danaBeadsFormData.productName,
+      recycleDana: danaBeadsFormData.recycleDana,
+      nextGrade: danaBeadsFormData.nextGrade,
+      remarks: danaBeadsFormData.remarks,
+      isMultiProduct: hasMultipleProducts,
+      products: productsData,
+    },
+  });
+}
 
     // Reset fields
     setCuttingFormData({ productName: "", size: "", density: "", quantity: "", remarks: "" });
@@ -1101,238 +1135,376 @@ const getFilteredProductList = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Dana Slip (Block Molding) */}
-          {type === "dana" && (
-            <>
-              <section className="space-y-4">
-                <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
-                  Raw Block/Dana Slip
-                </h3>
+        {type === "dana" && (
+  <>
+    <section className="space-y-4">
+      <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
+        Raw Block/Dana Slip
+      </h3>
 
-                {/* Show product list with editable fields for multi-product */}
-              {hasMultipleProducts ? (
-  <div className="mb-4">
-    <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
-    <div className="overflow-x-auto">
-      <table className="min-w-full border border-gray-200 text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-2 border">Product Name</th>
-            <th className="p-2 border">Quantity</th>
-            <th className="p-2 border">Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {getFilteredProductList().map((product, idx) => {
-            const originalIdx = productList.indexOf(product);
-            return (
-              <tr key={originalIdx}>
-                <td className="p-2 border">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{product.productName}</span>
-                    <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
-                  </div>
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="number"
-                    value={danaFormData[`quantity_${originalIdx}`] !== undefined ? danaFormData[`quantity_${originalIdx}`] : product.quantity}
-                    onChange={(e) => handleDanaChange(`quantity_${originalIdx}`, e.target.value)}
-                    placeholder="Quantity"
-                    className="w-24 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="text"
-                    value={danaFormData[`remarks_${originalIdx}`] !== undefined ? danaFormData[`remarks_${originalIdx}`] : (product.productRemarks || "")}
-                    onChange={(e) => handleDanaChange(`remarks_${originalIdx}`, e.target.value)}
-                    placeholder="Remarks"
-                    className="w-40 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-              </tr>
-            );
-          })}
-          {getFilteredProductList().length === 0 && (
-            <tr>
-              <td colSpan="3" className="p-4 text-center text-gray-500">
-                No products selected. Please select at least one product.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-) : (
-                  // Single product view
-                  <>
-                    <label className="font-bold text-xl">Product Name:</label>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <input
-                        type="text"
-                        disabled
-                        placeholder="Product Name"
-                        value={danaFormData.productName}
-                        onChange={(e) => handleDanaChange("productName", e.target.value)}
-                        className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
-                      />
-                      <ShowInternalImagesButton product={product} />
-                    </div>
-
-                    <label className="font-bold text-xl">Quantity:</label>
-                    <input
-                      type="number"
-                      placeholder="Quantity"
-                      value={danaFormData.quantity}
-                      onChange={(e) => handleDanaChange("quantity", e.target.value)}
-                      className={inputClass("quantity")}
-                    />
-
-                    <label className="font-bold text-xl">Remarks:</label>
-                    <textarea
-                      placeholder="Remarks"
-                      value={danaFormData.remarks}
-                      onChange={(e) => handleDanaChange("remarks", e.target.value)}
-                      rows={3}
-                      className={inputClass("remarks", "resize-none")}
-                    />
-                  </>
-                )}
-              </section>
-
-              {/* Common Batch Settings for Dana Slip */}
-              <section className="space-y-4 pt-6 border-t border-gray-200">
-                <h4 className="text-lg font-bold text-indigo-700">Batch Settings (Applies to all products)</h4>
-                
-                <label className="font-bold text-xl">Type of Raw Block:</label>
-                <div className="flex flex-wrap gap-2">
-                  {["With Both Gutka", "Without Both Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
-                    <label key={option} className="flex items-center gap-1">
-                      <input
-                        type="radio"
-                        name="typeOfRawBlock"
-                        value={option}
-                        checked={danaFormData.typeOfRawBlock === option}
-                        onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Custom Raw Block Type"
-                  value={danaFormData.typeOfRawBlock}
-                  onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-                  className={inputClass("typeOfRawBlock")}
-                />
-
-                <label className="font-bold text-xl">Density (Kg/m³):</label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    placeholder="e.g. 21"
-                    value={danaFormData.densityValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      handleDanaChange("densityValue", value);
-                      handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
-                    }}
-                    className={inputClass("densityValue")}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {["FR", "Pink FR", "Non FR", "ND", "Pink Non FR"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          handleDanaChange("densityType", type);
-                          handleDanaChange("density", `${danaFormData.densityValue} ${type}`.trim());
-                        }}
-                        className={`px-3 py-1 border rounded-md text-sm ${
-                          danaFormData.densityType === type
-                            ? "bg-indigo-600 text-white"
-                            : "bg-white text-gray-800 border-gray-300"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <label className="font-bold text-xl">Recycled Dana:</label>
-                <div className="flex flex-wrap gap-4">
-                  {["30%", "50%", "No"].map((val) => (
-                    <label key={val} className="flex items-center gap-1 px-2 py-1 rounded-md">
-                      <input
-                        type="radio"
-                        name="recycledDana"
-                        value={val}
-                        checked={danaFormData.recycledDana === val}
-                        onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
-                      />
-                      {val}
-                    </label>
-                  ))}
-                </div>
-
-                <label className="font-bold text-xl">Weight of Raw Block (kg):</label>
-                <input
-                  type="text"
-                  placeholder="Weight"
-                  value={danaFormData.weight}
-                  onChange={(e) => handleDanaChange("weight", e.target.value)}
-                  className={inputClass("weight")}
-                />
-
-                <label className="font-bold text-xl">Grade of Raw Material:</label>
-                <div className="relative grade-dropdown-container">
-                  <input
-                    type="text"
-                    placeholder="Search or select grade..."
-                    value={danaFormData.grade}
-                    onChange={(e) => {
-                      handleDanaChange("grade", e.target.value);
-                      setShowGradeDropdown(true);
-                    }}
-                    onFocus={() => setShowGradeDropdown(true)}
-                    className={inputClass("grade")}
-                  />
-                  
-                  {showGradeDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {filteredGrades.length > 0 ? (
-                        filteredGrades.map((product) => (
-                          <div
-                            key={product._id}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
-                            onClick={() => {
-                              handleDanaChange("grade", product.name);
-                              setShowGradeDropdown(false);
-                              setSelectedProductFiles(product.files || []);
-                            }}
-                          >
-                            <div className="font-medium">{product.name}</div>
-                            {product.description && (
-                              <div className="text-sm text-gray-500 truncate">
-                                {product.description}
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-4 py-2 text-gray-500">
-                          {gradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+      {hasMultipleProducts ? (
+        <div className="mb-4">
+          <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="min-w-full border border-gray-200 text-sm">
+              <thead className="bg-gray-100 sticky top-0">
+                <tr>
+                  <th className="p-2 border min-w-[120px]">Product Name</th>
+                  <th className="p-2 border min-w-[180px]">Type of Raw Block</th>
+                  <th className="p-2 border min-w-[180px]">Density (Kg/m³)</th>
+                  <th className="p-2 border min-w-[140px]">Recycled Dana</th>
+                  <th className="p-2 border min-w-[120px]">Weight (kg)</th>
+                  <th className="p-2 border min-w-[150px]">Grade</th>
+                  <th className="p-2 border min-w-[80px]">Quantity</th>
+                  <th className="p-2 border min-w-[150px]">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredProductList().map((product, idx) => {
+                  const originalIdx = productList.indexOf(product);
+                  return (
+                    <tr key={originalIdx}>
+                      <td className="p-2 border">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{product.productName}</span>
+                          <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </td>
+                      <td className="p-2 border">
+                        <select
+                          value={danaFormData[`typeOfRawBlock_${originalIdx}`] || ""}
+                          onChange={(e) => handleDanaChange(`typeOfRawBlock_${originalIdx}`, e.target.value)}
+                          className="w-full p-1 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="">Select...</option>
+                          <option value="With Both Gutka">With Both Gutka</option>
+                          <option value="Without Both Gutka">Without Both Gutka</option>
+                          <option value="Bottom Gutka">Bottom Gutka</option>
+                          <option value="Side Gutka">Side Gutka</option>
+                          <option value="Thermocol Dana">Thermocol Dana</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={danaFormData[`typeOfRawBlockCustom_${originalIdx}`] || ""}
+                          onChange={(e) => handleDanaChange(`typeOfRawBlockCustom_${originalIdx}`, e.target.value)}
+                          placeholder="Custom type"
+                          className="w-full mt-1 p-1 border border-gray-300 rounded text-sm"
+                        />
+                      </td>
+                      <td className="p-2 border">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex gap-1">
+                            <input
+                              type="text"
+                              value={danaFormData[`densityValue_${originalIdx}`] || ""}
+                              onChange={(e) => handleDanaChange(`densityValue_${originalIdx}`, e.target.value)}
+                              placeholder="e.g. 21"
+                              className="w-16 p-1 border border-gray-300 rounded text-sm"
+                            />
+                            <select
+                              value={danaFormData[`densityType_${originalIdx}`] || ""}
+                              onChange={(e) => handleDanaChange(`densityType_${originalIdx}`, e.target.value)}
+                              className="p-1 border border-gray-300 rounded text-sm"
+                            >
+                              <option value="">Type</option>
+                              <option value="FR">FR</option>
+                              <option value="Pink FR">Pink FR</option>
+                              <option value="Non FR">Non FR</option>
+                              <option value="ND">ND</option>
+                              <option value="Pink Non FR">Pink Non FR</option>
+                            </select>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2 border">
+                        <select
+                          value={danaFormData[`recycledDana_${originalIdx}`] || ""}
+                          onChange={(e) => handleDanaChange(`recycledDana_${originalIdx}`, e.target.value)}
+                          className="w-full p-1 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="">Select</option>
+                          <option value="30%">30%</option>
+                          <option value="50%">50%</option>
+                          <option value="No">No</option>
+                        </select>
+                      </td>
+                      <td className="p-2 border">
+                        <input
+                          type="text"
+                          value={danaFormData[`weight_${originalIdx}`] || ""}
+                          onChange={(e) => handleDanaChange(`weight_${originalIdx}`, e.target.value)}
+                          placeholder="Weight"
+                          className="w-full p-1 border border-gray-300 rounded text-sm"
+                        />
+                      </td>
+                    <td className="p-2 border">
+  <div className="relative grade-dropdown-container">
+    <input
+      type="text"
+      value={danaFormData[`grade_${originalIdx}`] || ""}
+      onChange={(e) => {
+        const value = e.target.value;
+        handleDanaChange(`grade_${originalIdx}`, value);
+        setActiveGradeIndex(originalIdx);
+        setShowGradeDropdown(true);
+        if (value) {
+          const filtered = gradeProducts.filter(product =>
+            product.name.toLowerCase().includes(value.toLowerCase()) ||
+            (product.description && product.description.toLowerCase().includes(value.toLowerCase()))
+          );
+          setFilteredGrades(filtered);
+        } else {
+          setFilteredGrades(gradeProducts);
+        }
+      }}
+      onFocus={() => {
+        setActiveGradeIndex(originalIdx);
+        setShowGradeDropdown(true);
+        setFilteredGrades(gradeProducts);
+      }}
+      placeholder="Grade"
+      className="w-full p-1 border border-gray-300 rounded text-sm"
+    />
+    {showGradeDropdown && activeGradeIndex === originalIdx && (
+      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        {filteredGrades.length > 0 ? (
+          filteredGrades.map((product) => (
+            <div
+              key={product._id}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+              onClick={() => {
+                handleDanaChange(`grade_${originalIdx}`, product.name);
+                setShowGradeDropdown(false);
+                setActiveGradeIndex(null);
+                setSelectedProductFiles(product.files || []);
+              }}
+            >
+              <div className="font-medium">{product.name}</div>
+              {product.description && (
+                <div className="text-sm text-gray-500 truncate">
+                  {product.description}
                 </div>
-              </section>
-            </>
-          )}
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-gray-500">
+            {gradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</td>
+                      <td className="p-2 border">
+                        <input
+                          type="number"
+                          value={danaFormData[`quantity_${originalIdx}`] !== undefined ? danaFormData[`quantity_${originalIdx}`] : product.quantity}
+                          onChange={(e) => handleDanaChange(`quantity_${originalIdx}`, e.target.value)}
+                          placeholder="Qty"
+                          className="w-full p-1 border border-gray-300 rounded text-sm"
+                        />
+                      </td>
+                      <td className="p-2 border">
+                        <input
+                          type="text"
+                          value={danaFormData[`remarks_${originalIdx}`] !== undefined ? danaFormData[`remarks_${originalIdx}`] : (product.productRemarks || "")}
+                          onChange={(e) => handleDanaChange(`remarks_${originalIdx}`, e.target.value)}
+                          placeholder="Remarks"
+                          className="w-full p-1 border border-gray-300 rounded text-sm"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {getFilteredProductList().length === 0 && (
+                  <tr>
+                    <td colSpan="8" className="p-4 text-center text-gray-500">
+                      No products selected. Please select at least one product.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        // Single product view
+        <>
+          <label className="font-bold text-xl">Product Name:</label>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <input
+              type="text"
+              disabled
+              placeholder="Product Name"
+              value={danaFormData.productName}
+              onChange={(e) => handleDanaChange("productName", e.target.value)}
+              className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
+            />
+            <ShowInternalImagesButton product={product} />
+          </div>
+
+          <label className="font-bold text-xl">Type of Raw Block:</label>
+          <div className="flex flex-wrap gap-2">
+            {["With Both Gutka", "Without Both Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
+              <label key={option} className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="typeOfRawBlock"
+                  value={option}
+                  checked={danaFormData.typeOfRawBlock === option}
+                  onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+          <input
+            type="text"
+            placeholder="Custom Raw Block Type"
+            value={danaFormData.typeOfRawBlock}
+            onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+            className={inputClass("typeOfRawBlock")}
+          />
+
+          <label className="font-bold text-xl">Density (Kg/m³):</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="e.g. 21"
+              value={danaFormData.densityValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                handleDanaChange("densityValue", value);
+                handleDanaChange("density", `${value} ${danaFormData.densityType}`.trim());
+              }}
+              className={inputClass("densityValue")}
+            />
+            <div className="flex flex-wrap gap-2">
+              {["FR", "Pink FR", "Non FR", "ND", "Pink Non FR"].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    handleDanaChange("densityType", type);
+                    handleDanaChange("density", `${danaFormData.densityValue} ${type}`.trim());
+                  }}
+                  className={`px-3 py-1 border rounded-md text-sm ${
+                    danaFormData.densityType === type
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-gray-800 border-gray-300"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="font-bold text-xl">Recycled Dana:</label>
+          <div className="flex flex-wrap gap-4">
+            {["30%", "50%", "No"].map((val) => (
+              <label key={val} className="flex items-center gap-1 px-2 py-1 rounded-md">
+                <input
+                  type="radio"
+                  name="recycledDana"
+                  value={val}
+                  checked={danaFormData.recycledDana === val}
+                  onChange={(e) => handleDanaChange("recycledDana", e.target.value)}
+                />
+                {val}
+              </label>
+            ))}
+          </div>
+
+          <label className="font-bold text-xl">Weight of Raw Block (kg):</label>
+          <input
+            type="text"
+            placeholder="Weight"
+            value={danaFormData.weight}
+            onChange={(e) => handleDanaChange("weight", e.target.value)}
+            className={inputClass("weight")}
+          />
+
+         <label className="font-bold text-xl">Grade of Raw Material:</label>
+<div className="relative grade-dropdown-container">
+  <input
+    type="text"
+    placeholder="Search or select grade..."
+    value={danaFormData.grade}
+    onChange={(e) => {
+      const value = e.target.value;
+      handleDanaChange("grade", value);
+      setShowGradeDropdown(true);
+      if (value) {
+        const filtered = gradeProducts.filter(product =>
+          product.name.toLowerCase().includes(value.toLowerCase()) ||
+          (product.description && product.description.toLowerCase().includes(value.toLowerCase()))
+        );
+        setFilteredGrades(filtered);
+      } else {
+        setFilteredGrades(gradeProducts);
+      }
+    }}
+    onFocus={() => {
+      setShowGradeDropdown(true);
+      setFilteredGrades(gradeProducts);
+    }}
+    className={inputClass("grade")}
+  />
+  
+  {showGradeDropdown && (
+    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+      {filteredGrades.length > 0 ? (
+        filteredGrades.map((product) => (
+          <div
+            key={product._id}
+            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+            onClick={() => {
+              handleDanaChange("grade", product.name);
+              setShowGradeDropdown(false);
+              setSelectedProductFiles(product.files || []);
+            }}
+          >
+            <div className="font-medium">{product.name}</div>
+            {product.description && (
+              <div className="text-sm text-gray-500 truncate">
+                {product.description}
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-2 text-gray-500">
+          {gradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+          <label className="font-bold text-xl">Quantity:</label>
+          <input
+            type="number"
+            placeholder="Quantity"
+            value={danaFormData.quantity}
+            onChange={(e) => handleDanaChange("quantity", e.target.value)}
+            className={inputClass("quantity")}
+          />
+
+          <label className="font-bold text-xl">Remarks:</label>
+          <textarea
+            placeholder="Remarks"
+            value={danaFormData.remarks}
+            onChange={(e) => handleDanaChange("remarks", e.target.value)}
+            rows={3}
+            className={inputClass("remarks", "resize-none")}
+          />
+        </>
+      )}
+    </section>
+  </>
+)}
 
           {/* Shape Moulding Slip */}
           {type === "production" && (
@@ -1473,188 +1645,127 @@ const getFilteredProductList = () => {
           )}
 
           {/* Dana/Beads Slip */}
-          {type === "dana-beads" && (
-            <section className="space-y-4">
-           {hasMultipleProducts ? (
-  <div className="mb-4">
-    <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
-    <div className="overflow-x-auto max-h-96 overflow-y-auto">
-      <table className="min-w-full border border-gray-200 text-sm">
-        <thead className="bg-gray-100 sticky top-0">
-          <tr>
-            <th className="p-2 border">Product Name</th>
-                <th className="p-2 border">Product Unit</th> {/* ✅ Added */}
-            <th className="p-2 border">Density (kg/m³)</th>
-            <th className="p-2 border">Quantity</th>
-            <th className="p-2 border">Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {getFilteredProductList().map((product, idx) => {
-            const originalIdx = productList.indexOf(product);
-            return (
-            <tr key={originalIdx}>
-  <td className="p-2 border">
-    <div className="flex items-center gap-2">
-      <span className="font-medium">{product.productName}</span>
-      <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
-    </div>
-  </td>
-  <td className="p-2 border">
-    <input
-      type="text"
-      value={danaBeadsFormData[`productUnit_${originalIdx}`] !== undefined 
-        ? danaBeadsFormData[`productUnit_${originalIdx}`] 
-        : (product.productUnit || "")}
-      onChange={(e) => {
-        setDanaBeadsFormData(prev => ({
-          ...prev,
-          [`productUnit_${originalIdx}`]: e.target.value
-        }));
-      }}
-      placeholder="Unit"
-      className="w-24 p-1 border border-gray-300 rounded"
-    />
-  </td>
-  <td className="p-2 border">
-    <input
-      type="text"
-      value={danaBeadsFormData[`density_${originalIdx}`] !== undefined 
-        ? danaBeadsFormData[`density_${originalIdx}`] 
-        : (product.density || "")}
-      onChange={(e) => {
-        setDanaBeadsFormData(prev => ({
-          ...prev,
-          [`density_${originalIdx}`]: e.target.value
-        }));
-      }}
-      placeholder="Density"
-      className="w-28 p-1 border border-gray-300 rounded"
-    />
-  </td>
-  <td className="p-2 border">
-    <input
-      type="number"
-      value={danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
-        ? danaBeadsFormData[`quantity_${originalIdx}`] 
-        : product.quantity}
-      onChange={(e) => {
-        setDanaBeadsFormData(prev => ({
-          ...prev,
-          [`quantity_${originalIdx}`]: e.target.value
-        }));
-      }}
-      placeholder="Quantity"
-      className="w-24 p-1 border border-gray-300 rounded"
-    />
-  </td>
-  <td className="p-2 border">
-    <input
-      type="text"
-      value={danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
-        ? danaBeadsFormData[`remarks_${originalIdx}`] 
-        : (product.productRemarks || "")}
-      onChange={(e) => {
-        setDanaBeadsFormData(prev => ({
-          ...prev,
-          [`remarks_${originalIdx}`]: e.target.value
-        }));
-      }}
-      placeholder="Remarks"
-      className="w-40 p-1 border border-gray-300 rounded"
-    />
-  </td>
-</tr>
-            );
-          })}
-          {getFilteredProductList().length === 0 && (
-            <tr>
-              <td colSpan="4" className="p-4 text-center text-gray-500">
-                No products selected. Please select at least one product.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-) : (
-                <>
-                  <label className="font-bold text-xl">Product Name:</label>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <input
-                      type="text"
-                      disabled
-                      value={danaBeadsFormData.productName}
-                      onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, productName: e.target.value })}
-                      className={inputClass("productName")}
-                    />
-                    <ShowInternalImagesButton product={product} />
-                  </div>
-
-                  <label className="font-bold text-xl">Density (kg/m³):</label>
-                  <input
-                    type="text"
-                    value={danaBeadsFormData.density}
-                    onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, density: e.target.value })}
-                    className={inputClass("density")}
-                    placeholder="e.g., 12 kg/m³"
-                  />
-
-                  <label className="font-bold text-xl">Quantity:</label>
-                  <input
-                    type="number"
-                    value={danaBeadsFormData.quantity}
-                    onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, quantity: e.target.value })}
-                    className={inputClass("quantity")}
-                  />
-                </>
-              )}
-
-              {/* Common fields for Dana/Beads */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="font-bold text-xl">Recycle Dana:</label>
-                    <select
-                      value={danaBeadsFormData.recycleDana}
-                      onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, recycleDana: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-4 py-3"
-                    >
-                      <option value="30%">30%</option>
-                      <option value="50%">50%</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
-
-                 <div>
-  <label className="font-bold text-xl">Grade of Raw Material / Thermocol Dana:</label>
+        {type === "dana-beads" && (
+  <section className="space-y-4">
+    {hasMultipleProducts ? (
+      <div className="mb-4">
+        <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <table className="min-w-full border border-gray-200 text-sm">
+            <thead className="bg-gray-100 sticky top-0">
+              <tr>
+                <th className="p-2 border">Product Name</th>
+                <th className="p-2 border">Density (kg/m³)</th>
+                <th className="p-2 border">Quantity</th>
+                <th className="p-2 border">Recycle Dana</th>
+<th className="p-2 border min-w-[200px]">Next Grade</th>
+                <th className="p-2 border">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {getFilteredProductList().map((product, idx) => {
+                const originalIdx = productList.indexOf(product);
+                return (
+                  <tr key={originalIdx}>
+                    <td className="p-2 border">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{product.productName}</span>
+                        <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
+                      </div>
+                    </td>
+                    <td className="p-2 border">
+                      <input
+                        type="text"
+                        value={danaBeadsFormData[`density_${originalIdx}`] !== undefined 
+                          ? danaBeadsFormData[`density_${originalIdx}`] 
+                          : (product.density || "")}
+                        onChange={(e) => {
+                          setDanaBeadsFormData(prev => ({
+                            ...prev,
+                            [`density_${originalIdx}`]: e.target.value
+                          }));
+                        }}
+                        placeholder="Density"
+                        className="w-28 p-1 border border-gray-300 rounded"
+                      />
+                    </td>
+                    <td className="p-2 border">
+                      <input
+                        type="number"
+                        value={danaBeadsFormData[`quantity_${originalIdx}`] !== undefined 
+                          ? danaBeadsFormData[`quantity_${originalIdx}`] 
+                          : product.quantity}
+                        onChange={(e) => {
+                          setDanaBeadsFormData(prev => ({
+                            ...prev,
+                            [`quantity_${originalIdx}`]: e.target.value
+                          }));
+                        }}
+                        placeholder="Quantity"
+                        className="w-24 p-1 border border-gray-300 rounded"
+                      />
+                    </td>
+                    <td className="p-2 border">
+                      <select
+                        value={danaBeadsFormData[`recycleDana_${originalIdx}`] || "no"}
+                        onChange={(e) => {
+                          setDanaBeadsFormData(prev => ({
+                            ...prev,
+                            [`recycleDana_${originalIdx}`]: e.target.value
+                          }));
+                        }}
+                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="30%">30%</option>
+                        <option value="50%">50%</option>
+                        <option value="no">No</option>
+                      </select>
+                    </td>
+                   <td className="p-2 border">
   <div className="relative dana-beads-grade-dropdown-container">
     <input
       type="text"
-      placeholder="Search or select grade..."
-      value={danaBeadsFormData.nextGrade}
+      value={danaBeadsFormData[`nextGrade_${originalIdx}`] || ""}
       onChange={(e) => {
-        setDanaBeadsFormData({ ...danaBeadsFormData, nextGrade: e.target.value });
+        const value = e.target.value;
+        setDanaBeadsFormData(prev => ({
+          ...prev,
+          [`nextGrade_${originalIdx}`]: value
+        }));
+        setActiveNextGradeIndex(originalIdx);
         setShowDanaBeadsGradeDropdown(true);
+        if (value) {
+          const filtered = danaBeadsGradeProducts.filter(product =>
+            product.name.toLowerCase().includes(value.toLowerCase()) ||
+            (product.description && product.description.toLowerCase().includes(value.toLowerCase()))
+          );
+          setFilteredDanaBeadsGrades(filtered);
+        } else {
+          setFilteredDanaBeadsGrades(danaBeadsGradeProducts);
+        }
       }}
-      onFocus={() => setShowDanaBeadsGradeDropdown(true)}
-      className={inputClass("nextGrade")}
+      onFocus={() => {
+        setActiveNextGradeIndex(originalIdx);
+        setShowDanaBeadsGradeDropdown(true);
+        setFilteredDanaBeadsGrades(danaBeadsGradeProducts);
+      }}
+      placeholder="Next Grade"
+      className="w-full p-1 border border-gray-300 rounded text-sm"
     />
-    
-    {showDanaBeadsGradeDropdown && (
-      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+    {showDanaBeadsGradeDropdown && activeNextGradeIndex === originalIdx && (
+      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
         {filteredDanaBeadsGrades.length > 0 ? (
           filteredDanaBeadsGrades.map((product) => (
             <div
               key={product._id}
               className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
               onClick={() => {
-                setDanaBeadsFormData({ 
-                  ...danaBeadsFormData, 
-                  nextGrade: product.name 
-                });
+                setDanaBeadsFormData(prev => ({
+                  ...prev,
+                  [`nextGrade_${originalIdx}`]: product.name
+                }));
                 setShowDanaBeadsGradeDropdown(false);
+                setActiveNextGradeIndex(null);
                 setSelectedDanaBeadsProductFiles(product.files || []);
               }}
             >
@@ -1674,11 +1785,143 @@ const getFilteredProductList = () => {
       </div>
     )}
   </div>
-</div>
-                </div>
+</td>
+                    <td className="p-2 border">
+                      <input
+                        type="text"
+                        value={danaBeadsFormData[`remarks_${originalIdx}`] !== undefined 
+                          ? danaBeadsFormData[`remarks_${originalIdx}`] 
+                          : (product.productRemarks || "")}
+                        onChange={(e) => {
+                          setDanaBeadsFormData(prev => ({
+                            ...prev,
+                            [`remarks_${originalIdx}`]: e.target.value
+                          }));
+                        }}
+                        placeholder="Remarks"
+                        className="w-40 p-1 border border-gray-300 rounded"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {getFilteredProductList().length === 0 && (
+                <tr>
+                  <td colSpan="6" className="p-4 text-center text-gray-500">
+                    No products selected. Please select at least one product.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ) : (
+      // Single product view (keep existing)
+      <>
+        <label className="font-bold text-xl">Product Name:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <input
+            type="text"
+            disabled
+            value={danaBeadsFormData.productName}
+            onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, productName: e.target.value })}
+            className={inputClass("productName")}
+          />
+          <ShowInternalImagesButton product={product} />
+        </div>
+
+        <label className="font-bold text-xl">Density (kg/m³):</label>
+        <input
+          type="text"
+          value={danaBeadsFormData.density}
+          onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, density: e.target.value })}
+          className={inputClass("density")}
+          placeholder="e.g., 12 kg/m³"
+        />
+
+        <label className="font-bold text-xl">Quantity:</label>
+        <input
+          type="number"
+          value={danaBeadsFormData.quantity}
+          onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, quantity: e.target.value })}
+          className={inputClass("quantity")}
+        />
+
+        <label className="font-bold text-xl">Recycle Dana:</label>
+        <select
+          value={danaBeadsFormData.recycleDana}
+          onChange={(e) => setDanaBeadsFormData({ ...danaBeadsFormData, recycleDana: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-4 py-3"
+        >
+          <option value="30%">30%</option>
+          <option value="50%">50%</option>
+          <option value="no">No</option>
+        </select>
+
+      <label className="font-bold text-xl">Grade of Raw Material / Thermocol Dana:</label>
+<div className="relative dana-beads-grade-dropdown-container">
+  <input
+    type="text"
+    placeholder="Search or select grade..."
+    value={danaBeadsFormData.nextGrade}
+    onChange={(e) => {
+      const value = e.target.value;
+      setDanaBeadsFormData({ ...danaBeadsFormData, nextGrade: value });
+      setShowDanaBeadsGradeDropdown(true);
+      if (value) {
+        const filtered = danaBeadsGradeProducts.filter(product =>
+          product.name.toLowerCase().includes(value.toLowerCase()) ||
+          (product.description && product.description.toLowerCase().includes(value.toLowerCase()))
+        );
+        setFilteredDanaBeadsGrades(filtered);
+      } else {
+        setFilteredDanaBeadsGrades(danaBeadsGradeProducts);
+      }
+    }}
+    onFocus={() => {
+      setShowDanaBeadsGradeDropdown(true);
+      setFilteredDanaBeadsGrades(danaBeadsGradeProducts);
+    }}
+    className={inputClass("nextGrade")}
+  />
+  
+  {showDanaBeadsGradeDropdown && (
+    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+      {filteredDanaBeadsGrades.length > 0 ? (
+        filteredDanaBeadsGrades.map((product) => (
+          <div
+            key={product._id}
+            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+            onClick={() => {
+              setDanaBeadsFormData({ 
+                ...danaBeadsFormData, 
+                nextGrade: product.name 
+              });
+              setShowDanaBeadsGradeDropdown(false);
+              setSelectedDanaBeadsProductFiles(product.files || []);
+            }}
+          >
+            <div className="font-medium">{product.name}</div>
+            {product.description && (
+              <div className="text-sm text-gray-500 truncate">
+                {product.description}
               </div>
-            </section>
-          )}
+            )}
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-2 text-gray-500">
+          {danaBeadsGradeProducts.length === 0 ? 'Loading products...' : 'No products found'}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+      </>
+    )}
+  </section>
+)}
 
           {/* Packaging Slip */}
           {isPackaging && (
@@ -2021,155 +2264,171 @@ const getFilteredProductList = () => {
           )}
 
           {/* CNC Slip */}
-          {type === "cnc-slip" && (
-            <section className="space-y-4">
-             {hasMultipleProducts ? (
-  <div className="mb-4">
-    <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
-    <div className="overflow-x-auto">
-      <table className="min-w-full border border-gray-200 text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-2 border">Product Name</th>
-            <th className="p-2 border">Size <span className="text-red-500">*</span></th>
-            <th className="p-2 border">Quantity <span className="text-red-500">*</span></th>
-            <th className="p-2 border">Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {getFilteredProductList().map((product, idx) => {
-            const originalIdx = productList.indexOf(product);
-            return (
-              <tr key={originalIdx}>
-                <td className="p-2 border">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{product.productName}</span>
-                    <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
-                  </div>
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="text"
-                    value={cncFormData[`size_${originalIdx}`] !== undefined ? cncFormData[`size_${originalIdx}`] : (product.size || "")}
-                    onChange={(e) => {
-                      setCNCFormData(prev => ({
-                        ...prev,
-                        [`size_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Size"
-                    className={`w-32 p-1 border rounded ${missingFields.includes(`size_${originalIdx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  />
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="number"
-                    value={cncFormData[`quantity_${originalIdx}`] !== undefined ? cncFormData[`quantity_${originalIdx}`] : product.quantity}
-                    onChange={(e) => {
-                      setCNCFormData(prev => ({
-                        ...prev,
-                        [`quantity_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Quantity"
-                    className={`w-24 p-1 border rounded ${missingFields.includes(`quantity_${originalIdx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                  />
-                </td>
-                <td className="p-2 border">
-                  <input
-                    type="text"
-                    value={cncFormData[`remarks_${originalIdx}`] !== undefined ? cncFormData[`remarks_${originalIdx}`] : (product.productRemarks || "")}
-                    onChange={(e) => {
-                      setCNCFormData(prev => ({
-                        ...prev,
-                        [`remarks_${originalIdx}`]: e.target.value
-                      }));
-                    }}
-                    placeholder="Remarks"
-                    className="w-40 p-1 border border-gray-300 rounded"
-                  />
-                </td>
-              </tr>
-            );
-          })}
-          {getFilteredProductList().length === 0 && (
-            <tr>
-              <td colSpan="4" className="p-4 text-center text-gray-500">
-                No products selected. Please select at least one product.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-) : (
-                <>
-                  <label className="font-bold text-xl">Product Name <span className="text-red-500">*</span>:</label>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <input
-                      type="text"
-                      disabled
-                      value={cncFormData.productName}
-                      onChange={(e) => handleCNCChange("productName", e.target.value)}
-                      className={inputClass("productName")}
-                    />
-                    {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
-                  </div>
-
-                  <label className="font-bold text-xl">Size <span className="text-red-500">*</span>:</label>
-                  <input
-                    type="text"
-                    value={cncFormData.size}
-                    onChange={(e) => handleCNCChange("size", e.target.value)}
-                    className={inputClass("size")}
-                  />
-
-                  <label className="font-bold text-xl">Quantity <span className="text-red-500">*</span>:</label>
-                  <input
-                    type="number"
-                    value={cncFormData.quantity}
-                    onChange={(e) => handleCNCChange("quantity", e.target.value)}
-                    className={inputClass("quantity")}
-                  />
-                </>
+         {type === "cnc-slip" && (
+  <section className="space-y-4">
+    {hasMultipleProducts ? (
+      <div className="mb-4">
+        <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 text-sm">
+           <thead className="bg-gray-100">
+  <tr>
+    <th className="p-2 border">Product Name</th>
+    <th className="p-2 border">Size <span className="text-red-500">*</span></th>
+    <th className="p-2 border">Quantity <span className="text-red-500">*</span></th>
+    <th className="p-2 border">Drawing Name</th>
+    <th className="p-2 border">Remarks</th>
+  </tr>
+</thead>
+            <tbody>
+              {getFilteredProductList().map((product, idx) => {
+  const originalIdx = productList.indexOf(product);
+  return (
+    <tr key={originalIdx}>
+      <td className="p-2 border">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{product.productName}</span>
+          <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
+        </div>
+      </td>
+      <td className="p-2 border">
+        <input
+          type="text"
+          value={cncFormData[`size_${originalIdx}`] !== undefined ? cncFormData[`size_${originalIdx}`] : (product.size || "")}
+          onChange={(e) => {
+            setCNCFormData(prev => ({
+              ...prev,
+              [`size_${originalIdx}`]: e.target.value
+            }));
+          }}
+          placeholder="Size"
+          className={`w-32 p-1 border rounded ${missingFields.includes(`size_${originalIdx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+        />
+      </td>
+      <td className="p-2 border">
+        <input
+          type="number"
+          value={cncFormData[`quantity_${originalIdx}`] !== undefined ? cncFormData[`quantity_${originalIdx}`] : product.quantity}
+          onChange={(e) => {
+            setCNCFormData(prev => ({
+              ...prev,
+              [`quantity_${originalIdx}`]: e.target.value
+            }));
+          }}
+          placeholder="Quantity"
+          className={`w-24 p-1 border rounded ${missingFields.includes(`quantity_${originalIdx}`) ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+        />
+      </td>
+      <td className="p-2 border">
+        <input
+          type="text"
+          value={cncFormData[`drawingName_${originalIdx}`] !== undefined ? cncFormData[`drawingName_${originalIdx}`] : ""}
+          onChange={(e) => {
+            setCNCFormData(prev => ({
+              ...prev,
+              [`drawingName_${originalIdx}`]: e.target.value
+            }));
+          }}
+          placeholder="Drawing Name"
+          className="w-32 p-1 border border-gray-300 rounded"
+        />
+      </td>
+      <td className="p-2 border">
+        <input
+          type="text"
+          value={cncFormData[`remarks_${originalIdx}`] !== undefined ? cncFormData[`remarks_${originalIdx}`] : (product.productRemarks || "")}
+          onChange={(e) => {
+            setCNCFormData(prev => ({
+              ...prev,
+              [`remarks_${originalIdx}`]: e.target.value
+            }));
+          }}
+          placeholder="Remarks"
+          className="w-40 p-1 border border-gray-300 rounded"
+        />
+      </td>
+    </tr>
+  );
+})}
+              {getFilteredProductList().length === 0 && (
+                <tr>
+                  <td colSpan="4" className="p-4 text-center text-gray-500">
+                    No products selected. Please select at least one product.
+                  </td>
+                </tr>
               )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ) : (
+      // Single product view
+      <>
+        <label className="font-bold text-xl">Product Name <span className="text-red-500">*</span>:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <input
+            type="text"
+            disabled
+            value={cncFormData.productName}
+            onChange={(e) => handleCNCChange("productName", e.target.value)}
+            className={inputClass("productName")}
+          />
+          {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
+        </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <label className="font-bold text-xl">Drawing Name (Optional):</label>
-                <input
-                  type="text"
-                  value={cncFormData.drawingName}
-                  onChange={(e) => handleCNCChange("drawingName", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-4 py-3"
-                  placeholder="Enter drawing reference name"
-                />
-              </div>
+        <label className="font-bold text-xl">Size <span className="text-red-500">*</span>:</label>
+        <input
+          type="text"
+          value={cncFormData.size}
+          onChange={(e) => handleCNCChange("size", e.target.value)}
+          className={inputClass("size")}
+        />
 
-              <label className="font-bold text-xl">Upload Drawings:</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*,.pdf,.dxf,.dwg"
-                onChange={handleDrawingFileChange}
-                className="w-full border border-gray-300 rounded-md px-4 py-3"
-              />
+        <label className="font-bold text-xl">Quantity <span className="text-red-500">*</span>:</label>
+        <input
+          type="number"
+          value={cncFormData.quantity}
+          onChange={(e) => handleCNCChange("quantity", e.target.value)}
+          className={inputClass("quantity")}
+        />
+      </>
+    )}
 
-              <div className="flex flex-wrap gap-2 mt-2">
-                {drawingFiles.map((file, idx) => (
-                  <div key={idx} className="relative border p-2 rounded bg-gray-100">
-                    <span
-                      onClick={() => handleRemoveDrawingFile(idx)}
-                      className="absolute top-0 right-1 text-red-600 cursor-pointer text-xl font-bold"
-                    >
-                      ×
-                    </span>
-                    <p className="text-sm max-w-[120px] truncate">{file.name}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+    <div className="mt-4 pt-4 border-t border-gray-200">
+      <label className="font-bold text-xl">Drawing Name (Optional):</label>
+      <input
+        type="text"
+        value={cncFormData.drawingName}
+        onChange={(e) => handleCNCChange("drawingName", e.target.value)}
+        className="w-full border border-gray-300 rounded-md px-4 py-3"
+        placeholder="Enter drawing reference name"
+      />
+    </div>
+
+    <label className="font-bold text-xl">Upload Drawings:</label>
+    <input
+      type="file"
+      multiple
+      accept="image/*,.pdf,.dxf,.dwg"
+      onChange={handleDrawingFileChange}
+      className="w-full border border-gray-300 rounded-md px-4 py-3"
+    />
+
+    <div className="flex flex-wrap gap-2 mt-2">
+      {drawingFiles.map((file, idx) => (
+        <div key={idx} className="relative border p-2 rounded bg-gray-100">
+          <span
+            onClick={() => handleRemoveDrawingFile(idx)}
+            className="absolute top-0 right-1 text-red-600 cursor-pointer text-xl font-bold"
+          >
+            ×
+          </span>
+          <p className="text-sm max-w-[120px] truncate">{file.name}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
 
           {/* Footer */}
           <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
