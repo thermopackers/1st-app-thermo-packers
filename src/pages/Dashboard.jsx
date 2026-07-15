@@ -422,15 +422,15 @@ useEffect(() => {
     </motion.section>
   );
 
-  const DashboardCard = ({ children, className = "", variants = fadeInUp }) => (
-    <motion.div
-      className={`bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 ${className}`}
-      variants={variants}
-      whileHover="hover"
-    >
-      {children}
-    </motion.div>
-  );
+const DashboardCard = ({ children, className = "", variants = fadeInUp }) => (
+  <motion.div
+    className={`glass-card glass-card-hover p-6 ${className}`}
+    variants={variants}
+    whileHover="hover"
+  >
+    {children}
+  </motion.div>
+);
 
 
   const ActionButton = ({
@@ -593,7 +593,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
             delay: 0.2
           }}
         >
-          <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/30">
+         <div className="glass-card relative overflow-hidden border-white/30 shadow-2xl">
             {/* Close Button */}
             <button
               onClick={onClose}
@@ -823,7 +823,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 <motion.button
   ref={profileButtonRef}
   onClick={() => setShowProfilePanel(!showProfilePanel)}
-  className="relative bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group"
+  className="glass relative rounded-full p-3 group"
   whileHover={{ scale: 1.05 }}
   whileTap={{ scale: 0.95 }}
 >
@@ -870,14 +870,14 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 {/* Profile Panel */}
 <AnimatePresence>
   {showProfilePanel && (
-    <motion.div
-      ref={profilePanelRef}
-      className="absolute top-16 left-0 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 min-w-80 max-w-md z-50 mobile:left-4 mobile:right-4 mobile:max-w-none"
-      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-    >
+ <motion.div
+  ref={profilePanelRef}
+  className="glass absolute top-16 left-0 rounded-2xl p-6 min-w-80 max-w-md z-50 mobile:left-4 mobile:right-4 mobile:max-w-none"
+  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+  transition={{ duration: 0.2 }}
+>
       {/* Profile Header */}
       <div className="flex items-center gap-4 mb-6">
         {user?.profilePicture ? (
@@ -910,18 +910,19 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
       {user?.visitingCard && (
         <motion.button
           onClick={() =>
-            Swal.fire({
-              title: "Your Visiting Card",
-              imageUrl: user.visitingCard,
-              imageAlt: "Visiting Card",
-              confirmButtonText: "Close",
-              confirmButtonColor: "#2563eb",
-              width: "auto",
-              background: "#f8fafc",
-              customClass: {
-                popup: "rounded-2xl",
-              },
-            })
+          Swal.fire({
+  title: "Your Visiting Card",
+  imageUrl: user.visitingCard,
+  imageAlt: "Visiting Card",
+  confirmButtonText: "Close",
+  confirmButtonColor: "#2563eb",
+  width: "auto",
+  background: "rgba(255, 255, 255, 0.85)",
+  backdrop: "rgba(0, 0, 0, 0.05)",
+  customClass: {
+    popup: "rounded-2xl backdrop-blur-xl glass",
+  },
+})
           }
           className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 mb-4"
           whileHover={{ scale: 1.02 }}
@@ -962,14 +963,14 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 
 {/* Document Notifications Panel */}
 {showDocNotifications && (
-  <motion.div
-    ref={docNotificationsRef}
-    className="fixed top-65 left-4 z-40 max-w-md w-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-[80vh] overflow-y-auto"
-    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    exit={{ opacity: 0, y: -20, scale: 0.95 }}
-    style={{ position: 'fixed' }}
-  >
+<motion.div
+  ref={docNotificationsRef}
+  className="glass fixed top-65 left-4 z-40 max-w-md w-full rounded-2xl overflow-hidden max-h-[80vh] overflow-y-auto"
+  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+  style={{ position: 'fixed' }}
+>
     <DocumentNotifications setDocNotifCount={setDocNotifCount} />
   </motion.div>
 )}
@@ -981,17 +982,17 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 {/* Document Alerts Button - Top Center */}
 {userRoles.includes("accounts") && docNotifCount > 0 && (
   <div className="flex justify-center">
-    <motion.button
-      onClick={() => {
-        setShowDocNotifications((prev) => !prev);
-        setShowProfilePanel(false);
-      }}
-      className="bg-white border border-gray-300 px-4 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-between"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
+<motion.button
+  onClick={() => {
+    setShowDocNotifications((prev) => !prev);
+    setShowProfilePanel(false);
+  }}
+  className="glass-btn px-4 py-3 rounded-xl font-medium flex items-center justify-between"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  initial={{ opacity: 0, y: -10 }}
+  animate={{ opacity: 1, y: 0 }}
+>
       <div className="flex items-center gap-3">
         <div className="text-xl">📋</div>
         <span className="font-semibold text-xs">Document Alerts</span>
@@ -1005,76 +1006,77 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 
 {/* Follow-up Reminders Button - Fixed Position */}
 {followUps.length > 0 && (
-  <motion.button
-    onClick={() => {
-      // Show follow-ups in a modal with links
-      const followUpContent = followUps.slice(0, 5).map((note, idx) => {
-        // Check if note has a link (e.g., sales order link)
-        let linkText = note.message;
-        let linkUrl = "#";
-        
-        // Extract link from message if available (you can customize this based on your notification structure)
-        if (note.link) {
-          linkUrl = note.link;
-        } else if (note.message?.includes("Sales Order")) {
-          // Example: Extract sales order ID from message
-          const orderMatch = note.message.match(/Sales Order\s*[:#]?\s*(\w+)/i);
-          if (orderMatch) {
-            linkUrl = `/orders/${orderMatch[1]}`;
-          }
+ <motion.button
+  onClick={() => {
+    // Show follow-ups in a modal with links
+    const followUpContent = followUps.slice(0, 5).map((note, idx) => {
+      // Check if note has a link (e.g., sales order link)
+      let linkText = note.message;
+      let linkUrl = "#";
+      
+      // Extract link from message if available (you can customize this based on your notification structure)
+      if (note.link) {
+        linkUrl = note.link;
+      } else if (note.message?.includes("Sales Order")) {
+        // Example: Extract sales order ID from message
+        const orderMatch = note.message.match(/Sales Order\s*[:#]?\s*(\w+)/i);
+        if (orderMatch) {
+          linkUrl = `/orders/${orderMatch[1]}`;
         }
-        
-        return `
-          <div class="flex items-start gap-2 mb-2 p-2 hover:bg-gray-50 rounded-lg">
-            <div class="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
-            <a href="${linkUrl}" class="flex-1 text-sm text-gray-700 hover:text-blue-600 hover:underline" 
-               onclick="event.preventDefault(); window.location.href='${linkUrl}'">
-              ${linkText}
-            </a>
-          </div>
-        `;
-      }).join('');
+      }
+      
+      return `
+        <div class="flex items-start gap-2 mb-2 p-2 hover:bg-white/30 rounded-lg transition-all">
+          <div class="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
+          <a href="${linkUrl}" class="flex-1 text-sm text-gray-700 hover:text-blue-600 hover:underline" 
+             onclick="event.preventDefault(); window.location.href='${linkUrl}'">
+            ${linkText}
+          </a>
+        </div>
+      `;
+    }).join('');
 
-      Swal.fire({
-        title: "🔔 Follow-up Reminders",
-        html: `
-          <div class="text-left max-h-60 overflow-y-auto">
-            <p class="mb-3 text-gray-600">You have <strong class="text-amber-600">${followUps.length}</strong> follow-up reminders:</p>
-            <div class="space-y-1">
-              ${followUpContent}
-            </div>
-            ${followUps.length > 5 ? 
-              `<p class="mt-3 text-sm text-gray-500 text-center">
-                +${followUps.length - 5} more reminders
-              </p>` : 
-              ''
-            }
+    Swal.fire({
+      title: "🔔 Follow-up Reminders",
+      html: `
+        <div class="text-left max-h-60 overflow-y-auto">
+          <p class="mb-3 text-gray-600">You have <strong class="text-amber-600">${followUps.length}</strong> follow-up reminders:</p>
+          <div class="space-y-1">
+            ${followUpContent}
           </div>
-        `,
-        icon: "info",
-        confirmButtonText: "Close",
-        showCancelButton: true,
-        cancelButtonText: "View All Notifications",
-        confirmButtonColor: "#2563eb",
-        cancelButtonColor: "#6b7280",
-        background: "#f8fafc",
-        customClass: {
-          popup: "rounded-2xl",
-          confirmButton: "px-4 py-2",
-          cancelButton: "px-4 py-2"
-        },
-      }).then((result) => {
-        if (result.dismiss === Swal.DismissReason.cancel) {
-          navigate("/my-tasks"); // Or your notifications page
-        }
-      });
-    }}
-    className="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-between"
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-  >
+          ${followUps.length > 5 ? 
+            `<p class="mt-3 text-sm text-gray-500 text-center">
+              +${followUps.length - 5} more reminders
+            </p>` : 
+            ''
+          }
+        </div>
+      `,
+      icon: "info",
+      confirmButtonText: "Close",
+      showCancelButton: true,
+      cancelButtonText: "View All Notifications",
+      confirmButtonColor: "#2563eb",
+      cancelButtonColor: "#6b7280",
+      background: "rgba(255, 255, 255, 0.85)",
+      backdrop: "rgba(0, 0, 0, 0.1)",
+      customClass: {
+        popup: "rounded-2xl backdrop-blur-xl",
+        confirmButton: "px-4 py-2",
+        cancelButton: "px-4 py-2"
+      },
+    }).then((result) => {
+      if (result.dismiss === Swal.DismissReason.cancel) {
+        navigate("/my-tasks"); // Or your notifications page
+      }
+    });
+  }}
+  className="glass-btn px-4 py-3 rounded-xl font-medium flex items-center justify-between border-l-4 border-amber-400"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  initial={{ opacity: 0, y: -10 }}
+  animate={{ opacity: 1, y: 0 }}
+>
     <div className="flex items-center gap-3">
       <div className="text-xl">🔔</div>
       <span className="font-semibold text-xs text-amber-900">Follow-up Reminders</span>
@@ -1092,13 +1094,13 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
  {user?.allowAttendance && <AttendanceNotification />}
 </div>}
 {/* Calendar Button - Top Right */}
-  <motion.button
-    onClick={() => setShowCalendar(true)}
-    className="bg-white rounded-lg p-2 md:mt-4.5 mt-1 border border-gray-200"
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    title="View Task Calendar"
-  >
+<motion.button
+  onClick={() => setShowCalendar(true)}
+  className="glass-btn rounded-lg p-2 md:mt-4.5 mt-1"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  title="View Task Calendar"
+>
     <Calendar className="w-5 h-5 text-blue-600" />
   </motion.button>
 
@@ -1394,7 +1396,9 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
 </div>
 
 {/* Main Dashboard Content */}
-<main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 py-8 pt-20">       
+<main className="min-h-screen py-8 pt-20" style={{ 
+  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(255, 255, 255, 0.4) 40%, rgba(139, 92, 246, 0.08) 100%)',
+}}>      
    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
           <motion.div
@@ -1402,11 +1406,11 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg hover:shadow-xl text-gray-700 font-medium transition-all duration-300 group"
-              whileHover={{ x: -5 }}
-            >
+          <button
+  onClick={() => navigate(-1)}
+  className="glass-btn inline-flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium transition-all duration-300 group"
+  whileHover={{ x: -5 }}
+>
               <span className="text-xl group-hover:-translate-x-1 transition-transform">
                 ←
               </span>
@@ -1802,10 +1806,11 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
           View all employees with photos
         </h3>
 <ActionButton 
-            onClick={() => setShowAllUsersModal(true)}
-            variant="purple" 
-            icon="👥"
-          >
+  onClick={() => setShowAllUsersModal(true)}
+  variant="purple" 
+  icon="👥"
+  className="glass-btn"
+>
             <div className="text-xl font-semibold mb-2">
               View All Employees
             </div>
