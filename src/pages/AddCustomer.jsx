@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
+import Swal from 'sweetalert2';
+
 const INDIAN_STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
   "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
@@ -275,26 +277,99 @@ const handleSubmit = async (e) => {
       {gstFiles.map((file, index) => {
         const isImage = file.type.startsWith("image/");
         const isPDF = file.type === "application/pdf";
+        const fileUrl = URL.createObjectURL(file);
 
         return (
           <div
             key={index}
             className="relative border rounded-md p-2 bg-gray-100"
           >
-            {isImage && (
-              <img
-                src={URL.createObjectURL(file)}
-                alt="preview"
-                className="w-full h-32 object-contain rounded"
-              />
-            )}
-
-            {isPDF && (
-              <div className="flex flex-col items-center justify-center h-32">
-                <span className="text-red-600 font-bold text-xl">📄</span>
-                <span className="text-sm mt-1 text-center break-all">
-                  {file.name}
-                </span>
+            {isImage ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'Preview - GST Document',
+                    imageUrl: fileUrl,
+                    imageWidth: '80%',
+                    imageHeight: 'auto',
+                    imageAlt: 'GST Document Preview',
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    padding: '2rem',
+                    background: '#fff',
+                    width: 'auto',
+                    maxWidth: '90vw',
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <img
+                  src={fileUrl}
+                  alt="preview"
+                  className="w-full h-32 object-contain rounded hover:opacity-80 transition-opacity"
+                />
+                <span className="text-xs text-blue-600 mt-1 block text-center">Click to preview</span>
+              </div>
+            ) : isPDF ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'Preview - PDF Document',
+                    html: `
+                      <div style="width: 100%; height: 70vh;">
+                        <iframe 
+                          src="${fileUrl}" 
+                          style="width: 100%; height: 100%; border: none;"
+                          frameborder="0"
+                        ></iframe>
+                      </div>
+                      <div style="margin-top: 10px;">
+                        <p style="font-size: 14px; color: #666;">File: ${file.name}</p>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: '90%',
+                    maxWidth: '900px',
+                    padding: '1rem',
+                    background: '#fff',
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center h-32">
+                  <span className="text-red-600 font-bold text-4xl">📄</span>
+                  <span className="text-sm mt-2 text-center break-all text-blue-600 underline">
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-gray-500 mt-1">Click to view</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'File Preview',
+                    html: `
+                      <div style="padding: 20px;">
+                        <p>File: ${file.name}</p>
+                        <p style="color: #666; font-size: 14px;">Type: ${file.type || 'Unknown'}</p>
+                        <p style="color: #666; font-size: 14px;">Size: ${(file.size / 1024).toFixed(2)} KB</p>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center h-32">
+                  <span className="text-3xl">📎</span>
+                  <span className="text-sm mt-2 text-center break-all text-blue-600">
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-gray-500 mt-1">Click to view</span>
+                </div>
               </div>
             )}
 

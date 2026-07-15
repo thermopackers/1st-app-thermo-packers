@@ -5,6 +5,8 @@ import InternalNavbar from "../components/InternalNavbar";
 import toast from "react-hot-toast";
 import { useUserContext } from "../context/UserContext";
 import CostingSheet from "../components/CostingSheet";
+import Swal from 'sweetalert2';
+
 const INDIAN_STATES = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
   "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
@@ -1004,73 +1006,228 @@ const handleEditProductionSlip = (e, slip) => {
               className="w-full border p-2 rounded"
             />
 
-            {/* Show existing */}
-            {customer.gstDocs?.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <p className="text-sm font-medium text-gray-600">Existing Files:</p>
-                <div className="flex flex-wrap gap-3">
-                  {customer.gstDocs.map((url, i) => (
-                    <div key={i} className="relative border p-2 rounded bg-gray-100">
-                      {url?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                        <img
-                          src={url}
-                          alt={`doc-${i}`}
-                          className="w-24 h-24 object-cover rounded"
-                        />
-                      ) : (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline"
-                        >
-                          📄 PDF {i + 1}
-                        </a>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveExistingDoc(url)}
-                        className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+           {/* Show existing */}
+{customer.gstDocs?.length > 0 && (
+  <div className="mt-2 space-y-1">
+    <p className="text-sm font-medium text-gray-600">Existing Files:</p>
+    <div className="flex flex-wrap gap-3">
+      {customer.gstDocs.map((url, i) => {
+        const isImage = url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+        const isPDF = url?.match(/\.pdf$/i);
+        
+        return (
+          <div key={i} className="relative border p-2 rounded bg-gray-100">
+            {isImage ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'GST Document',
+                    imageUrl: url,
+                    imageWidth: '80%',
+                    imageHeight: 'auto',
+                    imageAlt: 'GST Document',
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    padding: '2rem',
+                    background: '#fff',
+                    width: 'auto',
+                    maxWidth: '90vw',
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <img
+                  src={url}
+                  alt={`doc-${i}`}
+                  className="w-24 h-24 object-cover rounded hover:opacity-80 transition-opacity"
+                />
+                <span className="text-xs text-blue-600 mt-1 block text-center">Click to view</span>
               </div>
-            )}
-
-            {/* Show new */}
-            {newFiles.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-medium text-gray-600">New Files to Upload:</p>
-                <div className="flex flex-wrap gap-3">
-                  {newFiles.map((file, i) => {
-                    const isImage = file.type.startsWith("image/");
-                    return (
-                      <div key={i} className="relative border p-2 rounded bg-gray-100">
-                        {isImage ? (
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`new-doc-${i}`}
-                            className="w-24 h-24 object-cover rounded"
-                          />
-                        ) : (
-                          <p className="text-xs text-center">{file.name}</p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewDoc(i)}
-                          className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs"
-                        >
-                          ×
-                        </button>
+            ) : isPDF ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'GST Document - PDF',
+                    html: `
+                      <div style="width: 100%; height: 70vh;">
+                        <iframe 
+                          src="${url}" 
+                          style="width: 100%; height: 100%; border: none;"
+                          frameborder="0"
+                        ></iframe>
                       </div>
-                    );
-                  })}
+                      <div style="margin-top: 10px;">
+                        <a href="${url}" target="_blank" class="btn btn-primary" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none;">
+                          📄 Open in New Tab
+                        </a>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: '90%',
+                    maxWidth: '900px',
+                    padding: '1rem',
+                    background: '#fff',
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center w-24 h-24">
+                  <span className="text-3xl">📄</span>
+                  <span className="text-xs mt-1 text-blue-600 text-center">View PDF</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'GST Document',
+                    html: `
+                      <div style="padding: 20px;">
+                        <p>Unable to preview this file type.</p>
+                        <a href="${url}" target="_blank" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; display: inline-block; margin-top: 10px;">
+                          📄 Open File
+                        </a>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center w-24 h-24">
+                  <span className="text-3xl">📎</span>
+                  <span className="text-xs mt-1 text-blue-600 text-center">View File</span>
                 </div>
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => handleRemoveExistingDoc(url)}
+              className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
+           {/* Show new */}
+{newFiles.length > 0 && (
+  <div className="mt-4">
+    <p className="text-sm font-medium text-gray-600">New Files to Upload:</p>
+    <div className="flex flex-wrap gap-3">
+      {newFiles.map((file, i) => {
+        const isImage = file.type.startsWith("image/");
+        const isPDF = file.type === "application/pdf";
+        const fileUrl = URL.createObjectURL(file);
+        
+        return (
+          <div key={i} className="relative border p-2 rounded bg-gray-100">
+            {isImage ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'Preview - New GST Document',
+                    imageUrl: fileUrl,
+                    imageWidth: '80%',
+                    imageHeight: 'auto',
+                    imageAlt: 'GST Document Preview',
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    padding: '2rem',
+                    background: '#fff',
+                    width: 'auto',
+                    maxWidth: '90vw',
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <img
+                  src={fileUrl}
+                  alt={`new-doc-${i}`}
+                  className="w-24 h-24 object-cover rounded hover:opacity-80 transition-opacity"
+                />
+                <span className="text-xs text-blue-600 mt-1 block text-center">Click to preview</span>
+              </div>
+            ) : isPDF ? (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'Preview - New PDF',
+                    html: `
+                      <div style="width: 100%; height: 70vh;">
+                        <iframe 
+                          src="${fileUrl}" 
+                          style="width: 100%; height: 100%; border: none;"
+                          frameborder="0"
+                        ></iframe>
+                      </div>
+                      <div style="margin-top: 10px;">
+                        <p style="font-size: 14px; color: #666;">File: ${file.name}</p>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: '90%',
+                    maxWidth: '900px',
+                    padding: '1rem',
+                    background: '#fff',
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center w-24 h-24">
+                  <span className="text-3xl">📄</span>
+                  <span className="text-xs mt-1 text-blue-600 text-center break-all">{file.name}</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  Swal.fire({
+                    title: 'File Preview',
+                    html: `
+                      <div style="padding: 20px;">
+                        <p>File: ${file.name}</p>
+                        <p style="color: #666; font-size: 14px;">Type: ${file.type || 'Unknown'}</p>
+                        <p style="color: #666; font-size: 14px;">Size: ${(file.size / 1024).toFixed(2)} KB</p>
+                        <div style="margin-top: 15px;">
+                          <a href="${fileUrl}" target="_blank" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; display: inline-block;">
+                            📄 Open File
+                          </a>
+                        </div>
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                  });
+                }}
+                className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center w-24 h-24">
+                  <span className="text-3xl">📎</span>
+                  <span className="text-xs mt-1 text-blue-600 text-center break-all">{file.name}</span>
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => handleRemoveNewDoc(i)}
+              className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
           </div>
 
        {/* Gift Management Section */}
