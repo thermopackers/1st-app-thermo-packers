@@ -103,7 +103,8 @@ const [isDeletingVisitingCard, setIsDeletingVisitingCard] = useState(false);
   const [miscDocuments, setMiscDocuments] = useState([]);
   // Add these with other state variables
 const [unNo, setUnNo] = useState(''); // ✅ ADD THIS
-const [isActive, setIsActive] = useState(true); // ✅ ADD THIS
+const [isActive, setIsActive] = useState('active'); // ✅ ADD THIS
+const [statusText, setStatusText] = useState(''); // For manual status text
   const [filesToRemove, setFilesToRemove] = useState({
     aadharCard: [],
     panCard: [],
@@ -216,7 +217,9 @@ formData.append("personalPhone", personalPhone);
       formData.append("esicNo", esicNo);
       formData.append("epfoNo", epfoNo);
         formData.append("unNo", unNo); // ✅ ADD THIS LINE
-    formData.append("isActive", isActive); // ✅ ADD THIS LINE
+        // Update these lines
+    formData.append("isActive", isActive); // Now it's a string value
+    formData.append("statusText", statusText); // Add manual status text
       formData.append('filesToRemove', JSON.stringify(filesToRemove));
 
       if (frontFacePicture) formData.append("frontFacePicture", frontFacePicture);
@@ -429,8 +432,8 @@ setGender(user.gender || 'male');
     setEsicNo(user.esicNo || "");
     setEpfoNo(user.epfoNo || "");
      setUnNo(user.unNo || ""); // ✅ ADD THIS LINE
-  setIsActive(user.isActive !== undefined ? user.isActive : true); // ✅ ADD THIS LINE
-
+ setIsActive(user.isActive || 'active'); // String value
+  setStatusText(user.statusText || ''); // Manual status text if any
     // Previews for files (Cloudinary URLs are already saved in DB)
     setProfilePicturePreview(user.profilePicture || "");
     setVisitingCardPreview(user.visitingCard || "");
@@ -500,7 +503,8 @@ setAllowQuotation(false); // Add this line
     setEsicNo("");
 
      setUnNo(""); // ✅ ADD THIS LINE
-  setIsActive(true); // ✅ ADD THIS LINE
+  setIsActive('active'); // Reset to active
+  setStatusText(''); // Reset manual text
     setProfilePicture(null);
     setProfilePicturePreview("");
     setVisitingCard(null);
@@ -1050,15 +1054,22 @@ const handleDeleteVisitingCard = async () => {
                   <td className="px-4 py-2">{u.address || "-"}</td>
                   <td className="px-4 py-2">{u.emergencyNumber || "-"}</td>
                   <td className="px-4 py-2 capitalize">{u.designation || "-"}</td>
-                   <td className="px-4 py-2">
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        u.isActive !== false 
-          ? 'bg-green-100 text-green-800' 
-          : 'bg-red-100 text-red-800'
-      }`}>
-        {u.isActive !== false ? '🟢 Active' : '🔴 Inactive'}
-      </span>
-    </td>
+                  <td className="px-4 py-2">
+  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+    u.isActive === 'active' 
+      ? 'bg-green-100 text-green-800' 
+      : u.isActive === 'left'
+        ? 'bg-red-100 text-red-800'
+        : u.isActive === 'leave'
+          ? 'bg-yellow-100 text-yellow-800'
+          : 'bg-blue-100 text-blue-800'
+  }`}>
+    {u.isActive === 'active' && '🟢 Active'}
+    {u.isActive === 'left' && '🔴 Left Company'}
+    {u.isActive === 'leave' && '🟡 On Leave'}
+    {u.isActive === 'manual' && `✏️ ${u.statusText || 'Custom'}`}
+  </span>
+</td>
                   <td className="px-4 py-2">{u.esicNo || "-"}</td>
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
                   <td className="px-4 py-2">{u.unNo || "-"}</td> {/* ✅ ADD THIS */}
@@ -1399,24 +1410,41 @@ const handleDeleteVisitingCard = async () => {
   </select>
 </div>
 
-{/* ✅ ADD ACTIVE/INACTIVE TOGGLE RIGHT AFTER DESIGNATION */}
-<div className="flex items-center space-x-3 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-  <label className="text-sm font-medium text-gray-700">Status:</label>
-  <div className="flex items-center space-x-2">
-    <input
-      type="checkbox"
-      id="isActive"
-      checked={isActive}
-      onChange={() => setIsActive(!isActive)}
-      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-    />
-    <label htmlFor="isActive" className="text-sm font-semibold cursor-pointer">
-      {isActive ? (
-        <span className="text-green-600">🟢 Active</span>
-      ) : (
-        <span className="text-red-600">🔴 Inactive</span>
+{/* ✅ ADD STATUS DROPDOWN WITH OPTIONS */}
+<div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+    <select
+      value={isActive}
+      onChange={(e) => setIsActive(e.target.value)}
+      className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 outline-none"
+    >
+      <option value="active">🟢 Active</option>
+      <option value="left">🔴 Left the Company</option>
+      <option value="leave">🟡 On Long Term Leave</option>
+      <option value="manual">✏️ Enter Manually</option>
+    </select>
+    
+    {/* Show text input when "Enter Manually" is selected */}
+    {isActive === 'manual' && (
+      <input
+        type="text"
+        placeholder="Enter custom status..."
+        value={isActive === 'manual' ? statusText : ''}
+        onChange={(e) => setStatusText(e.target.value)}
+        className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 outline-none"
+      />
+    )}
+    
+    {/* Show status badge for quick preview */}
+    <div className="text-sm font-semibold">
+      {isActive === 'active' && <span className="text-green-600">🟢 Active</span>}
+      {isActive === 'left' && <span className="text-red-600">🔴 Left the Company</span>}
+      {isActive === 'leave' && <span className="text-yellow-600">🟡 On Long Term Leave</span>}
+      {isActive === 'manual' && (
+        <span className="text-blue-600">✏️ {statusText || 'Enter custom status'}</span>
       )}
-    </label>
+    </div>
   </div>
 </div>
 

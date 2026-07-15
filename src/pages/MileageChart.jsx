@@ -12,6 +12,8 @@ export default function MileageChart() {
   const { token } = useUserContext();
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
   const [vehicleFilter, setVehicleFilter] = useState("");
+  const [startDate, setStartDate] = useState(dayjs().startOf('month').format("YYYY-MM-DD"));
+  const [endDate, setEndDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [vehicleList, setVehicleList] = useState([]);
@@ -50,33 +52,44 @@ export default function MileageChart() {
 
   const COLORS = ['#4f46e5', '#38bdf8', '#f97316', '#10b981', '#f59e0b', '#ef4444'];
 
-  const fetchMileage = async () => {
+  // Fetch last trip mileage for all vehicles
+  const fetchLastTripMileage = async () => {
     setLoading(true);
     try {
+      // Build query params with date range
+      let queryParams = new URLSearchParams();
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
+      if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
+      queryParams.append('page', page);
+      queryParams.append('limit', limit);
+
       const res = await axiosInstance.get(
-        `/diesel/mileage-report?month=${month}&vehicleNumber=${vehicleFilter}&page=${page}&limit=${limit}`,
+        `/diesel/last-trip-mileage?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const cleaned = res.data.data.map(d => ({
+      // Process the data - show last trip mileage for each vehicle
+      const processedData = res.data.data.map(d => ({
         ...d,
         mileage: isNaN(d.mileage) ? 0 : +d.mileage,
         kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
         dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+        vehicleNumber: d.vehicleNumber,
         label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
-        shortLabel: `${d.vehicleNumber.split(' ').pop()}`
+        fullLabel: d.vehicleNumber
       }));
 
-      setData(cleaned);
+      setData(processedData);
       setTotalPages(Math.ceil(res.data.total / limit));
 
-      if (cleaned.length > 0) {
-        const totalMileage = cleaned.reduce((sum, item) => sum + (item.mileage || 0), 0);
-        const totalKms = cleaned.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
-        const totalDiesel = cleaned.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
-        const avgMileage = totalMileage / cleaned.length;
+      if (processedData.length > 0) {
+        const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
+        const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
+        const totalDiesel = processedData.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
+        const avgMileage = totalMileage / processedData.length;
 
         setStats({
           totalMileage: totalMileage.toFixed(1),
@@ -84,9 +97,17 @@ export default function MileageChart() {
           totalDiesel: totalDiesel.toFixed(1),
           avgMileage: avgMileage.toFixed(2)
         });
+      } else {
+        setStats({
+          totalMileage: 0,
+          totalKms: 0,
+          totalDiesel: 0,
+          avgMileage: 0
+        });
       }
     } catch (err) {
-      console.error("Failed to fetch mileage data:", err);
+      console.error("Failed to fetch last trip mileage data:", err);
+      toast?.error("Failed to fetch mileage data");
     } finally {
       setLoading(false);
     }
@@ -114,7 +135,7 @@ export default function MileageChart() {
 
   useEffect(() => {
     if (token) {
-      fetchMileage();
+      fetchLastTripMileage();
       fetchMileageEntries();
 
       axiosInstance.get("/vehicles/all", {
@@ -127,7 +148,12 @@ export default function MileageChart() {
         console.error("Failed to fetch vehicle list:", err);
       });
     }
-  }, [month, vehicleFilter, page, token, entriesPage]);
+  }, [startDate, endDate, vehicleFilter, page, token, entriesPage]);
+
+  const handleDateRangeChange = () => {
+    setPage(1);
+    fetchLastTripMileage();
+  };
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -192,7 +218,7 @@ export default function MileageChart() {
       setTimeout(() => setEntrySuccess(false), 3000);
 
       setEntriesPage(1);
-      fetchMileage();
+      fetchLastTripMileage();
       fetchMileageEntries(1);
 
     } catch (err) {
@@ -214,7 +240,7 @@ export default function MileageChart() {
           <p className="font-semibold text-gray-900 mb-2">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: <span className="font-semibold">{entry.value} {entry.name.includes('Mileage') ? 'km/L' : entry.name.includes('KMs') ? 'km' : 'L'}</span>
+              {entry.name}: <span className="font-semibold">{entry.value} km/L</span>
             </p>
           ))}
         </div>
@@ -224,47 +250,53 @@ export default function MileageChart() {
   };
 
   const renderChart = () => {
+    // Sort data by mileage for better visualization
+    const sortedData = [...data].sort((a, b) => b.mileage - a.mileage);
+
     switch (chartType) {
       case 'line':
         return (
-          <LineChart data={data} margin={{ top: 20, right: 30, bottom: 50, left: 20 }}>
+          <LineChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="shortLabel" 
+              dataKey="vehicleNumber" 
               angle={-45} 
               textAnchor="end" 
-              height={60}
-              tick={{ fontSize: 12 }}
+              height={80}
+              tick={{ fontSize: 11, fontWeight: '500' }}
+              interval={0}
+              width={120}
             />
-            <YAxis />
+            <YAxis 
+              label={{ 
+                value: 'Mileage (km/L)', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+              }}
+              domain={[0, 'auto']}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
             <Line 
               type="monotone" 
               dataKey="mileage" 
-              name="Mileage (KM/L)" 
+              name="Last Trip Mileage" 
               stroke="#4f46e5" 
               strokeWidth={3}
-              dot={{ fill: '#4f46e5', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, fill: '#4f46e5' }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="kmsRun" 
-              name="KMs Run" 
-              stroke="#38bdf8" 
-              strokeWidth={2}
-              dot={{ fill: '#38bdf8', strokeWidth: 2, r: 4 }}
+              dot={{ fill: '#4f46e5', strokeWidth: 2, r: 5 }}
+              activeDot={{ r: 7, fill: '#4f46e5' }}
             />
           </LineChart>
         );
       
       case 'pie':
-        const pieData = data.map(item => ({
+        const pieData = sortedData.map(item => ({
           name: item.vehicleNumber,
           value: item.mileage || 0,
           kms: item.kmsRun || 0,
-          diesel: item.dieselUsed || 0
+          diesel: item.dieselUsed || 0,
+          date: item.date
         }));
 
         return (
@@ -273,8 +305,8 @@ export default function MileageChart() {
               data={pieData}
               cx="50%"
               cy="50%"
-              labelLine={false}
-              label={({ name, value }) => `${name}: ${value.toFixed(1)} km/L`}
+              labelLine={true}
+              label={({ name, value, date }) => `${name}\n${value.toFixed(1)} km/L`}
               outerRadius={120}
               fill="#8884d8"
               dataKey="value"
@@ -285,7 +317,7 @@ export default function MileageChart() {
             </Pie>
             <Tooltip 
               formatter={(value, name, props) => [
-                `${value} km/L\n${props.payload.kms} km run\n${props.payload.diesel} L diesel`,
+                `${value} km/L\n${props.payload.kms} km run\n${props.payload.diesel} L diesel\nDate: ${props.payload.date || 'N/A'}`,
                 props.payload.name
               ]}
             />
@@ -295,21 +327,34 @@ export default function MileageChart() {
       
       default:
         return (
-          <BarChart data={data} margin={{ top: 20, right: 30, bottom: 50, left: 20 }}>
+          <BarChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="shortLabel" 
+              dataKey="vehicleNumber" 
               angle={-45} 
               textAnchor="end" 
-              height={60}
-              tick={{ fontSize: 12 }}
+              height={80}
+              tick={{ fontSize: 11, fontWeight: '500' }}
+              interval={0}
+              width={120}
             />
-            <YAxis />
+            <YAxis 
+              label={{ 
+                value: 'Mileage (km/L)', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+              }}
+              domain={[0, 'auto']}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="mileage" name="Mileage (KM/L)" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="kmsRun" name="KMs Run" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="dieselUsed" name="Diesel (L)" fill="#f97316" radius={[4, 4, 0, 0]} />
+            <Bar 
+              dataKey="mileage" 
+              name="Last Trip Mileage (km/L)" 
+              fill="#4f46e5" 
+              radius={[4, 4, 0, 0]} 
+            />
           </BarChart>
         );
     }
@@ -323,10 +368,10 @@ export default function MileageChart() {
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📊 Vehicle Mileage Analytics
+            📊 Vehicle Last Trip Mileage Analytics
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Comprehensive analysis of vehicle performance, fuel efficiency, and trip statistics
+            Track the latest trip mileage performance of all vehicles
           </p>
         </div>
 
@@ -342,7 +387,7 @@ export default function MileageChart() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Average Mileage</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.avgMileage} km/L</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.avgMileage || 0} km/L</p>
                 </div>
               </div>
             </div>
@@ -356,7 +401,7 @@ export default function MileageChart() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Distance</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalKms} km</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalKms || 0} km</p>
                 </div>
               </div>
             </div>
@@ -370,7 +415,7 @@ export default function MileageChart() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Fuel Consumed</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalDiesel} L</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalDiesel || 0} L</p>
                 </div>
               </div>
             </div>
@@ -383,7 +428,7 @@ export default function MileageChart() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Records</p>
+                  <p className="text-sm font-medium text-gray-600">Vehicles Tracked</p>
                   <p className="text-2xl font-bold text-gray-900">{data.length}</p>
                 </div>
               </div>
@@ -397,8 +442,8 @@ export default function MileageChart() {
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Mileage Report</h2>
-                <p className="text-gray-600">Analyze vehicle performance and fuel efficiency</p>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">Last Trip Mileage Report</h2>
+                <p className="text-gray-600">Track the latest trip performance of each vehicle</p>
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -437,22 +482,40 @@ export default function MileageChart() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+              {/* Start Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Month
+                  Start Date
                 </label>
                 <input
-                  type="month"
-                  value={month}
+                  type="date"
+                  value={startDate}
                   onChange={(e) => {
-                    setMonth(e.target.value);
+                    setStartDate(e.target.value);
                     setPage(1);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                 />
               </div>
 
+              {/* End Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                />
+              </div>
+
+              {/* Vehicle Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Vehicle
@@ -474,11 +537,13 @@ export default function MileageChart() {
                 </select>
               </div>
 
+              {/* Action Buttons */}
               <div className="flex items-end gap-2">
                 <button
                   onClick={() => {
                     setVehicleFilter("");
-                    setMonth(dayjs().format("YYYY-MM"));
+                    setStartDate(dayjs().startOf('month').format("YYYY-MM-DD"));
+                    setEndDate(dayjs().format("YYYY-MM-DD"));
                     setPage(1);
                   }}
                   className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200 font-medium"
@@ -486,13 +551,13 @@ export default function MileageChart() {
                   Clear Filters
                 </button>
                 <button
-                  onClick={fetchMileage}
+                  onClick={handleDateRangeChange}
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Refresh
+                  Apply Date Range
                 </button>
               </div>
             </div>
@@ -510,14 +575,14 @@ export default function MileageChart() {
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h3 className="text-lg font-semibold text-gray-600 mb-2">No mileage data available</h3>
                 <p className="text-gray-500">
-                  {vehicleFilter || month !== dayjs().format("YYYY-MM") 
-                    ? "Try adjusting your filters" 
+                  {vehicleFilter || startDate || endDate
+                    ? "Try adjusting your filters or date range" 
                     : "No data recorded for the selected period"}
                 </p>
               </div>
             ) : (
               <>
-                <div className="w-full h-[400px] mb-8">
+                <div className="w-full h-[450px] mb-8">
                   <ResponsiveContainer width="100%" height="100%">
                     {renderChart()}
                   </ResponsiveContainer>
@@ -528,10 +593,10 @@ export default function MileageChart() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date
+                          Vehicle
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Vehicle
+                          Trip Date
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Start KMs
@@ -546,18 +611,18 @@ export default function MileageChart() {
                           Diesel (L)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mileage
+                          Last Trip Mileage
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {data.map((v, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {v.date}
-                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                             {v.vehicleNumber}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {v.date || 'N/A'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                             {v.tripStart} km
@@ -626,7 +691,7 @@ export default function MileageChart() {
           </div>
         </div>
 
-        {/* Mileage Entry Form & Table */}
+        {/* Mileage Entry Form & Table - Keep the existing code */}
         <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-teal-50">
             <h2 className="text-xl font-semibold text-gray-900 mb-1">📝 Add Mileage Entry</h2>
@@ -827,35 +892,34 @@ export default function MileageChart() {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
                               {entry.dieselLiters || entry.dieselQuantity} L
                             </td>
-                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-  {entry.imageUrls && entry.imageUrls.length > 0 ? (
-    <div className="flex items-center gap-2">
-      <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-      </svg>
-      <div className="flex flex-wrap gap-1">
-        {entry.imageUrls.map((url, index) => (
-          <button
-            key={index}
-            onClick={() => setPreviewImage(url)}
-            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-2 py-1 rounded-md transition-colors duration-200 border border-blue-200"
-          >
-            📎 File {index + 1}
-          </button>
-        ))}
-      </div>
-    </div>
-  ) : (
-    <span className="text-gray-400">No files</span>
-  )}
-</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              {entry.imageUrls && entry.imageUrls.length > 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                  </svg>
+                                  <div className="flex flex-wrap gap-1">
+                                    {entry.imageUrls.map((url, index) => (
+                                      <button
+                                        key={index}
+                                        onClick={() => setPreviewImage(url)}
+                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-2 py-1 rounded-md transition-colors duration-200 border border-blue-200"
+                                      >
+                                        📎 File {index + 1}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">No files</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                   
-                  {/* Entries Pagination */}
                   {entriesTotalPages > 1 && (
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-600">
@@ -897,30 +961,31 @@ export default function MileageChart() {
           </div>
         </div>
       </div>
+
       {/* Image Preview Modal */}
-{previewImage && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-    onClick={() => setPreviewImage(null)}
-  >
-    <div className="relative max-w-4xl max-h-[90vh]">
-      <button
-        onClick={() => setPreviewImage(null)}
-        className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors duration-200"
-      >
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <img 
-        src={previewImage} 
-        alt="Preview" 
-        className="max-w-full max-h-[85vh] object-contain rounded-lg"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  </div>
-)}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors duration-200"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

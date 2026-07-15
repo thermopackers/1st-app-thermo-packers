@@ -855,7 +855,7 @@ const handleConvertToCustomer = async () => {
   {/* Form Section */}
   <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block mb-1 font-semibold">Name</label>
+            <label className="block mb-1 font-semibold">Company Name</label>
             <input
               type="text"
               name="name"

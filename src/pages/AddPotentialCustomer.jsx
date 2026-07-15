@@ -227,7 +227,7 @@ const handleSubmit = async (e) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block mb-1 font-medium text-gray-700">Name</label>
+              <label className="block mb-1 font-medium text-gray-700">Company Name</label>
               <input
                 name="name"
                 required

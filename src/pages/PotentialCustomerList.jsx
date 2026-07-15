@@ -477,24 +477,57 @@ const toggleFollowUpForm = (customerId) => {
   }
 };
 
+
+// Get status label with proper formatting
+const getFollowUpStatusLabel = (status) => {
+  const statusMap = {
+    'invalid_inquiry': '❌ Invalid or Irrelevant Inquiry',
+    'not_interested': '🙅 Customer Not Interested',
+    'price_too_high': '💰 Quotation Rejected – Price Too High',
+    'delivery_not_feasible': '🚚 Delivery Location Not Feasible',
+    'fulfilled_by_other': '🏢 Order Fulfilled by Another Vendor',
+    'order_confirmed': '✅ Order Confirmed – Proceeding with Processing'
+  };
+  return statusMap[status] || status || '—';
+};
+
+// Get status color
 const getFollowUpStatusColor = (status) => {
   switch(status) {
-    case 'completed': return 'bg-green-100 text-green-800 border-green-300';
-    case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
-    case 'rescheduled': return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'invalid_inquiry': return 'bg-red-100 text-red-800 border-red-300';
+    case 'not_interested': return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'price_too_high': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'delivery_not_feasible': return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'fulfilled_by_other': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'order_confirmed': return 'bg-green-100 text-green-800 border-green-300';
     default: return 'bg-gray-100 text-gray-600 border-gray-300';
   }
 };
 
-const getFollowUpStatusLabel = (status) => {
-  switch(status) {
-    case 'completed': return '✅ Completed';
-    case 'pending': return '⏳ Pending';
-    case 'cancelled': return '❌ Cancelled';
-    case 'rescheduled': return '🔄 Rescheduled';
-    default: return '—';
-  }
+// Get status icon only (for compact display)
+const getFollowUpStatusIcon = (status) => {
+  const iconMap = {
+    'invalid_inquiry': '❌',
+    'not_interested': '🙅',
+    'price_too_high': '💰',
+    'delivery_not_feasible': '🚚',
+    'fulfilled_by_other': '🏢',
+    'order_confirmed': '✅'
+  };
+  return iconMap[status] || '📋';
+};
+
+// Get status short label (for dropdown display)
+const getFollowUpStatusShort = (status) => {
+  const statusMap = {
+    'invalid_inquiry': 'Invalid Inquiry',
+    'not_interested': 'Not Interested',
+    'price_too_high': 'Price Too High',
+    'delivery_not_feasible': 'Delivery Not Feasible',
+    'fulfilled_by_other': 'Fulfilled by Other',
+    'order_confirmed': 'Order Confirmed'
+  };
+  return statusMap[status] || status || 'Select Status';
 };
 
 // Handle follow-up form field changes
@@ -884,26 +917,30 @@ const handleSaveRemarks = async (customerId) => {
     const currentPage = followUpPage[c._id] || 1;
     const totalPages = followUpTotalPages[c._id] || 1;
     
-    // Get status color
-    const getStatusColor = (status) => {
-      switch(status) {
-        case 'completed': return 'bg-green-100 text-green-800 border-green-300';
-        case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-        case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
-        case 'rescheduled': return 'bg-purple-100 text-purple-800 border-purple-300';
-        default: return 'bg-gray-100 text-gray-600 border-gray-300';
-      }
-    };
+// Get status color - for new status types
+const getStatusColor = (status) => {
+  switch(status) {
+    case 'invalid_inquiry': return 'bg-red-100 text-red-800 border-red-300';
+    case 'not_interested': return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'price_too_high': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'delivery_not_feasible': return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'fulfilled_by_other': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'order_confirmed': return 'bg-green-100 text-green-800 border-green-300';
+    default: return 'bg-gray-100 text-gray-600 border-gray-300';
+  }
+};
 
-    const getStatusLabel = (status) => {
-      switch(status) {
-        case 'completed': return '✅ Completed';
-        case 'pending': return '⏳ Pending';
-        case 'cancelled': return '❌ Cancelled';
-        case 'rescheduled': return '🔄 Rescheduled';
-        default: return '—';
-      }
-    };
+const getStatusLabel = (status) => {
+  const statusMap = {
+    'invalid_inquiry': 'Invalid or Irrelevant Inquiry',
+    'not_interested': 'Customer Not Interested',
+    'price_too_high': 'Quotation Rejected – Price Too High',
+    'delivery_not_feasible': 'Delivery Location Not Feasible',
+    'fulfilled_by_other': 'Order Fulfilled by Another Vendor',
+    'order_confirmed': 'Order Confirmed – Proceeding with Processing'
+  };
+  return statusMap[status] || status || 'No Follow-up';
+};
 
     return (
       <tr key={c._id} className="hover:bg-gray-50 transition">
@@ -964,34 +1001,36 @@ const handleSaveRemarks = async (customerId) => {
         <td className="p-3 border">
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => toggleFollowUpForm(c._id)}
-              className="w-full text-left"
-            >
-              {c.latestFollowUpStatus ? (
-                <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(c.latestFollowUpStatus)}`}>
-                  {getStatusLabel(c.latestFollowUpStatus)}
-                </span>
-              ) : (
-                <span className="text-gray-400 text-sm hover:text-blue-500 transition">
-                  ➕ Add
-                </span>
-              )}
-            </button>
+      onClick={() => toggleFollowUpForm(c._id)}
+      className="w-full text-left"
+    >
+      {c.latestFollowUpStatus ? (
+        <span className={`px-2 py-1 text-xs rounded-full border ${getFollowUpStatusColor(c.latestFollowUpStatus)}`}>
+          {getFollowUpStatusLabel(c.latestFollowUpStatus)}
+        </span>
+      ) : (
+        <span className="text-gray-400 text-sm hover:text-blue-500 transition">
+          ➕ Add Follow-up
+        </span>
+      )}
+    </button>
             
             {/* Follow-up form - shown inline */}
             {showForm && (
               <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                 <div className="space-y-2">
-                  <select
-                    value={formData.status}
-                    onChange={(e) => handleFollowUpFormChange(c._id, 'status', e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                  >
-                    <option value="pending">⏳ Pending</option>
-                    <option value="completed">✅ Completed</option>
-                    <option value="cancelled">❌ Cancelled</option>
-                    <option value="rescheduled">🔄 Rescheduled</option>
-                  </select>
+                <select
+  value={formData.status}
+  onChange={(e) => handleFollowUpFormChange(c._id, 'status', e.target.value)}
+  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+>
+  <option value="invalid_inquiry">❌ Invalid or Irrelevant Inquiry</option>
+  <option value="not_interested">🙅 Customer Not Interested</option>
+  <option value="price_too_high">💰 Quotation Rejected – Price Too High</option>
+  <option value="delivery_not_feasible">🚚 Delivery Location Not Feasible</option>
+  <option value="fulfilled_by_other">🏢 Order Fulfilled by Another Vendor</option>
+  <option value="order_confirmed">✅ Order Confirmed – Proceeding with Processing</option>
+</select>
                   <input
                     type="date"
                     value={formData.nextFollowUpDate}
@@ -1031,41 +1070,46 @@ const handleSaveRemarks = async (customerId) => {
             )}
             
             {/* Follow-up history list */}
-            {showForm && customerFollowUps.length > 0 && (
-              <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
-                {customerFollowUps.map((followUp) => (
-                  <div key={followUp._id} className="flex items-start justify-between text-xs p-1 bg-white rounded border border-gray-100">
-                    <div className="flex-1">
-                      <span className={`px-1 py-0.5 text-xs rounded-full border ${getStatusColor(followUp.status)}`}>
-                        {getStatusLabel(followUp.status)}
-                      </span>
-                      {followUp.notes && (
-                        <span className="ml-1 text-gray-600">{followUp.notes.substring(0, 30)}</span>
-                      )}
-                      {followUp.nextFollowUpDate && (
-                        <span className="ml-1 text-blue-500 text-xs">
-                          📅 {new Date(followUp.nextFollowUpDate).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-1 ml-1">
-                      <button
-                        onClick={() => handleEditFollowUp(c._id, followUp)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFollowUp(c._id, followUp._id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+{showForm && customerFollowUps.length > 0 && (
+  <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+    {customerFollowUps.map((followUp) => (
+      <div key={followUp._id} className="flex items-start justify-between text-xs p-1 bg-white rounded border border-gray-100">
+        <div className="flex-1">
+          <span className={`px-1 py-0.5 text-xs rounded-full border ${getFollowUpStatusColor(followUp.status)}`}>
+            {getFollowUpStatusLabel(followUp.status)}
+          </span>
+          {followUp.notes && (
+            <span className="ml-1 text-gray-600">{followUp.notes.substring(0, 30)}</span>
+          )}
+          {followUp.nextFollowUpDate && (
+            <span className="ml-1 text-blue-500 text-xs">
+              📅 {new Date(followUp.nextFollowUpDate).toLocaleDateString()}
+            </span>
+          )}
+          {followUp.addedBy && (
+            <span className="ml-1 text-gray-400 text-xs">
+              by {followUp.addedBy.name}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-1 ml-1">
+          <button
+            onClick={() => handleEditFollowUp(c._id, followUp)}
+            className="text-blue-500 hover:text-blue-700"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => handleDeleteFollowUp(c._id, followUp._id)}
+            className="text-red-500 hover:text-red-700"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
             
             {/* Pagination for follow-ups */}
             {showForm && totalPages > 1 && (
