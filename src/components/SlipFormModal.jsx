@@ -21,40 +21,19 @@ const SlipFormModal = ({
   const isShapeOnly = type === "shape-packaging";
   
   // ✅ Helper: Check if order has multiple products
-  // ✅ Helper: Check if order has multiple products
-  // Check both products array and also if the order has a "Multiple Products" indicator
   const hasMultipleProducts = selectedOrder?.products && selectedOrder.products.length > 0;
-  
-  // Also check if the order was created as multi-product via the shapeSlip or cuttingSlip
-  const isMultiProductFromSlip = selectedOrder?.cuttingSlip?.products && selectedOrder.cuttingSlip.products.length > 0;
-  const isMultiProductFromShapeSlip = selectedOrder?.shapeSlip?.products && selectedOrder.shapeSlip.products.length > 0;
-  const isMultiProductFromDanaSlip = selectedOrder?.danaSlip?.products && selectedOrder.danaSlip.products.length > 0;
-  
-  // If any slip has multiple products, treat as multi-product
-  const isMultiProduct = hasMultipleProducts || isMultiProductFromSlip || isMultiProductFromShapeSlip || isMultiProductFromDanaSlip;
-  
-  // Build product list from various sources
-  let productList = [];
-  if (hasMultipleProducts) {
-    productList = selectedOrder.products;
-  } else if (isMultiProductFromSlip) {
-    productList = selectedOrder.cuttingSlip.products;
-  } else if (isMultiProductFromShapeSlip) {
-    productList = selectedOrder.shapeSlip.products;
-  } else if (isMultiProductFromDanaSlip) {
-    productList = selectedOrder.danaSlip.products;
-  } else if (selectedOrder) {
-    productList = [{
-      productName: selectedOrder.product,
-      quantity: selectedOrder.quantity,
-      size: selectedOrder.size,
-      density: selectedOrder.density,
-      price: selectedOrder.price,
-      productRemarks: selectedOrder.productRemarks,
-      narration: selectedOrder.narration,
-      narrationImages: selectedOrder.narrationImages || []
-    }];
-  }
+  const productList = hasMultipleProducts 
+    ? selectedOrder.products 
+    : selectedOrder ? [{
+        productName: selectedOrder.product,
+        quantity: selectedOrder.quantity,
+        size: selectedOrder.size,
+        density: selectedOrder.density,
+        price: selectedOrder.price,
+        productRemarks: selectedOrder.productRemarks,
+        narration: selectedOrder.narration,
+        narrationImages: selectedOrder.narrationImages || []
+      }] : [];
 
   const [cncFormData, setCNCFormData] = useState({
     productName: "",
@@ -166,14 +145,14 @@ useEffect(() => {
 
   // ✅ Initialize selectedProducts when modal opens
   useEffect(() => {
-    if (isOpen && selectedOrder && isMultiProduct) {
+    if (isOpen && selectedOrder && hasMultipleProducts) {
       // Select all products by default
       setSelectedProducts(productList.map(() => true));
-    } else if (isOpen && selectedOrder && !isMultiProduct) {
+    } else if (isOpen && selectedOrder && !hasMultipleProducts) {
       // For single product, select it by default
       setSelectedProducts([true]);
     }
-  }, [isOpen, selectedOrder, isMultiProduct, productList]);
+  }, [isOpen, selectedOrder, hasMultipleProducts, productList]);
 
   // Fetch grade products for Dana slip
   useEffect(() => {
@@ -265,7 +244,7 @@ useEffect(() => {
   useEffect(() => {
     if (isOpen && selectedOrder) {
       // For multi-product orders, show "Multiple Products" placeholder
-      const isMultiProduct = isMultiProduct;
+      const isMultiProduct = hasMultipleProducts;
       const firstProduct = productList[0] || {};
       
       // Shape Slip (Production) - Initialize with per-product fields for multi-product
@@ -425,7 +404,7 @@ if (isMultiProduct) {
 }
 setDanaBeadsFormData(initialDanaBeadsFormData);
     }
-  }, [isOpen, selectedOrder, isMultiProduct, productList]);
+  }, [isOpen, selectedOrder, hasMultipleProducts, productList]);
 
   const inputClass = (field, base = "") =>
     `w-full border rounded-md px-4 py-3 ${base} ${
@@ -528,13 +507,13 @@ const handleSubmit = async (e) => {
   };
 
   console.log("🔍 Type:", type);
-  console.log("🔍 Has multiple products:", isMultiProduct);
+  console.log("🔍 Has multiple products:", hasMultipleProducts);
   console.log("🔍 Selected products:", selectedProducts);
   console.log("🔍 Product List length:", productList.length);
 
   // Get filtered products based on selection
   const getFilteredProducts = () => {
-    if (!isMultiProduct) return productList;
+    if (!hasMultipleProducts) return productList;
     // Ensure selectedProducts has the same length as productList
     const selected = selectedProducts.length === productList.length 
       ? selectedProducts 
@@ -548,7 +527,7 @@ const handleSubmit = async (e) => {
   // Validation for each type
 if (type === "dana") {
   // For multi-product, check each selected product's fields
-  if (isMultiProduct) {
+  if (hasMultipleProducts) {
     const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
     for (let idx = 0; idx < productList.length; idx++) {
       if (selected[idx]) {
@@ -596,7 +575,7 @@ if (type === "dana") {
   }
 } else if (type === "production") {
     // For multi-product, check only selected products
-    if (isMultiProduct) {
+    if (hasMultipleProducts) {
       const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
       for (let idx = 0; idx < productList.length; idx++) {
         if (selected[idx]) {
@@ -617,7 +596,7 @@ if (type === "dana") {
     }
   } else if (type === "dispatch") {
     // For multi-product, check only selected products
-    if (isMultiProduct) {
+    if (hasMultipleProducts) {
       const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
       for (let idx = 0; idx < productList.length; idx++) {
         if (selected[idx]) {
@@ -639,7 +618,7 @@ if (type === "dana") {
     }
   } else if (type === "cnc-slip") {
     // For multi-product, check only selected products
-    if (isMultiProduct) {
+    if (hasMultipleProducts) {
       const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
       for (let idx = 0; idx < productList.length; idx++) {
         if (selected[idx]) {
@@ -670,7 +649,7 @@ if (type === "dana") {
     }
     // Remarks are optional, don't require them
   } else if (type === "packaging" || type === "shape-packaging") {
-    if (isMultiProduct) {
+    if (hasMultipleProducts) {
       const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
       for (let idx = 0; idx < productList.length; idx++) {
         if (selected[idx]) {
@@ -691,7 +670,7 @@ if (type === "dana") {
     }
   } else if (type === "dana-beads") {
   // For multi-product, check only selected products
-  if (isMultiProduct) {
+  if (hasMultipleProducts) {
     const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
     for (let idx = 0; idx < productList.length; idx++) {
       if (selected[idx]) {
@@ -728,7 +707,7 @@ if (type === "dana") {
   let topLevelTypeOfRawBlock = "";
   let topLevelDensity = "";
   
-  if (isMultiProduct) {
+  if (hasMultipleProducts) {
     const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
     const filteredProducts = productList.filter((_, idx) => selected[idx]);
     if (filteredProducts.length > 0) {
@@ -768,11 +747,11 @@ if (type === "dana") {
   await onSubmit({
     danaFormData: {
       ...danaFormData,
-      productName: isMultiProduct ? "Multiple Products" : (selectedOrder?.product || ""),
-      isMultiProduct: isMultiProduct,
+      productName: hasMultipleProducts ? "Multiple Products" : (selectedOrder?.product || ""),
+      isMultiProduct: hasMultipleProducts,
       // Add these top-level fields required by backend
-      typeOfRawBlock: isMultiProduct ? topLevelTypeOfRawBlock : danaFormData.typeOfRawBlock,
-      density: isMultiProduct ? topLevelDensity : danaFormData.density,
+      typeOfRawBlock: hasMultipleProducts ? topLevelTypeOfRawBlock : danaFormData.typeOfRawBlock,
+      density: hasMultipleProducts ? topLevelDensity : danaFormData.density,
       products: productsData,
     },
   });
@@ -780,7 +759,7 @@ if (type === "dana") {
  else if (type === "production") {
       // Filter products based on selection
       let productsData = null;
-      if (isMultiProduct) {
+      if (hasMultipleProducts) {
         const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
         const filteredProducts = productList.filter((_, idx) => selected[idx]);
         if (filteredProducts.length > 0) {
@@ -803,7 +782,7 @@ if (type === "dana") {
       }
 
       console.log("📤 Submitting Production slip:", {
-        isMultiProduct: isMultiProduct,
+        isMultiProduct: hasMultipleProducts,
         productsData,
         selectedCount: productsData?.length || 0,
         shapeFormData,
@@ -815,14 +794,14 @@ if (type === "dana") {
           dryWeight: shapeFormData.dryWeight,
           quantity: shapeFormData.quantity,
           remarks: shapeFormData.remarks,
-          isMultiProduct: isMultiProduct,
+          isMultiProduct: hasMultipleProducts,
           products: productsData,
         },
       });
     } else if (type === "dispatch") {
       // Filter products based on selection
       let rowData = [];
-      if (isMultiProduct) {
+      if (hasMultipleProducts) {
         const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
         const filteredProducts = productList.filter((_, idx) => selected[idx]);
         if (filteredProducts.length > 0) {
@@ -848,7 +827,7 @@ if (type === "dana") {
       }
 
       console.log("📤 Submitting Dispatch slip:", {
-        isMultiProduct: isMultiProduct,
+        isMultiProduct: hasMultipleProducts,
         rowData,
         selectedCount: rowData.length,
       });
@@ -860,8 +839,8 @@ if (type === "dana") {
           density: cuttingFormData.density,
           quantity: cuttingFormData.quantity,
           remarks: cuttingFormData.overallRemarks || cuttingFormData.remarks,
-          isMultiProduct: isMultiProduct,
-          products: isMultiProduct ? rowData : null,
+          isMultiProduct: hasMultipleProducts,
+          products: hasMultipleProducts ? rowData : null,
         },
       });
     } else if (type === "cnc-slip") {
@@ -904,7 +883,7 @@ if (type === "dana") {
 
    // Filter products based on selection
   let productsData = null;
-  if (isMultiProduct) {
+  if (hasMultipleProducts) {
     const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
     const filteredProducts = productList.filter((_, idx) => selected[idx]);
     if (filteredProducts.length > 0) {
@@ -935,14 +914,14 @@ if (type === "dana") {
       drawingName: cncFormData.drawingName,
       remarks: cncFormData.remarks,
       drawingFiles: uploadedUrls,
-      isMultiProduct: isMultiProduct,
+      isMultiProduct: hasMultipleProducts,
       products: productsData,
     },
   });
     } else if (type === "packaging" || type === "shape-packaging") {
       // Filter products based on selection
       let productsData = null;
-      if (isMultiProduct) {
+      if (hasMultipleProducts) {
         const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
         const filteredProducts = productList.filter((_, idx) => selected[idx]);
         if (filteredProducts.length > 0) {
@@ -968,7 +947,7 @@ if (type === "dana") {
       }
 
       console.log("📤 Submitting Packaging slip:", {
-        isMultiProduct: isMultiProduct,
+        isMultiProduct: hasMultipleProducts,
         productsData,
         selectedCount: productsData?.length || 0,
       });
@@ -980,14 +959,14 @@ if (type === "dana") {
           packagingType: packagingFormData.packagingType,
           quantity: packagingFormData.quantity,
           remarks: packagingFormData.overallRemarks || packagingFormData.remarks,
-          isMultiProduct: isMultiProduct,
+          isMultiProduct: hasMultipleProducts,
           products: productsData,
         },
       });
 } else if (type === "dana-beads") {
   // Filter products based on selection
   let productsData = null;
-  if (isMultiProduct) {
+  if (hasMultipleProducts) {
     const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
     const filteredProducts = productList.filter((_, idx) => selected[idx]);
     if (filteredProducts.length > 0) {
@@ -1020,7 +999,7 @@ if (type === "dana") {
       recycleDana: danaBeadsFormData.recycleDana,
       nextGrade: danaBeadsFormData.nextGrade,
       remarks: danaBeadsFormData.remarks,
-      isMultiProduct: isMultiProduct,
+      isMultiProduct: hasMultipleProducts,
       products: productsData,
     },
   });
@@ -1075,7 +1054,7 @@ if (type === "dana") {
 
 // ✅ Helper: Get filtered products based on selection
 const getFilteredProductList = () => {
-  if (!isMultiProduct) return productList;
+  if (!hasMultipleProducts) return productList;
   // Ensure selectedProducts has the same length as productList
   const selected = selectedProducts.length === productList.length 
     ? selectedProducts 
@@ -1107,7 +1086,7 @@ const getFilteredProductList = () => {
         </h2>
 
         {/* ✅ Show product selection for multi-product orders */}
-        {isMultiProduct && selectedOrder && (
+        {hasMultipleProducts && selectedOrder && (
           <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex justify-between items-center mb-2">
               <h4 className="font-bold text-blue-800">📦 Products in this Order ({productList.length} items):</h4>
@@ -1163,7 +1142,7 @@ const getFilteredProductList = () => {
         Raw Block/Dana Slip
       </h3>
 
-      {isMultiProduct ? (
+      {hasMultipleProducts ? (
         <div className="mb-4">
           <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
           <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
@@ -1534,7 +1513,7 @@ const getFilteredProductList = () => {
                 Shape Moulding Production Slip / Die Moulding
               </h3>
 
-            {isMultiProduct ? (
+            {hasMultipleProducts ? (
   <div className="mb-4">
     <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
     <div className="overflow-x-auto">
@@ -1631,7 +1610,7 @@ const getFilteredProductList = () => {
                       onChange={(e) => handleShapeChange("productName", e.target.value)}
                       className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
                     />
-                    {!isMultiProduct && <ShowInternalImagesButton product={product} />}
+                    {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
                   </div>
 
                   <label className="font-bold text-xl">Dry Weight / Density:</label>
@@ -1668,7 +1647,7 @@ const getFilteredProductList = () => {
           {/* Dana/Beads Slip */}
         {type === "dana-beads" && (
   <section className="space-y-4">
-    {isMultiProduct ? (
+    {hasMultipleProducts ? (
       <div className="mb-4">
         <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -1951,7 +1930,7 @@ const getFilteredProductList = () => {
                 Shape Moulding Packaging Slip
               </h3>
 
-             {isMultiProduct ? (
+             {hasMultipleProducts ? (
   <div className="mb-4">
     <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
     <div className="overflow-x-auto">
@@ -2065,7 +2044,7 @@ const getFilteredProductList = () => {
                       value={packagingFormData.productName}
                       className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
                     />
-                    {!isMultiProduct && <ShowInternalImagesButton product={product} />}
+                    {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
                   </div>
 
                   <label className="font-bold text-xl">Packaging Weight (kg):</label>
@@ -2115,7 +2094,7 @@ const getFilteredProductList = () => {
                 Cutting Slip
               </h3>
 
-             {isMultiProduct ? (
+             {hasMultipleProducts ? (
   <>
     <div className="mb-4">
       <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
@@ -2232,7 +2211,7 @@ const getFilteredProductList = () => {
                         readOnly
                         className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-gray-700"
                       />
-                      {!isMultiProduct && <ShowInternalImagesButton product={product} />}
+                      {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
                     </div>
                   </div>
 
@@ -2287,7 +2266,7 @@ const getFilteredProductList = () => {
           {/* CNC Slip */}
          {type === "cnc-slip" && (
   <section className="space-y-4">
-    {isMultiProduct ? (
+    {hasMultipleProducts ? (
       <div className="mb-4">
         <label className="font-bold text-xl mb-2 block">Products ({getFilteredProductList().length} selected of {productList.length})</label>
         <div className="overflow-x-auto">
@@ -2394,7 +2373,7 @@ const getFilteredProductList = () => {
             onChange={(e) => handleCNCChange("productName", e.target.value)}
             className={inputClass("productName")}
           />
-          {!isMultiProduct && <ShowInternalImagesButton product={product} />}
+          {!hasMultipleProducts && <ShowInternalImagesButton product={product} />}
         </div>
 
         <label className="font-bold text-xl">Size <span className="text-red-500">*</span>:</label>
