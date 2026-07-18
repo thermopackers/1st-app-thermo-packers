@@ -288,69 +288,71 @@ const getStickyBgClass = () => {
         )}
       </OrderCell>
 
-      {/* Customer Name */}
-      {/* Customer Name */}
-      <OrderCell className="sticky !text-[9px] md:!text-sm left-0 z-25 min-w-[80px] max-w-[100px] bg-white break-words">
-        <div>
-          {order.customer?.name || order.customerName}
-        </div>
-      </OrderCell>
-
-      {/* PRODUCT NAME */}
- <OrderCell className="text-indigo-600 !text-[9px] md:!text-sm font-bold sticky md:left-[110px] left-[80px] z-25 min-w-[100px] max-w-[250px] bg-white break-words">
-        {hasMultipleProducts ? (
-    <div className="space-y-2">
-      {productList.map((prod, idx) => (
-        <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
-          <button
-            onClick={() => {
-              const product = products.find((p) => p.name === prod.productName);
-              if (product?.images?.length > 0) {
-                setActiveProductImage({
-                  name: prod.productName,
-                  images: product.images,
-                });
-              } else {
-                Swal.fire({
-                  icon: "info",
-                  title: "No Image",
-                  text: "No images available for this product.",
-                });
-              }
-            }}
-            className="underline cursor-pointer text-left"
-          >
-            {prod.productName}
-          </button>
-          <div className="text-xs text-gray-500 mt-0.5 !text-[9px] md:!text-sm">
-            Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+          {/* Combined Customer Name & Product Name (Sticky on mobile) */}
+      <OrderCell className="sticky left-0 z-25 bg-white min-w-[120px] max-w-[200px] !text-[9px] md:!text-sm break-words">
+        <div className="space-y-1">
+          {/* Customer Name */}
+          <div className="font-semibold text-gray-800">
+            {order.customer?.name || order.customerName}
+          </div>
+          
+          {/* Product Name */}
+          <div className="text-indigo-600 font-bold">
+            {hasMultipleProducts ? (
+              <div className="space-y-1">
+                {productList.map((prod, idx) => (
+                  <div key={idx} className="border-b border-gray-200 pb-1 last:border-0">
+                    <button
+                      onClick={() => {
+                        const product = products.find((p) => p.name === prod.productName);
+                        if (product?.images?.length > 0) {
+                          setActiveProductImage({
+                            name: prod.productName,
+                            images: product.images,
+                          });
+                        } else {
+                          Swal.fire({
+                            icon: "info",
+                            title: "No Image",
+                            text: "No images available for this product.",
+                          });
+                        }
+                      }}
+                      className="underline cursor-pointer text-left !text-[9px] md:!text-sm"
+                    >
+                      {prod.productName}
+                    </button>
+                    <div className="text-gray-500 !text-[8px] md:!text-xs">
+                      Qty: {prod.quantity} | Size: {prod.size || "N/A"} | Density: {prod.density || "N/A"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  const product = products.find((p) => p.name === order.product);
+                  if (product?.images?.length > 0) {
+                    setActiveProductImage({
+                      name: product.name,
+                      images: product.images,
+                    });
+                  } else {
+                    Swal.fire({
+                      icon: "info",
+                      title: "No Image",
+                      text: "No images available for this product.",
+                    });
+                  }
+                }}
+                className="underline cursor-pointer !text-[9px] md:!text-sm"
+              >
+                {order.product}
+              </button>
+            )}
           </div>
         </div>
-      ))}
-    </div>
-  ) : (
-    <button
-      onClick={() => {
-        const product = products.find((p) => p.name === order.product);
-        if (product?.images?.length > 0) {
-          setActiveProductImage({
-            name: product.name,
-            images: product.images,
-          });
-        } else {
-          Swal.fire({
-            icon: "info",
-            title: "No Image",
-            text: "No images available for this product.",
-          });
-        }
-      }}
-      className="underline cursor-pointer"
-    >
-      {order.product}
-    </button>
-  )}
-</OrderCell>
+      </OrderCell>
 
        {/* Order Actions */}
       <OrderCell>

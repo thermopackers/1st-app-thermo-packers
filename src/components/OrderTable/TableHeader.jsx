@@ -7,8 +7,10 @@ const TableHeader = ({ role }) => (
       <TableHeaderCell>Order ID</TableHeaderCell>
       <TableHeaderCell>Customer Handled By</TableHeaderCell>
       <TableHeaderCell>Order Added By</TableHeaderCell>
-      <TableHeaderCell className="sticky left-0 z-40 bg-gray-200">Customer Name</TableHeaderCell>      
-      <TableHeaderCell className="sticky md:left-[110px] left-[80px] z-40 bg-gray-200">Product Name</TableHeaderCell>
+<TableHeaderCell className="sticky left-0 z-40 bg-gray-200 min-w-[120px] max-w-[200px]">
+  <div>Customer Name</div>
+  <div className="text-indigo-600">Product Name</div>
+</TableHeaderCell>
       <TableHeaderCell>Order Actions</TableHeaderCell>
       <TableHeaderCell>Narration</TableHeaderCell>
       <TableHeaderCell>Narration Images</TableHeaderCell>
