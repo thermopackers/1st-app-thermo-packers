@@ -54,7 +54,6 @@ export default function DocumentNotifications({ setDocNotifCount }) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-// Function to open document in SweetAlert
 const openDocument = (doc) => {
   if (!doc.documentUrls || doc.documentUrls.length === 0) {
     Swal.fire({
@@ -65,6 +64,23 @@ const openDocument = (doc) => {
     });
     return;
   }
+
+  // Helper function to get filename from URL
+  const getFileName = (url) => {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const segments = pathname.split('/');
+      let filename = segments[segments.length - 1];
+      // Remove version query parameters if any
+      if (filename.includes('?')) {
+        filename = filename.split('?')[0];
+      }
+      return filename || 'document';
+    } catch (e) {
+      return 'document';
+    }
+  };
 
   // Create content for ALL documents
   let contentHtml = `
@@ -83,11 +99,22 @@ const openDocument = (doc) => {
   doc.documentUrls.forEach((url, index) => {
     const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
     const isPDF = url.match(/\.pdf$/i);
+    const fileName = getFileName(url);
     
     contentHtml += `
       <div class="border border-gray-200 rounded-lg p-4 bg-white">
         <div class="flex justify-between items-center mb-3">
           <h4 class="font-semibold text-gray-800">Document ${index + 1}</h4>
+          <div class="flex gap-2">
+            <button onclick="window.open('${url}', '_blank')" 
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition flex items-center gap-1">
+              <span>🔗</span> Open
+            </button>
+            <button onclick="window.location.href='${url}?download=1'" 
+                    class="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 bg-green-50 rounded-lg hover:bg-green-100 transition flex items-center gap-1">
+              <span>⬇️</span> Download
+            </button>
+          </div>
         </div>
     `;
 
@@ -103,6 +130,7 @@ const openDocument = (doc) => {
             Open in new tab
           </a>
         </div>
+        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
       `;
     } else if (isPDF) {
       contentHtml += `
@@ -118,15 +146,17 @@ const openDocument = (doc) => {
             Open PDF in new tab
           </a>
         </div>
+        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
       `;
     } else {
       contentHtml += `
         <div class="text-center p-6 bg-gray-100 rounded-lg">
           <p class="text-gray-600 mb-3">This file type cannot be previewed in the browser</p>
-          <a href="${url}" target="_blank" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-            📥 Download / Open File
+          <a href="${url}" target="_blank" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition mr-2">
+            📥 Open File
           </a>
         </div>
+        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
       `;
     }
 
