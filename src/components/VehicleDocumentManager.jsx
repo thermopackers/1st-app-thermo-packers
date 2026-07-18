@@ -104,96 +104,41 @@ const handleSubmit = async (e) => {
   const submitData = new FormData();
 
   // Append normal fields (skip `documents`)
-  Object.keys(formData).forEach((key) => {
-    if (key !== "documents" && formData[key] !== null && formData[key] !== "") {
-      submitData.append(key, formData[key]);
-    }
-  });
+Object.keys(formData).forEach((key) => {
+  if (key !== "documents" && formData[key] !== null && formData[key] !== "") {
+    submitData.append(key, formData[key]);
+  }
+});
 
   // Separate existing URLs and new files
   const existingUrls = [];
   if (formData.documents && formData.documents.length > 0) {
-    for (const file of formData.documents) {
-      if (file.isExisting) {
-        existingUrls.push(file.url);
-      } else {
-        const compressed = await compressFile(file);
-        submitData.append("documents", compressed);
-      }
-    }
+ for (const file of formData.documents) {
+  if (file.isExisting) {
+    existingUrls.push(file.url);
+  } else {
+    const compressed = await compressFile(file);
+    submitData.append("documents", compressed);
+  }
+}
   }
 
-  // Add existingUrls as JSON string - KEEP EXISTING FILES
+  // Add existingUrls as JSON string
   if (existingUrls.length > 0) {
     submitData.append("existingUrls", JSON.stringify(existingUrls));
   }
 
   try {
-    setSubmitting(true);
+        setSubmitting(true); // ⏳ show overlay
     if (editingDoc) {
-      // ✅ FIX: For editing, preserve existing URLs and append new ones
-      const updateData = { ...submitData };
-      
-      // Get current document's URLs
-      const currentDoc = documents.find(d => d._id === editingDoc._id);
-      if (currentDoc && currentDoc.documentUrls) {
-        // Always keep existing URLs
-        const allUrls = [...currentDoc.documentUrls];
-        
-        // Add any new uploaded files
-        if (formData.documents) {
-          const newFiles = formData.documents.filter(f => !f.isExisting);
-          // Upload new files and add their URLs
-          for (const file of newFiles) {
-            const compressed = await compressFile(file);
-            const formData2 = new FormData();
-            formData2.append("documents", compressed);
-            // Upload to Cloudinary
-            const uploadRes = await axiosInstance.post("/upload", formData2, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "multipart/form-data",
-              },
-            });
-            if (uploadRes.data && uploadRes.data.urls) {
-              allUrls.push(...uploadRes.data.urls);
-            }
-          }
-        }
-        
-        // Send update with all URLs (existing + new)
-        const finalUpdateData = {
-          documentType: formData.documentType,
-          issueDate: formData.issueDate,
-          expiryDate: formData.expiryDate,
-          notes: formData.notes,
-          mobileNumber: formData.mobileNumber,
-          fastagCompanyName: formData.fastagCompanyName,
-          fastagNumber: formData.fastagNumber,
-          fastagRechargeCode: formData.fastagRechargeCode,
-          companyName: formData.companyName,
-          documentUrls: allUrls // Send ALL URLs
-        };
-        
-        await axiosInstance.put(`/vehicle-documents/${editingDoc._id}`, finalUpdateData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      } else {
-        // Fallback to existing logic
-        await axiosInstance.put(`/vehicle-documents/${editingDoc._id}`, submitData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
-      }
-      
+      await axiosInstance.put(`/vehicle-documents/${editingDoc._id}`, submitData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
       Swal.fire("Success", "Document updated successfully", "success");
     } else {
-      // For new documents
       submitData.append("vehicleNumber", vehicleNumber);
       await axiosInstance.post("/vehicle-documents", submitData, {
         headers: {
@@ -207,25 +152,25 @@ const handleSubmit = async (e) => {
     // Reset form
     setShowForm(false);
     setEditingDoc(null);
-    setFormData({
-      documentType: "",
-      issueDate: "",
-      expiryDate: "",
-      notes: "",
-      mobileNumber: "",
-      fastagCompanyName: "",
-      fastagNumber: "",
-      fastagRechargeCode: "",
-      companyName: "",
-      documents: []
-    });
+ setFormData({
+  documentType: "",
+  issueDate: "",
+  expiryDate: "",
+  notes: "",
+  mobileNumber: "",
+  fastagCompanyName: "",
+  fastagNumber: "",
+  fastagRechargeCode: "",
+    companyName: "", // Add this
+  documents: []
+});
 
     fetchDocuments();
   } catch (err) {
     console.error("Error saving document:", err);
     Swal.fire("Error", "Failed to save document", "error");
   } finally {
-    setSubmitting(false);
+    setSubmitting(false); // ✅ hide overlay
   }
 };
 
