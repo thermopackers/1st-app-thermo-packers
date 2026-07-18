@@ -76,9 +76,48 @@ const openDocument = (doc) => {
       if (filename.includes('?')) {
         filename = filename.split('?')[0];
       }
+      // Decode URL encoding
+      filename = decodeURIComponent(filename);
       return filename || 'document';
     } catch (e) {
       return 'document';
+    }
+  };
+
+  // Helper function to download file
+  const downloadFile = async (url, filename) => {
+    try {
+      // Show loading toast
+      Swal.fire({
+        title: 'Downloading...',
+        text: 'Please wait while your file is being downloaded.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+      Swal.close();
+    } catch (error) {
+      console.error('Download failed:', error);
+      Swal.fire({
+        title: 'Download Failed',
+        text: 'Unable to download the file. Please try opening in a new tab.',
+        icon: 'error',
+        confirmButtonColor: '#2563eb',
+      });
     }
   };
 
@@ -100,17 +139,19 @@ const openDocument = (doc) => {
     const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
     const isPDF = url.match(/\.pdf$/i);
     const fileName = getFileName(url);
+    // Escape the URL for use in onclick
+    const escapedUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     
     contentHtml += `
       <div class="border border-gray-200 rounded-lg p-4 bg-white">
         <div class="flex justify-between items-center mb-3">
           <h4 class="font-semibold text-gray-800">Document ${index + 1}</h4>
           <div class="flex gap-2">
-            <button onclick="window.open('${url}', '_blank')" 
+            <button onclick="window.open('${escapedUrl}', '_blank')" 
                     class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition flex items-center gap-1">
               <span>🔗</span> Open
             </button>
-            <button onclick="window.location.href='${url}?download=1'" 
+            <button onclick="downloadFile('${escapedUrl}', '${fileName}')" 
                     class="text-green-600 hover:text-green-800 text-sm font-medium px-3 py-1 bg-green-50 rounded-lg hover:bg-green-100 transition flex items-center gap-1">
               <span>⬇️</span> Download
             </button>
@@ -130,7 +171,7 @@ const openDocument = (doc) => {
             Open in new tab
           </a>
         </div>
-        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
+        <div class="mt-2 text-xs text-gray-500 truncate">📎 ${fileName}</div>
       `;
     } else if (isPDF) {
       contentHtml += `
@@ -146,7 +187,7 @@ const openDocument = (doc) => {
             Open PDF in new tab
           </a>
         </div>
-        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
+        <div class="mt-2 text-xs text-gray-500 truncate">📎 ${fileName}</div>
       `;
     } else {
       contentHtml += `
@@ -156,7 +197,7 @@ const openDocument = (doc) => {
             📥 Open File
           </a>
         </div>
-        <div class="mt-2 text-xs text-gray-500 truncate">${fileName}</div>
+        <div class="mt-2 text-xs text-gray-500 truncate">📎 ${fileName}</div>
       `;
     }
 
@@ -175,6 +216,10 @@ const openDocument = (doc) => {
     customClass: {
       popup: "rounded-2xl",
     },
+    didOpen: () => {
+      // Expose downloadFile function to the global scope for onclick to work
+      window.downloadFile = downloadFile;
+    }
   });
 };
 
