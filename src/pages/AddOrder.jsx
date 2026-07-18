@@ -398,6 +398,16 @@ const handleProductChange = async (index, field, value) => {
       size: "",
       customSize: "",
     };
+    
+    // ✅ Auto-fill price if customer is selected
+    if (clientDetails.customerName) {
+      const lastPrice = await fetchLastPrice(clientDetails.customerName, product.name);
+      if (lastPrice !== null && lastPrice !== undefined) {
+        updated[index].price = lastPrice.toString();
+        toast.success(`Price auto-filled: ₹${lastPrice}`, { duration: 2000 });
+      }
+    }
+    
   } else if (field === "customProduct") {
     updated[index] = {
       ...updated[index],
@@ -590,6 +600,29 @@ if (loadingProducts || loadingCustomers) {
     </>
   );
 }
+
+// Add this function to fetch last price for the customer-product combination
+const fetchLastPrice = async (customerName, productName) => {
+  if (!customerName || !productName) return;
+  
+  try {
+    const response = await axiosInstance.get('/orders/last-price', {
+      params: {
+        customerName: customerName,
+        product: productName
+      }
+    });
+    
+    if (response.data && response.data.price) {
+      return response.data.price;
+    }
+    return null;
+  } catch (error) {
+    // Silently fail - price will just not be auto-filled
+    console.log('No previous price found for this product');
+    return null;
+  }
+};
 
   return (
     <>
