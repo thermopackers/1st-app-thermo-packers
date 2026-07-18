@@ -444,8 +444,8 @@ const handleProductSelect = (index, selectedOption) => {
         {/* Products Table */}
         <div className="border rounded-lg p-4">
           <h3 className="text-lg font-semibold mb-3">Products</h3>
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[800px] w-full border text-sm">
+      <div className="w-full overflow-x-auto" style={{ overflow: 'visible' }}>
+  <table className="min-w-[800px] w-full border text-sm" style={{ overflow: 'visible' }}>
               <thead className="bg-blue-100">
                 <tr>
                   <th className="p-2">#</th>
@@ -472,23 +472,25 @@ const handleProductSelect = (index, selectedOption) => {
                   return (
                     <tr key={index} className="border-t">
                       <td className="p-2 text-center">{index + 1}</td>
-                      <td className="p-2 min-w-[200px]">
-                    <Select
-  options={productsList.map(p => ({ value: p._id, label: p.name, data: p }))}
-  value={product.productId ? { value: product.productId, label: product.name } : null}
-  onChange={(selected) => handleProductSelect(index, selected)}
-  placeholder="Select product..."
-  isClearable={true}  // ✅ Allow clearing
-/>
-                        {/* Show product images */}
-                        {selectedImages[index] && selectedImages[index].length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {selectedImages[index].slice(0, 2).map((img, imgIdx) => (
-                              <img key={imgIdx} src={img} className="w-8 h-8 object-cover rounded" alt="product" />
-                            ))}
-                          </div>
-                        )}
-                      </td>
+                  <td className="p-2 min-w-[200px] relative" style={{ overflow: 'visible' }}>
+  <Select
+    options={productsList.map(p => ({ value: p._id, label: p.name, data: p }))}
+    value={product.productId ? { value: product.productId, label: product.name } : null}
+    onChange={(selected) => handleProductSelect(index, selected)}
+    placeholder="Select product..."
+    isClearable={true}
+    menuPortalTarget={document.body}
+    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+  />
+  {/* Show product images */}
+  {selectedImages[index] && selectedImages[index].length > 0 && (
+    <div className="flex gap-1 mt-1">
+      {selectedImages[index].slice(0, 2).map((img, imgIdx) => (
+        <img key={imgIdx} src={img} className="w-8 h-8 object-cover rounded" alt="product" />
+      ))}
+    </div>
+  )}
+</td>
                       <td className="p-2">{product.hsn || '-'}</td>
                       <td className="p-2">
                         <input
