@@ -95,12 +95,12 @@ export default function EditCaremaxQuotation() {
             gstin: quotation.gstin || "",
           });
           
-          // ✅ Set selectedImages for each product from the loaded data
-          const imagesMap = {};
-          (quotation.products || []).forEach((product, index) => {
-            imagesMap[index] = product.images || [];
-          });
-          setSelectedImages(imagesMap);
+        // Set selectedImages for each product from the loaded data
+const imagesMap = {};
+(quotation.products || []).forEach((product, index) => {
+  imagesMap[index] = product.images || [];
+});
+setSelectedImages(imagesMap);
         }
       } catch (err) {
         console.error("Error fetching quotation:", err);
@@ -114,10 +114,11 @@ export default function EditCaremaxQuotation() {
   }, [id, navigate]);
 
 const addProductRow = () => {
+  const newIndex = form.products.length;
   setForm(prev => ({
     ...prev,
     products: [...prev.products, { 
-      productId: null,  // ✅ Use null instead of empty string
+      productId: null,
       name: "", 
       hsn: "", 
       qty: 1, 
@@ -129,6 +130,8 @@ const addProductRow = () => {
       images: []
     }]
   }));
+  // Initialize images for the new row
+  setSelectedImages(prev => ({ ...prev, [newIndex]: [] }));
 };
 
   const removeProductRow = (index) => {
@@ -141,35 +144,50 @@ const addProductRow = () => {
     setSelectedImages(updatedImages);
   };
 
-  const updateProductField = (index, field, value) => {
-    const updated = [...form.products];
-    updated[index] = { ...updated[index], [field]: value };
-    setForm(prev => ({ ...prev, products: updated }));
-  };
+const updateProductField = (index, field, value) => {
+  const updated = [...form.products];
+  updated[index] = { ...updated[index], [field]: value };
+  setForm(prev => ({ ...prev, products: updated }));
+};
 
 const handleProductSelect = (index, selectedOption) => {
   if (!selectedOption) {
     // If product is deselected, clear the product fields but keep the row
-    updateProductField(index, 'productId', null);
-    updateProductField(index, 'name', "");
-    updateProductField(index, 'hsn', "");
-    updateProductField(index, 'unit', "");
-    updateProductField(index, 'gst', 0);
-    updateProductField(index, 'rate', 0);
-    updateProductField(index, 'images', []);
+    const updated = [...form.products];
+    updated[index] = { 
+      ...updated[index],
+      productId: null,
+      name: "",
+      hsn: "",
+      unit: "",
+      gst: 0,
+      rate: 0,
+      images: [],
+      narrationImages: []
+    };
+    setForm(prev => ({ ...prev, products: updated }));
     setSelectedImages(prev => ({ ...prev, [index]: [] }));
     return;
   }
   
   const selected = selectedOption.data;
-  updateProductField(index, 'productId', selected._id);
-  updateProductField(index, 'name', selected.name);
-  updateProductField(index, 'hsn', selected.hsnCode || "");
-  updateProductField(index, 'unit', selected.unit);
-  updateProductField(index, 'gst', selected.gstPercent || 0);
-  updateProductField(index, 'rate', selected.sellingPrice || 0);
-  updateProductField(index, 'images', selected.images || []);
   
+  // Update the product in the form
+  const updated = [...form.products];
+  updated[index] = {
+    ...updated[index],
+    productId: selected._id,
+    name: selected.name,
+    hsn: selected.hsnCode || "",
+    unit: selected.unit,
+    gst: selected.gstPercent || 0,
+    rate: selected.sellingPrice || 0,
+    images: selected.images || [],
+    narrationImages: selected.narrationImages || []
+  };
+  setForm(prev => ({ ...prev, products: updated }));
+  
+  // Update the images for display
   setSelectedImages(prev => ({
     ...prev,
     [index]: selected.images || []
@@ -213,6 +231,14 @@ const handleProductSelect = (index, selectedOption) => {
       setSubmitting(false);
     }
   };
+
+  // Helper to get selected product for Select
+const getSelectedProduct = (productId) => {
+  if (!productId) return null;
+  const product = productsList.find(p => p._id === productId);
+  if (!product) return null;
+  return { value: product._id, label: product.name, data: product };
+};
 
   if (loading) {
     return (
@@ -473,15 +499,15 @@ const handleProductSelect = (index, selectedOption) => {
                     <tr key={index} className="border-t">
                       <td className="p-2 text-center">{index + 1}</td>
                   <td className="p-2 min-w-[200px] relative" style={{ overflow: 'visible' }}>
-  <Select
-    options={productsList.map(p => ({ value: p._id, label: p.name, data: p }))}
-    value={product.productId ? { value: product.productId, label: product.name } : null}
-    onChange={(selected) => handleProductSelect(index, selected)}
-    placeholder="Select product..."
-    isClearable={true}
-    menuPortalTarget={document.body}
-    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-  />
+<Select
+  options={productsList.map(p => ({ value: p._id, label: p.name, data: p }))}
+  value={getSelectedProduct(product.productId)}
+  onChange={(selected) => handleProductSelect(index, selected)}
+  placeholder="Select product..."
+  isClearable={true}
+  menuPortalTarget={document.body}
+  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+/>
   {/* Show product images */}
   {selectedImages[index] && selectedImages[index].length > 0 && (
     <div className="flex gap-1 mt-1">
