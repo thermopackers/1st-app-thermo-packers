@@ -52,8 +52,8 @@ export default function MileageChart() {
 
   const COLORS = ['#4f46e5', '#38bdf8', '#f97316', '#10b981', '#f59e0b', '#ef4444'];
 
-  // Fetch last trip mileage for all vehicles
-  const fetchLastTripMileage = async () => {
+  // Fetch mileage for all trips within date range
+  const fetchMileageData = async () => {
     setLoading(true);
     try {
       // Build query params with date range
@@ -65,19 +65,21 @@ export default function MileageChart() {
       queryParams.append('limit', limit);
 
       const res = await axiosInstance.get(
-        `/diesel/last-trip-mileage?${queryParams.toString()}`,
+        `/diesel/trip-mileage?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      // Process the data - show last trip mileage for each vehicle
+      // Process the data
       const processedData = res.data.data.map(d => ({
         ...d,
         mileage: isNaN(d.mileage) ? 0 : +d.mileage,
         kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
         dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+        // For grouping by vehicle when "All Vehicles" is selected
         vehicleNumber: d.vehicleNumber,
+        tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
         label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
         fullLabel: d.vehicleNumber
       }));
@@ -106,7 +108,7 @@ export default function MileageChart() {
         });
       }
     } catch (err) {
-      console.error("Failed to fetch last trip mileage data:", err);
+      console.error("Failed to fetch mileage data:", err);
       toast?.error("Failed to fetch mileage data");
     } finally {
       setLoading(false);
@@ -135,7 +137,7 @@ export default function MileageChart() {
 
   useEffect(() => {
     if (token) {
-      fetchLastTripMileage();
+      fetchMileageData();
       fetchMileageEntries();
 
       axiosInstance.get("/vehicles/all", {
@@ -152,7 +154,7 @@ export default function MileageChart() {
 
   const handleDateRangeChange = () => {
     setPage(1);
-    fetchLastTripMileage();
+    fetchMileageData();
   };
 
   const handleFileChange = (e) => {
@@ -218,7 +220,7 @@ export default function MileageChart() {
       setTimeout(() => setEntrySuccess(false), 3000);
 
       setEntriesPage(1);
-      fetchLastTripMileage();
+      fetchMileageData();
       fetchMileageEntries(1);
 
     } catch (err) {
@@ -259,11 +261,11 @@ export default function MileageChart() {
           <LineChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="vehicleNumber" 
+              dataKey="tripLabel" 
               angle={-45} 
               textAnchor="end" 
               height={80}
-              tick={{ fontSize: 11, fontWeight: '500' }}
+              tick={{ fontSize: 10, fontWeight: '500' }}
               interval={0}
               width={120}
             />
@@ -281,7 +283,7 @@ export default function MileageChart() {
             <Line 
               type="monotone" 
               dataKey="mileage" 
-              name="Last Trip Mileage" 
+              name="Trip Mileage" 
               stroke="#4f46e5" 
               strokeWidth={3}
               dot={{ fill: '#4f46e5', strokeWidth: 2, r: 5 }}
@@ -291,12 +293,30 @@ export default function MileageChart() {
         );
       
       case 'pie':
-        const pieData = sortedData.map(item => ({
-          name: item.vehicleNumber,
-          value: item.mileage || 0,
-          kms: item.kmsRun || 0,
-          diesel: item.dieselUsed || 0,
-          date: item.date
+        // For pie chart, group by vehicle to show average mileage per vehicle
+        const vehicleGroups = {};
+        sortedData.forEach(item => {
+          if (!vehicleGroups[item.vehicleNumber]) {
+            vehicleGroups[item.vehicleNumber] = {
+              name: item.vehicleNumber,
+              value: 0,
+              count: 0,
+              totalKms: 0,
+              totalDiesel: 0
+            };
+          }
+          vehicleGroups[item.vehicleNumber].value += item.mileage || 0;
+          vehicleGroups[item.vehicleNumber].count += 1;
+          vehicleGroups[item.vehicleNumber].totalKms += item.kmsRun || 0;
+          vehicleGroups[item.vehicleNumber].totalDiesel += item.dieselUsed || 0;
+        });
+
+        const pieData = Object.values(vehicleGroups).map(group => ({
+          name: group.name,
+          value: +(group.value / group.count).toFixed(2),
+          kms: group.totalKms,
+          diesel: group.totalDiesel,
+          trips: group.count
         }));
 
         return (
@@ -306,7 +326,7 @@ export default function MileageChart() {
               cx="50%"
               cy="50%"
               labelLine={true}
-              label={({ name, value, date }) => `${name}\n${value.toFixed(1)} km/L`}
+              label={({ name, value }) => `${name}\n${value.toFixed(1)} km/L`}
               outerRadius={120}
               fill="#8884d8"
               dataKey="value"
@@ -317,7 +337,7 @@ export default function MileageChart() {
             </Pie>
             <Tooltip 
               formatter={(value, name, props) => [
-                `${value} km/L\n${props.payload.kms} km run\n${props.payload.diesel} L diesel\nDate: ${props.payload.date || 'N/A'}`,
+                `Avg: ${value} km/L\nTotal KMs: ${props.payload.kms} km\nTotal Diesel: ${props.payload.diesel} L\nTrips: ${props.payload.trips}`,
                 props.payload.name
               ]}
             />
@@ -326,8 +346,42 @@ export default function MileageChart() {
         );
       
       default:
+        // For bar chart, when "All Vehicles" is selected, show grouped by vehicle
+        let chartData = sortedData;
+        
+        // If no vehicle filter (All Vehicles), group by vehicle and show average
+        if (!vehicleFilter) {
+          const vehicleGroups = {};
+          sortedData.forEach(item => {
+            if (!vehicleGroups[item.vehicleNumber]) {
+              vehicleGroups[item.vehicleNumber] = {
+                vehicleNumber: item.vehicleNumber,
+                mileage: 0,
+                kmsRun: 0,
+                dieselUsed: 0,
+                count: 0,
+                trips: []
+              };
+            }
+            vehicleGroups[item.vehicleNumber].mileage += item.mileage || 0;
+            vehicleGroups[item.vehicleNumber].kmsRun += item.kmsRun || 0;
+            vehicleGroups[item.vehicleNumber].dieselUsed += item.dieselUsed || 0;
+            vehicleGroups[item.vehicleNumber].count += 1;
+            vehicleGroups[item.vehicleNumber].trips.push(item);
+          });
+
+          chartData = Object.values(vehicleGroups).map(group => ({
+            vehicleNumber: group.vehicleNumber,
+            mileage: +(group.mileage / group.count).toFixed(2),
+            kmsRun: group.kmsRun,
+            dieselUsed: group.dieselUsed,
+            tripCount: group.count,
+            label: `${group.vehicleNumber}\n(${group.count} trips)`
+          }));
+        }
+
         return (
-          <BarChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
               dataKey="vehicleNumber" 
@@ -340,18 +394,48 @@ export default function MileageChart() {
             />
             <YAxis 
               label={{ 
-                value: 'Mileage (km/L)', 
+                value: 'Average Mileage (km/L)', 
                 angle: -90, 
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
               }}
               domain={[0, 'auto']}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+                      <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                      <p className="text-sm text-blue-600">
+                        Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
+                      </p>
+                      {data.tripCount && (
+                        <p className="text-sm text-gray-600">
+                          Total Trips: {data.tripCount}
+                        </p>
+                      )}
+                      {data.kmsRun && (
+                        <p className="text-sm text-gray-600">
+                          Total KMs: {data.kmsRun} km
+                        </p>
+                      )}
+                      {data.dieselUsed && (
+                        <p className="text-sm text-gray-600">
+                          Total Diesel: {data.dieselUsed} L
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <Legend />
             <Bar 
               dataKey="mileage" 
-              name="Last Trip Mileage (km/L)" 
+              name="Average Mileage (km/L)" 
               fill="#4f46e5" 
               radius={[4, 4, 0, 0]} 
             />
@@ -368,10 +452,10 @@ export default function MileageChart() {
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📊 Vehicle Last Trip Mileage Analytics
+            📊 Vehicle Trip Mileage Analytics
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Track the latest trip mileage performance of all vehicles
+            Track trip-wise mileage performance of all vehicles within selected date range
           </p>
         </div>
 
@@ -428,7 +512,7 @@ export default function MileageChart() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Vehicles Tracked</p>
+                  <p className="text-sm font-medium text-gray-600">Total Trips</p>
                   <p className="text-2xl font-bold text-gray-900">{data.length}</p>
                 </div>
               </div>
@@ -442,8 +526,8 @@ export default function MileageChart() {
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">Last Trip Mileage Report</h2>
-                <p className="text-gray-600">Track the latest trip performance of each vehicle</p>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">Trip Mileage Report</h2>
+                <p className="text-gray-600">Track trip-wise mileage performance within selected date range</p>
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -528,7 +612,7 @@ export default function MileageChart() {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                 >
-                  <option value="">All Vehicles</option>
+                  <option value="">All Vehicles (Grouped)</option>
                   {vehicleList.map((v) => (
                     <option key={v._id} value={v.vehicleNumber}>
                       {v.vehicleNumber}
@@ -611,7 +695,7 @@ export default function MileageChart() {
                           Diesel (L)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Last Trip Mileage
+                          Mileage
                         </th>
                       </tr>
                     </thead>
@@ -691,7 +775,7 @@ export default function MileageChart() {
           </div>
         </div>
 
-        {/* Mileage Entry Form & Table - Keep the existing code */}
+        {/* Mileage Entry Form & Table - Keep existing code */}
         <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-teal-50">
             <h2 className="text-xl font-semibold text-gray-900 mb-1">📝 Add Mileage Entry</h2>
@@ -831,7 +915,7 @@ export default function MileageChart() {
               </div>
             </form>
 
-            {/* Mileage Entries Table with Pagination */}
+            {/* Mileage Entries Table with Pagination - Keep existing */}
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">📋 Mileage Entries</h3>
