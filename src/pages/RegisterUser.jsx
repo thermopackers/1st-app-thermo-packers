@@ -334,7 +334,17 @@ const fetchUsers = async (page = 1, query = "") => {
       `/users/all-user-pagination?page=${page}&limit=${limit}&search=${query}`
     );
     
-    setUsers(res.data.users);
+    // Sort users: put 'left' status at the bottom
+    const sortedUsers = res.data.users.sort((a, b) => {
+      // If a is 'left', push it down
+      if (a.isActive === 'left' && b.isActive !== 'left') return 1;
+      // If b is 'left', push it down
+      if (b.isActive === 'left' && a.isActive !== 'left') return -1;
+      // Otherwise, keep original order (by creation date or name)
+      return 0;
+    });
+    
+    setUsers(sortedUsers);
     setCurrentPage(res.data.pagination.currentPage);
     setTotalPages(res.data.pagination.totalPages);
     setTotalUsers(res.data.pagination.totalUsers);
