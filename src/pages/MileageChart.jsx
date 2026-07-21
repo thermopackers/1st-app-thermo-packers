@@ -50,19 +50,19 @@ export default function MileageChart() {
   const [entriesTotal, setEntriesTotal] = useState(0);
   const [entriesLoading, setEntriesLoading] = useState(false);
 
+  // State for all data (for chart) - this will hold ALL data without pagination
+  const [allData, setAllData] = useState([]);
+
   const COLORS = ['#4f46e5', '#38bdf8', '#f97316', '#10b981', '#f59e0b', '#ef4444'];
 
-  // Fetch mileage for all trips within date range
-  const fetchMileageData = async () => {
-    setLoading(true);
+  // Fetch all mileage data for chart (no pagination)
+  const fetchAllMileageData = async () => {
     try {
-      // Build query params with date range
+      // Build query params with date range - NO PAGE/LIMIT for chart data
       let queryParams = new URLSearchParams();
       if (startDate) queryParams.append('startDate', startDate);
       if (endDate) queryParams.append('endDate', endDate);
       if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
-      queryParams.append('page', page);
-      queryParams.append('limit', limit);
 
       const res = await axiosInstance.get(
         `/diesel/trip-mileage?${queryParams.toString()}`,
@@ -77,16 +77,15 @@ export default function MileageChart() {
         mileage: isNaN(d.mileage) ? 0 : +d.mileage,
         kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
         dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
-        // For grouping by vehicle when "All Vehicles" is selected
         vehicleNumber: d.vehicleNumber,
         tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
         label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
         fullLabel: d.vehicleNumber
       }));
 
-      setData(processedData);
-      setTotalPages(Math.ceil(res.data.total / limit));
+      setAllData(processedData);
 
+      // Update stats based on ALL data
       if (processedData.length > 0) {
         const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
         const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
@@ -108,8 +107,44 @@ export default function MileageChart() {
         });
       }
     } catch (err) {
-      console.error("Failed to fetch mileage data:", err);
+      console.error("Failed to fetch all mileage data:", err);
       toast?.error("Failed to fetch mileage data");
+    }
+  };
+
+  // Fetch paginated data for table
+  const fetchTableData = async () => {
+    setLoading(true);
+    try {
+      let queryParams = new URLSearchParams();
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
+      if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
+      queryParams.append('page', page);
+      queryParams.append('limit', limit);
+
+      const res = await axiosInstance.get(
+        `/diesel/trip-mileage?${queryParams.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const processedData = res.data.data.map(d => ({
+        ...d,
+        mileage: isNaN(d.mileage) ? 0 : +d.mileage,
+        kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
+        dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+        vehicleNumber: d.vehicleNumber,
+        tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
+        label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
+        fullLabel: d.vehicleNumber
+      }));
+
+      setData(processedData);
+      setTotalPages(Math.ceil(res.data.total / limit));
+    } catch (err) {
+      console.error("Failed to fetch table data:", err);
     } finally {
       setLoading(false);
     }
@@ -137,7 +172,8 @@ export default function MileageChart() {
 
   useEffect(() => {
     if (token) {
-      fetchMileageData();
+      fetchAllMileageData(); // Fetch ALL data for chart
+      fetchTableData(); // Fetch paginated data for table
       fetchMileageEntries();
 
       axiosInstance.get("/vehicles/all", {
@@ -154,7 +190,8 @@ export default function MileageChart() {
 
   const handleDateRangeChange = () => {
     setPage(1);
-    fetchMileageData();
+    fetchAllMileageData(); // Refresh all data
+    fetchTableData(); // Refresh table data
   };
 
   const handleFileChange = (e) => {
@@ -220,7 +257,8 @@ export default function MileageChart() {
       setTimeout(() => setEntrySuccess(false), 3000);
 
       setEntriesPage(1);
-      fetchMileageData();
+      fetchAllMileageData();
+      fetchTableData();
       fetchMileageEntries(1);
 
     } catch (err) {
@@ -252,8 +290,8 @@ export default function MileageChart() {
   };
 
   const renderChart = () => {
-    // Sort data by mileage for better visualization
-    const sortedData = [...data].sort((a, b) => b.mileage - a.mileage);
+    // Use allData for chart (not paginated data)
+    const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
 
     switch (chartType) {
       case 'line':
@@ -293,7 +331,7 @@ export default function MileageChart() {
         );
       
       case 'pie':
-        // For pie chart, group by vehicle to show average mileage per vehicle
+        // Group by vehicle for pie chart
         const vehicleGroups = {};
         sortedData.forEach(item => {
           if (!vehicleGroups[item.vehicleNumber]) {
@@ -346,13 +384,10 @@ export default function MileageChart() {
         );
       
       default:
-        // For bar chart, when "All Vehicles" is selected, show grouped by vehicle
-        let chartData = sortedData;
-        
-        // If no vehicle filter (All Vehicles), group by vehicle and show average
-        if (!vehicleFilter) {
+        // For bar chart - group by vehicle
+        if (allData.length > 0) {
           const vehicleGroups = {};
-          sortedData.forEach(item => {
+          allData.forEach(item => {
             if (!vehicleGroups[item.vehicleNumber]) {
               vehicleGroups[item.vehicleNumber] = {
                 vehicleNumber: item.vehicleNumber,
@@ -370,7 +405,7 @@ export default function MileageChart() {
             vehicleGroups[item.vehicleNumber].trips.push(item);
           });
 
-          chartData = Object.values(vehicleGroups).map(group => ({
+          const chartData = Object.values(vehicleGroups).map(group => ({
             vehicleNumber: group.vehicleNumber,
             mileage: +(group.mileage / group.count).toFixed(2),
             kmsRun: group.kmsRun,
@@ -378,69 +413,64 @@ export default function MileageChart() {
             tripCount: group.count,
             label: `${group.vehicleNumber}\n(${group.count} trips)`
           }));
-        }
 
-        return (
-          <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="vehicleNumber" 
-              angle={-45} 
-              textAnchor="end" 
-              height={80}
-              tick={{ fontSize: 11, fontWeight: '500' }}
-              interval={0}
-              width={120}
-            />
-            <YAxis 
-              label={{ 
-                value: 'Average Mileage (km/L)', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
-              }}
-              domain={[0, 'auto']}
-            />
-            <Tooltip 
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  const data = payload[0].payload;
-                  return (
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-                      <p className="font-semibold text-gray-900 mb-2">{label}</p>
-                      <p className="text-sm text-blue-600">
-                        Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
-                      </p>
-                      {data.tripCount && (
+          return (
+            <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="vehicleNumber" 
+                angle={-45} 
+                textAnchor="end" 
+                height={80}
+                tick={{ fontSize: 11, fontWeight: '500' }}
+                interval={0}
+                width={120}
+              />
+              <YAxis 
+                label={{ 
+                  value: 'Average Mileage (km/L)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+                }}
+                domain={[0, 'auto']}
+              />
+              <Tooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+                        <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                        <p className="text-sm text-blue-600">
+                          Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
+                        </p>
                         <p className="text-sm text-gray-600">
                           Total Trips: {data.tripCount}
                         </p>
-                      )}
-                      {data.kmsRun && (
                         <p className="text-sm text-gray-600">
                           Total KMs: {data.kmsRun} km
                         </p>
-                      )}
-                      {data.dieselUsed && (
                         <p className="text-sm text-gray-600">
                           Total Diesel: {data.dieselUsed} L
                         </p>
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Legend />
-            <Bar 
-              dataKey="mileage" 
-              name="Average Mileage (km/L)" 
-              fill="#4f46e5" 
-              radius={[4, 4, 0, 0]} 
-            />
-          </BarChart>
-        );
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend />
+              <Bar 
+                dataKey="mileage" 
+                name="Average Mileage (km/L)" 
+                fill="#4f46e5" 
+                radius={[4, 4, 0, 0]} 
+              />
+            </BarChart>
+          );
+        }
+        return null;
     }
   };
 
@@ -460,7 +490,7 @@ export default function MileageChart() {
         </div>
 
         {/* Statistics Cards */}
-        {data.length > 0 && (
+        {allData.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
@@ -513,7 +543,7 @@ export default function MileageChart() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Trips</p>
-                  <p className="text-2xl font-bold text-gray-900">{data.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{allData.length}</p>
                 </div>
               </div>
             </div>
@@ -647,14 +677,14 @@ export default function MileageChart() {
             </div>
           </div>
 
-          {/* Chart Section */}
+          {/* Chart Section - Uses allData (ALL data, not paginated) */}
           <div className="p-6">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600 font-medium">Loading mileage data...</p>
               </div>
-            ) : data.length === 0 ? (
+            ) : allData.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h3 className="text-lg font-semibold text-gray-600 mb-2">No mileage data available</h3>
@@ -672,104 +702,109 @@ export default function MileageChart() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Vehicle
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Trip Date
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Start KMs
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          End KMs
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          KM Run
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Diesel (L)
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mileage
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {data.map((v, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {v.vehicleNumber}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {v.date || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                            {v.tripStart} km
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                            {v.tripEnd} km
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-600 font-semibold">
-                            {v.kmsRun} km
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
-                            {v.dieselUsed} L
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              v.mileage > 15 ? 'bg-green-100 text-green-800' :
-                              v.mileage > 10 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {v.mileage} km/L
-                            </span>
-                          </td>
+                {/* Table - Uses paginated data */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Trip Details</h3>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Vehicle
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trip Date
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Start KMs
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            End KMs
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            KM Run
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Diesel (L)
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mileage
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">
-                      Showing {data.length} records
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setPage(p => Math.max(p - 1, 1))}
-                        disabled={page === 1}
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Previous
-                      </button>
-                      
-                      <span className="px-4 py-2 text-sm font-medium text-gray-700">
-                        Page {page} of {totalPages}
-                      </span>
-                      
-                      <button
-                        onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                        disabled={page === totalPages}
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
-                      >
-                        Next
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {data.map((v, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 transition-colors duration-150">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {v.vehicleNumber}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {v.date || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              {v.tripStart} km
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              {v.tripEnd} km
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-600 font-semibold">
+                              {v.kmsRun} km
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
+                              {v.dieselUsed} L
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                v.mileage > 15 ? 'bg-green-100 text-green-800' :
+                                v.mileage > 10 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {v.mileage} km/L
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
+
+                  {/* Pagination for table only */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 p-4 bg-gray-50 rounded-lg">
+                      <div className="text-sm text-gray-600">
+                        Showing {data.length} records
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPage(p => Math.max(p - 1, 1))}
+                          disabled={page === 1}
+                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                          Previous
+                        </button>
+                        
+                        <span className="px-4 py-2 text-sm font-medium text-gray-700">
+                          Page {page} of {totalPages}
+                        </span>
+                        
+                        <button
+                          onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                          disabled={page === totalPages}
+                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                        >
+                          Next
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -915,7 +950,7 @@ export default function MileageChart() {
               </div>
             </form>
 
-            {/* Mileage Entries Table with Pagination - Keep existing */}
+            {/* Mileage Entries Table with Pagination */}
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">📋 Mileage Entries</h3>
