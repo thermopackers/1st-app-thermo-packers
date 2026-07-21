@@ -55,62 +55,70 @@ export default function MileageChart() {
 
   const COLORS = ['#4f46e5', '#38bdf8', '#f97316', '#10b981', '#f59e0b', '#ef4444'];
 
-  // Fetch all mileage data for chart (no pagination)
-  const fetchAllMileageData = async () => {
-    try {
-      // Build query params with date range - NO PAGE/LIMIT for chart data
-      let queryParams = new URLSearchParams();
-      if (startDate) queryParams.append('startDate', startDate);
-      if (endDate) queryParams.append('endDate', endDate);
-      if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
+// Fetch all mileage data for chart (no pagination)
+const fetchAllMileageData = async () => {
+  try {
+    // Build query params with date range - NO PAGE/LIMIT for chart data
+    let queryParams = new URLSearchParams();
+    if (startDate) queryParams.append('startDate', startDate);
+    if (endDate) queryParams.append('endDate', endDate);
+    if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
 
-      const res = await axiosInstance.get(
-        `/diesel/trip-mileage?${queryParams.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      // Process the data
-      const processedData = res.data.data.map(d => ({
-        ...d,
-        mileage: isNaN(d.mileage) ? 0 : +d.mileage,
-        kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
-        dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
-        vehicleNumber: d.vehicleNumber,
-        tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
-        label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
-        fullLabel: d.vehicleNumber
-      }));
-
-      setAllData(processedData);
-
-      // Update stats based on ALL data
-      if (processedData.length > 0) {
-        const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
-        const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
-        const totalDiesel = processedData.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
-        const avgMileage = totalMileage / processedData.length;
-
-        setStats({
-          totalMileage: totalMileage.toFixed(1),
-          totalKms: totalKms.toFixed(0),
-          totalDiesel: totalDiesel.toFixed(1),
-          avgMileage: avgMileage.toFixed(2)
-        });
-      } else {
-        setStats({
-          totalMileage: 0,
-          totalKms: 0,
-          totalDiesel: 0,
-          avgMileage: 0
-        });
+    const res = await axiosInstance.get(
+      `/diesel/trip-mileage?${queryParams.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
-    } catch (err) {
-      console.error("Failed to fetch all mileage data:", err);
-      toast?.error("Failed to fetch mileage data");
+    );
+
+    // ✅ Handle both paginated and non-paginated responses
+    let rawData = [];
+    if (res.data.data && Array.isArray(res.data.data)) {
+      rawData = res.data.data;
+    } else if (Array.isArray(res.data)) {
+      rawData = res.data;
     }
-  };
+
+    // Process the data
+    const processedData = rawData.map(d => ({
+      ...d,
+      mileage: isNaN(d.mileage) ? 0 : +d.mileage,
+      kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
+      dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+      vehicleNumber: d.vehicleNumber,
+      tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
+      label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
+      fullLabel: d.vehicleNumber
+    }));
+
+    setAllData(processedData);
+
+    // Update stats based on ALL data
+    if (processedData.length > 0) {
+      const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
+      const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
+      const totalDiesel = processedData.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
+      const avgMileage = totalMileage / processedData.length;
+
+      setStats({
+        totalMileage: totalMileage.toFixed(1),
+        totalKms: totalKms.toFixed(0),
+        totalDiesel: totalDiesel.toFixed(1),
+        avgMileage: avgMileage.toFixed(2)
+      });
+    } else {
+      setStats({
+        totalMileage: 0,
+        totalKms: 0,
+        totalDiesel: 0,
+        avgMileage: 0
+      });
+    }
+  } catch (err) {
+    console.error("Failed to fetch all mileage data:", err);
+    toast?.error("Failed to fetch mileage data");
+  }
+};
 
   // Fetch paginated data for table
   const fetchTableData = async () => {
