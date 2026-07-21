@@ -7,6 +7,7 @@ import { useUserContext } from "../context/UserContext";
 import dayjs from "dayjs";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
+import toast from "react-hot-toast";  // ✅ ADD THIS IMPORT
 
 export default function MileageChart() {
   const { token } = useUserContext();
@@ -340,7 +341,6 @@ const handleUpdateEntry = async (e) => {
         }
       });
       
-      // Append new image URLs to existing ones
       const newUrls = uploadRes.data.fileUrls || [];
       imageUrls = [...imageUrls, ...newUrls];
     }
@@ -358,18 +358,24 @@ const handleUpdateEntry = async (e) => {
 
     toast.success("Entry updated successfully!");
     
-    // ✅ CLOSE THE MODAL
     setEditingEntry(null);
     setEditSelectedFiles([]);
     
-    // Refresh data
     fetchMileageEntries(entriesPage);
     fetchAllMileageData();
     fetchTableData();
 
   } catch (err) {
     console.error("Failed to update entry:", err);
-    toast.error("Failed to update entry. Please try again.");
+    
+    // Handle specific error messages
+    if (err.response?.status === 413) {
+      toast.error(err.response?.data?.message || "File too large. Maximum size is 20MB.");
+    } else if (err.response?.data?.message) {
+      toast.error(err.response.data.message);
+    } else {
+      toast.error("Failed to update entry. Please try again.");
+    }
   } finally {
     setEditLoading(false);
     setEditUploading(false);
