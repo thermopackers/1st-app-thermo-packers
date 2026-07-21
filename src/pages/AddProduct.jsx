@@ -21,6 +21,7 @@ export default function AddProduct() {
     polybagSize: "",
      conversion: "",
   salesCategory: "",
+    volumePerPiece: "", // 🆕 Add this
   });
 
   const [images, setImages] = useState([]);
@@ -151,7 +152,10 @@ const [drawings, setDrawings] = useState([]);
         data.append(key, weightInKg);
       } else if (key === "pcsPerPacket") {
         data.append(key, val ? parseInt(val) : 0);
-      } else {
+      } else if (key === "volumePerPiece") {
+      // 🆕 Add volumePerPiece - convert to number
+      data.append(key, val ? parseFloat(val) : 0);
+    } else {
         data.append(key, val);
       }
     });
@@ -301,6 +305,22 @@ const handleRemoveDrawing = (idx) => {
     className="w-full p-3 border border-gray-300 rounded-lg"
   />
   <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
+</div>
+
+{/* Volume per Piece Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Volume of 1 Piece (m³)</label>
+  <input 
+    type="number"
+    step="0.0001"
+    min="0"
+    name="volumePerPiece"
+    placeholder="e.g., 0.001, 0.005" 
+    value={formData.volumePerPiece} 
+    onChange={handleChange} 
+    className="w-full p-3 border border-gray-300 rounded-lg"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter volume in cubic meters (m³)</p>
 </div>
 
           <div>

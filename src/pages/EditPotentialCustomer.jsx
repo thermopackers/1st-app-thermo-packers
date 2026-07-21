@@ -694,25 +694,24 @@ const handleEditProductionSlip = (e, slip) => {
 };
 
 const handleConvertToCustomer = async () => {
-  if (!window.confirm("Convert this potential customer to a regular customer? This will create a new customer record.")) {
+  if (!window.confirm("Convert this potential customer to a regular customer? This will move the customer to customers and remove them from potential customers list.")) {
     return;
   }
 
   try {
+    // Step 1: Convert to customer
     const res = await axiosInstance.post(`/potential-customers/${id}/convert`);
     toast.success("Converted to customer successfully!");
     
-    // ✅ Update the customer state with conversion info
-    setCustomer(prev => ({
-      ...prev,
-      convertedToCustomerId: res.data.customer._id,
-      status: 'converted'
-    }));
+    // ✅ Step 2: Delete the potential customer record
+    await axiosInstance.delete(`/potential-customers/${id}`);
+    toast.success("Potential customer record removed from list");
     
-    // ✅ Navigate to regular customer edit page
+    // Step 3: Navigate to regular customer edit page
     navigate(`/customers/edit/${res.data.customer._id}`);
   } catch (err) {
-    toast.error(err.response?.data?.error || "Failed to convert");
+    console.error("Convert to customer error:", err);
+    toast.error(err.response?.data?.error || "Failed to convert to customer");
   }
 };
 
@@ -782,39 +781,11 @@ const handleConvertToCustomer = async () => {
       </button>
     )}
     
-    {/* View Customer Button - Show if converted */}
-    {customer && customer.convertedToCustomerId && (
-      <button
-        type="button"
-        onClick={() => {
-          navigate(`/customers/edit/${customer.convertedToCustomerId}`);
-        }}
-        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm"
-      >
-        👤 View Customer
-      </button>
-    )}
+  
   </div>
 </div>
 
-{/* ✅ BANNER - Only ONE instance */}
-{customer && customer.convertedToCustomerId && (
-  <div className="max-w-7xl mx-auto px-6 mt-4">
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 p-4 rounded-lg shadow-sm">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="text-3xl">✅</div>
-        <div className="flex-1">
-          <p className="text-green-800 font-semibold text-lg">
-            This potential customer has been <span className="underline">converted to a regular customer</span>
-          </p>
-          <p className="text-green-600 text-sm">
-            Click the "View Customer" button above to see the converted customer record.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+
 <div className="max-w-7xl mx-auto p-6">
   {/* Frequently Bought Products Section - Full Width */}
   {frequentProducts.length > 0 && (

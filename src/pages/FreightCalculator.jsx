@@ -456,9 +456,8 @@ const getPincodeCoordinates = (pincode) => {
   };
 };
 
-// Calculate distance using Haversine formula with dynamic road factor
 const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
@@ -466,23 +465,62 @@ const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  
   const straightDistance = R * c;
   
-  // Dynamic road factor based on distance
-  // If distance is <= 20 km (close range), use higher factor (1.90)
-  // If distance is > 20 km (far range), use lower factor (1.27)
+  // Improved road factor based on actual road conditions
   let roadFactor;
-  if (straightDistance <= 20) {
-    roadFactor = 4.00; // Higher factor for short distances (city roads, multiple turns)
+  if (straightDistance <= 10) {
+    // Very short distances (within city) - usually 1.3 to 1.5x
+    roadFactor = 1.4;
+  } else if (straightDistance <= 30) {
+    // Short distances (city to outskirts) - 1.2 to 1.3x
+    roadFactor = 1.25;
+  } else if (straightDistance <= 100) {
+    // Medium distances - 1.2x
+    roadFactor = 1.2;
+  } else if (straightDistance <= 300) {
+    // Long distances - 1.15x
+    roadFactor = 1.15;
   } else {
-    roadFactor = 1.27; // Lower factor for long distances (highways, straight roads)
+    // Very long distances (highways) - 1.1x
+    roadFactor = 1.1;
+  }
+  
+  // Check if both points are in Punjab (for more accurate local roads)
+  const isInPunjab = (lat, lon) => {
+    return lat >= 29.5 && lat <= 32.5 && lon >= 73.5 && lon <= 77.0;
+  };
+  
+  // If both points are in Punjab, use a lower factor (better roads in Punjab)
+  if (isInPunjab(lat1, lon1) && isInPunjab(lat2, lon2)) {
+    roadFactor = Math.min(roadFactor, 1.2);
+  }
+  
+  // Check if it's a metro city (Delhi, Mumbai, etc.) - higher factor due to traffic
+  const isMetro = (lat, lon) => {
+    const metros = [
+      { lat: 28.6139, lon: 77.2090, radius: 0.5 }, // Delhi
+      { lat: 19.0760, lon: 72.8777, radius: 0.5 }, // Mumbai
+      { lat: 13.0827, lon: 80.2707, radius: 0.5 }, // Chennai
+      { lat: 12.9716, lon: 77.5946, radius: 0.5 }, // Bangalore
+      { lat: 22.5726, lon: 88.3639, radius: 0.5 }, // Kolkata
+      { lat: 17.3850, lon: 78.4867, radius: 0.5 }, // Hyderabad
+    ];
+    for (const metro of metros) {
+      const d = Math.sqrt(Math.pow(lat - metro.lat, 2) + Math.pow(lon - metro.lon, 2));
+      if (d < metro.radius) return true;
+    }
+    return false;
+  };
+  
+  // If either point is in a metro city, increase factor slightly
+  if (isMetro(lat1, lon1) || isMetro(lat2, lon2)) {
+    roadFactor = roadFactor * 1.05;
   }
   
   const roadDistance = Math.ceil(straightDistance * roadFactor);
   
-  // Debug log
-  console.log(`Straight distance: ${straightDistance.toFixed(2)} km, Factor: ${roadFactor}, Road distance: ${roadDistance} km`);
+  console.log(`Distance: ${straightDistance.toFixed(2)} km (straight) -> ${roadDistance} km (road), Factor: ${roadFactor}`);
   
   return roadDistance;
 };

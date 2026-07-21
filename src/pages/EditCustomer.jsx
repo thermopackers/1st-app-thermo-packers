@@ -734,6 +734,29 @@ const handleEditProductionSlip = (e, slip) => {
   }, 100);
 };
 
+// Convert to Potential Customer Handler - WITH DELETION
+const handleConvertToPotential = async () => {
+  if (!window.confirm("Convert this customer to a potential customer? This will move the customer to potential customers and remove them from customers list.")) {
+    return;
+  }
+
+  try {
+    // First, convert to potential customer
+    const res = await axiosInstance.post(`/customers/${id}/convert-to-potential`);
+    toast.success("Converted to potential customer successfully!");
+    
+    // ✅ THEN, delete the original customer
+    await axiosInstance.delete(`/customers/${id}`);
+    toast.success("Original customer record removed from customers list");
+    
+    // Navigate to potential customer edit page
+    navigate(`/potential-customers/edit/${res.data.potentialCustomerId}`);
+  } catch (err) {
+    console.error("Convert to potential error:", err);
+    toast.error(err.response?.data?.error || "Failed to convert to potential customer");
+  }
+};
+
   if (loading) return <p>Loading customer...</p>;
   if (!customer) return null;
 
@@ -744,28 +767,41 @@ const handleEditProductionSlip = (e, slip) => {
 
 <div className="flex justify-between items-center max-w-7xl mx-auto p-6 pb-0">
   <h2 className="text-2xl font-bold">Edit Customer</h2>  
-  {/* WhatsApp Share Button */}
-  {customer && (
-    <button
-      type="button"
-      onClick={shareOnWhatsApp}
-      className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm"
-      title="Share customer details on WhatsApp"
-    >
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="20" 
-        height="20" 
-        viewBox="0 0 24 24" 
-        fill="currentColor"
-        className="text-white"
+  <div className="flex gap-2 flex-wrap">
+    {/* WhatsApp Share Button */}
+    {customer && (
+      <button
+        type="button"
+        onClick={shareOnWhatsApp}
+        className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm"
+        title="Share customer details on WhatsApp"
       >
-        <path d="M19.077 4.928C17.191 3.041 14.683 2 12.006 2 6.798 2 2.537 6.193 2.523 11.396c-.004 1.7.435 3.365 1.258 4.832L2.4 21.6l5.444-1.401c1.414.786 2.998 1.2 4.63 1.201h.004c5.203 0 9.47-4.197 9.484-9.4.007-2.511-.967-4.87-2.885-6.772zm-7.07 14.459c-1.441 0-2.856-.387-4.089-1.116l-.293-.176-3.234.832.864-3.153-.192-.305c-.806-1.285-1.232-2.764-1.229-4.289.012-4.297 3.5-7.79 7.806-7.79 2.081 0 4.04.812 5.515 2.287 1.473 1.473 2.282 3.43 2.277 5.51-.012 4.302-3.5 7.795-7.8 7.8z"/>
-        <path d="M16.205 14.087c-.226.113-1.338.657-1.544.732-.205.075-.354.113-.502-.113s-.646-.796-.849-1.08c-.202-.283-.354-.321-.58-.107-.226.214-.871.803-.954.963-.083.16-.166.174-.393.06-.226-.113-.956-.352-1.822-1.124-.673-.6-1.128-1.342-1.26-1.569-.132-.227-.014-.35.099-.463.101-.101.226-.264.339-.396.113-.132.151-.226.226-.377.075-.15.038-.283-.019-.396-.056-.113-.502-1.21-.689-1.658-.181-.433-.366-.374-.503-.381-.13-.007-.279-.009-.428-.009s-.393.056-.599.283c-.205.226-.783.765-.783 1.866 0 1.101.801 2.165.913 2.315.113.151 1.552 2.427 3.767 3.326 2.215.899 2.215.599 2.614.561.399-.037 1.289-.527 1.471-1.036.183-.509.183-.945.128-1.036-.056-.09-.205-.146-.428-.259z"/>
-      </svg>
-      Share on WhatsApp
-    </button>
-  )}
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          width="20" 
+          height="20" 
+          viewBox="0 0 24 24" 
+          fill="currentColor"
+          className="text-white"
+        >
+          <path d="M19.077 4.928C17.191 3.041 14.683 2 12.006 2 6.798 2 2.537 6.193 2.523 11.396c-.004 1.7.435 3.365 1.258 4.832L2.4 21.6l5.444-1.401c1.414.786 2.998 1.2 4.63 1.201h.004c5.203 0 9.47-4.197 9.484-9.4.007-2.511-.967-4.87-2.885-6.772zm-7.07 14.459c-1.441 0-2.856-.387-4.089-1.116l-.293-.176-3.234.832.864-3.153-.192-.305c-.806-1.285-1.232-2.764-1.229-4.289.012-4.297 3.5-7.79 7.806-7.79 2.081 0 4.04.812 5.515 2.287 1.473 1.473 2.282 3.43 2.277 5.51-.012 4.302-3.5 7.795-7.8 7.8z"/>
+          <path d="M16.205 14.087c-.226.113-1.338.657-1.544.732-.205.075-.354.113-.502-.113s-.646-.796-.849-1.08c-.202-.283-.354-.321-.58-.107-.226.214-.871.803-.954.963-.083.16-.166.174-.393.06-.226-.113-.956-.352-1.822-1.124-.673-.6-1.128-1.342-1.26-1.569-.132-.227-.014-.35.099-.463.101-.101.226-.264.339-.396.113-.132.151-.226.226-.377.075-.15.038-.283-.019-.396-.056-.113-.502-1.21-.689-1.658-.181-.433-.366-.374-.503-.381-.13-.007-.279-.009-.428-.009s-.393.056-.599.283c-.205.226-.783.765-.783 1.866 0 1.101.801 2.165.913 2.315.113.151 1.552 2.427 3.767 3.326 2.215.899 2.215.599 2.614.561.399-.037 1.289-.527 1.471-1.036.183-.509.183-.945.128-1.036-.056-.09-.205-.146-.428-.259z"/>
+        </svg>
+        Share on WhatsApp
+      </button>
+    )}
+    
+    {/* ✅ NEW: Convert to Potential Customer Button */}
+    {customer && (
+      <button
+        type="button"
+        onClick={handleConvertToPotential}
+        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm"
+      >
+        🔄 Convert to Potential Customer
+      </button>
+    )}
+  </div>
 </div>
 <div className="max-w-7xl mx-auto p-6">
   {/* Frequently Bought Products Section - Full Width */}

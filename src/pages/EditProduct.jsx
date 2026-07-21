@@ -26,6 +26,7 @@ export default function EditProduct() {
     polybagSize: "", // 🆕 Selected polybag size
      conversion: "",
   salesCategory: "",
+    volumePerPiece: "", // 🆕 Add this
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,6 +117,7 @@ drawingPreviewUrls.forEach(url => {
           polybagSize: res.data.polybagSize || "", // 🆕
             conversion: res.data.conversion || "",
   salesCategory: res.data.salesCategory || "",
+    volumePerPiece: res.data.volumePerPiece || "", // 🆕 Add this
         });
 
         // Existing product images
@@ -363,7 +365,8 @@ const handleAdditionalImages2Change = async (e) => {
 data.append("polybagSize", formData.polybagSize || "");
 data.append("conversion", formData.conversion || 0);
 data.append("salesCategory", formData.salesCategory || "");  
-    
+    data.append("volumePerPiece", formData.volumePerPiece || 0);
+
       // Convert weight from grams to kg for storage
       const weightInKg = formData.weight ? parseFloat(formData.weight) / 1000 : "";
       data.append("weight", weightInKg);
@@ -564,6 +567,22 @@ const handleRemoveDrawing = (indexToRemove) => {
     className="w-full border p-2 rounded"
   />
   <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
+</div>
+
+{/* Volume per Piece Field */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Volume of 1 Piece (m³)</label>
+  <input 
+    type="number"
+    step="0.0001"
+    min="0"
+    name="volumePerPiece"
+    placeholder="e.g., 0.001, 0.005" 
+    value={formData.volumePerPiece} 
+    onChange={handleChange} 
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter volume in cubic meters (m³)</p>
 </div>
 
           {/* Description Field */}

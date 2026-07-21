@@ -71,6 +71,7 @@ const [followUpTotal, setFollowUpTotal] = useState({});
   const [newCategory, setNewCategory] = useState("");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
+  console.log("cus",customers);
   
   // Add this useEffect to fetch categories
 // Replace the existing useEffect for fetching categories
@@ -894,7 +895,7 @@ const handleSaveRemarks = async (customerId) => {
                         {/* <th className="p-3 border">Gifts Given</th> */}
                 <th className="p-3 border">Phone</th>
                 <th className="p-3 border">Email</th>
-                <th className="p-3 border">Address</th>
+                <th className="p-3 border">City & State</th>
                                 {/* <th className="p-3 border">Instructions</th> */}
                                     <th className="p-3 border">Sales Category</th> {/* ✅ NEW COLUMN */}
                 {/* <th className="p-3 border">Google Map</th> */}
@@ -949,7 +950,7 @@ const getStatusLabel = (status) => {
         </td>
         <td className="p-3 border">{c.phone}</td>
         <td className="p-3 border">{c.email}</td>
-        <td className="p-3 border whitespace-pre-line">{c.address}</td>
+        <td className="p-3 border whitespace-pre-line">{c.city}, {c.state}</td>
         <td className="p-3 border">
           {c.salesCategory ? (
             <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
