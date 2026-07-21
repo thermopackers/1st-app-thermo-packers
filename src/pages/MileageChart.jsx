@@ -42,6 +42,8 @@ export default function MileageChart() {
   const [entryLoading, setEntryLoading] = useState(false);
   const [entrySuccess, setEntrySuccess] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+const [editSelectedFiles, setEditSelectedFiles] = useState([]);
+const [editUploading, setEditUploading] = useState(false);
 
   // State for entries pagination
   const [entriesPage, setEntriesPage] = useState(1);
@@ -299,6 +301,13 @@ const handleEditClick = (entry) => {
     dieselLiters: entry.dieselLiters || entry.dieselQuantity || "",
     imageUrls: entry.imageUrls || []
   });
+    setEditSelectedFiles([]); // Reset file selection
+};
+
+// Handle edit file change
+const handleEditFileChange = (e) => {
+  const files = Array.from(e.target.files);
+  setEditSelectedFiles(files);
 };
 
   const handleEditInputChange = (e) => {
@@ -312,13 +321,35 @@ const handleEditClick = (entry) => {
 const handleUpdateEntry = async (e) => {
   e.preventDefault();
   setEditLoading(true);
+  setEditUploading(true);
 
   try {
+    let imageUrls = editFormData.imageUrls || [];
+    
+    // Upload new files if any
+    if (editSelectedFiles.length > 0) {
+      const formData = new FormData();
+      editSelectedFiles.forEach(file => {
+        formData.append('images', file);
+      });
+
+      const uploadRes = await axiosInstance.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Append new image URLs to existing ones
+      const newUrls = uploadRes.data.fileUrls || [];
+      imageUrls = [...imageUrls, ...newUrls];
+    }
+
     const payload = {
       dieselLiters: parseFloat(editFormData.dieselLiters) || null,
       kmsReading: parseFloat(editFormData.kmsReading),
       fuelSlipNo: editFormData.fuelSlipNo || null,
-      imageUrls: editFormData.imageUrls || []
+      imageUrls: imageUrls
     };
 
     await axiosInstance.patch(`/diesel/update/${editingEntry._id}`, payload, {
@@ -326,7 +357,12 @@ const handleUpdateEntry = async (e) => {
     });
 
     toast.success("Entry updated successfully!");
+    
+    // ✅ CLOSE THE MODAL
     setEditingEntry(null);
+    setEditSelectedFiles([]);
+    
+    // Refresh data
     fetchMileageEntries(entriesPage);
     fetchAllMileageData();
     fetchTableData();
@@ -336,8 +372,10 @@ const handleUpdateEntry = async (e) => {
     toast.error("Failed to update entry. Please try again.");
   } finally {
     setEditLoading(false);
+    setEditUploading(false);
   }
 };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -1150,7 +1188,7 @@ const handleUpdateEntry = async (e) => {
         </div>
       </div>
 
-      {/* Edit Modal */}
+{/* Edit Modal */}
 {editingEntry && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1244,44 +1282,64 @@ const handleUpdateEntry = async (e) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Files
+              Upload New Files
             </label>
-            <div className="flex flex-wrap gap-1">
-              {editFormData.imageUrls && editFormData.imageUrls.length > 0 ? (
-                editFormData.imageUrls.map((url, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setPreviewImage(url)}
-                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-2 py-1 rounded-md transition-colors duration-200 border border-blue-200"
-                  >
-                    📎 File {index + 1}
-                  </button>
-                ))
-              ) : (
-                <span className="text-gray-400 text-sm">No files</span>
-              )}
-            </div>
+            <input
+              type="file"
+              id="editFileInput"
+              multiple
+              onChange={handleEditFileChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {editSelectedFiles.length > 0 && (
+              <p className="mt-1 text-sm text-blue-600">
+                {editSelectedFiles.length} new file(s) selected
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Existing Files */}
+        {editFormData.imageUrls && editFormData.imageUrls.length > 0 && (
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Existing Files
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {editFormData.imageUrls.map((url, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setPreviewImage(url)}
+                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-200 border border-blue-200 flex items-center gap-1"
+                >
+                  📎 File {index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => setEditingEntry(null)}
+            onClick={() => {
+              setEditingEntry(null);
+              setEditSelectedFiles([]);
+            }}
             className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 font-medium"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={editLoading}
+            disabled={editLoading || editUploading}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {editLoading ? (
+            {(editLoading || editUploading) ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Saving...
+                {editUploading ? 'Uploading...' : 'Saving...'}
               </>
             ) : (
               <>
