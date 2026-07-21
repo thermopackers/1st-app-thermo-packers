@@ -14,8 +14,7 @@ export default function PaymentRecords() {
     customerName: "",
     modeOfPayment: "",
     startDate: "",
-    endDate: "",
-    searchQuery: "" // Added search query
+    endDate: ""
   });
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState(null);
@@ -47,7 +46,6 @@ export default function PaymentRecords() {
       if (filters.modeOfPayment) params.append('modeOfPayment', filters.modeOfPayment);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
-      if (filters.searchQuery) params.append('searchQuery', filters.searchQuery); // Added search query
 
       const response = await axiosInstance.get(`/incoming-payments?${params}`);
       setPayments(response.data.data || []);
@@ -79,10 +77,10 @@ export default function PaymentRecords() {
     }
   };
 
-useEffect(() => {
-  fetchPayments(1);
-  fetchCustomers();
-}, [pageSize]); // Only re-run when pageSize changes
+  useEffect(() => {
+    fetchPayments(1);
+    fetchCustomers();
+  }, []);
 
   // Handle filter changes
   const handleFilterChange = (e) => {
@@ -112,8 +110,7 @@ useEffect(() => {
       customerName: "",
       modeOfPayment: "",
       startDate: "",
-      endDate: "",
-      searchQuery: "" // Added search query reset
+      endDate: ""
     });
     fetchPayments(1); // Reset to first page when resetting filters
   };
@@ -499,7 +496,7 @@ useEffect(() => {
           </div>
         </motion.div>
 
-              {/* Filters */}
+        {/* Filters */}
         <motion.div 
           className="bg-white rounded-2xl shadow-lg p-6 mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -507,53 +504,39 @@ useEffect(() => {
           transition={{ delay: 0.1 }}
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-          
-          {/* Search Bar - Added */}
-          <div className="mb-4">
-            <div className="relative">
-              <input
-                type="text"
-                name="searchQuery"
-                placeholder="🔍 Search payments by customer name, mode, amount, remarks..."
-                value={filters.searchQuery || ''}
-                onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              {filters.searchQuery && (
-                <button
-                  onClick={() => {
-                    setFilters(prev => ({ ...prev, searchQuery: '' }));
-                    fetchPayments(1);
-                  }}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Search across customer name, payment mode, amount, remarks, and cheque details</p>
-          </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-              <select
-                name="customerName"
-                value={filters.customerName}
-                onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Customers</option>
-                {customers.map(customer => (
-                  <option key={customer} value={customer}>{customer}</option>
-                ))}
-              </select>
-            </div>
+           <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+  <div className="relative">
+    <input
+      type="text"
+      placeholder="Search customers..."
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      onChange={(e) => {
+        const searchValue = e.target.value.toLowerCase();
+        const customerDropdown = document.getElementById('customerDropdown');
+        const options = customerDropdown.querySelectorAll('option');
+        options.forEach(option => {
+          if (option.value === '') return; // Skip "All Customers" option
+          const text = option.textContent.toLowerCase();
+          option.style.display = text.includes(searchValue) ? 'block' : 'none';
+        });
+      }}
+    />
+    <select
+      id="customerDropdown"
+      name="customerName"
+      value={filters.customerName}
+      onChange={handleFilterChange}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-1"
+    >
+      <option value="">All Customers</option>
+      {customers.map(customer => (
+        <option key={customer} value={customer}>{customer}</option>
+      ))}
+    </select>
+  </div>
+</div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
@@ -594,7 +577,7 @@ useEffect(() => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="flex gap-3 mt-4">
             <button
               onClick={applyFilters}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -607,20 +590,6 @@ useEffect(() => {
             >
               Reset
             </button>
-            {filters.searchQuery && (
-              <span className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                Search: "{filters.searchQuery}"
-                <button
-                  onClick={() => {
-                    setFilters(prev => ({ ...prev, searchQuery: '' }));
-                    fetchPayments(1);
-                  }}
-                  className="ml-2 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
           </div>
         </motion.div>
 
