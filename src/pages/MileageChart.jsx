@@ -53,72 +53,80 @@ export default function MileageChart() {
   // State for all data (for chart) - this will hold ALL data without pagination
   const [allData, setAllData] = useState([]);
 
+  // State for editing entries
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    date: "",
+    vehicleNumber: "",
+    fuelSlipNo: "",
+    kmsReading: "",
+    dieselLiters: "",
+    imageUrls: []
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
   const COLORS = ['#4f46e5', '#38bdf8', '#f97316', '#10b981', '#f59e0b', '#ef4444'];
 
-// Fetch all mileage data for chart (no pagination)
-const fetchAllMileageData = async () => {
-  try {
-    // Build query params with date range - NO PAGE/LIMIT for chart data
-    let queryParams = new URLSearchParams();
-    if (startDate) queryParams.append('startDate', startDate);
-    if (endDate) queryParams.append('endDate', endDate);
-    if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
+  // Fetch all mileage data for chart (no pagination)
+  const fetchAllMileageData = async () => {
+    try {
+      let queryParams = new URLSearchParams();
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
+      if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
 
-    const res = await axiosInstance.get(
-      `/diesel/trip-mileage?${queryParams.toString()}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await axiosInstance.get(
+        `/diesel/trip-mileage?${queryParams.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      let rawData = [];
+      if (res.data.data && Array.isArray(res.data.data)) {
+        rawData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        rawData = res.data;
       }
-    );
 
-    // ✅ Handle both paginated and non-paginated responses
-    let rawData = [];
-    if (res.data.data && Array.isArray(res.data.data)) {
-      rawData = res.data.data;
-    } else if (Array.isArray(res.data)) {
-      rawData = res.data;
+      const processedData = rawData.map(d => ({
+        ...d,
+        mileage: isNaN(d.mileage) ? 0 : +d.mileage,
+        kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
+        dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+        vehicleNumber: d.vehicleNumber,
+        tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
+        label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
+        fullLabel: d.vehicleNumber
+      }));
+
+      setAllData(processedData);
+
+      if (processedData.length > 0) {
+        const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
+        const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
+        const totalDiesel = processedData.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
+        const avgMileage = totalMileage / processedData.length;
+
+        setStats({
+          totalMileage: totalMileage.toFixed(1),
+          totalKms: totalKms.toFixed(0),
+          totalDiesel: totalDiesel.toFixed(1),
+          avgMileage: avgMileage.toFixed(2)
+        });
+      } else {
+        setStats({
+          totalMileage: 0,
+          totalKms: 0,
+          totalDiesel: 0,
+          avgMileage: 0
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch all mileage data:", err);
+      toast?.error("Failed to fetch mileage data");
     }
-
-    // Process the data
-    const processedData = rawData.map(d => ({
-      ...d,
-      mileage: isNaN(d.mileage) ? 0 : +d.mileage,
-      kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
-      dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
-      vehicleNumber: d.vehicleNumber,
-      tripLabel: `${d.vehicleNumber} - ${d.date || 'N/A'}`,
-      label: `${d.vehicleNumber}\n(${d.tripStart}→${d.tripEnd})`,
-      fullLabel: d.vehicleNumber
-    }));
-
-    setAllData(processedData);
-
-    // Update stats based on ALL data
-    if (processedData.length > 0) {
-      const totalMileage = processedData.reduce((sum, item) => sum + (item.mileage || 0), 0);
-      const totalKms = processedData.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
-      const totalDiesel = processedData.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
-      const avgMileage = totalMileage / processedData.length;
-
-      setStats({
-        totalMileage: totalMileage.toFixed(1),
-        totalKms: totalKms.toFixed(0),
-        totalDiesel: totalDiesel.toFixed(1),
-        avgMileage: avgMileage.toFixed(2)
-      });
-    } else {
-      setStats({
-        totalMileage: 0,
-        totalKms: 0,
-        totalDiesel: 0,
-        avgMileage: 0
-      });
-    }
-  } catch (err) {
-    console.error("Failed to fetch all mileage data:", err);
-    toast?.error("Failed to fetch mileage data");
-  }
-};
+  };
 
   // Fetch paginated data for table
   const fetchTableData = async () => {
@@ -180,8 +188,8 @@ const fetchAllMileageData = async () => {
 
   useEffect(() => {
     if (token) {
-      fetchAllMileageData(); // Fetch ALL data for chart
-      fetchTableData(); // Fetch paginated data for table
+      fetchAllMileageData();
+      fetchTableData();
       fetchMileageEntries();
 
       axiosInstance.get("/vehicles/all", {
@@ -198,8 +206,8 @@ const fetchAllMileageData = async () => {
 
   const handleDateRangeChange = () => {
     setPage(1);
-    fetchAllMileageData(); // Refresh all data
-    fetchTableData(); // Refresh table data
+    fetchAllMileageData();
+    fetchTableData();
   };
 
   const handleFileChange = (e) => {
@@ -281,6 +289,55 @@ const fetchAllMileageData = async () => {
     setEntriesPage(newPage);
   };
 
+const handleEditClick = (entry) => {
+  setEditingEntry(entry);
+  setEditFormData({
+    date: entry.date ? dayjs(entry.date).format("YYYY-MM-DD") : "",
+    vehicleNumber: entry.vehicleNumber || "",
+    fuelSlipNo: entry.fuelSlipNo || "",
+    kmsReading: entry.kmsReading || entry.reading || "",
+    dieselLiters: entry.dieselLiters || entry.dieselQuantity || "",
+    imageUrls: entry.imageUrls || []
+  });
+};
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+const handleUpdateEntry = async (e) => {
+  e.preventDefault();
+  setEditLoading(true);
+
+  try {
+    const payload = {
+      dieselLiters: parseFloat(editFormData.dieselLiters) || null,
+      kmsReading: parseFloat(editFormData.kmsReading),
+      fuelSlipNo: editFormData.fuelSlipNo || null,
+      imageUrls: editFormData.imageUrls || []
+    };
+
+    await axiosInstance.patch(`/diesel/update/${editingEntry._id}`, payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    toast.success("Entry updated successfully!");
+    setEditingEntry(null);
+    fetchMileageEntries(entriesPage);
+    fetchAllMileageData();
+    fetchTableData();
+
+  } catch (err) {
+    console.error("Failed to update entry:", err);
+    toast.error("Failed to update entry. Please try again.");
+  } finally {
+    setEditLoading(false);
+  }
+};
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -298,7 +355,6 @@ const fetchAllMileageData = async () => {
   };
 
   const renderChart = () => {
-    // Use allData for chart (not paginated data)
     const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
 
     switch (chartType) {
@@ -339,7 +395,6 @@ const fetchAllMileageData = async () => {
         );
       
       case 'pie':
-        // Group by vehicle for pie chart
         const vehicleGroups = {};
         sortedData.forEach(item => {
           if (!vehicleGroups[item.vehicleNumber]) {
@@ -392,7 +447,6 @@ const fetchAllMileageData = async () => {
         );
       
       default:
-        // For bar chart - group by vehicle
         if (allData.length > 0) {
           const vehicleGroups = {};
           allData.forEach(item => {
@@ -605,7 +659,6 @@ const fetchAllMileageData = async () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-              {/* Start Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Start Date
@@ -621,7 +674,6 @@ const fetchAllMileageData = async () => {
                 />
               </div>
 
-              {/* End Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   End Date
@@ -637,7 +689,6 @@ const fetchAllMileageData = async () => {
                 />
               </div>
 
-              {/* Vehicle Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Vehicle
@@ -659,7 +710,6 @@ const fetchAllMileageData = async () => {
                 </select>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-end gap-2">
                 <button
                   onClick={() => {
@@ -685,7 +735,7 @@ const fetchAllMileageData = async () => {
             </div>
           </div>
 
-          {/* Chart Section - Uses allData (ALL data, not paginated) */}
+          {/* Chart Section */}
           <div className="p-6">
             {loading ? (
               <div className="text-center py-12">
@@ -710,7 +760,7 @@ const fetchAllMileageData = async () => {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Table - Uses paginated data */}
+                {/* Table */}
                 <div className="mt-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Trip Details</h3>
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -776,7 +826,6 @@ const fetchAllMileageData = async () => {
                     </table>
                   </div>
 
-                  {/* Pagination for table only */}
                   {totalPages > 1 && (
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-600">
@@ -799,8 +848,7 @@ const fetchAllMileageData = async () => {
                           Page {page} of {totalPages}
                         </span>
                         
-                        <button
-                          onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                        <button                          onClick={() => setPage(p => Math.min(p + 1, totalPages))}
                           disabled={page === totalPages}
                           className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
                         >
@@ -818,7 +866,7 @@ const fetchAllMileageData = async () => {
           </div>
         </div>
 
-        {/* Mileage Entry Form & Table - Keep existing code */}
+        {/* Mileage Entry Form & Table with Edit */}
         <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-teal-50">
             <h2 className="text-xl font-semibold text-gray-900 mb-1">📝 Add Mileage Entry</h2>
@@ -835,130 +883,129 @@ const fetchAllMileageData = async () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmitEntry} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={entryFormData.date}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-                />
-              </div>
+          <form onSubmit={handleSubmitEntry} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Date *
+    </label>
+    <input
+      type="date"
+      name="date"
+      value={entryFormData.date}
+      onChange={handleInputChange}
+      required
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    />
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vehicle No *
-                </label>
-                <select
-                  name="vehicleNo"
-                  value={entryFormData.vehicleNo}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-                >
-                  <option value="">Select Vehicle</option>
-                  {vehicleList.map((v) => (
-                    <option key={v._id} value={v.vehicleNumber}>
-                      {v.vehicleNumber}
-                    </option>
-                  ))}
-                </select>
-              </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Vehicle No *
+    </label>
+    <select
+      name="vehicleNo"
+      value={entryFormData.vehicleNo}
+      onChange={handleInputChange}
+      required
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    >
+      <option value="">Select Vehicle</option>
+      {vehicleList.map((v) => (
+        <option key={v._id} value={v.vehicleNumber}>
+          {v.vehicleNumber}
+        </option>
+      ))}
+    </select>
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fuel Slip No *
-                </label>
-                <input
-                  type="text"
-                  name="fuelSlipNo"
-                  value={entryFormData.fuelSlipNo}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., FSL-2025-001"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-                />
-              </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Fuel Slip No *
+    </label>
+    <input
+      type="text"
+      name="fuelSlipNo"
+      value={entryFormData.fuelSlipNo}  // ✅ FIXED
+      onChange={handleInputChange}       // ✅ FIXED
+      required
+      placeholder="e.g., FSL-2025-001"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    />
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Meter Reading (KM) *
-                </label>
-                <input
-                  type="number"
-                  name="meterReading"
-                  value={entryFormData.meterReading}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., 12500"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-                />
-              </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Meter Reading (KM) *
+    </label>
+    <input
+      type="number"
+      name="meterReading"
+      value={entryFormData.meterReading}
+      onChange={handleInputChange}
+      required
+      placeholder="e.g., 12500"
+      step="0.01"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    />
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Diesel (Liters) *
-                </label>
-                <input
-                  type="number"
-                  name="dieselLtrs"
-                  value={entryFormData.dieselLtrs}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., 45.5"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-                />
-              </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Diesel (Liters) *
+    </label>
+    <input
+      type="number"
+      name="dieselLtrs"
+      value={entryFormData.dieselLtrs}
+      onChange={handleInputChange}
+      required
+      placeholder="e.g., 45.5"
+      step="0.01"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    />
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Files (Multiple)
-                </label>
-                <input
-                  type="file"
-                  id="fileInput"
-                  multiple
-                  onChange={handleFileChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                />
-                {selectedFiles.length > 0 && (
-                  <p className="mt-1 text-sm text-gray-500">
-                    {selectedFiles.length} file(s) selected
-                  </p>
-                )}
-              </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Upload Files (Multiple)
+    </label>
+    <input
+      type="file"
+      id="fileInput"
+      multiple
+      onChange={handleFileChange}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+    />
+    {selectedFiles.length > 0 && (
+      <p className="mt-1 text-sm text-gray-500">
+        {selectedFiles.length} file(s) selected
+      </p>
+    )}
+  </div>
 
-              <div className="md:col-span-2 lg:col-span-3 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={entryLoading}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {entryLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add Entry
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-
-            {/* Mileage Entries Table with Pagination */}
+  <div className="md:col-span-2 lg:col-span-3 flex justify-end">
+    <button
+      type="submit"
+      disabled={entryLoading}
+      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {entryLoading ? (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          Adding...
+        </>
+      ) : (
+        <>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Entry
+        </>
+      )}
+    </button>
+  </div>
+</form>
+            {/* Mileage Entries Table with Edit */}
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">📋 Mileage Entries</h3>
@@ -998,6 +1045,9 @@ const fetchAllMileageData = async () => {
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Files
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
                           </th>
                         </tr>
                       </thead>
@@ -1040,6 +1090,17 @@ const fetchAllMileageData = async () => {
                               ) : (
                                 <span className="text-gray-400">No files</span>
                               )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => handleEditClick(entry)}
+                                className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Edit
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1088,6 +1149,154 @@ const fetchAllMileageData = async () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+{editingEntry && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit Mileage Entry
+        </h3>
+        <p className="text-gray-600 mt-1">
+          Update the mileage entry details
+        </p>
+      </div>
+
+      <form onSubmit={handleUpdateEntry} className="p-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date
+            </label>
+            <input
+              type="date"
+              name="date"
+              value={editFormData.date}
+              onChange={handleEditInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              disabled
+            />
+            <p className="text-xs text-gray-500 mt-1">Date cannot be changed</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Vehicle Number
+            </label>
+            <input
+              type="text"
+              name="vehicleNumber"
+              value={editFormData.vehicleNumber}
+              onChange={handleEditInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              disabled
+            />
+            <p className="text-xs text-gray-500 mt-1">Vehicle cannot be changed</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Fuel Slip No
+            </label>
+            <input
+              type="text"
+              name="fuelSlipNo"
+              value={editFormData.fuelSlipNo}
+              onChange={handleEditInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+              placeholder="Enter fuel slip number"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Meter Reading (KM) *
+            </label>
+            <input
+              type="number"
+              name="kmsReading"
+              value={editFormData.kmsReading}
+              onChange={handleEditInputChange}
+              required
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Diesel (Liters) *
+            </label>
+            <input
+              type="number"
+              name="dieselLiters"
+              value={editFormData.dieselLiters}
+              onChange={handleEditInputChange}
+              required
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Files
+            </label>
+            <div className="flex flex-wrap gap-1">
+              {editFormData.imageUrls && editFormData.imageUrls.length > 0 ? (
+                editFormData.imageUrls.map((url, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setPreviewImage(url)}
+                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-2 py-1 rounded-md transition-colors duration-200 border border-blue-200"
+                  >
+                    📎 File {index + 1}
+                  </button>
+                ))
+              ) : (
+                <span className="text-gray-400 text-sm">No files</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => setEditingEntry(null)}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={editLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {editLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* Image Preview Modal */}
       {previewImage && (
