@@ -16,6 +16,7 @@ export default function PaymentRecords() {
     startDate: "",
     endDate: ""
   });
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState(null);
   
@@ -505,20 +506,91 @@ export default function PaymentRecords() {
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-              <select
-                name="customerName"
-                value={filters.customerName}
-                onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Customers</option>
-                {customers.map(customer => (
-                  <option key={customer} value={customer}>{customer}</option>
-                ))}
-              </select>
+         <div className="relative">
+  <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+  <div className="relative">
+    <input
+      type="text"
+      placeholder="Search or select customer..."
+      value={filters.customerName}
+      onChange={(e) => {
+        const value = e.target.value;
+        setFilters(prev => ({
+          ...prev,
+          customerName: value
+        }));
+        setIsCustomerDropdownOpen(true);
+      }}
+      onFocus={() => {
+        setIsCustomerDropdownOpen(true);
+      }}
+      onBlur={() => {
+        setTimeout(() => {
+          setIsCustomerDropdownOpen(false);
+        }, 200);
+      }}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+    />
+    {filters.customerName && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setFilters(prev => ({
+            ...prev,
+            customerName: ""
+          }));
+          setIsCustomerDropdownOpen(true);
+          setTimeout(() => {
+            const input = e.currentTarget.parentElement?.querySelector('input');
+            if (input) input.focus();
+          }, 0);
+        }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+      >
+        ×
+      </button>
+    )}
+  </div>
+  {isCustomerDropdownOpen && customers.length > 0 && (
+    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+      {(() => {
+        // Filter customers based on search text
+        const filteredCustomers = filters.customerName 
+          ? customers.filter(customer => 
+              customer.toLowerCase().includes(filters.customerName.toLowerCase())
+            )
+          : customers; // Show ALL customers when no search text
+        
+        if (filteredCustomers.length === 0) {
+          return (
+            <div className="px-3 py-2 text-sm text-gray-500">
+              No customers found
             </div>
+          );
+        }
+        
+        return filteredCustomers.map(customer => (
+          <div
+            key={customer}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            onClick={() => {
+              setFilters(prev => ({
+                ...prev,
+                customerName: customer
+              }));
+              setIsCustomerDropdownOpen(false);
+            }}
+            className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 border-b border-gray-100 last:border-0"
+          >
+            {customer}
+          </div>
+        ));
+      })()}
+    </div>
+  )}
+</div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
