@@ -2147,7 +2147,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                 </DashboardCard>
               )}
 
-            {userRoles.includes("accounts") && (
+           {userRoles.some(role => ["admin", "accounts", "sales"].includes(role)) && (
                               <DashboardCard>
  <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
                     <span className="text-5xl">🖩</span>
