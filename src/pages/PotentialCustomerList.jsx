@@ -567,7 +567,40 @@ const handleSaveRemarks = async (customerId) => {
   }
 };
 
-
+// ✅ NEW: Function to edit category
+const handleEditCategory = async (oldName, newName) => {
+  if (!newName || newName.trim() === '') return;
+  
+  // Check if new name already exists
+  if (categories.includes(newName.trim()) && newName.trim() !== oldName) {
+    toast.error("Category with this name already exists");
+    return;
+  }
+  
+  try {
+    const res = await axiosInstance.put(`/potential-customers/settings/categories/${encodeURIComponent(oldName)}`, {
+      newName: newName.trim()
+    });
+    
+    if (res.data.success) {
+      // Update local state
+      const updatedCategories = categories.map(cat => 
+        cat === oldName ? newName.trim() : cat
+      );
+      setCategories(updatedCategories);
+      
+      // Update selected category filter if it was the edited one
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName.trim());
+      }
+      
+      toast.success("Category updated successfully!");
+    }
+  } catch (err) {
+    console.error("Failed to edit category", err);
+    toast.error(err.response?.data?.error || "Failed to edit category");
+  }
+};
 
   return (
     <>
@@ -723,53 +756,65 @@ const handleSaveRemarks = async (customerId) => {
     ))}
   </div>
   
-  {/* Category Management Modal */}
-  {showCategoryModal && (
-    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4">
-      <h4 className="font-medium text-gray-800 mb-3">Manage Sales Categories</h4>
-      
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
-          placeholder="Add new category..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-          onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
-        />
-        <button
-          onClick={handleAddCategory}
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-        >
-          Add
-        </button>
-      </div>
-      
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-gray-600">Existing Categories:</p>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <div 
-              key={category} 
-              className="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1"
-            >
-              <span className="text-sm">{category}</span>
-              <button
-                onClick={() => handleRemoveCategory(category)}
-                className="text-red-500 hover:text-red-700 text-xs"
-                title="Remove category"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {categories.length === 0 && (
-            <p className="text-gray-500 text-sm">No categories added yet</p>
-          )}
-        </div>
-      </div>
+{/* Category Management Modal - UPDATED with edit functionality */}
+{showCategoryModal && (
+  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4">
+    <h4 className="font-medium text-gray-800 mb-3">Manage Sales Categories</h4>
+    
+    <div className="flex gap-2 mb-4">
+      <input
+        type="text"
+        value={newCategory}
+        onChange={(e) => setNewCategory(e.target.value)}
+        placeholder="Add new category..."
+        className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+        onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+      />
+      <button
+        onClick={handleAddCategory}
+        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+      >
+        Add
+      </button>
     </div>
-  )}
+    
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-gray-600">Existing Categories:</p>
+      <div className="flex flex-wrap gap-2">
+        {categories.map((category) => (
+          <div 
+            key={category} 
+            className="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1 group hover:border-blue-400 transition-colors"
+          >
+            <span 
+              className="text-sm cursor-pointer hover:text-blue-600"
+              onClick={() => {
+                const newName = prompt('Edit category name:', category);
+                if (newName && newName.trim() && newName.trim() !== category) {
+                  handleEditCategory(category, newName.trim());
+                }
+              }}
+              title="Click to edit"
+            >
+              {category}
+            </span>
+            <button
+              onClick={() => handleRemoveCategory(category)}
+              className="text-red-500 hover:text-red-700 text-xs"
+              title="Remove category"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        {categories.length === 0 && (
+          <p className="text-gray-500 text-sm">No categories added yet</p>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mt-2">Click on a category name to edit it</p>
+    </div>
+  </div>
+)}
 </div>
 
 {/* Active Filters Display */}

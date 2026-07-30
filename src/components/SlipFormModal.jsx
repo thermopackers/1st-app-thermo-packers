@@ -32,7 +32,8 @@ const SlipFormModal = ({
         price: selectedOrder.price,
         productRemarks: selectedOrder.productRemarks,
         narration: selectedOrder.narration,
-        narrationImages: selectedOrder.narrationImages || []
+        narrationImages: selectedOrder.narrationImages || [],
+              images: selectedOrder.images || [], // ✅ ADD THIS
       }] : [];
 
   const [cncFormData, setCNCFormData] = useState({
@@ -42,7 +43,7 @@ const SlipFormModal = ({
     drawingName: "",
     remarks: "",
   });
-  
+const [selectedTypeImages, setSelectedTypeImages] = useState({});
   const [selectedProductFiles, setSelectedProductFiles] = useState([]);
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
   const [gradeProducts, setGradeProducts] = useState([]);
@@ -53,7 +54,10 @@ const [filteredDanaBeadsGrades, setFilteredDanaBeadsGrades] = useState([]);
 const [selectedDanaBeadsProductFiles, setSelectedDanaBeadsProductFiles] = useState([]);
 const [activeGradeIndex, setActiveGradeIndex] = useState(null);
 const [activeNextGradeIndex, setActiveNextGradeIndex] = useState(null);
-
+const TYPE_IMAGES = {
+  'Bottom Gutka': 'https://res.cloudinary.com/dcr8k5amk/image/upload/v1785221664/WhatsApp_Images_2026-07-28_at_12.16.25_PM_z7fcoi.jpg',
+  'Without Both Gutka': 'https://res.cloudinary.com/dcr8k5amk/image/upload/v1785221582/WhatsApp_Image_2026-07-28_at_12.16.25_PM_offpnj.jpg',
+};
   // ✅ Use selectedProducts as an array of booleans
   const [selectedProducts, setSelectedProducts] = useState([]);
 
@@ -247,19 +251,22 @@ useEffect(() => {
       const isMultiProduct = hasMultipleProducts;
       const firstProduct = productList[0] || {};
       
-      // Shape Slip (Production) - Initialize with per-product fields for multi-product
-      if (isMultiProduct) {
-        const initialShapeData = {
-          productName: "Multiple Products",
-        };
-        // Add per-product fields
-        productList.forEach((product, idx) => {
-          initialShapeData[`dryWeight_${idx}`] = product.density || "";
-          initialShapeData[`quantity_${idx}`] = product.quantity;
-          initialShapeData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
-        });
-        setShapeFormData(initialShapeData);
-      } else {
+   // Shape Slip (Production) - Initialize with per-product fields for multi-product
+if (isMultiProduct) {
+  const initialShapeData = {
+    productName: "Multiple Products",
+  };
+  // Add per-product fields
+  productList.forEach((product, idx) => {
+    // Find the product in the products list to get its unit
+    const productFromList = products.find(p => p.name === product.productName);
+    initialShapeData[`dryWeight_${idx}`] = product.density || "";
+    initialShapeData[`quantity_${idx}`] = product.quantity;
+    initialShapeData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+    initialShapeData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ ADD THIS
+  });
+  setShapeFormData(initialShapeData);
+} else {
         setShapeFormData({
           productName: selectedOrder.product || "",
           dryWeight: selectedOrder.density || "",
@@ -279,6 +286,7 @@ if (isMultiProduct) {
   };
   // Add per-product fields for each Dana batch setting
   productList.forEach((product, idx) => {
+                          const productFromList = products.find(p => p.name === product.productName);
     initialDanaData[`typeOfRawBlock_${idx}`] = "";
     initialDanaData[`typeOfRawBlockCustom_${idx}`] = "";
     initialDanaData[`densityValue_${idx}`] = "";
@@ -288,6 +296,7 @@ if (isMultiProduct) {
     initialDanaData[`grade_${idx}`] = "";
     initialDanaData[`quantity_${idx}`] = product.quantity;
     initialDanaData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+        initialDanaData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ ADD
   });
   setDanaFormData(initialDanaData);
 } else {
@@ -312,10 +321,12 @@ if (isMultiProduct) {
         };
         // Add per-product fields
         productList.forEach((product, idx) => {
+              const productFromList = products.find(p => p.name === product.productName);
           initialPackagingData[`packagingWeight_${idx}`] = "";
           initialPackagingData[`packagingType_${idx}`] = "";
           initialPackagingData[`quantity_${idx}`] = product.quantity;
           initialPackagingData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+              initialPackagingData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ ADD
         });
         setPackagingFormData(initialPackagingData);
       } else {
@@ -335,10 +346,12 @@ if (isMultiProduct) {
         };
         // Add per-product fields
         productList.forEach((product, idx) => {
+                      const productFromList = products.find(p => p.name === product.productName);
           initialCuttingData[`size_${idx}`] = product.size || "";
           initialCuttingData[`density_${idx}`] = product.density || "";
           initialCuttingData[`quantity_${idx}`] = product.quantity;
           initialCuttingData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
+              initialCuttingData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ ADD
         });
         setCuttingFormData(initialCuttingData);
       } else {
@@ -359,10 +372,12 @@ if (isMultiProduct) {
   };
   // Add per-product fields
   productList.forEach((product, idx) => {
+    const productFromList = products.find(p => p.name === product.productName);
     initialCNCData[`size_${idx}`] = product.size || "";
     initialCNCData[`quantity_${idx}`] = product.quantity;
     initialCNCData[`remarks_${idx}`] = selectedOrder.remarks || product.productRemarks || "";
     initialCNCData[`drawingName_${idx}`] = ""; // ✅ Add per-product drawing name
+    initialCNCData[`productUnit_${idx}`] = productFromList?.unit || product.productUnit || ""; // ✅ ADD THIS
   });
   setCNCFormData(initialCNCData);
 } else {
@@ -427,9 +442,50 @@ setDanaBeadsFormData(initialDanaBeadsFormData);
     setPackagingFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleDanaChange = (field, value) => {
-    setDanaFormData((prev) => ({ ...prev, [field]: value }));
-  };
+const handleDanaChange = (field, value) => {
+  setDanaFormData((prev) => ({ ...prev, [field]: value }));
+  
+  // Show image preview for the specific product
+  if (field === 'typeOfRawBlock' || field.startsWith('typeOfRawBlock_')) {
+    const typeValue = value;
+    // Extract the index if it's a per-product field
+    let index = null;
+    if (field.startsWith('typeOfRawBlock_')) {
+      index = parseInt(field.replace('typeOfRawBlock_', ''));
+    }
+    
+    if (typeValue === 'Bottom Gutka' || typeValue === 'Without Both Gutka') {
+      // Store the image for this specific product
+      if (index !== null) {
+        setSelectedTypeImages(prev => ({
+          ...prev,
+          [index]: TYPE_IMAGES[typeValue]
+        }));
+      } else {
+        // For single product mode (non-multi)
+        setSelectedTypeImages(prev => ({
+          ...prev,
+          single: TYPE_IMAGES[typeValue]
+        }));
+      }
+    } else {
+      // Clear the image for this specific product
+      if (index !== null) {
+        setSelectedTypeImages(prev => {
+          const newState = { ...prev };
+          delete newState[index];
+          return newState;
+        });
+      } else {
+        setSelectedTypeImages(prev => {
+          const newState = { ...prev };
+          delete newState.single;
+          return newState;
+        });
+      }
+    }
+  }
+};
 
   const handleDrawingFileChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -724,6 +780,8 @@ if (type === "dana") {
           topLevelDensity = density;
         }
         
+                const productFromList = products.find(p => p.name === product.productName);
+
         return {
           productName: product.productName,
           typeOfRawBlock: typeOfRawBlock,
@@ -739,7 +797,9 @@ if (type === "dana") {
           remarks: danaFormData[`remarks_${originalIdx}`] !== undefined 
             ? danaFormData[`remarks_${originalIdx}`] 
             : (product.productRemarks || ""),
-        };
+                    productUnit: danaFormData[`productUnit_${originalIdx}`] || product.productUnit || "", // ✅ ADD
+                productImages: productFromList?.images || product.images || [], // ✅ ADD THIS
+  };
       });
     }
   }
@@ -765,6 +825,7 @@ if (type === "dana") {
         if (filteredProducts.length > 0) {
           productsData = filteredProducts.map((product) => {
             const originalIdx = productList.indexOf(product);
+                               const productFromList = products.find(p => p.name === product.productName);
             return {
               productName: product.productName,
               dryWeight: shapeFormData[`dryWeight_${originalIdx}`] !== undefined 
@@ -776,7 +837,9 @@ if (type === "dana") {
               remarks: shapeFormData[`remarks_${originalIdx}`] !== undefined 
                 ? shapeFormData[`remarks_${originalIdx}`] 
                 : (product.productRemarks || ""),
-            };
+          productUnit: shapeFormData[`productUnit_${originalIdx}`] || product.productUnit || "", // ✅ USE FORM DATA
+          productImages: productFromList?.images || product.images || [], // ✅ FIX: Use 'images'
+     };
           });
         }
       }
@@ -804,9 +867,11 @@ if (type === "dana") {
       if (hasMultipleProducts) {
         const selected = selectedProducts.length === productList.length ? selectedProducts : productList.map(() => true);
         const filteredProducts = productList.filter((_, idx) => selected[idx]);
+
         if (filteredProducts.length > 0) {
           rowData = filteredProducts.map((product) => {
             const originalIdx = productList.indexOf(product);
+                           const productFromList = products.find(p => p.name === product.productName);
             return {
               productName: product.productName,
               size: cuttingFormData[`size_${originalIdx}`] !== undefined 
@@ -821,7 +886,9 @@ if (type === "dana") {
               remarks: cuttingFormData[`remarks_${originalIdx}`] !== undefined 
                 ? cuttingFormData[`remarks_${originalIdx}`] 
                 : (product.productRemarks || ""),
-            };
+          productUnit: cuttingFormData[`productUnit_${originalIdx}`] || product.productUnit || "", // ✅ ADD
+          productImages: productFromList?.images || product.images || [], // ✅ FIX: Use 'images'
+ };
           });
         }
       }
@@ -889,6 +956,8 @@ if (type === "dana") {
     if (filteredProducts.length > 0) {
       productsData = filteredProducts.map((product) => {
         const originalIdx = productList.indexOf(product);
+               const productFromList = products.find(p => p.name === product.productName);
+
         return {
           productName: product.productName,
           size: cncFormData[`size_${originalIdx}`] !== undefined 
@@ -903,7 +972,9 @@ if (type === "dana") {
           remarks: cncFormData[`remarks_${originalIdx}`] !== undefined 
             ? cncFormData[`remarks_${originalIdx}`] 
             : (product.productRemarks || ""),
-        };
+          productUnit: cncFormData[`productUnit_${originalIdx}`] || product.productUnit || "", // ✅ USE FORM DATA
+          productImages: productFromList?.images || product.images || [], // ✅ FIX: Use 'images'
+   };
       });
     }
   }
@@ -927,6 +998,8 @@ if (type === "dana") {
         if (filteredProducts.length > 0) {
           productsData = filteredProducts.map((product) => {
             const originalIdx = productList.indexOf(product);
+                   const productFromList = products.find(p => p.name === product.productName);
+
             return {
               productName: product.productName,
               packagingWeight: packagingFormData[`packagingWeight_${originalIdx}`] !== undefined 
@@ -941,7 +1014,9 @@ if (type === "dana") {
               remarks: packagingFormData[`remarks_${originalIdx}`] !== undefined 
                 ? packagingFormData[`remarks_${originalIdx}`] 
                 : (product.productRemarks || ""),
-            };
+          productUnit: packagingFormData[`productUnit_${originalIdx}`] || product.productUnit || "", // ✅ ADD
+          productImages: productFromList?.images || product.images || [], // ✅ FIX: Use 'images'
+ };
           });
         }
       }
@@ -972,6 +1047,8 @@ if (type === "dana") {
     if (filteredProducts.length > 0) {
       productsData = filteredProducts.map((product) => {
         const originalIdx = productList.indexOf(product);
+            const productFromList = products.find(p => p.name === product.productName);
+
         return {
           productName: product.productName,
           density: danaBeadsFormData[`density_${originalIdx}`] !== undefined 
@@ -988,7 +1065,8 @@ if (type === "dana") {
           nextGrade: danaBeadsFormData[`nextGrade_${originalIdx}`] || danaBeadsFormData.nextGrade || "",
           // ✅ Add productUnit per product
           productUnit: danaBeadsFormData[`productUnit_${originalIdx}`] || product.productUnit || "",
-        };
+          productImages: productFromList?.images || product.images || [], // ✅ FIX: Use 'images'
+ };
       });
     }
   }
@@ -1170,27 +1248,37 @@ const getFilteredProductList = () => {
                           <ShowInternalImagesButton product={products.find(p => p.name === product.productName)} />
                         </div>
                       </td>
-                      <td className="p-2 border">
-                        <select
-                          value={danaFormData[`typeOfRawBlock_${originalIdx}`] || ""}
-                          onChange={(e) => handleDanaChange(`typeOfRawBlock_${originalIdx}`, e.target.value)}
-                          className="w-full p-1 border border-gray-300 rounded text-sm"
-                        >
-                          <option value="">Select...</option>
-                          <option value="With Both Gutka">With Both Gutka</option>
-                          <option value="Without Both Gutka">Without Both Gutka</option>
-                          <option value="Bottom Gutka">Bottom Gutka</option>
-                          <option value="Side Gutka">Side Gutka</option>
-                          <option value="Thermocol Dana">Thermocol Dana</option>
-                        </select>
-                        <input
-                          type="text"
-                          value={danaFormData[`typeOfRawBlockCustom_${originalIdx}`] || ""}
-                          onChange={(e) => handleDanaChange(`typeOfRawBlockCustom_${originalIdx}`, e.target.value)}
-                          placeholder="Custom type"
-                          className="w-full mt-1 p-1 border border-gray-300 rounded text-sm"
-                        />
-                      </td>
+                     <td className="p-2 border">
+  <select
+    value={danaFormData[`typeOfRawBlock_${originalIdx}`] || ""}
+    onChange={(e) => handleDanaChange(`typeOfRawBlock_${originalIdx}`, e.target.value)}
+    className="w-full p-1 border border-gray-300 rounded text-sm"
+  >
+    <option value="">Select...</option>
+    <option value="With Both Gutka">With Both Gutka</option>
+    <option value="Without Both Gutka">Without Both Gutka</option>
+    <option value="Bottom Gutka">Bottom Gutka</option>
+    <option value="Side Gutka">Side Gutka</option>
+  </select>
+  <input
+    type="text"
+    value={danaFormData[`typeOfRawBlockCustom_${originalIdx}`] || ""}
+    onChange={(e) => handleDanaChange(`typeOfRawBlockCustom_${originalIdx}`, e.target.value)}
+    placeholder="Custom type"
+    className="w-full mt-1 p-1 border border-gray-300 rounded text-sm"
+  />
+  {/* ✅ Show image only for this specific product */}
+  {selectedTypeImages[originalIdx] && (
+    <div className="mt-2 p-2 border border-gray-300 rounded">
+      <p className="text-sm font-medium text-gray-700">Image Reference:</p>
+      <img 
+        src={selectedTypeImages[originalIdx]} 
+        alt="Type of Raw Block" 
+        className="max-w-[200px] max-h-[100px] object-contain border border-gray-200 rounded mt-1"
+      />
+    </div>
+  )}
+</td>
                       <td className="p-2 border">
                         <div className="flex flex-col gap-1">
                           <div className="flex gap-1">
@@ -1344,28 +1432,38 @@ const getFilteredProductList = () => {
             <ShowInternalImagesButton product={product} />
           </div>
 
-          <label className="font-bold text-xl">Type of Raw Block:</label>
-          <div className="flex flex-wrap gap-2">
-            {["With Both Gutka", "Without Both Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
-              <label key={option} className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="typeOfRawBlock"
-                  value={option}
-                  checked={danaFormData.typeOfRawBlock === option}
-                  onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-                />
-                {option}
-              </label>
-            ))}
-          </div>
-          <input
-            type="text"
-            placeholder="Custom Raw Block Type"
-            value={danaFormData.typeOfRawBlock}
-            onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
-            className={inputClass("typeOfRawBlock")}
-          />
+  <label className="font-bold text-xl">Type of Raw Block:</label>
+<div className="flex flex-wrap gap-2">
+  {["With Both Gutka", "Without Both Gutka", "Bottom Gutka", "Side Gutka", "Thermocol Dana"].map((option) => (
+    <label key={option} className="flex items-center gap-1">
+      <input
+        type="radio"
+        name="typeOfRawBlock"
+        value={option}
+        checked={danaFormData.typeOfRawBlock === option}
+        onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+      />
+      {option}
+    </label>
+  ))}
+</div>
+<input
+  type="text"
+  placeholder="Custom Raw Block Type"
+  value={danaFormData.typeOfRawBlock}
+  onChange={(e) => handleDanaChange("typeOfRawBlock", e.target.value)}
+  className={inputClass("typeOfRawBlock")}
+/>
+{selectedTypeImages.single && (
+  <div className="mt-2 p-2 border border-gray-300 rounded">
+    <p className="text-sm font-medium text-gray-700">Image Reference:</p>
+    <img 
+      src={selectedTypeImages.single} 
+      alt="Type of Raw Block" 
+      className="max-w-[200px] max-h-[100px] object-contain border border-gray-200 rounded mt-1"
+    />
+  </div>
+)}
 
           <label className="font-bold text-xl">Density (Kg/m³):</label>
           <div className="flex gap-2 items-center">
