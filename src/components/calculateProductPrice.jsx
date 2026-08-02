@@ -40,25 +40,34 @@ export default function ProductRateChecker() {
   });
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts("");
     fetchRMRate();
     fetchCustomers();
   }, []);
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get("/products-multer?limit=10000");
-      setProducts(res.data.products || []);
-      setFilteredProducts(res.data.products || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+  return () => {
+    if (window.searchTimeout) {
+      clearTimeout(window.searchTimeout);
     }
   };
+}, []);
 
+const fetchProducts = async (searchTerm = "") => {
+  setLoading(true);
+  try {
+    // If no search term, fetch only 50 products for initial display
+    const limit = searchTerm.trim() ? 0 : 50;
+    const res = await axiosInstance.get(`/products-multer?search=${encodeURIComponent(searchTerm)}&limit=${limit}`);
+    setProducts(res.data.products || []);
+    setFilteredProducts(res.data.products || []);
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    toast.error("Failed to load products");
+  } finally {
+    setLoading(false);
+  }
+};
   const fetchRMRate = async () => {
     try {
       const res = await axiosInstance.get("/rm-rate");
@@ -453,23 +462,28 @@ export default function ProductRateChecker() {
     }
   };
 
-  const handleSearch = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-    
-    if (term.trim() === "") {
-      setFilteredProducts(products);
-      setShowResults(false);
-      setSelectedProduct(null);
-      return;
-    }
-    
-    const filtered = products.filter(product => 
-      product.name.toLowerCase().includes(term)
-    );
-    setFilteredProducts(filtered);
-    setShowResults(true);
-  };
+const handleSearch = (e) => {
+  const term = e.target.value;
+  setSearchTerm(term);
+  
+  if (term.trim() === "") {
+    setShowResults(false);
+    setSelectedProduct(null);
+    // Fetch initial products (limited)
+    fetchProducts("");
+    return;
+  }
+  
+  // Show loading state
+  setLoading(true);
+  setShowResults(true);
+  
+  // Use debounce to avoid too many API calls
+  clearTimeout(window.searchTimeout);
+  window.searchTimeout = setTimeout(() => {
+    fetchProducts(term);
+  }, 500);
+};
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
