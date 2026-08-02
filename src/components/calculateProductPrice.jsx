@@ -48,7 +48,7 @@ export default function ProductRateChecker() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get("/products-multer?limit=1000");
+      const res = await axiosInstance.get("/products-multer?limit=10000");
       setProducts(res.data.products || []);
       setFilteredProducts(res.data.products || []);
     } catch (err) {
