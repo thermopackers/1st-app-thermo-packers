@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
 import { Search, Package, TrendingUp } from "lucide-react";
 import Select from 'react-select';
+import debounce from 'lodash/debounce';
 
-// ✅ Copy these constants from FreightCalculator
+// ✅ Starting location constant
 const STARTING_LOCATION = {
   address: 'Village Sangal Sohal, Kapurthala Road, Jalandhar - 144013, Punjab, India',
   pincode: '144013',
@@ -15,12 +16,12 @@ const STARTING_LOCATION = {
 
 export default function ProductRateChecker() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [rmRate, setRmRate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [searching, setSearching] = useState(false);
   
   // Customer and freight related states
   const [customers, setCustomers] = useState([]);
@@ -29,35 +30,20 @@ export default function ProductRateChecker() {
   const [loadingDistance, setLoadingDistance] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
 
-  // ✅ Copy these constants from FreightCalculator
+  // Freight constants
   const FREIGHT_RATE = { tempo: 15, truck: 20 };
   const TEMPO_CAPACITY = 12;
   const TRUCK_CAPACITY = 40;
 
-  // ✅ Copy the cache from FreightCalculator
+  // Coordinates cache
   const [coordinatesCache, setCoordinatesCache] = useState({
     '144013': STARTING_LOCATION.coordinates
   });
 
   useEffect(() => {
-    fetchProducts();
     fetchRMRate();
     fetchCustomers();
   }, []);
-
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const res = await axiosInstance.get("/products-multer?limit=1000");
-      setProducts(res.data.products || []);
-      setFilteredProducts(res.data.products || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchRMRate = async () => {
     try {
@@ -82,7 +68,56 @@ export default function ProductRateChecker() {
     }
   };
 
-  // ✅ Copy the ENTIRE getCoordinatesFromPincode function from FreightCalculator
+  // ✅ Search products from backend with debounce
+  const searchProducts = useCallback(
+    debounce(async (searchQuery) => {
+      if (!searchQuery || searchQuery.trim().length < 2) {
+        setProducts([]);
+        setShowResults(false);
+        setSearching(false);
+        return;
+      }
+
+      setSearching(true);
+      try {
+        const res = await axiosInstance.get(
+          `/products-multer/search?q=${encodeURIComponent(searchQuery)}&limit=50`
+        );
+        setProducts(res.data.products || []);
+        setShowResults(true);
+      } catch (err) {
+        console.error("Error searching products:", err);
+        toast.error("Failed to search products");
+        setProducts([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300),
+    []
+  );
+
+  const handleSearch = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    
+    if (term.trim() === "") {
+      setProducts([]);
+      setShowResults(false);
+      setSelectedProduct(null);
+      return;
+    }
+    
+    searchProducts(term);
+  };
+
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product);
+    setSearchTerm(product.name);
+    setShowResults(false);
+    setProducts([]);
+  };
+
+  // ✅ Get coordinates from pincode
   const getCoordinatesFromPincode = async (pincode) => {
     if (coordinatesCache[pincode]) {
       return coordinatesCache[pincode];
@@ -159,7 +194,7 @@ export default function ProductRateChecker() {
     }
   };
 
-  // ✅ Copy the ENTIRE getPincodeCoordinates function from FreightCalculator
+  // ✅ Get pincode coordinates from database
   const getPincodeCoordinates = (pincode) => {
     const pincodeDatabase = {
       '144013': { lat: 31.3260, lon: 75.5762, city: 'Jalandhar', state: 'Punjab' },
@@ -368,7 +403,7 @@ export default function ProductRateChecker() {
     };
   };
 
-  // ✅ Copy the EXACT calculateHaversineDistance function from FreightCalculator
+  // ✅ Calculate Haversine distance
   const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -451,30 +486,6 @@ export default function ProductRateChecker() {
     } else {
       setCustomerDistance(0);
     }
-  };
-
-  const handleSearch = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-    
-    if (term.trim() === "") {
-      setFilteredProducts(products);
-      setShowResults(false);
-      setSelectedProduct(null);
-      return;
-    }
-    
-    const filtered = products.filter(product => 
-      product.name.toLowerCase().includes(term)
-    );
-    setFilteredProducts(filtered);
-    setShowResults(true);
-  };
-
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product);
-    setSearchTerm(product.name);
-    setShowResults(false);
   };
 
   const calculatePrice = (product) => {
@@ -586,12 +597,17 @@ export default function ProductRateChecker() {
           onChange={handleSearch}
           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
         />
+        {searching && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
       </div>
       
       {/* Search Results Dropdown */}
-      {showResults && filteredProducts.length > 0 && (
+      {showResults && products.length > 0 && (
         <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto left-0">
-          {filteredProducts.map((product) => (
+          {products.map((product) => (
             <button
               key={product._id}
               onClick={() => handleProductSelect(product)}
@@ -602,16 +618,21 @@ export default function ProductRateChecker() {
               <span className="text-xs text-gray-500 ml-auto">{product.unit || 'kg'}</span>
             </button>
           ))}
+          {products.length >= 50 && (
+            <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-gray-100">
+              Showing first 50 results. Refine your search for more specific results.
+            </div>
+          )}
         </div>
       )}
       
-      {showResults && filteredProducts.length === 0 && searchTerm.trim() !== "" && (
+      {showResults && products.length === 0 && searchTerm.trim() !== "" && !searching && (
         <div className="mt-2 text-sm text-gray-500 text-center py-2">
           No products found matching "{searchTerm}"
         </div>
       )}
       
-      {/* Customer Selection - Integrated inside the results area */}
+      {/* Customer Selection */}
       {selectedProduct && (
         <div className="mt-4">
           <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -691,12 +712,11 @@ export default function ProductRateChecker() {
               </div>
             </div>
             
-            {/* 🚚 Full Freight Calculation Details */}
+            {/* Freight Calculation Details */}
             {customerDistance > 0 && result.volumePerPiece > 0 && (
               <div className="mt-3 pt-2 border-t border-gray-200">
                 <p className="text-xs font-semibold text-gray-700 mb-2">🚚 Freight Calculation Details</p>
                 
-                {/* Common Details */}
                 <div className="bg-gray-50 p-2 rounded mb-2 text-xs">
                   <p className="font-medium">📏 Distance: {customerDistance} km (one way)</p>
                   <p className="font-medium">🔄 Round Trip: {customerDistance * 2} km</p>
@@ -704,11 +724,10 @@ export default function ProductRateChecker() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Tempo Details - Full Calculation */}
+                  {/* Tempo Details */}
                   <div className="bg-blue-50 p-2 rounded">
                     <p className="font-bold text-blue-700 mb-1">🚛 Tempo (12m³)</p>
                     
-                    {/* Step 1: Pieces per tempo */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">1️⃣ Pieces per tempo:</p>
                       <p className="font-mono text-xs">
@@ -716,7 +735,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 2: Round trip distance */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">2️⃣ Round trip distance:</p>
                       <p className="font-mono text-xs">
@@ -724,7 +742,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 3: Total freight */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">3️⃣ Total freight:</p>
                       <p className="font-mono text-xs">
@@ -732,7 +749,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 4: Freight per piece */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">4️⃣ Freight per piece:</p>
                       <p className="font-mono text-xs">
@@ -740,7 +756,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 5: Total with freight */}
                     <div className="bg-blue-100 p-1 rounded">
                       <p className="font-bold text-blue-700">5️⃣ Total per piece:</p>
                       <p className="font-mono text-xs font-bold">
@@ -749,11 +764,10 @@ export default function ProductRateChecker() {
                     </div>
                   </div>
                   
-                  {/* Truck Details - Full Calculation */}
+                  {/* Truck Details */}
                   <div className="bg-orange-50 p-2 rounded">
                     <p className="font-bold text-orange-700 mb-1">🚛 Truck (40m³)</p>
                     
-                    {/* Step 1: Pieces per truck */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">1️⃣ Pieces per truck:</p>
                       <p className="font-mono text-xs">
@@ -761,7 +775,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 2: Round trip distance */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">2️⃣ Round trip distance:</p>
                       <p className="font-mono text-xs">
@@ -769,7 +782,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 3: Total freight */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">3️⃣ Total freight:</p>
                       <p className="font-mono text-xs">
@@ -777,7 +789,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 4: Freight per piece */}
                     <div className="bg-white p-1 rounded mb-1">
                       <p className="text-gray-600">4️⃣ Freight per piece:</p>
                       <p className="font-mono text-xs">
@@ -785,7 +796,6 @@ export default function ProductRateChecker() {
                       </p>
                     </div>
                     
-                    {/* Step 5: Total with freight */}
                     <div className="bg-orange-100 p-1 rounded">
                       <p className="font-bold text-orange-700">5️⃣ Total per piece:</p>
                       <p className="font-mono text-xs font-bold">
