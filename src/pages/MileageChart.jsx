@@ -8,8 +8,8 @@ import dayjs from "dayjs";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";  // ✅ ADD THIS IMPORT
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function MileageChart() {
   const { token } = useUserContext();
@@ -678,49 +678,109 @@ const renderChart = () => {
 };
 
 // Add this function in your component
-const downloadPageAsPDF = async () => {
-  const element = document.getElementById('mileage-report-container');
-  if (!element) {
-    toast.error("Content not found");
+const downloadPageAsPDF = () => {
+  if (allData.length === 0) {
+    toast.error("No data to export");
     return;
   }
 
   toast.loading("Generating PDF...", { id: "pdf-download" });
 
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      windowHeight: element.scrollHeight,
-      windowWidth: element.scrollWidth,
-      onclone: (clonedDoc) => {
-        // Ensure all images are loaded
-        const images = clonedDoc.querySelectorAll('img');
-        return Promise.all(
-          Array.from(images).map(img => {
-            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-            return new Promise((resolve) => {
-              img.onload = resolve;
-              img.onerror = resolve;
-            });
-          })
-        );
-      }
-    });
-
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: [canvas.width * 0.75, canvas.height * 0.75]
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
     });
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-    pdf.save(`mileage-report-${dayjs().format("DD-MM-YYYY")}.pdf`);
+    // Add company header
+    pdf.setFillColor(59, 130, 246);
+    pdf.rect(0, 0, 297, 22, 'F');
+    
+    pdf.setFontSize(16);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('Vehicle Trip Mileage Report', 148, 13, { align: 'center' });
+    
+    // Add generation date
+    pdf.setFontSize(9);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(`Generated on: ${dayjs().format("DD-MM-YYYY HH:mm")}`, 148, 19, { align: 'center' });
 
+    // Statistics Summary
+    let yPosition = 30;
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Summary Statistics', 14, yPosition);
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(9);
+    yPosition += 6;
+    
+    pdf.text(`Average Mileage: ${stats.avgMileage || 0} km/L`, 14, yPosition);
+    pdf.text(`Total Distance: ${stats.totalKms || 0} km`, 70, yPosition);
+    pdf.text(`Fuel Consumed: ${stats.totalDiesel || 0} L`, 130, yPosition);
+    pdf.text(`Total Trips: ${allData.length}`, 190, yPosition);
+    pdf.text(`Vehicle: ${vehicleFilter || 'All Vehicles'}`, 230, yPosition);
+    
+    yPosition += 10;
+
+    // Add table
+    const tableHeaders = ['Sr No', 'Date', 'Vehicle', 'Start KMs', 'End KMs', 'KM Run', 'Diesel (L)', 'Mileage'];
+    const tableData = data.map((v, idx) => [
+      ((page - 1) * limit + idx + 1).toString(),
+      v.date ? dayjs(v.date).format("DD-MM-YYYY") : 'N/A',
+      v.vehicleNumber,
+      v.tripStart + ' km',
+      v.tripEnd + ' km',
+      v.kmsRun + ' km',
+      v.dieselUsed + ' L',
+      v.mileage + ' km/L'
+    ]);
+
+    pdf.autoTable({
+      startY: yPosition,
+      head: [tableHeaders],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { 
+        fillColor: [59, 130, 246], 
+        textColor: [255, 255, 255], 
+        fontSize: 8, 
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 22, halign: 'center' },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 25, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 25, halign: 'center' },
+      },
+      margin: { left: 10, right: 10 },
+      pageBreak: 'auto',
+      rowPageBreak: 'auto',
+      tableWidth: 'auto'
+    });
+
+    // Get the final Y position after the table
+    const finalY = pdf.lastAutoTable.finalY + 10;
+
+    // Add footer
+    const pageCount = pdf.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(7);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`Page ${i} of ${pageCount}`, 280, 195, { align: 'right' });
+      pdf.text(`Total Records: ${data.length}`, 15, 195);
+      pdf.text(`Date Range: ${dayjs(startDate).format("DD-MM-YYYY")} to ${dayjs(endDate).format("DD-MM-YYYY")}`, 15, 190);
+    }
+
+    pdf.save(`mileage-report-${dayjs().format("DD-MM-YYYY")}.pdf`);
     toast.success("PDF downloaded successfully!", { id: "pdf-download" });
   } catch (error) {
     console.error("Error generating PDF:", error);
@@ -815,17 +875,16 @@ const downloadPageAsPDF = async () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                {/* Add Download PDF Button */}
-  <button
-    onClick={downloadPageAsPDF}
-    disabled={allData.length === 0}
-    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2 font-medium"
-  >
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-    Download PDF
-  </button>
+              <button
+  onClick={downloadPageAsPDF}
+  disabled={allData.length === 0}
+  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2 font-medium"
+>
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+  Download PDF
+</button>
                 <div className="flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setChartType('bar')}
