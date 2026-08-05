@@ -677,15 +677,64 @@ const renderChart = () => {
   }
 };
 
-const downloadPageAsPDF = () => {
+// Add this function to fetch all data for PDF
+const fetchAllDataForPDF = async () => {
+  try {
+    let queryParams = new URLSearchParams();
+    if (startDate) queryParams.append('startDate', startDate);
+    if (endDate) queryParams.append('endDate', endDate);
+    if (vehicleFilter) queryParams.append('vehicleNumber', vehicleFilter);
+    // ✅ IMPORTANT: No page/limit to get ALL data
+
+    const res = await axiosInstance.get(
+      `/diesel/trip-mileage?${queryParams.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    let rawData = [];
+    if (res.data.data && Array.isArray(res.data.data)) {
+      rawData = res.data.data;
+    } else if (Array.isArray(res.data)) {
+      rawData = res.data;
+    }
+
+    return rawData.map(d => ({
+      ...d,
+      mileage: isNaN(d.mileage) ? 0 : +d.mileage,
+      kmsRun: isNaN(d.kmsRun) ? 0 : +d.kmsRun,
+      dieselUsed: isNaN(d.dieselUsed) ? 0 : +d.dieselUsed,
+      vehicleNumber: d.vehicleNumber,
+      date: d.date,
+      tripStart: d.tripStart,
+      tripEnd: d.tripEnd,
+    }));
+  } catch (err) {
+    console.error("Failed to fetch all data for PDF:", err);
+    throw err;
+  }
+};
+
+const downloadPageAsPDF = async () => {
   if (allData.length === 0) {
     toast.error("No data to export");
     return;
   }
 
-  toast.loading("Generating PDF...", { id: "pdf-download" });
+  toast.loading("Fetching all data for PDF...", { id: "pdf-download" });
 
   try {
+    // ✅ Fetch ALL data for PDF
+    const allDataForPDF = await fetchAllDataForPDF();
+    
+    if (!allDataForPDF || allDataForPDF.length === 0) {
+      toast.error("No data available for PDF", { id: "pdf-download" });
+      return;
+    }
+
+    toast.loading("Generating PDF...", { id: "pdf-download" });
+
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -705,7 +754,7 @@ const downloadPageAsPDF = () => {
     pdf.setTextColor(255, 255, 255);
     pdf.text(`Generated on: ${dayjs().format("DD-MM-YYYY HH:mm")}`, 148, 19, { align: 'center' });
 
-    // Statistics Summary
+    // Statistics Summary (using all data)
     let yPosition = 30;
     pdf.setFontSize(10);
     pdf.setTextColor(0, 0, 0);
@@ -715,18 +764,24 @@ const downloadPageAsPDF = () => {
     pdf.setFontSize(9);
     yPosition += 6;
     
-    pdf.text(`Average Mileage: ${stats.avgMileage || 0} km/L`, 14, yPosition);
-    pdf.text(`Total Distance: ${stats.totalKms || 0} km`, 70, yPosition);
-    pdf.text(`Fuel Consumed: ${stats.totalDiesel || 0} L`, 130, yPosition);
-    pdf.text(`Total Trips: ${allData.length}`, 190, yPosition);
+    // Calculate stats from all data
+    const totalMileage = allDataForPDF.reduce((sum, item) => sum + (item.mileage || 0), 0);
+    const totalKms = allDataForPDF.reduce((sum, item) => sum + (item.kmsRun || 0), 0);
+    const totalDiesel = allDataForPDF.reduce((sum, item) => sum + (item.dieselUsed || 0), 0);
+    const avgMileage = allDataForPDF.length > 0 ? totalMileage / allDataForPDF.length : 0;
+
+    pdf.text(`Average Mileage: ${avgMileage.toFixed(2)} km/L`, 14, yPosition);
+    pdf.text(`Total Distance: ${totalKms.toFixed(0)} km`, 70, yPosition);
+    pdf.text(`Fuel Consumed: ${totalDiesel.toFixed(1)} L`, 130, yPosition);
+    pdf.text(`Total Trips: ${allDataForPDF.length}`, 190, yPosition);
     pdf.text(`Vehicle: ${vehicleFilter || 'All Vehicles'}`, 230, yPosition);
     
     yPosition += 10;
 
-    // Add table using autoTable function
+    // Add table with ALL data
     const tableHeaders = ['Sr No', 'Date', 'Vehicle', 'Start KMs', 'End KMs', 'KM Run', 'Diesel (L)', 'Mileage'];
-    const tableData = data.map((v, idx) => [
-      ((page - 1) * limit + idx + 1).toString(),
+    const tableData = allDataForPDF.map((v, idx) => [
+      (idx + 1).toString(),
       v.date ? dayjs(v.date).format("DD-MM-YYYY") : 'N/A',
       v.vehicleNumber,
       v.tripStart + ' km',
@@ -736,7 +791,6 @@ const downloadPageAsPDF = () => {
       v.mileage + ' km/L'
     ]);
 
-    // ✅ Use autoTable function directly
     autoTable(pdf, {
       startY: yPosition,
       head: [tableHeaders],
@@ -773,7 +827,7 @@ const downloadPageAsPDF = () => {
       pdf.setFontSize(7);
       pdf.setTextColor(128, 128, 128);
       pdf.text(`Page ${i} of ${pageCount}`, 280, 195, { align: 'right' });
-      pdf.text(`Total Records: ${data.length}`, 15, 195);
+      pdf.text(`Total Records: ${allDataForPDF.length}`, 15, 195);
       pdf.text(`Date Range: ${dayjs(startDate).format("DD-MM-YYYY")} to ${dayjs(endDate).format("DD-MM-YYYY")}`, 15, 190);
     }
 
