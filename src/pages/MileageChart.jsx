@@ -398,22 +398,121 @@ const handleUpdateEntry = async (e) => {
     return null;
   };
 
-  const renderChart = () => {
-    const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
+ const renderChart = () => {
+  const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
 
-    switch (chartType) {
-      case 'line':
+  switch (chartType) {
+    case 'line':
+      return (
+        <LineChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="tripLabel" 
+            angle={-45} 
+            textAnchor="end" 
+            height={80}
+            tick={{ fontSize: 10, fontWeight: '500' }}
+            interval={0}
+            width={120}
+          />
+          <YAxis 
+            label={{ 
+              value: 'Mileage (km/L)', 
+              angle: -90, 
+              position: 'insideLeft',
+              style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+            }}
+            domain={[0, 'auto']}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend />
+          <Line 
+            type="monotone" 
+            dataKey="mileage" 
+            name="Trip Mileage" 
+            stroke="#4f46e5" 
+            strokeWidth={3}
+            dot={{ fill: '#4f46e5', strokeWidth: 2, r: 5 }}
+            activeDot={{ r: 7, fill: '#4f46e5' }}
+          />
+        </LineChart>
+      );
+    
+    case 'pie':
+      const vehicleGroups = {};
+      sortedData.forEach(item => {
+        if (!vehicleGroups[item.vehicleNumber]) {
+          vehicleGroups[item.vehicleNumber] = {
+            name: item.vehicleNumber,
+            value: 0,
+            count: 0,
+            totalKms: 0,
+            totalDiesel: 0
+          };
+        }
+        vehicleGroups[item.vehicleNumber].value += item.mileage || 0;
+        vehicleGroups[item.vehicleNumber].count += 1;
+        vehicleGroups[item.vehicleNumber].totalKms += item.kmsRun || 0;
+        vehicleGroups[item.vehicleNumber].totalDiesel += item.dieselUsed || 0;
+      });
+
+      const pieData = Object.values(vehicleGroups).map(group => ({
+        name: group.name,
+        value: +(group.value / group.count).toFixed(2),
+        kms: group.totalKms,
+        diesel: group.totalDiesel,
+        trips: group.count
+      }));
+
+      return (
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            labelLine={true}
+            label={({ name, value }) => `${name}\n${value.toFixed(1)} km/L`}
+            outerRadius={120}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value, name, props) => [
+              `Avg: ${value} km/L\nTotal KMs: ${props.payload.kms} km\nTotal Diesel: ${props.payload.diesel} L\nTrips: ${props.payload.trips}`,
+              props.payload.name
+            ]}
+          />
+          <Legend />
+        </PieChart>
+      );
+    
+    default:
+      // ✅ FIX: If a specific vehicle is selected, show individual trips by date
+      if (vehicleFilter) {
+        // Show each trip's mileage with date as X-axis label
+        const tripData = sortedData
+          .filter(item => item.vehicleNumber === vehicleFilter)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .map(item => ({
+            ...item,
+            displayLabel: item.date || 'N/A'
+          }));
+
         return (
-          <LineChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+          <BarChart data={tripData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="tripLabel" 
+              dataKey="displayLabel" 
               angle={-45} 
               textAnchor="end" 
               height={80}
-              tick={{ fontSize: 10, fontWeight: '500' }}
+              tick={{ fontSize: 11, fontWeight: '500' }}
               interval={0}
-              width={120}
+              width={100}
             />
             <YAxis 
               label={{ 
@@ -424,161 +523,134 @@ const handleUpdateEntry = async (e) => {
               }}
               domain={[0, 'auto']}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="mileage" 
-              name="Trip Mileage" 
-              stroke="#4f46e5" 
-              strokeWidth={3}
-              dot={{ fill: '#4f46e5', strokeWidth: 2, r: 5 }}
-              activeDot={{ r: 7, fill: '#4f46e5' }}
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+                      <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                      <p className="text-sm text-blue-600">
+                        Mileage: <span className="font-semibold">{data.mileage} km/L</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Distance: {data.kmsRun} km
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Diesel: {data.dieselUsed} L
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Start KMs: {data.tripStart}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        End KMs: {data.tripEnd}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
-          </LineChart>
+            <Legend />
+            <Bar 
+              dataKey="mileage" 
+              name="Trip Mileage (km/L)" 
+              fill="#4f46e5" 
+              radius={[4, 4, 0, 0]} 
+            />
+          </BarChart>
         );
-      
-      case 'pie':
+      }
+
+      // ✅ If "All Vehicles" is selected, show grouped by vehicle (average)
+      if (allData.length > 0) {
         const vehicleGroups = {};
-        sortedData.forEach(item => {
+        allData.forEach(item => {
           if (!vehicleGroups[item.vehicleNumber]) {
             vehicleGroups[item.vehicleNumber] = {
-              name: item.vehicleNumber,
-              value: 0,
+              vehicleNumber: item.vehicleNumber,
+              mileage: 0,
+              kmsRun: 0,
+              dieselUsed: 0,
               count: 0,
-              totalKms: 0,
-              totalDiesel: 0
+              trips: []
             };
           }
-          vehicleGroups[item.vehicleNumber].value += item.mileage || 0;
+          vehicleGroups[item.vehicleNumber].mileage += item.mileage || 0;
+          vehicleGroups[item.vehicleNumber].kmsRun += item.kmsRun || 0;
+          vehicleGroups[item.vehicleNumber].dieselUsed += item.dieselUsed || 0;
           vehicleGroups[item.vehicleNumber].count += 1;
-          vehicleGroups[item.vehicleNumber].totalKms += item.kmsRun || 0;
-          vehicleGroups[item.vehicleNumber].totalDiesel += item.dieselUsed || 0;
+          vehicleGroups[item.vehicleNumber].trips.push(item);
         });
 
-        const pieData = Object.values(vehicleGroups).map(group => ({
-          name: group.name,
-          value: +(group.value / group.count).toFixed(2),
-          kms: group.totalKms,
-          diesel: group.totalDiesel,
-          trips: group.count
+        const chartData = Object.values(vehicleGroups).map(group => ({
+          vehicleNumber: group.vehicleNumber,
+          mileage: +(group.mileage / group.count).toFixed(2),
+          kmsRun: group.kmsRun,
+          dieselUsed: group.dieselUsed,
+          tripCount: group.count,
+          label: `${group.vehicleNumber}\n(${group.count} trips)`
         }));
 
         return (
-          <PieChart>
-            <Pie
-              data={pieData}
-              cx="50%"
-              cy="50%"
-              labelLine={true}
-              label={({ name, value }) => `${name}\n${value.toFixed(1)} km/L`}
-              outerRadius={120}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis 
+              dataKey="vehicleNumber" 
+              angle={-45} 
+              textAnchor="end" 
+              height={80}
+              tick={{ fontSize: 11, fontWeight: '500' }}
+              interval={0}
+              width={120}
+            />
+            <YAxis 
+              label={{ 
+                value: 'Average Mileage (km/L)', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+              }}
+              domain={[0, 'auto']}
+            />
             <Tooltip 
-              formatter={(value, name, props) => [
-                `Avg: ${value} km/L\nTotal KMs: ${props.payload.kms} km\nTotal Diesel: ${props.payload.diesel} L\nTrips: ${props.payload.trips}`,
-                props.payload.name
-              ]}
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+                      <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                      <p className="text-sm text-blue-600">
+                        Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Total Trips: {data.tripCount}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Total KMs: {data.kmsRun} km
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Total Diesel: {data.dieselUsed} L
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
             <Legend />
-          </PieChart>
+            <Bar 
+              dataKey="mileage" 
+              name="Average Mileage (km/L)" 
+              fill="#4f46e5" 
+              radius={[4, 4, 0, 0]} 
+            />
+          </BarChart>
         );
-      
-      default:
-        if (allData.length > 0) {
-          const vehicleGroups = {};
-          allData.forEach(item => {
-            if (!vehicleGroups[item.vehicleNumber]) {
-              vehicleGroups[item.vehicleNumber] = {
-                vehicleNumber: item.vehicleNumber,
-                mileage: 0,
-                kmsRun: 0,
-                dieselUsed: 0,
-                count: 0,
-                trips: []
-              };
-            }
-            vehicleGroups[item.vehicleNumber].mileage += item.mileage || 0;
-            vehicleGroups[item.vehicleNumber].kmsRun += item.kmsRun || 0;
-            vehicleGroups[item.vehicleNumber].dieselUsed += item.dieselUsed || 0;
-            vehicleGroups[item.vehicleNumber].count += 1;
-            vehicleGroups[item.vehicleNumber].trips.push(item);
-          });
-
-          const chartData = Object.values(vehicleGroups).map(group => ({
-            vehicleNumber: group.vehicleNumber,
-            mileage: +(group.mileage / group.count).toFixed(2),
-            kmsRun: group.kmsRun,
-            dieselUsed: group.dieselUsed,
-            tripCount: group.count,
-            label: `${group.vehicleNumber}\n(${group.count} trips)`
-          }));
-
-          return (
-            <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="vehicleNumber" 
-                angle={-45} 
-                textAnchor="end" 
-                height={80}
-                tick={{ fontSize: 11, fontWeight: '500' }}
-                interval={0}
-                width={120}
-              />
-              <YAxis 
-                label={{ 
-                  value: 'Average Mileage (km/L)', 
-                  angle: -90, 
-                  position: 'insideLeft',
-                  style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
-                }}
-                domain={[0, 'auto']}
-              />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-                        <p className="font-semibold text-gray-900 mb-2">{label}</p>
-                        <p className="text-sm text-blue-600">
-                          Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Total Trips: {data.tripCount}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Total KMs: {data.kmsRun} km
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Total Diesel: {data.dieselUsed} L
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Legend />
-              <Bar 
-                dataKey="mileage" 
-                name="Average Mileage (km/L)" 
-                fill="#4f46e5" 
-                radius={[4, 4, 0, 0]} 
-              />
-            </BarChart>
-          );
-        }
-        return null;
-    }
-  };
+      }
+      return null;
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
