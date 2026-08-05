@@ -398,16 +398,22 @@ const handleUpdateEntry = async (e) => {
     return null;
   };
 
- const renderChart = () => {
+const renderChart = () => {
   const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
 
   switch (chartType) {
     case 'line':
+      // Format dates for line chart
+      const lineData = sortedData.map(item => ({
+        ...item,
+        displayLabel: item.date ? dayjs(item.date).format("DD-MM-YYYY") : item.tripLabel || 'N/A'
+      }));
+
       return (
-        <LineChart data={sortedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+        <LineChart data={lineData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
-            dataKey="tripLabel" 
+            dataKey="displayLabel"
             angle={-45} 
             textAnchor="end" 
             height={80}
@@ -439,6 +445,7 @@ const handleUpdateEntry = async (e) => {
       );
     
     case 'pie':
+      // Pie chart doesn't need date formatting as it shows vehicle names
       const vehicleGroups = {};
       sortedData.forEach(item => {
         if (!vehicleGroups[item.vehicleNumber]) {
@@ -491,22 +498,22 @@ const handleUpdateEntry = async (e) => {
       );
     
     default:
-      // ✅ FIX: If a specific vehicle is selected, show individual trips by date
+      // ✅ If a specific vehicle is selected, show individual trips by date
       if (vehicleFilter) {
-        // Show each trip's mileage with date as X-axis label
+        // Show each trip's mileage with date as X-axis label in Indian format
         const tripData = sortedData
           .filter(item => item.vehicleNumber === vehicleFilter)
           .sort((a, b) => new Date(a.date) - new Date(b.date))
           .map(item => ({
             ...item,
-            displayLabel: item.date || 'N/A'
+            displayLabel: item.date ? dayjs(item.date).format("DD-MM-YYYY") : 'N/A'
           }));
 
         return (
           <BarChart data={tripData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="displayLabel" 
+              dataKey="displayLabel"
               angle={-45} 
               textAnchor="end" 
               height={80}
@@ -596,7 +603,7 @@ const handleUpdateEntry = async (e) => {
           <BarChart data={chartData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
-              dataKey="vehicleNumber" 
+              dataKey="vehicleNumber"
               angle={-45} 
               textAnchor="end" 
               height={80}
@@ -912,9 +919,9 @@ const handleUpdateEntry = async (e) => {
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                               {v.vehicleNumber}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                              {v.date || 'N/A'}
-                            </td>
+                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+  {v.date ? dayjs(v.date).format("DD-MM-YYYY") : 'N/A'}
+</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                               {v.tripStart} km
                             </td>
