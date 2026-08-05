@@ -8,6 +8,8 @@ import dayjs from "dayjs";
 import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";  // ✅ ADD THIS IMPORT
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function MileageChart() {
   const { token } = useUserContext();
@@ -398,6 +400,22 @@ const handleUpdateEntry = async (e) => {
     return null;
   };
 
+  // Add this style in your component or in a CSS file
+const printStyles = `
+  @media print {
+    body { background: white !important; }
+    .no-print { display: none !important; }
+    #mileage-report-container { 
+      max-width: 100% !important; 
+      padding: 20px !important;
+      margin: 0 !important;
+    }
+    .bg-gray-50 { background: white !important; }
+    .shadow-sm { box-shadow: none !important; }
+    .border { border: 1px solid #e5e7eb !important; }
+  }
+`;
+
 const renderChart = () => {
   const sortedData = [...allData].sort((a, b) => b.mileage - a.mileage);
 
@@ -659,11 +677,62 @@ const renderChart = () => {
   }
 };
 
+// Add this function in your component
+const downloadPageAsPDF = async () => {
+  const element = document.getElementById('mileage-report-container');
+  if (!element) {
+    toast.error("Content not found");
+    return;
+  }
+
+  toast.loading("Generating PDF...", { id: "pdf-download" });
+
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowHeight: element.scrollHeight,
+      windowWidth: element.scrollWidth,
+      onclone: (clonedDoc) => {
+        // Ensure all images are loaded
+        const images = clonedDoc.querySelectorAll('img');
+        return Promise.all(
+          Array.from(images).map(img => {
+            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+      }
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [canvas.width * 0.75, canvas.height * 0.75]
+    });
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+    pdf.save(`mileage-report-${dayjs().format("DD-MM-YYYY")}.pdf`);
+
+    toast.success("PDF downloaded successfully!", { id: "pdf-download" });
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    toast.error("Failed to generate PDF. Please try again.", { id: "pdf-download" });
+  }
+};
+
   return (
     <div className="min-h-screen bg-gray-50">
       <InternalNavbar />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div id="mileage-report-container" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -746,6 +815,17 @@ const renderChart = () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                {/* Add Download PDF Button */}
+  <button
+    onClick={downloadPageAsPDF}
+    disabled={allData.length === 0}
+    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2 font-medium"
+  >
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    Download PDF
+  </button>
                 <div className="flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setChartType('bar')}
