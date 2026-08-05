@@ -9,7 +9,7 @@ import InternalNavbar from "../components/InternalNavbar";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";  // ✅ ADD THIS IMPORT
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function MileageChart() {
   const { token } = useUserContext();
@@ -677,7 +677,6 @@ const renderChart = () => {
   }
 };
 
-// Add this function in your component
 const downloadPageAsPDF = () => {
   if (allData.length === 0) {
     toast.error("No data to export");
@@ -724,7 +723,7 @@ const downloadPageAsPDF = () => {
     
     yPosition += 10;
 
-    // Add table
+    // Add table using autoTable function
     const tableHeaders = ['Sr No', 'Date', 'Vehicle', 'Start KMs', 'End KMs', 'KM Run', 'Diesel (L)', 'Mileage'];
     const tableData = data.map((v, idx) => [
       ((page - 1) * limit + idx + 1).toString(),
@@ -737,7 +736,8 @@ const downloadPageAsPDF = () => {
       v.mileage + ' km/L'
     ]);
 
-    pdf.autoTable({
+    // ✅ Use autoTable function directly
+    autoTable(pdf, {
       startY: yPosition,
       head: [tableHeaders],
       body: tableData,
@@ -765,9 +765,6 @@ const downloadPageAsPDF = () => {
       rowPageBreak: 'auto',
       tableWidth: 'auto'
     });
-
-    // Get the final Y position after the table
-    const finalY = pdf.lastAutoTable.finalY + 10;
 
     // Add footer
     const pageCount = pdf.internal.getNumberOfPages();
