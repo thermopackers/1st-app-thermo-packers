@@ -11,21 +11,21 @@ import { CaremaxCustomerProvider } from "./context/CaremaxCustomerContext";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  // <BrowserRouter>
-  //   <AppProvider>
-  //   <UserProvider>
-  //         <ToDoProvider>
-  //               <CaremaxCustomerProvider>
+  <BrowserRouter>
+    <AppProvider>
+    <UserProvider>
+          <ToDoProvider>
+                <CaremaxCustomerProvider>
 
 
 
-  //     <App />
-  //         </CaremaxCustomerProvider>
+      {/* <App /> */}
+          </CaremaxCustomerProvider>
 
-  //         </ToDoProvider>
+          </ToDoProvider>
 
-  //     </UserProvider>
+      </UserProvider>
 
-  //   </AppProvider>
-  // </BrowserRouter>
+    </AppProvider>
+  </BrowserRouter>
 );
