@@ -7,20 +7,25 @@ import "./index.css";
 import { AppProvider } from "./context/AppContext";
 import { UserProvider } from "./context/UserContext";
 import { ToDoProvider } from "./context/ToDoContext";
+import { CaremaxCustomerProvider } from "./context/CaremaxCustomerContext";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <BrowserRouter>
-    <AppProvider>
-    <UserProvider>
-          <ToDoProvider>
+  // <BrowserRouter>
+  //   <AppProvider>
+  //   <UserProvider>
+  //         <ToDoProvider>
+  //               <CaremaxCustomerProvider>
 
 
-      <App />
-          </ToDoProvider>
 
-      </UserProvider>
+  //     <App />
+  //         </CaremaxCustomerProvider>
 
-    </AppProvider>
-  </BrowserRouter>
+  //         </ToDoProvider>
+
+  //     </UserProvider>
+
+  //   </AppProvider>
+  // </BrowserRouter>
 );
