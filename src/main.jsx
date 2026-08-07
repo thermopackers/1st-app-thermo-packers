@@ -7,7 +7,7 @@ import "./index.css";
 import { AppProvider } from "./context/AppContext";
 import { UserProvider } from "./context/UserContext";
 import { ToDoProvider } from "./context/ToDoContext";
-// import { CaremaxCustomerProvider } from "./context/CaremaxCustomerContext";
+import { CaremaxCustomerProvider } from "./context/CaremaxCustomerContext";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -15,12 +15,12 @@ root.render(
     <AppProvider>
     <UserProvider>
           <ToDoProvider>
-                {/* <CaremaxCustomerProvider> */}
+                <CaremaxCustomerProvider>
 
 
 
       <App />
-          {/* </CaremaxCustomerProvider> */}
+          </CaremaxCustomerProvider>
 
           </ToDoProvider>
 
