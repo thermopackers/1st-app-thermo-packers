@@ -957,7 +957,7 @@ const downloadPageAsPDF = async () => {
                   >
                     Line
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => setChartType('pie')}
                     className={`px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ${
                       chartType === 'pie' 
@@ -966,7 +966,7 @@ const downloadPageAsPDF = async () => {
                     }`}
                   >
                     Pie
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>

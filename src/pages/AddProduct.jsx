@@ -249,7 +249,7 @@ const handleRemoveDrawing = (idx) => {
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Product Weight (grams)</label>
+            <label className="block text-gray-700 font-semibold mb-2">Product Dry Weight (grams)</label>
             <input 
               name="weight" 
               type="number"

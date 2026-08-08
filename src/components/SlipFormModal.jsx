@@ -1217,7 +1217,7 @@ const getFilteredProductList = () => {
   <>
     <section className="space-y-4">
       <h3 className="text-2xl bg-yellow-200 py-2 text-center font-semibold text-indigo-700 border-b border-indigo-300 pb-2 select-none">
-        Raw Block/Dana Slip
+        Raw Block Order Slip
       </h3>
 
       {hasMultipleProducts ? (

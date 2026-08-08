@@ -531,6 +531,13 @@ for (const prod of productList) {
       }
     }
 
+    // ✅ ADD THIS: Mark the proforma invoice as converted
+    const convertingInvoiceId = localStorage.getItem('convertingInvoiceId');
+    if (convertingInvoiceId) {
+      ConversionTracker.markAsConverted(convertingInvoiceId);
+      localStorage.removeItem('convertingInvoiceId');
+    }
+
     toast.success("Order submitted!");
     navigate("/orders", { 
       state: { scrollToOrderId: response.data.order._id, scrollToSection: true },
