@@ -849,6 +849,93 @@ const downloadPageAsPDF = async () => {
     
     yPosition += 10;
 
+    // ✅ NEW: Calculate average mileage per vehicle
+    const vehicleAvgMap = {};
+    allDataForPDF.forEach(item => {
+      if (!vehicleAvgMap[item.vehicleNumber]) {
+        vehicleAvgMap[item.vehicleNumber] = {
+          vehicleNumber: item.vehicleNumber,
+          totalMileage: 0,
+          totalKms: 0,
+          totalDiesel: 0,
+          count: 0
+        };
+      }
+      vehicleAvgMap[item.vehicleNumber].totalMileage += item.mileage || 0;
+      vehicleAvgMap[item.vehicleNumber].totalKms += item.kmsRun || 0;
+      vehicleAvgMap[item.vehicleNumber].totalDiesel += item.dieselUsed || 0;
+      vehicleAvgMap[item.vehicleNumber].count += 1;
+    });
+
+    // Convert to array and calculate averages
+    const vehicleAvgData = Object.values(vehicleAvgMap).map(vehicle => ({
+      vehicleNumber: vehicle.vehicleNumber,
+      avgMileage: +(vehicle.totalMileage / vehicle.count).toFixed(2),
+      totalKms: vehicle.totalKms,
+      totalDiesel: +(vehicle.totalDiesel).toFixed(1),
+      tripCount: vehicle.count
+    }));
+
+    // Sort by vehicle number
+    vehicleAvgData.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber));
+
+    // ✅ Add Vehicle Average Summary Table
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Vehicle Average Mileage Summary', 14, yPosition);
+    pdf.setFont(undefined, 'normal');
+    yPosition += 6;
+
+    // Vehicle Average table
+    const vehicleAvgHeaders = ['Sr No', 'Vehicle Number', 'Avg Mileage (km/L)', 'Total KMs', 'Total Diesel (L)', 'Trips'];
+    const vehicleAvgRows = vehicleAvgData.map((v, idx) => [
+      (idx + 1).toString(),
+      v.vehicleNumber,
+      v.avgMileage + ' km/L',
+      v.totalKms + ' km',
+      v.totalDiesel + ' L',
+      v.tripCount.toString()
+    ]);
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [vehicleAvgHeaders],
+      body: vehicleAvgRows,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { 
+        fillColor: [34, 197, 94], // Green color for summary
+        textColor: [255, 255, 255], 
+        fontSize: 8, 
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 35, halign: 'center' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
+        5: { cellWidth: 20, halign: 'center' },
+      },
+      margin: { left: 10, right: 10 },
+      pageBreak: 'auto',
+      tableWidth: 'auto'
+    });
+
+    // Get the Y position after the vehicle summary table
+    const afterSummaryY = pdf.lastAutoTable.finalY + 10;
+
+    // ✅ Detailed Trip Table
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Detailed Trip Records', 14, afterSummaryY);
+    pdf.setFont(undefined, 'normal');
+    
+    const tableY = afterSummaryY + 6;
+
     // Add table with ALL data
     const tableHeaders = ['Sr No', 'Date', 'Vehicle', 'Start KMs', 'End KMs', 'KM Run', 'Diesel (L)', 'Mileage'];
     const tableData = allDataForPDF.map((v, idx) => [
@@ -863,7 +950,7 @@ const downloadPageAsPDF = async () => {
     ]);
 
     autoTable(pdf, {
-      startY: yPosition,
+      startY: tableY,
       head: [tableHeaders],
       body: tableData,
       theme: 'grid',
