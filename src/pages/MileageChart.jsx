@@ -1097,7 +1097,7 @@ const resetEntriesFilters = () => {
                 </div>
 
                 {/* Table */}
-                <div className="mt-8">
+                {/* <div className="mt-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Trip Details</h3>
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -1196,7 +1196,7 @@ const resetEntriesFilters = () => {
                       </div>
                     </div>
                   )}
-                </div>
+                </div> */}
               </>
             )}
           </div>
@@ -1344,7 +1344,7 @@ const resetEntriesFilters = () => {
           {/* Mileage Entries Table with Edit */}
 <div className="mt-8">
   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-    <h3 className="text-lg font-semibold text-gray-900">📋 Mileage Entries</h3>
+    <h3 className="text-lg font-semibold text-gray-900">📋 Mileage Entries Filter</h3>
     <span className="text-sm text-gray-500">
       Total: {entriesTotal} entries
     </span>
