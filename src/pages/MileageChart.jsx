@@ -10,6 +10,7 @@ import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";  // ✅ ADD THIS IMPORT
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import Swal from 'sweetalert2';
 
 export default function MileageChart() {
   const { token } = useUserContext();
@@ -59,6 +60,8 @@ const [editUploading, setEditUploading] = useState(false);
   const [entriesTotalPages, setEntriesTotalPages] = useState(1);
   const [entriesTotal, setEntriesTotal] = useState(0);
   const [entriesLoading, setEntriesLoading] = useState(false);
+// Add these state variables at the top with other states
+const [deleteLoading, setDeleteLoading] = useState(false);
 
   // State for all data (for chart) - this will hold ALL data without pagination
   const [allData, setAllData] = useState([]);
@@ -1006,6 +1009,80 @@ const resetEntriesFilters = () => {
   setEntriesPage(1);
 };
 
+// Add delete entry function
+const handleDeleteEntry = async (entryId) => {
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!'
+  });
+
+  if (result.isConfirmed) {
+    setDeleteLoading(true);
+    try {
+      await axiosInstance.delete(`/diesel/delete/${entryId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success("Entry deleted successfully!");
+      fetchMileageEntries(entriesPage);
+      fetchAllMileageData();
+      fetchTableData();
+    } catch (err) {
+      console.error("Failed to delete entry:", err);
+      toast.error("Failed to delete entry. Please try again.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+};
+
+// Add function to remove individual file from entry
+const handleRemoveFile = async (entryId, fileUrl) => {
+  const result = await Swal.fire({
+    title: 'Remove File?',
+    text: "Are you sure you want to remove this file?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, remove it!'
+  });
+
+  if (result.isConfirmed) {
+    try {
+      // Find the entry first
+      const entry = mileageEntries.find(e => e._id === entryId);
+      if (!entry) {
+        toast.error("Entry not found");
+        return;
+      }
+
+      // Filter out the file URL
+      const updatedImageUrls = entry.imageUrls.filter(url => url !== fileUrl);
+
+      // Update the entry
+      await axiosInstance.patch(`/diesel/update/${entryId}`, {
+        imageUrls: updatedImageUrls
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success("File removed successfully!");
+      fetchMileageEntries(entriesPage);
+      fetchAllMileageData();
+      fetchTableData();
+    } catch (err) {
+      console.error("Failed to remove file:", err);
+      toast.error("Failed to remove file. Please try again.");
+    }
+  }
+};
+
   return (
     <div className="min-h-screen bg-gray-50">
       <InternalNavbar />
@@ -1648,28 +1725,36 @@ const resetEntriesFilters = () => {
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
                   {entry.dieselLiters || entry.dieselQuantity} L
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                  {entry.imageUrls && entry.imageUrls.length > 0 ? (
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      <div className="flex flex-wrap gap-1">
-                        {entry.imageUrls.map((url, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setPreviewImage(url)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-2 py-1 rounded-md transition-colors duration-200 border border-blue-200"
-                          >
-                            📎 File {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">No files</span>
-                  )}
-                </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+  {entry.imageUrls && entry.imageUrls.length > 0 ? (
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+      </svg>
+      <div className="flex flex-wrap gap-1">
+        {entry.imageUrls.map((url, index) => (
+          <div key={index} className="flex items-center gap-0.5 bg-blue-50 rounded-md px-1.5 py-0.5 border border-blue-200">
+            <button
+              onClick={() => setPreviewImage(url)}
+              className="text-blue-600 hover:text-blue-800 text-xs hover:underline"
+            >
+              📎 {index + 1}
+            </button>
+            <button
+              onClick={() => handleRemoveFile(entry._id, url)}
+              className="text-red-500 hover:text-red-700 text-xs font-bold ml-0.5"
+              title="Remove file"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : (
+    <span className="text-gray-400">No files</span>
+  )}
+</td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                   <button
                     onClick={() => handleEditClick(entry)}
@@ -1680,6 +1765,16 @@ const resetEntriesFilters = () => {
                     </svg>
                     Edit
                   </button>
+                  <button
+      onClick={() => handleDeleteEntry(entry._id)}
+      disabled={deleteLoading}
+      className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
+    >
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+      Delete
+    </button>
                 </td>
               </tr>
             ))}
@@ -1840,27 +1935,54 @@ const resetEntriesFilters = () => {
           </div>
         </div>
 
-        {/* Existing Files */}
-        {editFormData.imageUrls && editFormData.imageUrls.length > 0 && (
-          <div className="mt-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Existing Files
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {editFormData.imageUrls.map((url, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setPreviewImage(url)}
-                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-200 border border-blue-200 flex items-center gap-1"
-                >
-                  📎 File {index + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* Existing Files */}
+{editFormData.imageUrls && editFormData.imageUrls.length > 0 && (
+  <div className="mt-2">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Existing Files
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {editFormData.imageUrls.map((url, index) => (
+        <div key={index} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-md px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setPreviewImage(url)}
+            className="text-blue-600 hover:text-blue-800 text-xs hover:underline flex items-center gap-1"
+          >
+            📎 File {index + 1}
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const result = await Swal.fire({
+                title: 'Remove File?',
+                text: `Are you sure you want to remove File ${index + 1}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, remove it!'
+              });
 
+              if (result.isConfirmed) {
+                const updatedUrls = editFormData.imageUrls.filter((_, i) => i !== index);
+                setEditFormData(prev => ({
+                  ...prev,
+                  imageUrls: updatedUrls
+                }));
+                toast.success("File will be removed on save");
+              }
+            }}
+            className="text-red-500 hover:text-red-700 text-xs font-bold"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+    <p className="text-xs text-gray-500 mt-1">Click on file to preview, or × to remove</p>
+  </div>
+)}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <button
             type="button"
