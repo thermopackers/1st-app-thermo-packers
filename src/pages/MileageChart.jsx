@@ -1421,7 +1421,7 @@ const resetEntriesFilters = () => {
 
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      Diesel (Liters) *
+     FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
     </label>
     <input
       type="number"
@@ -1620,7 +1620,7 @@ const resetEntriesFilters = () => {
                 Meter Reading
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Diesel (L)
+                FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Files
@@ -1808,7 +1808,7 @@ const resetEntriesFilters = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Diesel (Liters) *
+             FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
             </label>
             <input
               type="number"
