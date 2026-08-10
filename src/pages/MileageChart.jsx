@@ -539,77 +539,124 @@ const renderChart = () => {
         </PieChart>
       );
     
-    default:
-      // ✅ If a specific vehicle is selected, show individual trips by date
-      if (vehicleFilter) {
-        // Show each trip's mileage with date as X-axis label in Indian format
-        const tripData = sortedData
-          .filter(item => item.vehicleNumber === vehicleFilter)
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .map(item => ({
-            ...item,
-            displayLabel: item.date ? dayjs(item.date).format("DD-MM-YYYY") : 'N/A'
-          }));
+   default:
+  // ✅ If a specific vehicle is selected, show individual trips by date
+  if (vehicleFilter) {
+    // Show each trip's mileage with date as X-axis label in Indian format
+    let tripData = sortedData
+      .filter(item => item.vehicleNumber === vehicleFilter)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(item => ({
+        ...item,
+        displayLabel: item.date ? dayjs(item.date).format("DD-MM-YYYY") : 'N/A'
+      }));
 
-        return (
-          <BarChart data={tripData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="displayLabel"
-              angle={-45} 
-              textAnchor="end" 
-              height={80}
-              tick={{ fontSize: 11, fontWeight: '500' }}
-              interval={0}
-              width={100}
-            />
-            <YAxis 
-              label={{ 
-                value: 'Mileage (km/L)', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
-              }}
-              domain={[0, 'auto']}
-            />
-            <Tooltip 
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  const data = payload[0].payload;
-                  return (
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-                      <p className="font-semibold text-gray-900 mb-2">{label}</p>
-                      <p className="text-sm text-blue-600">
-                        Mileage: <span className="font-semibold">{data.mileage} km/L</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Distance: {data.kmsRun} km
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Diesel: {data.dieselUsed} L
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Start KMs: {data.tripStart}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        End KMs: {data.tripEnd}
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Legend />
-            <Bar 
-              dataKey="mileage" 
-              name="Trip Mileage (km/L)" 
-              fill="#4f46e5" 
-              radius={[4, 4, 0, 0]} 
-            />
-          </BarChart>
-        );
+    // ✅ FIX: Group by date to show one bar per day
+    // If there are multiple trips on the same day, show the average mileage
+    const groupedByDate = {};
+    tripData.forEach(item => {
+      const dateKey = item.date;
+      if (!groupedByDate[dateKey]) {
+        groupedByDate[dateKey] = {
+          date: dateKey,
+          displayLabel: item.displayLabel,
+          mileage: 0,
+          kmsRun: 0,
+          dieselUsed: 0,
+          tripStart: item.tripStart,
+          tripEnd: item.tripEnd,
+          count: 0,
+          trips: []
+        };
       }
+      groupedByDate[dateKey].mileage += item.mileage;
+      groupedByDate[dateKey].kmsRun += item.kmsRun;
+      groupedByDate[dateKey].dieselUsed += item.dieselUsed;
+      groupedByDate[dateKey].count += 1;
+      // Keep the first trip's start and last trip's end for display
+      if (groupedByDate[dateKey].count === 1) {
+        groupedByDate[dateKey].tripStart = item.tripStart;
+      }
+      groupedByDate[dateKey].tripEnd = item.tripEnd;
+      groupedByDate[dateKey].trips.push(item);
+    });
+
+    // Convert to array and calculate average mileage per day
+    const groupedData = Object.values(groupedByDate).map(group => ({
+      ...group,
+      mileage: +(group.mileage / group.count).toFixed(2),
+      // For display label, show date with trip count
+      displayLabel: `${group.displayLabel} (${group.count} trips)`,
+      // Keep the first trip start and last trip end
+      tripStart: group.trips[0].tripStart,
+      tripEnd: group.trips[group.trips.length - 1].tripEnd,
+    }));
+
+    return (
+      <BarChart data={groupedData} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis 
+          dataKey="displayLabel"
+          angle={-45} 
+          textAnchor="end" 
+          height={80}
+          tick={{ fontSize: 11, fontWeight: '500' }}
+          interval={0}
+          width={100}
+        />
+        <YAxis 
+          label={{ 
+            value: 'Average Mileage (km/L)', 
+            angle: -90, 
+            position: 'insideLeft',
+            style: { textAnchor: 'middle', fontWeight: 'bold', fontSize: 12 }
+          }}
+          domain={[0, 'auto']}
+        />
+        <Tooltip 
+          content={({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+              const data = payload[0].payload;
+              return (
+                <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+                  <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                  <p className="text-sm text-blue-600">
+                    Average Mileage: <span className="font-semibold">{data.mileage} km/L</span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Total Trips: {data.count}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Total Distance: {data.kmsRun} km
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Total Diesel: {data.dieselUsed} L
+                  </p>
+                  {data.trips && data.trips.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      {data.trips.map((trip, idx) => (
+                        <div key={idx}>
+                          Trip {idx + 1}: {trip.tripStart} → {trip.tripEnd} km, {trip.mileage} km/L
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return null;
+          }}
+        />
+        <Legend />
+        <Bar 
+          dataKey="mileage" 
+          name="Avg Trip Mileage (km/L)" 
+          fill="#4f46e5" 
+          radius={[4, 4, 0, 0]} 
+        />
+      </BarChart>
+    );
+  }
 
       // ✅ If "All Vehicles" is selected, show grouped by vehicle (average)
       if (allData.length > 0) {
