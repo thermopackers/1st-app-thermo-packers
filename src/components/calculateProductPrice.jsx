@@ -22,7 +22,10 @@ export default function ProductRateChecker() {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searching, setSearching] = useState(false);
-  
+  const [purchaseProducts, setPurchaseProducts] = useState([]);
+const [linkedPurchaseProduct, setLinkedPurchaseProduct] = useState(null);
+const [loadingLinkedProduct, setLoadingLinkedProduct] = useState(false);
+
   // Customer and freight related states
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -39,6 +42,25 @@ export default function ProductRateChecker() {
   const [coordinatesCache, setCoordinatesCache] = useState({
     '144013': STARTING_LOCATION.coordinates
   });
+
+// Fetch purchase products for non-thermocol/trading products
+useEffect(() => {
+  const fetchPurchaseProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/purchase-products/purchase-products-all");
+      console.log("📦 Purchase products loaded:", res.data.length);
+      // Make sure price field is included
+      const productsWithPrice = res.data.map(p => ({
+        ...p,
+        price: p.price || 0
+      }));
+      setPurchaseProducts(productsWithPrice);
+    } catch (err) {
+      console.error("Error fetching purchase products:", err);
+    }
+  };
+  fetchPurchaseProducts();
+}, []);
 
   useEffect(() => {
     fetchRMRate();
@@ -110,12 +132,19 @@ export default function ProductRateChecker() {
     searchProducts(term);
   };
 
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product);
-    setSearchTerm(product.name);
-    setShowResults(false);
-    setProducts([]);
-  };
+const handleProductSelect = (product) => {
+  setSelectedProduct(product);
+  setSearchTerm(product.name);
+  setShowResults(false);
+  setProducts([]);
+  
+  // If product is non-thermocol and has linked purchase product, fetch it
+  if (product.isNonThermocol && product.linkedPurchaseProductId) {
+    fetchLinkedPurchaseProduct(product.linkedPurchaseProductId);
+  } else {
+    setLinkedPurchaseProduct(null);
+  }
+};
 
   // ✅ Get coordinates from pincode
   const getCoordinatesFromPincode = async (pincode) => {
@@ -193,6 +222,32 @@ export default function ProductRateChecker() {
       return getPincodeCoordinates(pincode);
     }
   };
+
+  const fetchLinkedPurchaseProduct = async (purchaseProductId) => {
+  if (!purchaseProductId) {
+    setLinkedPurchaseProduct(null);
+    return;
+  }
+  
+  setLoadingLinkedProduct(true);
+  try {
+    // First check if it's already in purchaseProducts state
+    const existing = purchaseProducts.find(p => p._id === purchaseProductId);
+    if (existing) {
+      setLinkedPurchaseProduct(existing);
+      return;
+    }
+    
+    // If not, fetch it directly
+    const res = await axiosInstance.get(`/purchase-products/${purchaseProductId}`);
+    setLinkedPurchaseProduct(res.data);
+  } catch (err) {
+    console.error("Error fetching linked purchase product:", err);
+    setLinkedPurchaseProduct(null);
+  } finally {
+    setLoadingLinkedProduct(false);
+  }
+};
 
   // ✅ Get pincode coordinates from database
   const getPincodeCoordinates = (pincode) => {
@@ -488,80 +543,118 @@ export default function ProductRateChecker() {
     }
   };
 
-  const calculatePrice = (product) => {
-    if (!product) return null;
-    
-    const conversionRate = product.conversion || 0;
-    const totalPerKg = rmRate + conversionRate;
-    
-    let weightInKg = 0;
-    let weightInGrams = 0;
-    
-    if (product.weight) {
-      const num = parseFloat(product.weight);
-      if (!isNaN(num)) {
-        weightInKg = num;
-        weightInGrams = num * 1000;
-      }
+const calculatePrice = (product) => {
+  if (!product) return null;
+  
+  let conversionRate = 0;
+  let purchasePrice = 0;
+  let isNonThermocol = product.isNonThermocol || false;
+  let linkedProductName = "";
+  
+  // ✅ ONLY for Non-Thermocol products - use purchase product price
+  if (isNonThermocol && product.linkedPurchaseProductId) {
+    // Try to find in purchaseProducts state
+    const linkedPurchase = purchaseProducts.find(p => p._id === product.linkedPurchaseProductId);
+    if (linkedPurchase) {
+      purchasePrice = linkedPurchase.price || 0;
+      linkedProductName = linkedPurchase.name || "Linked Product";
+      conversionRate = parseFloat(product.tradingConversion) || 0;
+    } else {
+      // Fallback: use regular conversion
+      conversionRate = parseFloat(product.conversion) || 0;
     }
-    
-    const unit = product.unit?.toLowerCase() || "";
-    const isKgUnit = unit === "kg" || unit === "kgs";
-    
-    let pricePerPiece = 0;
-    let isWeightBased = false;
-    
-    if (isKgUnit) {
+  } else {
+    // ✅ For ALL OTHER products - use existing RM rate + conversion
+    conversionRate = parseFloat(product.conversion) || 0;
+  }
+  
+  // Calculate total per kg
+  let totalPerKg;
+  if (isNonThermocol && purchasePrice > 0) {
+    // Trading product: purchase price + trading conversion
+    totalPerKg = purchasePrice + conversionRate;
+  } else {
+    // Regular product: RM rate + conversion (EXISTING BEHAVIOR)
+    totalPerKg = rmRate + conversionRate;
+  }
+  
+  // ... REST OF THE CALCULATION REMAINS EXACTLY THE SAME ...
+  // (weight calculation, price per piece, GST, freight, etc.)
+  
+  let weightInKg = 0;
+  let weightInGrams = 0;
+  
+  if (product.weight) {
+    const num = parseFloat(product.weight);
+    if (!isNaN(num)) {
+      weightInKg = num;
+      weightInGrams = num * 1000;
+    }
+  }
+  
+  const unit = product.unit?.toLowerCase() || "";
+  const isKgUnit = unit === "kg" || unit === "kgs";
+  
+  let pricePerPiece = 0;
+  let isWeightBased = false;
+  
+  if (isKgUnit) {
+    pricePerPiece = totalPerKg;
+    isWeightBased = false;
+  } else {
+    if (weightInKg > 0) {
+      pricePerPiece = totalPerKg * weightInKg;
+      isWeightBased = true;
+    } else {
       pricePerPiece = totalPerKg;
       isWeightBased = false;
-    } else {
-      if (weightInKg > 0) {
-        pricePerPiece = totalPerKg * weightInKg;
-        isWeightBased = true;
-      } else {
-        pricePerPiece = totalPerKg;
-        isWeightBased = false;
-      }
     }
+  }
+  
+  const gstPercent = parseFloat(product.gstPercent) || 18;
+  const gstAmount = pricePerPiece * (gstPercent / 100);
+  const finalPrice = pricePerPiece + gstAmount;
+  
+  let freightTempo = 0;
+  let freightTruck = 0;
+  let volumePerPiece = parseFloat(product.volumePerPiece) || 0;
+  let piecesInTempo = 0;
+  let piecesInTruck = 0;
+  
+  if (customerDistance > 0 && volumePerPiece > 0) {
+    piecesInTempo = Math.floor(TEMPO_CAPACITY / volumePerPiece);
+    piecesInTruck = Math.floor(TRUCK_CAPACITY / volumePerPiece);
     
-    const gstAmount = pricePerPiece * 0.18;
-    const finalPrice = pricePerPiece + gstAmount;
-    
-    let freightTempo = 0;
-    let freightTruck = 0;
-    let volumePerPiece = parseFloat(product.volumePerPiece) || 0;
-    let piecesInTempo = 0;
-    let piecesInTruck = 0;
-    
-    if (customerDistance > 0 && volumePerPiece > 0) {
-      piecesInTempo = Math.floor(TEMPO_CAPACITY / volumePerPiece);
-      piecesInTruck = Math.floor(TRUCK_CAPACITY / volumePerPiece);
-      
-      const roundTripDistance = customerDistance * 2;
-      freightTempo = piecesInTempo > 0 ? (FREIGHT_RATE.tempo * roundTripDistance) / piecesInTempo : 0;
-      freightTruck = piecesInTruck > 0 ? (FREIGHT_RATE.truck * roundTripDistance) / piecesInTruck : 0;
-    }
-    
-    return {
-      conversionRate,
-      weightInGrams: Math.round(weightInGrams),
-      weightInKg: weightInKg,
-      totalPerKg,
-      pricePerPiece: pricePerPiece.toFixed(2),
-      isWeightBased,
-      gstAmount: gstAmount.toFixed(2),
-      finalPrice: finalPrice.toFixed(2),
-      unit: product.unit || "kg",
-      customerDistance,
-      volumePerPiece,
-      piecesInTempo,
-      piecesInTruck,
-      freightTempo: freightTempo.toFixed(2),
-      freightTruck: freightTruck.toFixed(2),
-      tempoTotal: (parseFloat(pricePerPiece) + freightTempo).toFixed(2),
-      truckTotal: (parseFloat(pricePerPiece) + freightTruck).toFixed(2)
-    };
+    const roundTripDistance = customerDistance * 2;
+    freightTempo = piecesInTempo > 0 ? (FREIGHT_RATE.tempo * roundTripDistance) / piecesInTempo : 0;
+    freightTruck = piecesInTruck > 0 ? (FREIGHT_RATE.truck * roundTripDistance) / piecesInTruck : 0;
+  }
+  
+  return {
+    conversionRate,
+    weightInGrams: Math.round(weightInGrams),
+    weightInKg: weightInKg,
+    totalPerKg,
+    pricePerPiece: pricePerPiece.toFixed(2),
+    isWeightBased,
+    gstAmount: gstAmount.toFixed(2),
+    finalPrice: finalPrice.toFixed(2),
+    unit: product.unit || "kg",
+    customerDistance,
+    volumePerPiece,
+    piecesInTempo,
+    piecesInTruck,
+    freightTempo: freightTempo.toFixed(2),
+    freightTruck: freightTruck.toFixed(2),
+    tempoTotal: (parseFloat(pricePerPiece) + freightTempo).toFixed(2),
+    truckTotal: (parseFloat(pricePerPiece) + freightTruck).toFixed(2),
+    // ✅ Additional fields ONLY for Non-Thermocol products
+    isNonThermocol,
+    purchasePrice: isNonThermocol ? purchasePrice : null,
+    linkedProductName: isNonThermocol ? linkedProductName : null,
+    gstPercent
   };
+};
 
   // Customer options for dropdown
   const customerOptions = Array.isArray(customers) 
@@ -658,178 +751,195 @@ export default function ProductRateChecker() {
         </div>
       )}
       
-      {/* Results Display */}
-      {selectedProduct && result && (
-        <div className="mt-4 border-t border-gray-200 pt-4">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-800 text-sm mb-2">
-              {selectedProduct.name}
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-gray-500 text-xs">Unit:</span>
-                <span className="ml-1 font-medium text-xs">{selectedProduct.unit || 'kg'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs">RM Rate:</span>
-                <span className="ml-1 font-medium text-xs">₹{rmRate.toFixed(2)}/kg</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs">Conversion:</span>
-                <span className="ml-1 font-medium text-xs">₹{result.conversionRate.toFixed(2)}/kg</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-xs">Total/kg:</span>
-                <span className="ml-1 font-medium text-green-600 text-xs">₹{result.totalPerKg.toFixed(2)}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-500 text-xs">Volume/Piece:</span>
-                <span className="ml-1 font-medium text-xs">
-                  {result.volumePerPiece > 0 ? `${result.volumePerPiece} m³` : '⚠️ N/A (Add volume in product)'}
-                </span>
-              </div>
-              {result.isWeightBased && (
-                <div className="col-span-2">
-                  <span className="text-gray-500 text-xs">Weight:</span>
-                  <span className="ml-1 font-medium text-xs">{result.weightInGrams > 0 ? `${result.weightInGrams} g` : 'N/A'}</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Main Price */}
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium text-xs">Price per {result.isWeightBased ? 'Piece' : 'kg'}:</span>
-                <span className="text-sm font-bold text-purple-600">₹{result.pricePerPiece}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-gray-500 text-xs">GST (18%):</span>
-                <span className="text-orange-600 font-medium text-xs">₹{result.gstAmount}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-200">
-                <span className="text-gray-700 font-semibold text-xs">Price incl. GST:</span>
-                <span className="text-sm font-bold text-green-600">₹{result.finalPrice}</span>
-              </div>
-            </div>
-            
-            {/* Freight Calculation Details */}
-            {customerDistance > 0 && result.volumePerPiece > 0 && (
-              <div className="mt-3 pt-2 border-t border-gray-200">
-                <p className="text-xs font-semibold text-gray-700 mb-2">🚚 Freight Calculation Details</p>
-                
-                <div className="bg-gray-50 p-2 rounded mb-2 text-xs">
-                  <p className="font-medium">📏 Distance: {customerDistance} km (one way)</p>
-                  <p className="font-medium">🔄 Round Trip: {customerDistance * 2} km</p>
-                  <p className="font-medium">📦 Volume per piece: {result.volumePerPiece} m³</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Tempo Details */}
-                  <div className="bg-blue-50 p-2 rounded">
-                    <p className="font-bold text-blue-700 mb-1">🚛 Tempo (12m³)</p>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">1️⃣ Pieces per tempo:</p>
-                      <p className="font-mono text-xs">
-                        {TEMPO_CAPACITY} ÷ {result.volumePerPiece} = <span className="font-bold">{result.piecesInTempo}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">2️⃣ Round trip distance:</p>
-                      <p className="font-mono text-xs">
-                        {customerDistance} × 2 = <span className="font-bold">{customerDistance * 2} km</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">3️⃣ Total freight:</p>
-                      <p className="font-mono text-xs">
-                        {customerDistance * 2} × ₹{FREIGHT_RATE.tempo} = <span className="font-bold">₹{(FREIGHT_RATE.tempo * customerDistance * 2).toLocaleString()}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">4️⃣ Freight per piece:</p>
-                      <p className="font-mono text-xs">
-                        ₹{(FREIGHT_RATE.tempo * customerDistance * 2).toLocaleString()} ÷ {result.piecesInTempo} = <span className="font-bold">₹{result.freightTempo}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-blue-100 p-1 rounded">
-                      <p className="font-bold text-blue-700">5️⃣ Total per piece:</p>
-                      <p className="font-mono text-xs font-bold">
-                        ₹{result.pricePerPiece} + ₹{result.freightTempo} = <span className="text-lg">₹{result.tempoTotal}</span>
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Truck Details */}
-                  <div className="bg-orange-50 p-2 rounded">
-                    <p className="font-bold text-orange-700 mb-1">🚛 Truck (40m³)</p>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">1️⃣ Pieces per truck:</p>
-                      <p className="font-mono text-xs">
-                        {TRUCK_CAPACITY} ÷ {result.volumePerPiece} = <span className="font-bold">{result.piecesInTruck}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">2️⃣ Round trip distance:</p>
-                      <p className="font-mono text-xs">
-                        {customerDistance} × 2 = <span className="font-bold">{customerDistance * 2} km</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">3️⃣ Total freight:</p>
-                      <p className="font-mono text-xs">
-                        {customerDistance * 2} × ₹{FREIGHT_RATE.truck} = <span className="font-bold">₹{(FREIGHT_RATE.truck * customerDistance * 2).toLocaleString()}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-white p-1 rounded mb-1">
-                      <p className="text-gray-600">4️⃣ Freight per piece:</p>
-                      <p className="font-mono text-xs">
-                        ₹{(FREIGHT_RATE.truck * customerDistance * 2).toLocaleString()} ÷ {result.piecesInTruck} = <span className="font-bold">₹{result.freightTruck}</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-orange-100 p-1 rounded">
-                      <p className="font-bold text-orange-700">5️⃣ Total per piece:</p>
-                      <p className="font-mono text-xs font-bold">
-                        ₹{result.pricePerPiece} + ₹{result.freightTruck} = <span className="text-lg">₹{result.truckTotal}</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                <p className="text-xs text-gray-400 mt-1">
-                  📍 Based on {customerDistance} km (one way) • {customerDistance * 2} km round trip
-                </p>
-              </div>
-            )}
-            
-            {customerDistance > 0 && result.volumePerPiece === 0 && (
-              <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
-                ⚠️ Volume per piece not set. Add volume in product to calculate freight.
-              </div>
-            )}
-            
-            {customerDistance === 0 && selectedCustomer && (
-              <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
-                ⚠️ Could not calculate distance. Please check customer pincode.
-              </div>
-            )}
-            
-            <div className="mt-2 text-xs text-gray-400 flex items-center gap-1">
-              <TrendingUp size={12} />
-              <span>Based on current RM rate: ₹{rmRate.toFixed(2)}/kg</span>
-            </div>
-          </div>
+{/* Results Display */}
+{selectedProduct && result && (
+  <div className="mt-4 border-t border-gray-200 pt-4">
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
+      <h4 className="font-semibold text-gray-800 text-sm mb-2">
+        {selectedProduct.name}
+      </h4>
+      
+      {/* ✅ Price Source Display - Only shows for Non-Thermocol products */}
+      {result.isNonThermocol && result.purchasePrice !== null && (
+        <div className="text-xs text-blue-600 mb-2 p-1.5 bg-blue-50 rounded border border-blue-200">
+          <span className="font-medium">📊 Trading Product:</span>
+          <span className="ml-1">
+            Purchase: ₹{result.purchasePrice.toFixed(2)}/kg + Trading Conv: ₹{result.conversionRate.toFixed(2)}/kg
+            {result.linkedProductName && <span className="ml-1">({result.linkedProductName})</span>}
+          </span>
         </div>
       )}
+      
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <span className="text-gray-500 text-xs">Unit:</span>
+          <span className="ml-1 font-medium text-xs">{selectedProduct.unit || 'kg'}</span>
+        </div>
+        <div>
+          <span className="text-gray-500 text-xs">RM Rate:</span>
+          <span className="ml-1 font-medium text-xs">₹{rmRate.toFixed(2)}/kg</span>
+        </div>
+        <div>
+          <span className="text-gray-500 text-xs">Conversion:</span>
+          <span className="ml-1 font-medium text-xs">₹{result.conversionRate.toFixed(2)}/kg</span>
+        </div>
+        <div>
+          <span className="text-gray-500 text-xs">Total/kg:</span>
+          <span className="ml-1 font-medium text-green-600 text-xs">₹{result.totalPerKg.toFixed(2)}</span>
+        </div>
+        <div className="col-span-2">
+          <span className="text-gray-500 text-xs">Volume/Piece:</span>
+          <span className="ml-1 font-medium text-xs">
+            {result.volumePerPiece > 0 ? `${result.volumePerPiece} m³` : '⚠️ N/A (Add volume in product)'}
+          </span>
+        </div>
+        {result.isWeightBased && (
+          <div className="col-span-2">
+            <span className="text-gray-500 text-xs">Weight:</span>
+            <span className="ml-1 font-medium text-xs">{result.weightInGrams > 0 ? `${result.weightInGrams} g` : 'N/A'}</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Main Price - Same as before for all products */}
+      <div className="mt-3 pt-2 border-t border-gray-200">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600 font-medium text-xs">Price per {result.isWeightBased ? 'Piece' : 'kg'}:</span>
+          <span className="text-sm font-bold text-purple-600">₹{result.pricePerPiece}</span>
+        </div>
+        <div className="flex justify-between items-center mt-1">
+          <span className="text-gray-500 text-xs">GST (18%):</span>
+          <span className="text-orange-600 font-medium text-xs">₹{result.gstAmount}</span>
+        </div>
+        <div className="flex justify-between items-center mt-1 pt-1 border-t border-gray-200">
+          <span className="text-gray-700 font-semibold text-xs">Price incl. GST:</span>
+          <span className="text-sm font-bold text-green-600">₹{result.finalPrice}</span>
+        </div>
+      </div>
+      
+      {/* Freight Calculation Details - Same as before */}
+      {customerDistance > 0 && result.volumePerPiece > 0 && (
+        <div className="mt-3 pt-2 border-t border-gray-200">
+          <p className="text-xs font-semibold text-gray-700 mb-2">🚚 Freight Calculation Details</p>
+          
+          <div className="bg-gray-50 p-2 rounded mb-2 text-xs">
+            <p className="font-medium">📏 Distance: {customerDistance} km (one way)</p>
+            <p className="font-medium">🔄 Round Trip: {customerDistance * 2} km</p>
+            <p className="font-medium">📦 Volume per piece: {result.volumePerPiece} m³</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {/* Tempo Details */}
+            <div className="bg-blue-50 p-2 rounded">
+              <p className="font-bold text-blue-700 mb-1">🚛 Tempo (12m³)</p>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">1️⃣ Pieces per tempo:</p>
+                <p className="font-mono text-xs">
+                  {TEMPO_CAPACITY} ÷ {result.volumePerPiece} = <span className="font-bold">{result.piecesInTempo}</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">2️⃣ Round trip distance:</p>
+                <p className="font-mono text-xs">
+                  {customerDistance} × 2 = <span className="font-bold">{customerDistance * 2} km</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">3️⃣ Total freight:</p>
+                <p className="font-mono text-xs">
+                  {customerDistance * 2} × ₹{FREIGHT_RATE.tempo} = <span className="font-bold">₹{(FREIGHT_RATE.tempo * customerDistance * 2).toLocaleString()}</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">4️⃣ Freight per piece:</p>
+                <p className="font-mono text-xs">
+                  ₹{(FREIGHT_RATE.tempo * customerDistance * 2).toLocaleString()} ÷ {result.piecesInTempo} = <span className="font-bold">₹{result.freightTempo}</span>
+                </p>
+              </div>
+              
+              <div className="bg-blue-100 p-1 rounded">
+                <p className="font-bold text-blue-700">5️⃣ Total per piece:</p>
+                <p className="font-mono text-xs font-bold">
+                  ₹{result.pricePerPiece} + ₹{result.freightTempo} = <span className="text-lg">₹{result.tempoTotal}</span>
+                </p>
+              </div>
+            </div>
+            
+            {/* Truck Details */}
+            <div className="bg-orange-50 p-2 rounded">
+              <p className="font-bold text-orange-700 mb-1">🚛 Truck (40m³)</p>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">1️⃣ Pieces per truck:</p>
+                <p className="font-mono text-xs">
+                  {TRUCK_CAPACITY} ÷ {result.volumePerPiece} = <span className="font-bold">{result.piecesInTruck}</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">2️⃣ Round trip distance:</p>
+                <p className="font-mono text-xs">
+                  {customerDistance} × 2 = <span className="font-bold">{customerDistance * 2} km</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">3️⃣ Total freight:</p>
+                <p className="font-mono text-xs">
+                  {customerDistance * 2} × ₹{FREIGHT_RATE.truck} = <span className="font-bold">₹{(FREIGHT_RATE.truck * customerDistance * 2).toLocaleString()}</span>
+                </p>
+              </div>
+              
+              <div className="bg-white p-1 rounded mb-1">
+                <p className="text-gray-600">4️⃣ Freight per piece:</p>
+                <p className="font-mono text-xs">
+                  ₹{(FREIGHT_RATE.truck * customerDistance * 2).toLocaleString()} ÷ {result.piecesInTruck} = <span className="font-bold">₹{result.freightTruck}</span>
+                </p>
+              </div>
+              
+              <div className="bg-orange-100 p-1 rounded">
+                <p className="font-bold text-orange-700">5️⃣ Total per piece:</p>
+                <p className="font-mono text-xs font-bold">
+                  ₹{result.pricePerPiece} + ₹{result.freightTruck} = <span className="text-lg">₹{result.truckTotal}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-xs text-gray-400 mt-1">
+            📍 Based on {customerDistance} km (one way) • {customerDistance * 2} km round trip
+          </p>
+        </div>
+      )}
+      
+      {customerDistance > 0 && result.volumePerPiece === 0 && (
+        <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+          ⚠️ Volume per piece not set. Add volume in product to calculate freight.
+        </div>
+      )}
+      
+      {customerDistance === 0 && selectedCustomer && (
+        <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+          ⚠️ Could not calculate distance. Please check customer pincode.
+        </div>
+      )}
+      
+      {/* Bottom info - Same as before with slight addition for trading products */}
+      <div className="mt-2 text-xs text-gray-400 flex items-center gap-1">
+        <TrendingUp size={12} />
+        <span>Based on current RM rate: ₹{rmRate.toFixed(2)}/kg</span>
+        {/* ✅ Only show this extra info for Non-Thermocol products */}
+        {result.isNonThermocol && result.purchasePrice !== null && (
+          <span className="ml-1 text-blue-500">• Trading Product</span>
+        )}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

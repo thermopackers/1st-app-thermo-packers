@@ -15,6 +15,7 @@ export default function ProductRateTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [purchaseProducts, setPurchaseProducts] = useState([]); // ✅ NEW: For trading products
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,8 +26,19 @@ export default function ProductRateTable() {
   useEffect(() => {
     if (isOpen) {
       fetchData();
+      fetchPurchaseProducts(); // ✅ NEW: Fetch purchase products for trading items
     }
   }, [isOpen]);
+
+  // ✅ NEW: Fetch purchase products for trading items
+  const fetchPurchaseProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/purchase-products/purchase-products-all");
+      setPurchaseProducts(res.data);
+    } catch (err) {
+      console.error("Error fetching purchase products:", err);
+    }
+  };
 
   // Fetch data with pagination
   const fetchData = async (page = 1) => {
@@ -107,55 +119,30 @@ export default function ProductRateTable() {
     }
   };
 
-  // Get sorted products from current page
-  const getSortedProducts = () => {
-    const sorted = [...filteredProducts];
-    sorted.sort((a, b) => {
-      let aVal, bVal;
-      
-      if (sortField === "name") {
-        aVal = a.name?.toLowerCase() || "";
-        bVal = b.name?.toLowerCase() || "";
-      } else if (sortField === "unit") {
-        aVal = a.unit?.toLowerCase() || "";
-        bVal = b.unit?.toLowerCase() || "";
-      } else if (sortField === "conversion") {
-        aVal = parseFloat(a.conversion) || 0;
-        bVal = parseFloat(b.conversion) || 0;
-      } else if (sortField === "weight") {
-        aVal = parseFloat(a.weight) || 0;
-        bVal = parseFloat(b.weight) || 0;
-      } else if (sortField === "pricePerPiece") {
-        const aCalc = calculatePrice(a);
-        const bCalc = calculatePrice(b);
-        aVal = aCalc ? aCalc.pricePerPiece : 0;
-        bVal = bCalc ? bCalc.pricePerPiece : 0;
-      } else if (sortField === "finalPrice") {
-        const aCalc = calculatePrice(a);
-        const bCalc = calculatePrice(b);
-        aVal = aCalc ? aCalc.finalPrice : 0;
-        bVal = bCalc ? bCalc.finalPrice : 0;
-      } else if (sortField === "gstAmount") {
-        const aCalc = calculatePrice(a);
-        const bCalc = calculatePrice(b);
-        aVal = aCalc ? aCalc.gstAmount : 0;
-        bVal = bCalc ? bCalc.gstAmount : 0;
-      } else {
-        aVal = a[sortField] || "";
-        bVal = b[sortField] || "";
-      }
-      
-      if (typeof aVal === "string") {
-        return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-    });
-    return sorted;
-  };
-
+  // ✅ UPDATED: Calculate price with support for Non-Thermocol products
   const calculatePrice = (product) => {
-    const conversionRate = product.conversion || 0;
-    const totalPerKg = rmRate + conversionRate;
+    let conversionRate = 0;
+    let purchasePrice = 0;
+    let isNonThermocol = product.isNonThermocol || false;
+    let totalPerKg = 0;
+    
+    // ✅ For Non-Thermocol products - use purchase product price + trading conversion
+    if (isNonThermocol && product.linkedPurchaseProductId) {
+      const linkedPurchase = purchaseProducts.find(p => p._id === product.linkedPurchaseProductId);
+      if (linkedPurchase) {
+        purchasePrice = linkedPurchase.price || 0;
+        conversionRate = parseFloat(product.tradingConversion) || 0;
+        totalPerKg = purchasePrice + conversionRate;
+      } else {
+        // Fallback to RM rate if linked product not found
+        conversionRate = parseFloat(product.conversion) || 0;
+        totalPerKg = rmRate + conversionRate;
+      }
+    } else {
+      // ✅ Regular products - use RM rate + conversion (EXISTING BEHAVIOR)
+      conversionRate = parseFloat(product.conversion) || 0;
+      totalPerKg = rmRate + conversionRate;
+    }
     
     let weightInKg = 0;
     let weightInGrams = 0;
@@ -187,7 +174,8 @@ export default function ProductRateTable() {
       }
     }
     
-    const gstAmount = pricePerPiece * 0.18;
+    const gstPercent = parseFloat(product.gstPercent) || 18;
+    const gstAmount = pricePerPiece * (gstPercent / 100);
     const finalPrice = pricePerPiece + gstAmount;
     
     return {
@@ -199,8 +187,136 @@ export default function ProductRateTable() {
       isWeightBased,
       gstAmount: gstAmount,
       finalPrice: finalPrice,
-      unit: product.unit || "kg"
+      unit: product.unit || "kg",
+      isNonThermocol,
+      purchasePrice: isNonThermocol ? purchasePrice : null,
+      gstPercent
     };
+  };
+
+  // Get sorted products from current page
+  const getSortedProducts = () => {
+    const sorted = [...filteredProducts];
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+      
+      if (sortField === "name") {
+        aVal = a.name?.toLowerCase() || "";
+        bVal = b.name?.toLowerCase() || "";
+      } else if (sortField === "unit") {
+        aVal = a.unit?.toLowerCase() || "";
+        bVal = b.unit?.toLowerCase() || "";
+      } else if (sortField === "conversion") {
+        const aCalc = calculatePrice(a);
+        const bCalc = calculatePrice(b);
+        aVal = aCalc ? aCalc.conversionRate : 0;
+        bVal = bCalc ? bCalc.conversionRate : 0;
+      } else if (sortField === "weight") {
+        aVal = parseFloat(a.weight) || 0;
+        bVal = parseFloat(b.weight) || 0;
+      } else if (sortField === "pricePerPiece") {
+        const aCalc = calculatePrice(a);
+        const bCalc = calculatePrice(b);
+        aVal = aCalc ? aCalc.pricePerPiece : 0;
+        bVal = bCalc ? bCalc.pricePerPiece : 0;
+      } else if (sortField === "finalPrice") {
+        const aCalc = calculatePrice(a);
+        const bCalc = calculatePrice(b);
+        aVal = aCalc ? aCalc.finalPrice : 0;
+        bVal = bCalc ? bCalc.finalPrice : 0;
+      } else if (sortField === "gstAmount") {
+        const aCalc = calculatePrice(a);
+        const bCalc = calculatePrice(b);
+        aVal = aCalc ? aCalc.gstAmount : 0;
+        bVal = bCalc ? bCalc.gstAmount : 0;
+      } else {
+        aVal = a[sortField] || "";
+        bVal = b[sortField] || "";
+      }
+      
+      if (typeof aVal === "string") {
+        return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+    return sorted;
+  };
+
+  // ✅ NEW: Export to Excel with trading product info
+  const exportToExcel = async () => {
+    try {
+      toast.loading("Loading all products for export...");
+      const allProductsData = await loadAllProductsForExport();
+      
+      // Also fetch purchase products for trading items
+      const purchaseRes = await axiosInstance.get("/purchase-products/purchase-products-all");
+      const allPurchaseProducts = purchaseRes.data || [];
+      
+      const exportData = allProductsData.map(product => {
+        const calc = calculatePrice(product);
+        let linkedProductName = '';
+        let purchasePrice = 0;
+        
+        // Get linked purchase product info for trading products
+        if (product.isNonThermocol && product.linkedPurchaseProductId) {
+          const linked = allPurchaseProducts.find(p => p._id === product.linkedPurchaseProductId);
+          if (linked) {
+            linkedProductName = linked.name || '';
+            purchasePrice = linked.price || 0;
+          }
+        }
+        
+        return {
+          'Product Name': product.name || '',
+          'Unit': product.unit || '',
+          'Weight (g)': calc?.weightInGrams || 0,
+          'Conversion (₹/kg)': calc?.conversionRate?.toFixed(2) || '0.00',
+          'Total/kg (₹)': calc?.totalPerKg?.toFixed(2) || '0.00',
+          'Basic Price/Packet (₹)': calc?.pricePerPiece?.toFixed(2) || '0.00',
+          'GST (%)': calc?.gstPercent || 18,
+          'GST Amount (₹)': calc?.gstAmount?.toFixed(2) || '0.00',
+          'Total Price Ex-Factory (₹)': calc?.finalPrice?.toFixed(2) || '0.00',
+          'Product Type': product.isNonThermocol ? 'Trading Product' : 'Regular Product',
+          'Linked Purchase Product': linkedProductName || 'N/A',
+          'Purchase Price (₹/kg)': purchasePrice > 0 ? purchasePrice.toFixed(2) : 'N/A',
+          'Trading Conversion (₹/kg)': product.isNonThermocol ? (product.tradingConversion || 0).toFixed(2) : 'N/A',
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 30 }, // Product Name
+        { wch: 10 }, // Unit
+        { wch: 12 }, // Weight
+        { wch: 18 }, // Conversion
+        { wch: 15 }, // Total/kg
+        { wch: 22 }, // Basic Price
+        { wch: 10 }, // GST %
+        { wch: 18 }, // GST Amount
+        { wch: 25 }, // Total Price
+        { wch: 18 }, // Product Type
+        { wch: 25 }, // Linked Purchase Product
+        { wch: 20 }, // Purchase Price
+        { wch: 22 }, // Trading Conversion
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Products');
+      
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(blob, `Product_Rate_Summary_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast.dismiss();
+      toast.success(`Exported ${exportData.length} products successfully!`);
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.dismiss();
+      toast.error("Failed to export data");
+    }
   };
 
   const sortedProducts = getSortedProducts();
@@ -244,12 +360,18 @@ export default function ProductRateTable() {
                 <RefreshCw size={16} />
                 Refresh
               </button>
-             
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors duration-200"
+              >
+                <Download size={16} />
+                Export Excel
+              </button>
             </div>
           </div>
 
           {/* Search and Pagination Controls */}
-          {/* <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={18} className="text-gray-400" />
@@ -276,7 +398,7 @@ export default function ProductRateTable() {
                 <option value={100}>100</option>
               </select>
             </div>
-          </div> */}
+          </div>
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
@@ -301,22 +423,25 @@ export default function ProductRateTable() {
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("conversion")}>
                         Conversion {sortField === "conversion" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total(RM Rate + Conversion)</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total/kg</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("pricePerPiece")}>
                         Basic Price/Packet {sortField === "pricePerPiece" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("gstAmount")}>
-                        GST 18% {sortField === "gstAmount" && (sortDirection === "asc" ? "↑" : "↓")}
+                        GST {sortField === "gstAmount" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort("finalPrice")}>
-                        Total Price Ex-Factory {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
+                        Total Price {sortField === "finalPrice" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sortedProducts.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="px-3 py-8 text-center text-gray-500">No products found</td>
+                        <td colSpan="9" className="px-3 py-8 text-center text-gray-500">No products found</td>
                       </tr>
                     ) : (
                       sortedProducts.map((product) => {
@@ -326,14 +451,37 @@ export default function ProductRateTable() {
                           <tr key={product._id} className="hover:bg-gray-50">
                             <td className="px-3 py-2.5 text-gray-800 min-w-[200px] max-w-[300px] break-words" title={product.name}>
                               {product.name}
+                              {/* ✅ Show badge for Non-Thermocol products */}
+                              {product.isNonThermocol && (
+                                <span className="ml-2 inline-block text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                                  Trading
+                                </span>
+                              )}
                             </td>
                             <td className="px-3 py-2.5 text-gray-600">{product.unit || '-'}</td>
                             <td className="px-3 py-2.5 text-gray-600">{calc.weightInGrams > 0 ? `${calc.weightInGrams}g` : '-'}</td>
-                            <td className="px-3 py-2.5 text-gray-600">₹{calc.conversionRate.toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              ₹{calc.conversionRate.toFixed(2)}
+                              {/* ✅ Show trading conversion source */}
+                              {product.isNonThermocol && calc.purchasePrice !== null && (
+                                <span className="block text-[10px] text-blue-500">
+                                  (Purchase: ₹{calc.purchasePrice.toFixed(2)}/kg)
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 text-green-600 font-medium">₹{calc.totalPerKg.toFixed(2)}</td>
                             <td className="px-3 py-2.5 font-semibold text-purple-600">₹{calc.pricePerPiece.toFixed(2)}</td>
                             <td className="px-3 py-2.5 text-orange-600">₹{calc.gstAmount.toFixed(2)}</td>
                             <td className="px-3 py-2.5 font-bold text-green-700">₹{calc.finalPrice.toFixed(2)}</td>
+                            <td className="px-3 py-2.5">
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                product.isNonThermocol 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {product.isNonThermocol ? '🔄 Trading' : '✅ Regular'}
+                              </span>
+                            </td>
                           </tr>
                         );
                       })

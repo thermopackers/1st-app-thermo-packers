@@ -8,6 +8,10 @@ import toast from "react-hot-toast";
 export default function AddProduct() {
   const [isLoading, setIsLoading] = useState(false);
   const [polybagOptions, setPolybagOptions] = useState([]);
+  const [purchaseProducts, setPurchaseProducts] = useState([]);
+  const [loadingPurchaseProducts, setLoadingPurchaseProducts] = useState(false);
+  const [allSalesProducts, setAllSalesProducts] = useState([]);
+  const [loadingSalesProducts, setLoadingSalesProducts] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -19,17 +23,20 @@ export default function AddProduct() {
     weight: "",
     pcsPerPacket: "",
     polybagSize: "",
-     conversion: "",
-  salesCategory: "",
-    volumePerPiece: "", // 🆕 Add this
+    conversion: "",
+    salesCategory: "",
+    volumePerPiece: "",
+    // ✅ NEW: Non-Thermocol product fields
+    isNonThermocol: false,
+    linkedPurchaseProductId: "",
+    tradingConversion: "",
   });
 
   const [images, setImages] = useState([]);
   const [internalImages, setInternalImages] = useState([]);
   const [additionalImages1, setAdditionalImages1] = useState([]);
   const [additionalImages2, setAdditionalImages2] = useState([]);
-  // Add this new state with the other useState declarations
-const [drawings, setDrawings] = useState([]);
+  const [drawings, setDrawings] = useState([]);
   const navigate = useNavigate();
 
   // Fetch polybag products on component mount
@@ -45,9 +52,49 @@ const [drawings, setDrawings] = useState([]);
     fetchPolybagProducts();
   }, []);
 
+  // ✅ NEW: Fetch purchase products when non-thermocol checkbox is checked
+  useEffect(() => {
+    if (formData.isNonThermocol) {
+      fetchPurchaseProducts();
+    }
+  }, [formData.isNonThermocol]);
+
+  // ✅ NEW: Fetch all sales products for dropdown
+  useEffect(() => {
+    fetchAllSalesProducts();
+  }, []);
+
+  const fetchAllSalesProducts = async () => {
+    setLoadingSalesProducts(true);
+    try {
+      const response = await axiosInstance.get("/products-multer/all-products");
+      setAllSalesProducts(response.data);
+    } catch (error) {
+      console.error("Failed to fetch sales products:", error);
+    } finally {
+      setLoadingSalesProducts(false);
+    }
+  };
+
+  const fetchPurchaseProducts = async () => {
+    setLoadingPurchaseProducts(true);
+    try {
+      const response = await axiosInstance.get("/purchase-products/purchase-products-all");
+      setPurchaseProducts(response.data);
+    } catch (error) {
+      console.error("Failed to fetch purchase products:", error);
+      toast.error("Failed to load purchase products");
+    } finally {
+      setLoadingPurchaseProducts(false);
+    }
+  };
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
 
   // Normal images compression
@@ -153,9 +200,14 @@ const [drawings, setDrawings] = useState([]);
       } else if (key === "pcsPerPacket") {
         data.append(key, val ? parseInt(val) : 0);
       } else if (key === "volumePerPiece") {
-      // 🆕 Add volumePerPiece - convert to number
-      data.append(key, val ? parseFloat(val) : 0);
-    } else {
+        data.append(key, val ? parseFloat(val) : 0);
+      } else if (key === "conversion") {
+        data.append(key, val ? parseFloat(val) : 0);
+      } else if (key === "tradingConversion") {
+        data.append(key, val ? parseFloat(val) : 0);
+      } else if (key === "isNonThermocol") {
+        data.append(key, val);
+      } else {
         data.append(key, val);
       }
     });
@@ -164,8 +216,7 @@ const [drawings, setDrawings] = useState([]);
     internalImages.forEach((file) => data.append("internalImages", file));
     additionalImages1.forEach((file) => data.append("additionalImages1", file));
     additionalImages2.forEach((file) => data.append("additionalImages2", file));
-    // Add this line with the other file appends
-drawings.forEach((file) => data.append("drawings", file));
+    drawings.forEach((file) => data.append("drawings", file));
 
     try {
       await axiosInstance.post("/products-multer", data, {
@@ -183,36 +234,34 @@ drawings.forEach((file) => data.append("drawings", file));
   };
 
   // Handle drawings upload (2D/3D drawings)
-const handleDrawingsChange = async (e) => {
-  const files = Array.from(e.target.files);
-  const processed = [];
+  const handleDrawingsChange = async (e) => {
+    const files = Array.from(e.target.files);
+    const processed = [];
 
-  for (const file of files) {
-    // Check for allowed drawing formats
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
-    const isStepFile = file.name.toLowerCase().endsWith('.step');
-    
-    if (allowedTypes.includes(file.type) || isStepFile) {
-      if (file.type.startsWith("image/")) {
-        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
-        const compressedFile = await imageCompression(file, options);
-        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
-        processed.push(renamedFile);
+    for (const file of files) {
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+      const isStepFile = file.name.toLowerCase().endsWith('.step');
+      
+      if (allowedTypes.includes(file.type) || isStepFile) {
+        if (file.type.startsWith("image/")) {
+          const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+          const compressedFile = await imageCompression(file, options);
+          const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+          processed.push(renamedFile);
+        } else {
+          processed.push(file);
+        }
       } else {
-        // For PDF and STEP files, keep as is
-        processed.push(file);
+        toast.error(`${file.name} is not a supported drawing format. Please upload PDF, JPEG, or STEP files.`);
       }
-    } else {
-      toast.error(`${file.name} is not a supported drawing format. Please upload PDF, JPEG, or STEP files.`);
     }
-  }
 
-  setDrawings((prev) => [...prev, ...processed].slice(0, 5));
-};
+    setDrawings((prev) => [...prev, ...processed].slice(0, 5));
+  };
 
-const handleRemoveDrawing = (idx) => {
-  setDrawings((prev) => prev.filter((_, i) => i !== idx));
-};
+  const handleRemoveDrawing = (idx) => {
+    setDrawings((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   return (
     <>
@@ -223,6 +272,73 @@ const handleRemoveDrawing = (idx) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ✅ NEW: Non-Thermocol Product Checkbox */}
+          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <input
+              id="isNonThermocol"
+              name="isNonThermocol"
+              type="checkbox"
+              checked={formData.isNonThermocol}
+              onChange={handleChange}
+              className="w-5 h-5"
+            />
+            <label htmlFor="isNonThermocol" className="font-bold text-lg text-blue-700">
+              🔄 Non-Thermocol Products (Trading Products)
+            </label>
+          </div>
+
+          {/* ✅ NEW: Non-Thermocol Product Fields - Only shown when checkbox is checked */}
+          {formData.isNonThermocol && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+              <h3 className="font-bold text-blue-700">Link to Purchase Product</h3>
+              
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">
+                  Select Purchase Product to Link *
+                </label>
+                <select
+                  name="linkedPurchaseProductId"
+                  value={formData.linkedPurchaseProductId}
+                  onChange={handleChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white"
+                  required={formData.isNonThermocol}
+                >
+                  <option value="">Select Purchase Product</option>
+                  {loadingPurchaseProducts ? (
+                    <option disabled>Loading products...</option>
+                  ) : (
+                    purchaseProducts.map((product) => (
+                      <option key={product._id} value={product._id}>
+                        {product.name} {product.unit ? `(${product.unit})` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  Select the purchase product whose price will be used for this sales product
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">
+                  Trading Conversion (₹ per kg)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="tradingConversion"
+                  placeholder="e.g., 1.5, 2, 0.75"
+                  value={formData.tradingConversion}
+                  onChange={handleChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Enter conversion rate for trading product (added to purchase price)
+                </p>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Product Name *</label>
             <input name="name" placeholder="Product Name" required value={formData.name} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
@@ -279,49 +395,49 @@ const handleRemoveDrawing = (idx) => {
           </div>
 
           {/* Conversion Field */}
-<div>
-  <label className="block text-gray-700 font-semibold mb-2">Conversion</label>
-  <input 
-    type="number"
-    step="any"
-    name="conversion"
-    placeholder="e.g., 1.5, 2, 0.75" 
-    value={formData.conversion} 
-    onChange={handleChange} 
-    className="w-full p-3 border border-gray-300 rounded-lg"
-  />
-  <p className="text-sm text-gray-500 mt-1">Supports both integer and decimal values</p>
-</div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Conversion</label>
+            <input 
+              type="number"
+              step="any"
+              name="conversion"
+              placeholder="e.g., 1.5, 2, 0.75" 
+              value={formData.conversion} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">Supports both integer and decimal values</p>
+          </div>
 
-{/* Sales Category Field */}
-<div>
-  <label className="block text-gray-700 font-semibold mb-2">Sales Category</label>
-  <input 
-    type="text"
-    name="salesCategory"
-    placeholder="Enter sales category" 
-    value={formData.salesCategory} 
-    onChange={handleChange} 
-    className="w-full p-3 border border-gray-300 rounded-lg"
-  />
-  <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
-</div>
+          {/* Sales Category Field */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Sales Category</label>
+            <input 
+              type="text"
+              name="salesCategory"
+              placeholder="Enter sales category" 
+              value={formData.salesCategory} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">Categorize product for sales reporting</p>
+          </div>
 
-{/* Volume per Piece Field */}
-<div>
-  <label className="block text-gray-700 font-semibold mb-2">Volume of 1 Piece (m³)</label>
-  <input 
-    type="number"
-    step="0.0001"
-    min="0"
-    name="volumePerPiece"
-    placeholder="e.g., 0.001, 0.005" 
-    value={formData.volumePerPiece} 
-    onChange={handleChange} 
-    className="w-full p-3 border border-gray-300 rounded-lg"
-  />
-  <p className="text-sm text-gray-500 mt-1">Enter volume in cubic meters (m³)</p>
-</div>
+          {/* Volume per Piece Field */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Volume of 1 Piece (m³)</label>
+            <input 
+              type="number"
+              step="0.0001"
+              min="0"
+              name="volumePerPiece"
+              placeholder="e.g., 0.001, 0.005" 
+              value={formData.volumePerPiece} 
+              onChange={handleChange} 
+              className="w-full p-3 border border-gray-300 rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">Enter volume in cubic meters (m³)</p>
+          </div>
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Internal Description(Comments)</label>
@@ -379,9 +495,9 @@ const handleRemoveDrawing = (idx) => {
             ))}
           </div>
 
-  <label className="block font-semibold">Image of Weight per Piece/Set</label>
+          <label className="block font-semibold">Image of Weight per Piece/Set</label>
           <span className="text-sm">(Put Image of Product on Small Kanda/Weighing Scale)</span>
-                    <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages1Change} className="w-full border rounded p-2" />
+          <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages1Change} className="w-full border rounded p-2" />
           <div className="flex flex-wrap gap-4 mt-4">
             {additionalImages1.map((file, idx) => (
               <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden">
@@ -395,9 +511,9 @@ const handleRemoveDrawing = (idx) => {
             ))}
           </div>
 
- <label className="block font-semibold">Product Packed Image</label>
+          <label className="block font-semibold">Product Packed Image</label>
           <span className="text-sm">(Put Image of Product Packed in Packet with Outer Dimensions of Packet mentioned on Image)</span>        
-            <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages2Change} className="w-full border rounded p-2" />
+          <input type="file" accept="image/*,application/pdf" multiple onChange={handleAdditionalImages2Change} className="w-full border rounded p-2" />
           <div className="flex flex-wrap gap-4 mt-4">
             {additionalImages2.map((file, idx) => (
               <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden">
@@ -412,43 +528,43 @@ const handleRemoveDrawing = (idx) => {
           </div>
 
           {/* Drawings Upload Section */}
-<div className="mt-4">
-  <label className="block text-gray-700 font-semibold mb-2">Product Drawings (2D/3D)</label>
-  <span className="text-sm text-gray-500 block mb-2">Upload technical drawings in PDF, JPEG, or STEP format (max 5 files)</span>
-  <input 
-    type="file" 
-    accept=".pdf,.jpeg,.jpg,.step" 
-    multiple 
-    onChange={handleDrawingsChange} 
-    className="w-full border rounded p-2" 
-  />
-  <div className="flex flex-wrap gap-4 mt-4">
-    {drawings.map((file, idx) => (
-      <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden bg-gray-50">
-        {file.type === "application/pdf" ? (
-          <div className="text-center">
-            <span className="text-red-600 font-semibold text-2xl">📄</span>
-            <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
+          <div className="mt-4">
+            <label className="block text-gray-700 font-semibold mb-2">Product Drawings (2D/3D)</label>
+            <span className="text-sm text-gray-500 block mb-2">Upload technical drawings in PDF, JPEG, or STEP format (max 5 files)</span>
+            <input 
+              type="file" 
+              accept=".pdf,.jpeg,.jpg,.step" 
+              multiple 
+              onChange={handleDrawingsChange} 
+              className="w-full border rounded p-2" 
+            />
+            <div className="flex flex-wrap gap-4 mt-4">
+              {drawings.map((file, idx) => (
+                <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden bg-gray-50">
+                  {file.type === "application/pdf" ? (
+                    <div className="text-center">
+                      <span className="text-red-600 font-semibold text-2xl">📄</span>
+                      <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
+                    </div>
+                  ) : file.name.toLowerCase().endsWith('.step') ? (
+                    <div className="text-center">
+                      <span className="text-blue-600 font-semibold text-2xl">📐</span>
+                      <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
+                    </div>
+                  ) : (
+                    <img src={URL.createObjectURL(file)} alt={`Drawing ${idx + 1}`} className="w-full h-full object-cover" />
+                  )}
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveDrawing(idx)} 
+                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : file.name.toLowerCase().endsWith('.step') ? (
-          <div className="text-center">
-            <span className="text-blue-600 font-semibold text-2xl">📐</span>
-            <p className="text-xs mt-1 truncate w-20">{file.name.substring(0, 10)}...</p>
-          </div>
-        ) : (
-          <img src={URL.createObjectURL(file)} alt={`Drawing ${idx + 1}`} className="w-full h-full object-cover" />
-        )}
-        <button 
-          type="button" 
-          onClick={() => handleRemoveDrawing(idx)} 
-          className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
-        >
-          &times;
-        </button>
-      </div>
-    ))}
-  </div>
-</div>
 
           <button type="submit" disabled={isLoading} className={`w-full font-bold py-3 rounded-lg shadow ${isLoading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
             {isLoading ? "Adding Product..." : "Add Product"}
