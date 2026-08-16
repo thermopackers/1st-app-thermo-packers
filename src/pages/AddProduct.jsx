@@ -20,6 +20,7 @@ export default function AddProduct() {
     hsnCode: "",
     gstPercent: "",
     description: "",
+      density: "",  // ✅ NEW: Density field
     weight: "",
     pcsPerPacket: "",
     polybagSize: "",
@@ -191,26 +192,28 @@ export default function AddProduct() {
 
     const data = new FormData();
 
-    Object.entries(formData).forEach(([key, val]) => {
-      if (key === "sizes") {
-        data.append(key, JSON.stringify(val.split(",").map((s) => s.trim())));
-      } else if (key === "weight") {
-        const weightInKg = val ? parseFloat(val) / 1000 : "";
-        data.append(key, weightInKg);
-      } else if (key === "pcsPerPacket") {
-        data.append(key, val ? parseInt(val) : 0);
-      } else if (key === "volumePerPiece") {
-        data.append(key, val ? parseFloat(val) : 0);
-      } else if (key === "conversion") {
-        data.append(key, val ? parseFloat(val) : 0);
-      } else if (key === "tradingConversion") {
-        data.append(key, val ? parseFloat(val) : 0);
-      } else if (key === "isNonThermocol") {
-        data.append(key, val);
-      } else {
-        data.append(key, val);
-      }
-    });
+  Object.entries(formData).forEach(([key, val]) => {
+  if (key === "sizes") {
+    data.append(key, JSON.stringify(val.split(",").map((s) => s.trim())));
+  } else if (key === "density") {
+    data.append(key, val ? parseFloat(val) : 0);
+  } else if (key === "weight") {
+    const weightInKg = val ? parseFloat(val) / 1000 : "";
+    data.append(key, weightInKg);
+  } else if (key === "pcsPerPacket") {
+    data.append(key, val ? parseInt(val) : 0);
+  } else if (key === "volumePerPiece") {
+    data.append(key, val ? parseFloat(val) : 0);
+  } else if (key === "conversion") {
+    data.append(key, val ? parseFloat(val) : 0);
+  } else if (key === "tradingConversion") {
+    data.append(key, val ? parseFloat(val) : 0);
+  } else if (key === "isNonThermocol") {
+    data.append(key, val);
+  } else {
+    data.append(key, val);
+  }
+});
 
     images.forEach((file) => data.append("images", file));
     internalImages.forEach((file) => data.append("internalImages", file));
@@ -364,20 +367,35 @@ export default function AddProduct() {
             <input name="gstPercent" placeholder="GST %" type="number" min="0" max="100" value={formData.gstPercent} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg" />
           </div>
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">Product Dry Weight (grams)</label>
-            <input 
-              name="weight" 
-              type="number"
-              step="1"
-              min="0"
-              placeholder="e.g., 500, 1000, 2500" 
-              value={formData.weight} 
-              onChange={handleChange} 
-              className="w-full p-3 border border-gray-300 rounded-lg"
-            />
-            <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
-          </div>
+         <div>
+  <label className="block text-gray-700 font-semibold mb-2">Density (kg/m³)</label>
+  <input 
+    name="density" 
+    type="number"
+    step="0.01"
+    min="0"
+    placeholder="e.g., 15, 25, 30" 
+    value={formData.density} 
+    onChange={handleChange} 
+    className="w-full p-3 border border-gray-300 rounded-lg"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter density in kg/m³ (e.g., 15 for 15 kg/m³)</p>
+</div>
+
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Product Dry Weight (grams)</label>
+  <input 
+    name="weight" 
+    type="number"
+    step="1"
+    min="0"
+    placeholder="e.g., 500, 1000, 2500" 
+    value={formData.weight} 
+    onChange={handleChange} 
+    className="w-full p-3 border border-gray-300 rounded-lg"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
+</div>
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>

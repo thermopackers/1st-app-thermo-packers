@@ -42,6 +42,7 @@ const [productList, setProductList] = useState([
     customSize: "",
     quantity: "",
     price: "",
+        density: "", // ✅ Already exists
     density: "",
     productRemarks: "",
     narration: "",
@@ -60,10 +61,12 @@ const [commonPackagingCharge, setCommonPackagingCharge] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
 
-  // Add this with your other useMemo declarations
 const productMap = useMemo(() => {
   const map = new Map();
-  allProducts.forEach(p => map.set(p.name, p));
+  allProducts.forEach(p => {
+    // ✅ Store the full product object including density
+    map.set(p.name, p);
+  });
   return map;
 }, [allProducts]);
 
@@ -268,16 +271,16 @@ const productOptions = useMemo(() => {
       uniqueProducts.push({
         label: p.name,
         value: p.name,
+        density: p.density || "", // ✅ Add density to the option
       });
     }
   });
   
   return [
     ...uniqueProducts,
-    { label: "Other (Custom Product)", value: "custom" },
+    { label: "Other (Custom Product)", value: "custom", density: "" },
   ];
 }, [allProducts, loadingProducts]);
-
 
 const handleClientChange = (e) => {
   const { name, value, type, files, checked } = e.target;
@@ -391,12 +394,16 @@ const handleProductChange = async (index, field, value) => {
         )
       : [];
 
+    // ✅ Auto-fill density from product data
+    const densityValue = product.density || "";
+
     updated[index] = {
       ...updated[index],
       product: product.name,
       customProduct: "",
       size: "",
       customSize: "",
+      density: densityValue, // ✅ Auto-fill density
     };
     
     // ✅ Auto-fill price if customer is selected
@@ -406,6 +413,11 @@ const handleProductChange = async (index, field, value) => {
         updated[index].price = lastPrice.toString();
         toast.success(`Price auto-filled: ₹${lastPrice}`, { duration: 2000 });
       }
+    }
+    
+    // ✅ Show density auto-filled notification
+    if (densityValue) {
+      toast.success(`Density auto-filled: ${densityValue} kg/m³`, { duration: 2000 });
     }
     
   } else if (field === "customProduct") {

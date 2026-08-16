@@ -3,10 +3,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 
 const images = [
-  "/images/tp.gif",
-  "/images/icegel.gif",
-  "/images/pulpp.gif",
-  "/images/s1.gif",
+  "/images/pic1.png",
+  "/images/pic2.png",
+  "/images/pic3.png",
+  "/images/pic4.png",
 ];
 
 const Hero = () => {

@@ -23,6 +23,7 @@ export default function EditProduct() {
     hsnCode: "",
     gstPercent: "",
     description: "",
+      density: "",  // ✅ NEW: Density field
     weight: "",
     pcsPerPacket: "",
     polybagSize: "",
@@ -132,6 +133,7 @@ export default function EditProduct() {
           hsnCode: res.data.hsnCode || "",
           gstPercent: res.data.gstPercent || "",
           description: res.data.description || "",
+            density: res.data.density || "",
           weight: weightInGrams,
           pcsPerPacket: res.data.pcsPerPacket || "",
           polybagSize: res.data.polybagSize || "",
@@ -375,6 +377,7 @@ export default function EditProduct() {
       data.append("hsnCode", formData.hsnCode);
       data.append("gstPercent", formData.gstPercent);
       data.append("description", formData.description || "");
+      data.append("density", formData.density || 0);
       data.append("polybagSize", formData.polybagSize || "");
       data.append("conversion", formData.conversion || 0);
       data.append("salesCategory", formData.salesCategory || "");
@@ -581,21 +584,35 @@ export default function EditProduct() {
             <input type="number" name="gstPercent" value={formData.gstPercent} onChange={handleChange} className="w-full border p-2 rounded" placeholder="GST %" min={0} max={100} />
           </div>
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">Product Dry Weight (grams)</label>
-            <input 
-              type="number"
-              step="1"
-              min="0"
-              name="weight" 
-              value={formData.weight} 
-              onChange={handleChange} 
-              placeholder="e.g., 500, 1000, 2500" 
-              className="w-full border p-2 rounded"
-            />
-            <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
-          </div>
+        <div>
+  <label className="block text-gray-700 font-semibold mb-2">Density (kg/m³)</label>
+  <input 
+    type="number"
+    step="0.01"
+    min="0"
+    name="density" 
+    value={formData.density} 
+    onChange={handleChange} 
+    placeholder="e.g., 15, 25, 30" 
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter density in kg/m³ (e.g., 15 for 15 kg/m³)</p>
+</div>
 
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Product Dry Weight (grams)</label>
+  <input 
+    type="number"
+    step="1"
+    min="0"
+    name="weight" 
+    value={formData.weight} 
+    onChange={handleChange} 
+    placeholder="e.g., 500, 1000, 2500" 
+    className="w-full border p-2 rounded"
+  />
+  <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
+</div>
           <div>
             <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
             <input 
