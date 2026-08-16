@@ -1,8 +1,28 @@
 // src/data/products.js
 export const categories = {
+    "EPS/Thermocol packaging": {
+    description: "Durable and lightweight EPS packaging for electronic, industrial, and medical goods.",
+    image: "thermo-pack_lfi1ps"
+  },
+    "EPS/Thermocol sheets for thermal insulation": {
+    description: "Thermocol sheets ideal for thermal insulation in cold storage, construction, and more.",
+    image: "blue1_tpm3op"
+  },
   "ice gel pack": {
     description: "Reusable cold packs used for temperature-sensitive packaging.",
     image: "blue4_agi5n5"
+  },
+  "EPS/Thermocol geofoam": {
+    description: "Lightweight geofoam blocks used in construction and landscaping.",
+    image: "geofoam_k0knyo"
+  },
+   "molded pulp packaging": {
+    description: "Eco-friendly and biodegradable molded pulp packaging for consumer goods and appliances.",
+    image: "blue2_yevf4d"
+  },
+  "EPS/thermocol jumbo dana for garment washing": {
+    description: "EPS beads used in the garment industry for stone washing and other washing processes.",
+    image: "jumbo-dana_m6eife"
   },
   "lost foam casting": {
     description: "Reusable cold packs used for temperature-sensitive packaging.",
@@ -12,26 +32,6 @@ export const categories = {
     description: "Machines used to manufacture EPS thermocol products.",
     image: "thermo-machine_vn9hjv"
   },
-  "EPS/Thermocol sheets for thermal insulation": {
-    description: "Thermocol sheets ideal for thermal insulation in cold storage, construction, and more.",
-    image: "blue1_tpm3op"
-  },
-  "EPS/Thermocol packaging": {
-    description: "Durable and lightweight EPS packaging for electronic, industrial, and medical goods.",
-    image: "thermo-pack_lfi1ps"
-  },
-  "molded pulp packaging": {
-    description: "Eco-friendly and biodegradable molded pulp packaging for consumer goods and appliances.",
-    image: "blue2_yevf4d"
-  },
-  "EPS/Thermocol geofoam": {
-    description: "Lightweight geofoam blocks used in construction and landscaping.",
-    image: "geofoam_k0knyo"
-  },
-  "EPS/thermocol jumbo dana for garment washing": {
-    description: "EPS beads used in the garment industry for stone washing and other washing processes.",
-    image: "jumbo-dana_m6eife"
-  }
 };
 
 

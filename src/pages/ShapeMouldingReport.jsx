@@ -352,7 +352,7 @@ const ShapeMouldingReport = () => {
                     className="w-full border border-gray-300 rounded px-2 py-1"
                   />
                 </td>
-              <td className="px-2 py-1">
+            <td className="px-2 py-1">
   {row.product === "__other__" ? (
     <input
       type="text"
@@ -384,6 +384,8 @@ const ShapeMouldingReport = () => {
       ]}
       className="text-sm"
       isSearchable
+      isLoading={allProducts.length === 0}
+      loadingMessage={() => "Loading products..."}
     />
   )}
 </td>

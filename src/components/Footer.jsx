@@ -130,7 +130,7 @@ export default function Footer() {
   const contactInfo = [
     { 
       icon: <FaPhone className="w-4 h-4" />, 
-      text: "+91-9878165432, 9216562160, 9216660160",
+      text: "+91-9878165432, 9216660160",
       href: "tel:+919878165432"
     },
     { 
