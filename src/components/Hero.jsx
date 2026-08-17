@@ -80,7 +80,7 @@ const Hero = () => {
             key={index}
             src={image}
             alt={`Packaging Solution ${index + 1}`}
-            className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-700 ease-in-out ${
+            className={`absolute inset-0 w-full h-full object-fill object-center transition-all duration-700 ease-in-out ${
               index === currentIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
             }`}
             width="1920"
