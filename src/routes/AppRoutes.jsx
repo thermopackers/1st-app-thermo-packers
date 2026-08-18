@@ -439,7 +439,7 @@ export default function AppRoutes() {
             <Route
               path="/add-product"
               element={
-                <ProtectedRoute allowedRoles={["admin","sales", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin","sales", "accounts", "production"]}>
                   <PageWrapper><AddProduct /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -482,7 +482,7 @@ export default function AppRoutes() {
             <Route
               path="/products/edit/:id"
               element={
-                <ProtectedRoute allowedRoles={["admin","sales", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin","sales", "accounts", "production"]}>
                   <PageWrapper><EditProduct /></PageWrapper>
                 </ProtectedRoute>
               }
@@ -499,7 +499,7 @@ export default function AppRoutes() {
             <Route
               path="/all-products"
               element={
-                <ProtectedRoute allowedRoles={["admin","sales", "accounts"]}>
+                <ProtectedRoute allowedRoles={["admin","sales", "accounts", "production"]}>
                   <PageWrapper><ProductList /></PageWrapper>
                 </ProtectedRoute>
               }

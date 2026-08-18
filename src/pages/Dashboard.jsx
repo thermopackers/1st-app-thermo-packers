@@ -2448,6 +2448,10 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           </div>
         </ActionButton>
       </div>
+
+
+
+
       {/* Product Rate Checker - Only for accounts role */}
 {/* Product Rate Checker - Only for accounts role */}
 {userRoles.some((role) =>
@@ -2469,6 +2473,8 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     </>
 )}
     </DashboardCard>
+
+
 
     <DashboardCard>
       <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
@@ -2552,6 +2558,48 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
 )}
   </div>
 )}
+
+  <DashboardCard>
+{userRoles.some((role) =>
+  ["production"].includes(role)
+) && (<>
+  <h3 className="text-xl font-bold text-gray-900 text-center mb-4 flex items-center justify-center gap-2">
+        <span className="text-2xl">📈</span>
+        Sales Products
+      </h3>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActionButton
+          to="/add-product"
+          variant="success"
+          icon="➕"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Add new Product
+          </div>
+          <div className="text-green-100 text-xs opacity-90">
+            New sales product
+          </div>
+        </ActionButton>
+
+        <ActionButton
+          to="/all-products"
+          variant="warning"
+          icon="📋"
+          className="h-full"
+        >
+          <div className="text-sm font-semibold mb-1">
+            Manage Products
+          </div>
+          <div className="text-amber-100 text-xs opacity-90">
+            View / Edit / Delete Products
+          </div>
+        </ActionButton>
+      </div>
+      </>
+)}
+  </DashboardCard>
+
             </div>
           </DashboardSection>
 
