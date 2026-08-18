@@ -283,133 +283,150 @@ export default function AttendanceCapture() {
   };
 
   // MODIFIED: saveAttendance with geo-fencing and onTour flag
-  const saveAttendance = async () => {
-    if (isSaving) return;
+const saveAttendance = async () => {
+  if (isSaving) return;
 
-    if (!modelsLoaded) {
-      Swal.fire({
-        icon: "info",
-        title: "Please Wait",
-        text: "Face recognition models are still loading.",
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
+  // ✅ FIRST: Check if user is staff or worker
+  const workerDesignations = ["operator", "helper", "driver"];
+  const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
+  const isStaff = !isWorker; // Staff = anyone who is NOT operator/helper/driver
 
-    if (!user?.faceUrl) {
+  // ✅ For STAFF: Skip face verification but still need models for face detection
+  // For WORKERS: Need full face verification with descriptor matching
+  
+  // Check if models are loaded (needed for both staff and workers)
+  if (!modelsLoaded) {
+    Swal.fire({
+      icon: "info",
+      title: "Please Wait",
+      text: "Face recognition models are still loading.",
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
+
+  // Check if user has faceUrl (required for both staff and workers)
+  if (!user?.faceUrl) {
+    Swal.fire({
+      icon: "error",
+      title: "Face Not Registered",
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+        </div>
+      `,
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
+
+  // Get location with geo-fencing
+  let location = null;
+  try {
+    const skipGeoFence = isExemptUser || onTour;
+    location = await getLocationWithGeoFence(skipGeoFence);
+    
+    if (!location.lat || !location.lng) {
       Swal.fire({
-        icon: "error",
-        title: "Face Not Registered",
+        icon: "warning",
+        title: "Location Required",
         html: `
           <div class="text-center">
-            <div class="text-6xl mb-4">👤</div>
-            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+            <div class="text-6xl mb-4">📍</div>
+            <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
+            <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
           </div>
         `,
         confirmButtonColor: "#B0BC27",
       });
+      setIsSaving(false);
       return;
     }
+  } catch (err) {
+    console.warn("Location/Geo-fence error:", err);
+    
+    if (err.message.includes("meters away")) {
+      Swal.fire({
+        icon: "error",
+        title: "Outside Office Area",
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">📍</div>
+            <p class="text-gray-600 mb-4">${err.message}</p>
+            <p class="text-sm text-gray-500 mb-4">Please move closer to the office or enable "On Tour" mode if you're traveling.</p>
+            <div class="bg-blue-50 p-3 rounded-lg mt-2">
+              <p class="text-xs text-blue-600">📌 Office Location: 31.342061, 75.509983</p>
+            </div>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+      });
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "Location Error",
+        text: err.message || "Could not access your location. Please check your device settings.",
+        confirmButtonColor: "#B0BC27",
+      });
+    }
+    setIsSaving(false);
+    return;
+  }
 
-    // Get location with geo-fencing
-    let location = null;
-    try {
-      // Check if we should skip geo-fencing (exempt user or on tour)
-      const skipGeoFence = isExemptUser || onTour;
-      location = await getLocationWithGeoFence(skipGeoFence);
-      
-      if (!location.lat || !location.lng) {
-        Swal.fire({
-          icon: "warning",
-          title: "Location Required",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">📍</div>
-              <p class="text-gray-600 mb-4">Location access is required for attendance.</p>
-              <p class="text-sm text-gray-500 mb-4">Please enable location services and allow access in your browser settings.</p>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-    } catch (err) {
-      console.warn("Location/Geo-fence error:", err);
-      
-      // Show detailed geo-fence error
-      if (err.message.includes("meters away")) {
-        Swal.fire({
-          icon: "error",
-          title: "Outside Office Area",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">📍</div>
-              <p class="text-gray-600 mb-4">${err.message}</p>
-              <p class="text-sm text-gray-500 mb-4">Please move closer to the office or enable "On Tour" mode if you're traveling.</p>
-              <div class="bg-blue-50 p-3 rounded-lg mt-2">
-                <p class="text-xs text-blue-600">📌 Office Location: 31.342061, 75.509983</p>
-              </div>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Location Error",
-          text: err.message || "Could not access your location. Please check your device settings.",
-          confirmButtonColor: "#B0BC27",
-        });
-      }
+  console.time("🕒 Total Attendance Time");
+  setIsSaving(true);
+
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
+
+    // Capture image from camera
+    const image1 = await captureImageWithTimestamp();
+    if (!image1 || image1.length < 1000) {
+      Swal.fire({
+        icon: "error",
+        title: "Camera Error",
+        text: "Camera capture failed. Please try again.",
+        confirmButtonColor: "#B0BC27",
+      });
       setIsSaving(false);
       return;
     }
 
-    console.time("🕒 Total Attendance Time");
-    setIsSaving(true);
+    const img1 = await faceapi.fetchImage(image1);
 
-    try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 96 });
+    // Detect face in captured image
+    const face1 = await faceapi
+      .detectSingleFace(img1, options)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-      const image1 = await captureImageWithTimestamp();
-      if (!image1 || image1.length < 1000) {
-        Swal.fire({
-          icon: "error",
-          title: "Camera Error",
-          text: "Camera capture failed. Please try again.",
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
+    if (!face1) {
+      Swal.fire({
+        icon: "error",
+        title: "Face Not Detected",
+        html: `
+          <div class="text-center">
+            <div class="text-6xl mb-4">🔍</div>
+            <p class="text-gray-600 mb-2">Make sure your face is clearly visible and centered.</p>
+          </div>
+        `,
+        confirmButtonColor: "#B0BC27",
+      });
+      setIsSaving(false);
+      return;
+    }
 
-      const img1 = await faceapi.fetchImage(image1);
+    console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
 
-      const face1 = await faceapi
-        .detectSingleFace(img1, options)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (!face1) {
-        Swal.fire({
-          icon: "error",
-          title: "Face Not Detected",
-          html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">🔍</div>
-              <p class="text-gray-600 mb-2">Make sure your face is clearly visible and centered.</p>
-            </div>
-          `,
-          confirmButtonColor: "#B0BC27",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      console.log("✅ Face detected, descriptor length:", face1.descriptor.length);
-
+    // ✅ SKIP DESCRIPTOR VERIFICATION FOR STAFF
+    if (isStaff) {
+      console.log("👔 STAFF user - Skipping face descriptor verification");
+      // Staff don't need descriptor matching, just continue
+    } else {
+      // ✅ WORKER - Full face verification required
+      console.log("👷 WORKER detected - Face verification required");
       console.log("🔍 Getting descriptor for user:", user?.name, "ID:", user?._id);
       const descriptorData = await getDescriptor();
       
@@ -436,7 +453,17 @@ export default function AttendanceCapture() {
             Swal.fire({
               icon: "error",
               title: "Face Data Missing",
-              text: "Your face descriptor data is missing. Please contact admin.",
+              html: `
+                <div class="text-center">
+                  <div class="text-6xl mb-4">👤</div>
+                  <p class="text-gray-600 mb-4">Your face descriptor data is missing.</p>
+                  <p class="text-sm text-gray-500 mb-4">Please contact Accounts to re-register your face.</p>
+                  <div class="bg-yellow-50 p-3 rounded-lg text-left text-sm text-yellow-700">
+                    <strong>💡 Tip:</strong> Ask an accounts user to visit "Register User" page, 
+                    find your profile, and click "Register Face" again.
+                  </div>
+                </div>
+              `,
               confirmButtonColor: "#B0BC27",
             });
             setIsSaving(false);
@@ -472,6 +499,7 @@ export default function AttendanceCapture() {
         }
       }
 
+      // Compare captured face with stored descriptor
       const faceMatcher = new faceapi.FaceMatcher([descriptor], 0.7);
       const bestMatch = faceMatcher.findBestMatch(face1.descriptor);
       console.log("🔍 Match result:", {
@@ -495,256 +523,256 @@ export default function AttendanceCapture() {
           return;
         }
       }
+    }
 
-      console.log("🖼️ Original image size:", Math.round(image1.length / 1024), "KB");
-      
-      let compressedImage = await compressImage(image1, 0.2);
-      
-      let quality = 0.2;
-      let imageSizeKB = compressedImage.length / 1024;
-      
-      while (imageSizeKB > 150 && quality > 0.1) {
-        quality -= 0.05;
-        console.log(`🔄 Re-compressing with quality ${quality}, current size: ${Math.round(imageSizeKB)}KB`);
-        compressedImage = await compressImage(image1, quality);
-        imageSizeKB = compressedImage.length / 1024;
-      }
-      
-      console.log("✅ Final compressed size:", Math.round(imageSizeKB), "KB");
+    // Compress image for upload
+    console.log("🖼️ Original image size:", Math.round(image1.length / 1024), "KB");
+    
+    let compressedImage = await compressImage(image1, 0.2);
+    
+    let quality = 0.2;
+    let imageSizeKB = compressedImage.length / 1024;
+    
+    while (imageSizeKB > 150 && quality > 0.1) {
+      quality -= 0.05;
+      console.log(`🔄 Re-compressing with quality ${quality}, current size: ${Math.round(imageSizeKB)}KB`);
+      compressedImage = await compressImage(image1, quality);
+      imageSizeKB = compressedImage.length / 1024;
+    }
+    
+    console.log("✅ Final compressed size:", Math.round(imageSizeKB), "KB");
 
-      const photoPayload = compressedImage.startsWith("data:")
-        ? compressedImage
-        : `data:image/jpeg;base64,${compressedImage}`;
+    const photoPayload = compressedImage.startsWith("data:")
+      ? compressedImage
+      : `data:image/jpeg;base64,${compressedImage}`;
 
-      // Determine user type
-      const workerDesignations = ["operator", "helper", "driver"];
-      const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
-      const now = new Date();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
+    // Determine user type (already have isWorker from earlier)
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const currentShift = (hour >= 8 && hour < 20) || (hour === 20 && minute < 30) ? "shift1" : "shift2";
 
-      // Function to make API call with retry
-      const makeApiCallWithRetry = async (apiCall, maxRetries = 2) => {
-        let lastError;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            console.log(`📡 API attempt ${attempt} of ${maxRetries}...`);
-            
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error("Request timeout")), 30000);
-            });
-            
-            const apiPromise = apiCall();
-            const response = await Promise.race([apiPromise, timeoutPromise]);
-            
-            console.log(`✅ API call successful on attempt ${attempt}`);
-            return response;
-          } catch (err) {
-            lastError = err;
-            console.error(`❌ Attempt ${attempt} failed:`, err.message);
-            
-            if (attempt < maxRetries) {
-              const waitTime = attempt * 2000;
-              console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
+    // Function to make API call with retry
+    const makeApiCallWithRetry = async (apiCall, maxRetries = 2) => {
+      let lastError;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`📡 API attempt ${attempt} of ${maxRetries}...`);
+          
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Request timeout")), 30000);
+          });
+          
+          const apiPromise = apiCall();
+          const response = await Promise.race([apiPromise, timeoutPromise]);
+          
+          console.log(`✅ API call successful on attempt ${attempt}`);
+          return response;
+        } catch (err) {
+          lastError = err;
+          console.error(`❌ Attempt ${attempt} failed:`, err.message);
+          
+          if (attempt < maxRetries) {
+            const waitTime = attempt * 2000;
+            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
-        throw lastError;
-      };
+      }
+      throw lastError;
+    };
 
-      // For staff, check check-in status before check-out
-      if (!isWorker && type === "check-out") {
-        try {
-          const today = new Date().toISOString().split('T')[0];
-          console.log("📅 Checking for check-in on:", today);
+    // For staff, check check-in status before check-out
+    if (isStaff && type === "check-out") {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        console.log("📅 Checking for check-in on:", today);
+        
+        const attendanceResponse = await axiosInstance.get("/attendance", {
+          params: { date: today },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
+        });
+        
+        let attendanceData = [];
+        if (attendanceResponse.data.logs) {
+          attendanceData = attendanceResponse.data.logs;
+        } else if (Array.isArray(attendanceResponse.data)) {
+          attendanceData = attendanceResponse.data;
+        }
+        
+        const hasCheckIn = attendanceData.some(record => {
+          const recordUserId = record.user?._id || record.user;
+          if (recordUserId !== user._id) return false;
           
-          const attendanceResponse = await axiosInstance.get("/attendance", {
-            params: { date: today },
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000
-          });
+          const isCheckIn = record.type === "check-in" || 
+                            (record.checkIn && record.checkIn.time) ||
+                            (record.checkInTime);
           
-          let attendanceData = [];
-          if (attendanceResponse.data.logs) {
-            attendanceData = attendanceResponse.data.logs;
-          } else if (Array.isArray(attendanceResponse.data)) {
-            attendanceData = attendanceResponse.data;
-          }
+          const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
           
-          const hasCheckIn = attendanceData.some(record => {
-            const recordUserId = record.user?._id || record.user;
-            if (recordUserId !== user._id) return false;
-            
-            const isCheckIn = record.type === "check-in" || 
-                              (record.checkIn && record.checkIn.time) ||
-                              (record.checkInTime);
-            
-            const recordDate = new Date(record.time || record.checkIn?.time || record.date || record.checkInTime).toISOString().split('T')[0];
-            
-            return recordDate === today && isCheckIn;
-          });
-          
-          if (!hasCheckIn) {
-            Swal.fire({
-              icon: "error",
-              title: "Cannot Check Out",
-              text: "You haven't checked in today. Please check in first.",
-              confirmButtonColor: "#B0BC27",
-            });
-            setIsSaving(false);
-            return;
-          }
-        } catch (checkErr) {
-          console.error("❌ Error checking attendance:", checkErr);
+          return recordDate === today && isCheckIn;
+        });
+        
+        if (!hasCheckIn) {
           Swal.fire({
             icon: "error",
-            title: "Verification Failed",
-            text: "Could not verify your check-in status. Please try again.",
+            title: "Cannot Check Out",
+            text: "You haven't checked in today. Please check in first.",
             confirmButtonColor: "#B0BC27",
           });
           setIsSaving(false);
           return;
         }
+      } catch (checkErr) {
+        console.error("❌ Error checking attendance:", checkErr);
+        Swal.fire({
+          icon: "error",
+          title: "Verification Failed",
+          text: "Could not verify your check-in status. Please try again.",
+          confirmButtonColor: "#B0BC27",
+        });
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    // Make the API call with retry logic
+    let response;
+    try {
+      // Prepare payload with onTour flag
+      const attendancePayload = { 
+        type, 
+        photo: photoPayload, 
+        location,
+        onTour: onTour && isSalesUser
+      };
+      
+      if (isWorker) {
+        console.log("👷 Worker detected, using factory attendance system");
+        response = await makeApiCallWithRetry(() =>
+          axiosInstance.post(
+            "/factory-attendance/mark",
+            { 
+              ...attendancePayload,
+              userId: user._id,
+              shift: currentShift,
+              source: 'portal'
+            },
+            { 
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 30000
+            }
+          )
+        );
+      } else {
+        console.log("👔 Staff detected, using regular attendance system");
+        response = await makeApiCallWithRetry(() =>
+          axiosInstance.post(
+            "/attendance/mark",
+            attendancePayload,
+            { 
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 30000
+            }
+          )
+        );
       }
 
-      // Make the API call with retry logic
-      let response;
-      try {
-        // Prepare payload with onTour flag
-        const attendancePayload = { 
-          type, 
-          photo: photoPayload, 
-          location,
-          onTour: onTour && isSalesUser // Only send onTour flag if sales user
-        };
-        
-        if (isWorker) {
-          console.log("👷 Worker detected, using factory attendance system");
-          response = await makeApiCallWithRetry(() =>
-            axiosInstance.post(
-              "/factory-attendance/mark",
-              { 
-                ...attendancePayload,
-                userId: user._id,
-                shift: currentShift,
-                source: 'portal'
-              },
-              { 
-                headers: { Authorization: `Bearer ${token}` },
-                timeout: 30000
-              }
-            )
-          );
-        } else {
-          console.log("👔 Staff detected, using regular attendance system");
-          response = await makeApiCallWithRetry(() =>
-            axiosInstance.post(
-              "/attendance/mark",
-              attendancePayload,
-              { 
-                headers: { Authorization: `Bearer ${token}` },
-                timeout: 30000
-              }
-            )
-          );
-        }
-
-        // Show success message with onTour info if applicable
-        let successMessage = `
-          <div class="text-center">
-            <div class="text-6xl mb-4">✅</div>
-            <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
-            <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
-        `;
-        
-        if (onTour && isSalesUser) {
-          successMessage += `
-            <div class="bg-amber-100 border border-amber-300 rounded-lg p-2 mb-4">
-              <p class="text-xs text-amber-700 font-medium">📍 On Tour Mode - Location: ${location.lat}, ${location.lng}</p>
-            </div>
-          `;
-        }
-        
+      // Show success message
+      let successMessage = `
+        <div class="text-center">
+          <div class="text-6xl mb-4">✅</div>
+          <p class="text-gray-600 mb-2">${type === "check-in" ? "Welcome to work!" : "Have a great day!"}</p>
+          <p class="text-sm text-gray-500 mb-4">Time: ${new Date().toLocaleTimeString()}</p>
+      `;
+      
+      if (onTour && isSalesUser) {
         successMessage += `
-            <a href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}" 
-               class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
-              View Attendance Logs
-            </a>
+          <div class="bg-amber-100 border border-amber-300 rounded-lg p-2 mb-4">
+            <p class="text-xs text-amber-700 font-medium">📍 On Tour Mode - Location: ${location.lat}, ${location.lng}</p>
           </div>
         `;
-
-        Swal.fire({
-          icon: "success",
-          title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
-          html: successMessage,
-          confirmButtonColor: "#B0BC27",
-          showConfirmButton: false,
-          timer: 3000
-        });
-
-        setCapturing(false);
-        console.log("✅ Attendance saved successfully");
-
-      } catch (err) {
-        setCapturing(false);
-        
-        if (err.message === "Request timeout") {
-          Swal.fire({
-            icon: "error",
-            title: "Network Timeout",
-            text: "Request took too long. Please check your internet connection and try again.",
-            confirmButtonColor: "#B0BC27",
-          });
-        } else if (err.response?.data?.error?.includes("already marked")) {
-          Swal.fire({
-            icon: "info",
-            title: "Already Marked",
-            text: `You already marked ${type} for today.`,
-            confirmButtonColor: "#B0BC27",
-          });
-        } else if (err.response?.data?.error?.includes("location")) {
-          Swal.fire({
-            icon: "error",
-            title: "Location Error",
-            text: "Location is required for attendance. Please enable location services.",
-            confirmButtonColor: "#B0BC27",
-          });
-        } else {
-          // Store failed attempt in localStorage for later retry
-          const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
-          failedUploads.push({
-            data: { type, photo: photoPayload, location, onTour: onTour && isSalesUser },
-            timestamp: new Date().toISOString(),
-            userId: user._id,
-            isWorker: isWorker
-          });
-          if (failedUploads.length > 10) failedUploads.shift();
-          localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
-          
-          Swal.fire({
-            icon: "error",
-            title: "Save Failed",
-            text: err.response?.data?.error || err.message || "Failed to save attendance. It will be retried automatically.",
-            confirmButtonColor: "#B0BC27",
-          });
-        }
       }
+      
+      successMessage += `
+          <a href="${userRoles.includes("driver") ? "/factory-attendance-logs" : "/attendance-logs"}" 
+             class="inline-block px-4 py-2 bg-[#B0BC27] text-white rounded-lg hover:bg-[#9ca824] transition-colors duration-300 text-sm font-medium">
+            View Attendance Logs
+          </a>
+        </div>
+      `;
+
+      Swal.fire({
+        icon: "success",
+        title: `Attendance ${type === "check-in" ? "Checked In" : "Checked Out"}!`,
+        html: successMessage,
+        confirmButtonColor: "#B0BC27",
+        showConfirmButton: false,
+        timer: 3000
+      });
+
+      setCapturing(false);
+      console.log("✅ Attendance saved successfully");
 
     } catch (err) {
-      console.error("Error marking attendance:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Attendance Failed",
-        text: "An unexpected error occurred. Please try again.",
-        confirmButtonColor: "#B0BC27",
-      });
-    } finally {
-      setIsSaving(false);
-      console.timeEnd("🕒 Total Attendance Time");
+      setCapturing(false);
+      
+      if (err.message === "Request timeout") {
+        Swal.fire({
+          icon: "error",
+          title: "Network Timeout",
+          text: "Request took too long. Please check your internet connection and try again.",
+          confirmButtonColor: "#B0BC27",
+        });
+      } else if (err.response?.data?.error?.includes("already marked")) {
+        Swal.fire({
+          icon: "info",
+          title: "Already Marked",
+          text: `You already marked ${type} for today.`,
+          confirmButtonColor: "#B0BC27",
+        });
+      } else if (err.response?.data?.error?.includes("location")) {
+        Swal.fire({
+          icon: "error",
+          title: "Location Error",
+          text: "Location is required for attendance. Please enable location services.",
+          confirmButtonColor: "#B0BC27",
+        });
+      } else {
+        // Store failed attempt in localStorage for later retry
+        const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
+        failedUploads.push({
+          data: { type, photo: photoPayload, location, onTour: onTour && isSalesUser },
+          timestamp: new Date().toISOString(),
+          userId: user._id,
+          isWorker: isWorker
+        });
+        if (failedUploads.length > 10) failedUploads.shift();
+        localStorage.setItem('failedAttendanceUploads', JSON.stringify(failedUploads));
+        
+        Swal.fire({
+          icon: "error",
+          title: "Save Failed",
+          text: err.response?.data?.error || err.message || "Failed to save attendance. It will be retried automatically.",
+          confirmButtonColor: "#B0BC27",
+        });
+      }
     }
-  };
+
+  } catch (err) {
+    console.error("Error marking attendance:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Attendance Failed",
+      text: "An unexpected error occurred. Please try again.",
+      confirmButtonColor: "#B0BC27",
+    });
+  } finally {
+    setIsSaving(false);
+    console.timeEnd("🕒 Total Attendance Time");
+  }
+};
 
   const retryFailedUploads = async () => {
     const failedUploads = JSON.parse(localStorage.getItem('failedAttendanceUploads') || '[]');
@@ -780,57 +808,124 @@ export default function AttendanceCapture() {
     }
   }, [token]);
 
-  const handleCapture = (captureType) => {
-    if (!modelsLoaded) {
-      Swal.fire({
-        icon: "info",
-        title: "Please Wait",
-        text: "Face recognition models are still loading.",
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
-
-    if (!user?.faceUrl) {
-      Swal.fire({
-        icon: "error",
-        title: "Face Not Registered",
-        html: `
-          <div class="text-center">
-            <div class="text-6xl mb-4">👤</div>
-            <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
-            <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
-          </div>
-        `,
-        confirmButtonColor: "#B0BC27",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    const now = new Date();
-    const formatted = now.toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "medium",
-    });
-
-    setCaptureTimestamp(formatted);
-    setType(captureType);
-
+const handleCapture = (captureType) => {
+  // Check if models are loaded
+  if (!modelsLoaded) {
     Swal.fire({
-      title: "📷 Initializing Camera...",
-      text: "Please hold still and look at the camera.",
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      didOpen: () => Swal.showLoading(),
+      icon: "info",
+      title: "Please Wait",
+      text: "Face recognition models are still loading.",
+      confirmButtonColor: "#B0BC27",
     });
+    return;
+  }
 
-    setTimeout(() => {
-      setCapturing(true);
-      Swal.close();
-      setIsSaving(false);
-    }, 800);
-  };
+  // Check if user has faceUrl
+  if (!user?.faceUrl) {
+    Swal.fire({
+      icon: "error",
+      title: "Face Not Registered",
+      html: `
+        <div class="text-center">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-gray-600 mb-4">Your face is not registered for attendance.</p>
+          <p class="text-sm text-gray-500">Please contact Accounts/Admin department.</p>
+        </div>
+      `,
+      confirmButtonColor: "#B0BC27",
+    });
+    return;
+  }
+
+  // ✅ Check if user is staff (skip descriptor pre-check)
+  const workerDesignations = ["operator", "helper", "driver"];
+  const isWorker = workerDesignations.includes(user?.designation?.toLowerCase());
+  
+  // For workers, check if descriptor exists BEFORE opening camera
+  if (isWorker) {
+    // Check if descriptor exists in cache, if not try to load it
+    const checkDescriptor = async () => {
+      try {
+        const descriptor = await getDescriptor();
+        if (!descriptor) {
+          // Try fetching from API
+          const response = await axiosInstance.get("/users/preprocessed-descriptors");
+          const descriptors = response.data;
+          const userDescriptor = descriptors.find(d => d._id === user._id);
+          
+          if (!userDescriptor || !userDescriptor.descriptor) {
+            Swal.fire({
+              icon: "error",
+              title: "Face Data Missing",
+              html: `
+                <div class="text-center">
+                  <div class="text-6xl mb-4">👤</div>
+                  <p class="text-gray-600 mb-4">Your face descriptor data is missing.</p>
+                  <p class="text-sm text-gray-500 mb-4">Please contact Accounts to re-register your face.</p>
+                  <div class="bg-yellow-50 p-3 rounded-lg text-left text-sm text-yellow-700">
+                    <strong>💡 Tip:</strong> Ask an accounts user to visit "Register User" page, 
+                    find your profile, and click "Register Face" again.
+                  </div>
+                </div>
+              `,
+              confirmButtonColor: "#B0BC27",
+            });
+            return false;
+          }
+        }
+        return true;
+      } catch (err) {
+        console.error("Error checking descriptor:", err);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to load face recognition data.",
+          confirmButtonColor: "#B0BC27",
+        });
+        return false;
+      }
+    };
+
+    // Run async check but don't block UI
+    checkDescriptor().then((hasDescriptor) => {
+      if (!hasDescriptor) return;
+      
+      // Proceed with capture
+      proceedWithCapture(captureType);
+    });
+  } else {
+    // ✅ STAFF - Skip descriptor check entirely, proceed directly
+    console.log("👔 Staff user - skipping descriptor pre-check");
+    proceedWithCapture(captureType);
+  }
+};
+
+// Helper function for the actual capture
+const proceedWithCapture = (captureType) => {
+  setIsSaving(true);
+  const now = new Date();
+  const formatted = now.toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  });
+
+  setCaptureTimestamp(formatted);
+  setType(captureType);
+
+  Swal.fire({
+    title: "📷 Initializing Camera...",
+    text: "Please hold still and look at the camera.",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  setTimeout(() => {
+    setCapturing(true);
+    Swal.close();
+    setIsSaving(false);
+  }, 800);
+};
 
   function AutoCaptureTrigger({ saveAttendance }) {
     useEffect(() => {
