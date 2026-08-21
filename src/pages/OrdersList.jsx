@@ -126,7 +126,7 @@ export default function OrdersList() {
     { key: "danaBeads", label: "EPS/Thermocol Dana/Beads Production Section" },
     { key: "shapeMoulding", label: "EPS/Thermocol Shape Molding Production Section" },
     { key: "sheetCutting", label: "EPS/Thermocol Sheet Cutting & Dispatch Section" },
-    { key: "shapePackaging", label: "EPS/Thermocol Shape Molding Packaging & Dispatch Section" },
+    { key: "shapePackaging", label: "Shape Molding Packaging, Dana Packaging & Ice Gel Pack Packaging & Dispatch Section" },
     { key: "cncSection", label: "EPS/Thermocol CNC Hot Wire/CNC Router" },
   ], []);
 

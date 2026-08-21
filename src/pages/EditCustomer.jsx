@@ -39,6 +39,8 @@ const [giftForm, setGiftForm] = useState({
   quantity: 1,
   notes: "",
 });
+const [newUdyogFiles, setNewUdyogFiles] = useState([]);
+const [removedUdyogDocs, setRemovedUdyogDocs] = useState([]);
   const [giftHistory, setGiftHistory] = useState([]);
   const [giftPage, setGiftPage] = useState(1);
   const [giftTotalPages, setGiftTotalPages] = useState(1);
@@ -375,7 +377,6 @@ const handleSubmit = async (e) => {
   e.preventDefault();
   setSubmitting(true);
   
-  // GST validation
   if (customer.company && customer.company !== "URP" && customer.company.length !== 15) {
     setGstError("GST number must be exactly 15 characters.");
     toast.error("GST number must be exactly 15 characters.");
@@ -383,25 +384,32 @@ const handleSubmit = async (e) => {
     return;
   }
   
-  // Auto-fill URP if GST is empty
   if (!customer.company || customer.company.trim() === "") {
     customer.company = "URP";
   }
 
   try {
     let uploadedUrls = [];
+    let uploadedUdyogUrls = []; // ✅ NEW
+    
     if (newFiles.length > 0) {
-      toast.loading("Uploading new documents...");
+      toast.loading("Uploading new GST documents...");
       uploadedUrls = await uploadToCloudinary(newFiles);
       toast.dismiss();
     }
+    
+    // ✅ NEW: Upload Udyog Aadhar files
+    if (newUdyogFiles.length > 0) {
+      toast.loading("Uploading new Udyog Aadhar documents...");
+      uploadedUdyogUrls = await uploadToCloudinary(newUdyogFiles);
+      toast.dismiss();
+    }
 
-    // ✅ IMPORTANT: Use the customer state which already has the updated productionSlips
     const updatedCustomer = {
       ...customer,
       createdBy: customer.createdBy,
       gstDocs: [...(customer.gstDocs || []), ...uploadedUrls],
-      // Use the customer state directly - it already has the productionSlips from fetchProductionSlips()
+      udyogAadharDocs: [...(customer.udyogAadharDocs || []), ...uploadedUdyogUrls], // ✅ NEW
       productionSlips: customer.productionSlips || [],
       securityCheques: customer.securityCheques || [],
       samples: customer.samples || [],
@@ -409,26 +417,16 @@ const handleSubmit = async (e) => {
       costingSheets: customer.costingSheets || []
     };
 
-    console.log("Saving customer with productionSlips:", updatedCustomer.productionSlips?.length || 0);
-    console.log("Production slips data:", updatedCustomer.productionSlips);
-    
     await axiosInstance.put(`/customers/${id}`, updatedCustomer);
     toast.success("Customer updated successfully");
     
-    // ✅ Navigate after a small delay to ensure the save is complete
     setTimeout(() => {
       navigate("/customers");
     }, 300);
     
   } catch (err) {
     console.error("Update customer error:", err);
-    console.error("Error response:", err.response?.data);
-
-    const errorMsg =
-      err.response?.data?.error ||
-      err.response?.data?.message ||
-      "Failed to update customer";
-
+    const errorMsg = err.response?.data?.error || err.response?.data?.message || "Failed to update customer";
     toast.error(errorMsg);
   } finally {
     setSubmitting(false);
@@ -757,6 +755,23 @@ const handleConvertToPotential = async () => {
   }
 };
 
+const handleUdyogFileChange = (e) => {
+  const files = Array.from(e.target.files);
+  setNewUdyogFiles((prev) => [...prev, ...files]);
+};
+
+const handleRemoveExistingUdyogDoc = (url) => {
+  setRemovedUdyogDocs((prev) => [...prev, url]);
+  setCustomer((prev) => ({
+    ...prev,
+    udyogAadharDocs: prev.udyogAadharDocs?.filter((doc) => doc !== url),
+  }));
+};
+
+const handleRemoveNewUdyogDoc = (index) => {
+  setNewUdyogFiles((prev) => prev.filter((_, i) => i !== index));
+};
+
   if (loading) return <p>Loading customer...</p>;
   if (!customer) return null;
 
@@ -1033,7 +1048,7 @@ const handleConvertToPotential = async () => {
   </select>
 </div>
           <div>
-            <label className="block mb-1 font-semibold">GST Documents</label>
+            <label className="block mb-1 font-semibold">GST Certificate (Mandatory - Upload PDF of JPG File of GST Certificate and should not be written Text)</label>
             <input
               type="file"
               accept="image/*,.pdf"
@@ -1265,6 +1280,244 @@ const handleConvertToPotential = async () => {
   </div>
 )}
           </div>
+
+          {/* Existing GST Docs Section */}
+{/* ... existing GST code ... */}
+
+{/* ✅ NEW: Udyog Aadhar Number Section */}
+<div className="mt-4">
+  <label className="block mb-1 font-semibold">Udyog Aadhar Number (Upload PDF or Image File)</label>
+  <input
+    type="file"
+    accept="image/*,.pdf"
+    multiple
+    onChange={handleUdyogFileChange}
+    className="w-full border p-2 rounded"
+  />
+
+  {/* Show existing Udyog Aadhar docs */}
+  {customer.udyogAadharDocs?.length > 0 && (
+    <div className="mt-2 space-y-1">
+      <p className="text-sm font-medium text-gray-600">Existing Udyog Aadhar Files:</p>
+      <div className="flex flex-wrap gap-3">
+        {customer.udyogAadharDocs.map((url, i) => {
+          const isImage = url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+          const isPDF = url?.match(/\.pdf$/i);
+          
+          return (
+            <div key={i} className="relative border p-2 rounded bg-gray-100">
+              {isImage ? (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Udyog Aadhar Document',
+                      imageUrl: url,
+                      imageWidth: '80%',
+                      imageHeight: 'auto',
+                      imageAlt: 'Udyog Aadhar Document',
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                      padding: '2rem',
+                      background: '#fff',
+                      width: 'auto',
+                      maxWidth: '90vw',
+                    });
+                  }}
+                  className="cursor-pointer"
+                >
+                  <img
+                    src={url}
+                    alt={`udyog-doc-${i}`}
+                    className="w-24 h-24 object-cover rounded hover:opacity-80 transition-opacity"
+                  />
+                  <span className="text-xs text-blue-600 mt-1 block text-center">Click to view</span>
+                </div>
+              ) : isPDF ? (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Udyog Aadhar - PDF',
+                      html: `
+                        <div style="width: 100%; height: 70vh;">
+                          <iframe 
+                            src="${url}" 
+                            style="width: 100%; height: 100%; border: none;"
+                            frameborder="0"
+                          ></iframe>
+                        </div>
+                        <div style="margin-top: 10px;">
+                          <a href="${url}" target="_blank" class="btn btn-primary" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none;">
+                            📄 Open in New Tab
+                          </a>
+                        </div>
+                      `,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                      width: '90%',
+                      maxWidth: '900px',
+                      padding: '1rem',
+                      background: '#fff',
+                    });
+                  }}
+                  className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+                >
+                  <div className="flex flex-col items-center justify-center w-24 h-24">
+                    <span className="text-3xl">📄</span>
+                    <span className="text-xs mt-1 text-blue-600 text-center">View PDF</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Udyog Aadhar Document',
+                      html: `
+                        <div style="padding: 20px;">
+                          <p>Unable to preview this file type.</p>
+                          <a href="${url}" target="_blank" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; display: inline-block; margin-top: 10px;">
+                            📄 Open File
+                          </a>
+                        </div>
+                      `,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                    });
+                  }}
+                  className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+                >
+                  <div className="flex flex-col items-center justify-center w-24 h-24">
+                    <span className="text-3xl">📎</span>
+                    <span className="text-xs mt-1 text-blue-600 text-center">View File</span>
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => handleRemoveExistingUdyogDoc(url)}
+                className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
+
+  {/* Show new Udyog Aadhar files */}
+  {newUdyogFiles.length > 0 && (
+    <div className="mt-4">
+      <p className="text-sm font-medium text-gray-600">New Udyog Aadhar Files to Upload:</p>
+      <div className="flex flex-wrap gap-3">
+        {newUdyogFiles.map((file, i) => {
+          const isImage = file.type.startsWith("image/");
+          const isPDF = file.type === "application/pdf";
+          const fileUrl = URL.createObjectURL(file);
+          
+          return (
+            <div key={i} className="relative border p-2 rounded bg-gray-100">
+              {isImage ? (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Preview - New Udyog Aadhar Document',
+                      imageUrl: fileUrl,
+                      imageWidth: '80%',
+                      imageHeight: 'auto',
+                      imageAlt: 'Udyog Aadhar Preview',
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                      padding: '2rem',
+                      background: '#fff',
+                      width: 'auto',
+                      maxWidth: '90vw',
+                    });
+                  }}
+                  className="cursor-pointer"
+                >
+                  <img
+                    src={fileUrl}
+                    alt={`new-udyog-${i}`}
+                    className="w-24 h-24 object-cover rounded hover:opacity-80 transition-opacity"
+                  />
+                  <span className="text-xs text-blue-600 mt-1 block text-center">Click to preview</span>
+                </div>
+              ) : isPDF ? (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Preview - New Udyog Aadhar PDF',
+                      html: `
+                        <div style="width: 100%; height: 70vh;">
+                          <iframe 
+                            src="${fileUrl}" 
+                            style="width: 100%; height: 100%; border: none;"
+                            frameborder="0"
+                          ></iframe>
+                        </div>
+                        <div style="margin-top: 10px;">
+                          <p style="font-size: 14px; color: #666;">File: ${file.name}</p>
+                        </div>
+                      `,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                      width: '90%',
+                      maxWidth: '900px',
+                      padding: '1rem',
+                      background: '#fff',
+                    });
+                  }}
+                  className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+                >
+                  <div className="flex flex-col items-center justify-center w-24 h-24">
+                    <span className="text-3xl">📄</span>
+                    <span className="text-xs mt-1 text-blue-600 text-center break-all">{file.name}</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'File Preview',
+                      html: `
+                        <div style="padding: 20px;">
+                          <p>File: ${file.name}</p>
+                          <p style="color: #666; font-size: 14px;">Type: ${file.type || 'Unknown'}</p>
+                          <p style="color: #666; font-size: 14px;">Size: ${(file.size / 1024).toFixed(2)} KB</p>
+                          <div style="margin-top: 15px;">
+                            <a href="${fileUrl}" target="_blank" style="padding: 8px 16px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; display: inline-block;">
+                              📄 Open File
+                            </a>
+                          </div>
+                        </div>
+                      `,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                    });
+                  }}
+                  className="cursor-pointer hover:bg-gray-200 rounded p-2 transition-colors"
+                >
+                  <div className="flex flex-col items-center justify-center w-24 h-24">
+                    <span className="text-3xl">📎</span>
+                    <span className="text-xs mt-1 text-blue-600 text-center break-all">{file.name}</span>
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => handleRemoveNewUdyogDoc(i)}
+                className="absolute top-1 right-1 text-white bg-red-500 hover:bg-red-600 rounded-full w-5 h-5 text-xs flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
 
        {/* Gift Management Section */}
 <div ref={giftsSectionRef} id="gift-management-section" className="mt-8 border-t pt-8">

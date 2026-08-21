@@ -1699,13 +1699,13 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
                           variant="success"
                           icon="📦"
                         >
-                          <div className="text-lg font-semibold mb-2">
-                            Packaging
+                          <div className="text-sm font-semibold mb-2">
+                                                        Shape Molding Packaging, Dana Packaging & Ice Gel Pack Packaging & Dispatch Section
+
                           </div>
-                          <div className="text-green-100 text-xs opacity-90">
-                            EPS/Thermocol Shape Moulding Packaging & Dispatch
-                            Section
-                          </div>
+                          {/* <div className="text-green-100 text-xs opacity-90">
+                            Shape Molding Packaging, Dana Packaging & Ice Gel Pack Packaging & Dispatch Section
+                          </div> */}
                         </ActionButton>
                       )}
 
