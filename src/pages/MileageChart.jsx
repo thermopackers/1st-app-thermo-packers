@@ -263,43 +263,41 @@ const handleSubmitEntry = async (e) => {
   try {
     let imageUrls = [];
     if (selectedFiles.length > 0) {
-      try {
-        const formData = new FormData();
-        selectedFiles.forEach(file => {
-          formData.append('images', file);
-        });
+      const formData = new FormData();
+      selectedFiles.forEach(file => {
+        formData.append('images', file);
+      });
 
-        const uploadRes = await axiosInstance.post('/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`
-          }
-        });
-        imageUrls = uploadRes.data.fileUrls || [];
-      } catch (uploadErr) {
-        console.error("File upload failed:", uploadErr);
-        // Continue without files if upload fails
-        toast.warning("File upload failed. Entry will be saved without files.");
-        imageUrls = [];
-      }
+      const uploadRes = await axiosInstance.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      imageUrls = uploadRes.data.fileUrls || [];
     }
+
+    // ✅ FIX: Handle 0 value properly - check if value exists, allow 0
+    const meterReading = entryFormData.meterReading !== undefined && entryFormData.meterReading !== "" 
+      ? parseFloat(entryFormData.meterReading) 
+      : 0;
+
+    const dieselLiters = entryFormData.dieselLtrs !== undefined && entryFormData.dieselLtrs !== "" 
+      ? parseFloat(entryFormData.dieselLtrs) 
+      : null;
 
     const payload = {
       vehicleNumber: entryFormData.vehicleNo,
       date: entryFormData.date,
-      kmsReading: parseFloat(entryFormData.meterReading) || 0,
-      dieselLiters: parseFloat(entryFormData.dieselLtrs) || 0,
+      kmsReading: meterReading,
+      dieselLiters: dieselLiters,
       imageUrls: imageUrls,
-      fuelSlipNo: entryFormData.fuelSlipNo || ""
+      fuelSlipNo: entryFormData.fuelSlipNo
     };
 
-    console.log("Submitting payload:", payload);
-
-    const response = await axiosInstance.post('/diesel/add', payload, {
+    await axiosInstance.post('/diesel/add', payload, {
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    console.log("Response:", response.data);
 
     setEntryFormData({
       date: dayjs().format("YYYY-MM-DD"),
@@ -313,7 +311,6 @@ const handleSubmitEntry = async (e) => {
     document.getElementById('fileInput').value = '';
     
     setEntrySuccess(true);
-    toast.success("Mileage entry added successfully!");
     setTimeout(() => setEntrySuccess(false), 3000);
 
     setEntriesPage(1);
@@ -323,18 +320,14 @@ const handleSubmitEntry = async (e) => {
 
   } catch (err) {
     console.error("Failed to add mileage entry:", err);
-    // ✅ Show the actual error message
-    const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to add mileage entry. Please try again.";
-    toast.error(errorMessage);
-    // Also show in console for debugging
-    if (err.response) {
-      console.error("Error response data:", err.response.data);
-      console.error("Error status:", err.response.status);
-    }
+    // ✅ Show more specific error message
+    const errorMsg = err.response?.data?.message || "Failed to add mileage entry. Please try again.";
+    toast.error(errorMsg);
   } finally {
     setEntryLoading(false);
   }
 };
+
   const handleEntriesPageChange = (newPage) => {
     setEntriesPage(newPage);
   };
