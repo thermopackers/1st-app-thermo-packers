@@ -255,14 +255,15 @@ useEffect(() => {
     }));
   };
 
-  const handleSubmitEntry = async (e) => {
-    e.preventDefault();
-    setEntryLoading(true);
-    setEntrySuccess(false);
+const handleSubmitEntry = async (e) => {
+  e.preventDefault();
+  setEntryLoading(true);
+  setEntrySuccess(false);
 
-    try {
-      let imageUrls = [];
-      if (selectedFiles.length > 0) {
+  try {
+    let imageUrls = [];
+    if (selectedFiles.length > 0) {
+      try {
         const formData = new FormData();
         selectedFiles.forEach(file => {
           formData.append('images', file);
@@ -275,48 +276,65 @@ useEffect(() => {
           }
         });
         imageUrls = uploadRes.data.fileUrls || [];
+      } catch (uploadErr) {
+        console.error("File upload failed:", uploadErr);
+        // Continue without files if upload fails
+        toast.warning("File upload failed. Entry will be saved without files.");
+        imageUrls = [];
       }
-
-      const payload = {
-        vehicleNumber: entryFormData.vehicleNo,
-        date: entryFormData.date,
-        kmsReading: parseFloat(entryFormData.meterReading),
-        dieselLiters: parseFloat(entryFormData.dieselLtrs),
-        imageUrls: imageUrls,
-        fuelSlipNo: entryFormData.fuelSlipNo
-      };
-
-      await axiosInstance.post('/diesel/add', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setEntryFormData({
-        date: dayjs().format("YYYY-MM-DD"),
-        vehicleNo: "",
-        fuelSlipNo: "",
-        meterReading: "",
-        dieselLtrs: "",
-        files: []
-      });
-      setSelectedFiles([]);
-      document.getElementById('fileInput').value = '';
-      
-      setEntrySuccess(true);
-      setTimeout(() => setEntrySuccess(false), 3000);
-
-      setEntriesPage(1);
-      fetchAllMileageData();
-      fetchTableData();
-      fetchMileageEntries(1);
-
-    } catch (err) {
-      console.error("Failed to add mileage entry:", err);
-      alert("Failed to add mileage entry. Please try again.");
-    } finally {
-      setEntryLoading(false);
     }
-  };
 
+    const payload = {
+      vehicleNumber: entryFormData.vehicleNo,
+      date: entryFormData.date,
+      kmsReading: parseFloat(entryFormData.meterReading) || 0,
+      dieselLiters: parseFloat(entryFormData.dieselLtrs) || 0,
+      imageUrls: imageUrls,
+      fuelSlipNo: entryFormData.fuelSlipNo || ""
+    };
+
+    console.log("Submitting payload:", payload);
+
+    const response = await axiosInstance.post('/diesel/add', payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    console.log("Response:", response.data);
+
+    setEntryFormData({
+      date: dayjs().format("YYYY-MM-DD"),
+      vehicleNo: "",
+      fuelSlipNo: "",
+      meterReading: "",
+      dieselLtrs: "",
+      files: []
+    });
+    setSelectedFiles([]);
+    document.getElementById('fileInput').value = '';
+    
+    setEntrySuccess(true);
+    toast.success("Mileage entry added successfully!");
+    setTimeout(() => setEntrySuccess(false), 3000);
+
+    setEntriesPage(1);
+    fetchAllMileageData();
+    fetchTableData();
+    fetchMileageEntries(1);
+
+  } catch (err) {
+    console.error("Failed to add mileage entry:", err);
+    // ✅ Show the actual error message
+    const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to add mileage entry. Please try again.";
+    toast.error(errorMessage);
+    // Also show in console for debugging
+    if (err.response) {
+      console.error("Error response data:", err.response.data);
+      console.error("Error status:", err.response.status);
+    }
+  } finally {
+    setEntryLoading(false);
+  }
+};
   const handleEntriesPageChange = (newPage) => {
     setEntriesPage(newPage);
   };
