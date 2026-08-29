@@ -1564,7 +1564,6 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
                       </div>
                     </ActionButton>
                   </div>
-
             {userRoles.includes("accounts") && (
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
     {/* Purchase Product / Suppliers Section */}
@@ -1910,6 +1909,9 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
     </DashboardCard>
   </DashboardSection>
 )}
+
+
+
 
           {/* Enhanced Main Grid Section */}
           <DashboardSection>
@@ -2970,6 +2972,30 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
               </div>
             </DashboardCard>
           </DashboardSection>
+              {/* Raw Block Stock Report Button - Add this inside the grid */}
+              {userRoles.includes("dispatch") && (
+
+           <DashboardSection>
+                        <DashboardCard>
+             <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                Raw Block Stock Report
+              </h3>
+  <ActionButton
+    to="/raw-block-stock"
+    variant="royal"
+    icon="📊"
+  >
+    <div className="text-lg font-semibold mb-2">
+      Raw Block Stock Report
+    </div>
+    <div className="text-white/90 text-xs opacity-90">
+      Manage stock in hand, production & usage
+    </div>
+  </ActionButton>
+            </DashboardCard>
+          </DashboardSection>
+          )}
+
         </div>
         {showPaymentForm && (
           <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />

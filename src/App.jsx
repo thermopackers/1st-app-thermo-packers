@@ -21,6 +21,7 @@ export default function App() {
     "/add-potential-customer",
     "/potential-customers",
     "/factory-act",
+    "/raw-block-stock",
     "/weighing-scale",
     "/pollution-department",
     "/all-caremax-products",

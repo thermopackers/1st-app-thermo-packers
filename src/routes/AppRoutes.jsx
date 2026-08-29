@@ -122,6 +122,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import PotentialCustomerList from "../pages/PotentialCustomerList";
 import AddPotentialCustomer from "../pages/AddPotentialCustomer";
 import EditPotentialCustomer from "../pages/EditPotentialCustomer";
+import RawBlockStock from "../components/RawBlockStockReport";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -495,7 +496,7 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
-
+<Route path="/raw-block-stock" element={<RawBlockStock />} />
             <Route
               path="/all-products"
               element={
