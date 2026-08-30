@@ -58,6 +58,7 @@ export default function GuardAttendance() {
   const [todaySessions, setTodaySessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [showManualTrigger, setShowManualTrigger] = useState(false); // <-- ADD THIS
   const lastCaptureAttemptRef = useRef(0);
   const MIN_CAPTURE_INTERVAL = 2000;
 
@@ -1258,7 +1259,7 @@ export default function GuardAttendance() {
         return;
       }
 
-      // Reset for next person
+      // Reset for next person - show manual trigger
       setIsProcessing(false);
       setCapturing(false);
       captureLockRef.current = false;
@@ -1266,13 +1267,10 @@ export default function GuardAttendance() {
       // 🔴 ADD THIS: Log successful processing
       console.log(`✅ Successfully processed ${matchedEmployee.name} - ${action}`);
       
-      if (autoStart) {
-        console.log("🔄 Auto-restarting for next person in 2 seconds...");
-        setTimeout(() => {
-          resetRecognitionState();
-          setShouldAutoRestart(true);
-        }, 2000);
-      }
+      // Show manual trigger for next user
+      setTimeout(() => {
+        resetForNextUser();
+      }, 1500);
 
     } catch (err) {
       console.error("❌ Error during capture:", err);
@@ -1381,7 +1379,7 @@ export default function GuardAttendance() {
         showConfirmButton: false
       });
 
-      // Reset for next person
+       // Reset for next person - show manual trigger button
       setCapturing(false);
       setIsProcessing(false);
       captureLockRef.current = false;
@@ -1394,23 +1392,11 @@ export default function GuardAttendance() {
       }
       setIsScanning(false);
 
-      // Auto-restart for next person if autoStart is enabled
-      if (autoStart) {
-        console.log("🔄 Will auto-restart for next person in 1.5 seconds...");
-        setTimeout(() => {
-          console.log("🔄 Triggering auto-restart...");
-          resetRecognitionState();
-          setShouldAutoRestart(true);
-        }, 1500);
-      } else {
-        // If not autoStart, still restart scanning after a short delay
-        setTimeout(() => {
-          if (capturing === false && !isProcessing) {
-            console.log("🔄 Restarting scanning after attendance...");
-            setCapturing(true);
-          }
-        }, 1000);
-      }
+      // Show manual trigger button for next user after a short delay
+      console.log("🔄 Showing manual trigger for next user...");
+      setTimeout(() => {
+        resetForNextUser();
+      }, 1000);
 
     } catch (err) {
       console.error("Error marking attendance:", err);
@@ -1450,6 +1436,54 @@ export default function GuardAttendance() {
       autoCaptureTimerRef.current = null;
     }
   };
+
+// Reset for next user - shows manual trigger button
+const resetForNextUser = () => {
+  console.log("🔄 Resetting for next user...");
+  setShowManualTrigger(true);
+  setIsScanning(false);
+  setIsProcessing(false);
+  captureLockRef.current = false;
+  setCameraReady(false);
+  
+  // Clear scanning interval
+  if (scanningIntervalRef.current) {
+    clearInterval(scanningIntervalRef.current);
+    scanningIntervalRef.current = null;
+  }
+  
+  // Clear auto-capture timer
+  if (autoCaptureTimerRef.current) {
+    clearTimeout(autoCaptureTimerRef.current);
+    autoCaptureTimerRef.current = null;
+  }
+  
+  // Auto-restart after 10 seconds if user doesn't click the button
+  setTimeout(() => {
+    if (showManualTrigger && !capturing && !isProcessing) {
+      console.log("🔄 Auto-restarting after timeout...");
+      setShowManualTrigger(false);
+      setCapturing(true);
+    }
+  }, 10000); // 10 seconds timeout
+};
+
+// Manual trigger for next user
+const handleManualTrigger = async () => {
+  console.log("🖱️ Manual trigger clicked for next user...");
+  setShowManualTrigger(false);
+  setCameraReady(false);
+  setIsScanning(false);
+  setCapturing(false); // Ensure capturing is false before restart
+  
+  // Reset capture attempt time to allow immediate capture
+  lastCaptureAttemptRef.current = 0;
+  
+  // Start capturing again with a small delay
+  setTimeout(() => {
+    setCapturing(true);
+  }, 300);
+};
 
   // If not guard, show access denied
   if (!userRoles.includes("guard")) {
@@ -1755,6 +1789,36 @@ export default function GuardAttendance() {
                     </>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+                 {/* MANUAL TRIGGER BUTTON - Shows after each successful attendance */}
+          {showManualTrigger && !capturing && !isProcessing && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="mt-4 bg-white rounded-2xl shadow-xl p-8 text-center border-2 border-blue-400 border-dashed"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                  <Users className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">✅ Next User Ready!</h3>
+                <p className="text-gray-600">Click below to capture next person's attendance</p>
+                <motion.button
+                  onClick={handleManualTrigger}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-xl font-semibold text-lg shadow-lg transition-all flex items-center gap-3"
+                >
+                  <Camera className="w-6 h-6" />
+                  Click Me to Start
+                </motion.button>
+                <p className="text-xs text-gray-400 mt-2">
+                  Or wait for auto-detection in a few seconds...
+                </p>
               </div>
             </motion.div>
           )}
