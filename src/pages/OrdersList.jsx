@@ -1004,32 +1004,34 @@ const handleSlipSubmit = useCallback(async (payload) => {
         ) : orders.length === 0 ? (
           <NoOrdersMessage />
         ) : (
-          <OrderTable
-            sortedOrders={sortedOrders}
-            products={products}
-            role={role}
-            customers={customers}
-            resolvedPOUrls={resolvedPOUrls}
-            sectionsList={sectionsList}
-            localSections={localSections}
-            selectedRadioByOrder={selectedRadioByOrder}
-            disabledOrders={disabledOrders}
-            handleComplete={handleComplete}
-            handleCancel={handleCancel}
-            handleDelete={handleDelete}
-            setEditOrder={setEditOrder}
-            handleSectionRadioChange={handleSectionRadioChange}
-            setActiveProductImage={setActiveProductImage}
-            setSlipType={setSlipType}
-            setSelectedOrder={setSelectedOrder}
-            setSelectedSections={setSelectedSections}
-            setModalOpen={setModalOpen}
-            getStockForProduct={getStockForProduct}
-            getCustomerPhone={getCustomerPhone}
-            sectionToSlipType={sectionToSlipType}
-            swalWithTailwindButtons={swalWithTailwindButtons}
-              filters={filters} // ✅ ADD THIS LINE
-          />
+          // <OrderTable
+          //   sortedOrders={sortedOrders}
+          //   products={products}
+          //   role={role}
+          //   customers={customers}
+          //   resolvedPOUrls={resolvedPOUrls}
+          //   sectionsList={sectionsList}
+          //   localSections={localSections}
+          //   selectedRadioByOrder={selectedRadioByOrder}
+          //   disabledOrders={disabledOrders}
+          //   handleComplete={handleComplete}
+          //   handleCancel={handleCancel}
+          //   handleDelete={handleDelete}
+          //   setEditOrder={setEditOrder}
+          //   handleSectionRadioChange={handleSectionRadioChange}
+          //   setActiveProductImage={setActiveProductImage}
+          //   setSlipType={setSlipType}
+          //   setSelectedOrder={setSelectedOrder}
+          //   setSelectedSections={setSelectedSections}
+          //   setModalOpen={setModalOpen}
+          //   getStockForProduct={getStockForProduct}
+          //   getCustomerPhone={getCustomerPhone}
+          //   sectionToSlipType={sectionToSlipType}
+          //   swalWithTailwindButtons={swalWithTailwindButtons}
+          //     filters={filters} // ✅ ADD THIS LINE
+          // />
+                    <LoadingSpinner />
+
         )}
 
         <OrderPagination
