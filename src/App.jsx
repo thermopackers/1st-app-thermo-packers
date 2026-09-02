@@ -21,6 +21,7 @@ export default function App() {
     "/add-potential-customer",
     "/potential-customers",
     "/factory-act",
+    "/accounts-media",
     "/raw-block-stock",
     "/weighing-scale",
     "/pollution-department",

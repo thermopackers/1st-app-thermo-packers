@@ -56,6 +56,7 @@ export default function Dashboard() {
   const location = useLocation();
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [showAccountsMedia, setShowAccountsMedia] = useState(false);
   // Add these missing state variables near your other useState declarations
 const [showSearchResults, setShowSearchResults] = useState(false);
 const [searchResults, setSearchResults] = useState([]);
@@ -2995,6 +2996,29 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             </DashboardCard>
           </DashboardSection>
           )}
+
+{userRoles.some(role => ["admin", "accounts"].includes(role)) && (
+  <DashboardSection>
+    <DashboardCard className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">📺</span>
+        Accounts Media Center
+      </h3>
+      <p className="text-gray-600 text-center mb-6">
+        Manage and display presentations and videos for accounts department
+      </p>
+      <ActionButton
+        onClick={() => navigate('/accounts-media')}
+        variant="ocean"
+        icon="📽️"
+        className="max-w-md mx-auto"
+      >
+        <div className="text-xl font-semibold">Open Media Center</div>
+        <div className="text-blue-100 text-sm opacity-90">Video Player</div>
+      </ActionButton>
+    </DashboardCard>
+  </DashboardSection>
+)}
 
         </div>
         {showPaymentForm && (

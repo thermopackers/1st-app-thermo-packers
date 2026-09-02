@@ -123,6 +123,7 @@ import PotentialCustomerList from "../pages/PotentialCustomerList";
 import AddPotentialCustomer from "../pages/AddPotentialCustomer";
 import EditPotentialCustomer from "../pages/EditPotentialCustomer";
 import RawBlockStock from "../components/RawBlockStockReport";
+import AccountsMedia from '../pages/AccountsMedia';
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -206,6 +207,7 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+<Route path="/accounts-media" element={<AccountsMedia />} />
             {/* Protected Routes */}
             <Route
               path="/dashboard"
