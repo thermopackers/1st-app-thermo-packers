@@ -403,7 +403,7 @@ const handleSubmit = async (e) => {
 )}
 
 {/* ✅ NEW: Udyog Aadhar Number Field */}
-<div>
+{/* <div>
   <label className="block mb-1 font-medium text-gray-700">
     Udyog Aadhar Number (Upload PDF or Image File)
   </label>
@@ -414,8 +414,8 @@ const handleSubmit = async (e) => {
     onChange={handleUdyogFileChange}
     className="block w-full bg-amber-200 p-1"
   />
-</div>
-{udyogFiles.length > 0 && (
+</div> */}
+{/* {udyogFiles.length > 0 && (
   <div className="space-y-2 mt-4">
     <p className="font-semibold">Selected Udyog Aadhar Files:</p>
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -530,7 +530,7 @@ const handleSubmit = async (e) => {
       })}
     </div>
   </div>
-)}
+)} */}
 
 
             <div>

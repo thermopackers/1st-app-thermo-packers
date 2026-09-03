@@ -45,6 +45,7 @@ const [entriesVehicleFilter, setEntriesVehicleFilter] = useState("");
     fuelSlipNo: "",
     meterReading: "",
     dieselLtrs: "",
+      ureaQty: "",  // ✅ ADD THIS
     files: []
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -74,6 +75,7 @@ const [deleteLoading, setDeleteLoading] = useState(false);
     fuelSlipNo: "",
     kmsReading: "",
     dieselLiters: "",
+      ureaQty: "",  // ✅ ADD THIS
     imageUrls: []
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -292,7 +294,8 @@ const handleSubmitEntry = async (e) => {
       kmsReading: meterReading,
       dieselLiters: dieselLiters,
       imageUrls: imageUrls,
-      fuelSlipNo: entryFormData.fuelSlipNo
+      fuelSlipNo: entryFormData.fuelSlipNo,
+        ureaQty: entryFormData.ureaQty ? parseFloat(entryFormData.ureaQty) : null  // ✅ ADD THIS
     };
 
     await axiosInstance.post('/diesel/add', payload, {
@@ -305,6 +308,7 @@ const handleSubmitEntry = async (e) => {
       fuelSlipNo: "",
       meterReading: "",
       dieselLtrs: "",
+        ureaQty: "",  // ✅ ADD THIS
       files: []
     });
     setSelectedFiles([]);
@@ -340,6 +344,7 @@ const handleEditClick = (entry) => {
     fuelSlipNo: entry.fuelSlipNo || "",
     kmsReading: entry.kmsReading || entry.reading || "",
     dieselLiters: entry.dieselLiters || entry.dieselQuantity || "",
+        ureaQty: entry.ureaQty || "",  // ✅ ADD THIS
     imageUrls: entry.imageUrls || []
   });
     setEditSelectedFiles([]); // Reset file selection
@@ -389,7 +394,8 @@ const handleUpdateEntry = async (e) => {
       dieselLiters: parseFloat(editFormData.dieselLiters) || null,
       kmsReading: parseFloat(editFormData.kmsReading),
       fuelSlipNo: editFormData.fuelSlipNo || null,
-      imageUrls: imageUrls
+      imageUrls: imageUrls,
+        ureaQty: editFormData.ureaQty ? parseFloat(editFormData.ureaQty) : null  // ✅ ADD THIS
     };
 
     await axiosInstance.patch(`/diesel/update/${editingEntry._id}`, payload, {
@@ -1524,6 +1530,22 @@ const handleRemoveFile = async (entryId, fileUrl) => {
   </div>
 
   <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Urea/DEF/Ad Blue (in Ltrs)
+  </label>
+  <input
+    type="number"
+    name="ureaQty"
+    value={entryFormData.ureaQty}
+    onChange={handleInputChange}
+    placeholder="e.g., 5.0"
+    step="0.01"
+    min="0"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+  />
+</div>
+
+  <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
       Upload Files (Multiple)
     </label>
@@ -1710,6 +1732,9 @@ const handleRemoveFile = async (entryId, fileUrl) => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
               </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+    Urea/DEF/Ad Blue (Ltrs)  {/* ✅ ADD THIS */}
+  </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Files
               </th>
@@ -1736,6 +1761,9 @@ const handleRemoveFile = async (entryId, fileUrl) => {
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
                   {entry.dieselLiters || entry.dieselQuantity} L
                 </td>
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-purple-600 font-semibold">
+  {entry.ureaQty ? `${entry.ureaQty} L` : '-'}  {/* ✅ ADD THIS */}
+</td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
   {entry.imageUrls && entry.imageUrls.length > 0 ? (
     <div className="flex items-center gap-2">
@@ -1926,6 +1954,22 @@ const handleRemoveFile = async (entryId, fileUrl) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
             />
           </div>
+
+          <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Urea/DEF/Ad Blue (in Ltrs)
+  </label>
+  <input
+    type="number"
+    name="ureaQty"
+    value={editFormData.ureaQty || ''}
+    onChange={handleEditInputChange}
+    placeholder="e.g., 5.0"
+    step="0.01"
+    min="0"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+  />
+</div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1285,7 +1285,7 @@ const handleRemoveNewUdyogDoc = (index) => {
 {/* ... existing GST code ... */}
 
 {/* ✅ NEW: Udyog Aadhar Number Section */}
-<div className="mt-4">
+{/* <div className="mt-4">
   <label className="block mb-1 font-semibold">Udyog Aadhar Number (Upload PDF or Image File)</label>
   <input
     type="file"
@@ -1295,7 +1295,6 @@ const handleRemoveNewUdyogDoc = (index) => {
     className="w-full border p-2 rounded"
   />
 
-  {/* Show existing Udyog Aadhar docs */}
   {customer.udyogAadharDocs?.length > 0 && (
     <div className="mt-2 space-y-1">
       <p className="text-sm font-medium text-gray-600">Existing Udyog Aadhar Files:</p>
@@ -1405,7 +1404,6 @@ const handleRemoveNewUdyogDoc = (index) => {
     </div>
   )}
 
-  {/* Show new Udyog Aadhar files */}
   {newUdyogFiles.length > 0 && (
     <div className="mt-4">
       <p className="text-sm font-medium text-gray-600">New Udyog Aadhar Files to Upload:</p>
@@ -1517,7 +1515,7 @@ const handleRemoveNewUdyogDoc = (index) => {
       </div>
     </div>
   )}
-</div>
+</div> */}
 
        {/* Gift Management Section */}
 <div ref={giftsSectionRef} id="gift-management-section" className="mt-8 border-t pt-8">

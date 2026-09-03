@@ -24,6 +24,9 @@ const [status, setStatus] = useState("pending");
   const [isUploading, setIsUploading] = useState(false); // State to track upload process
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [poNumber, setPoNumber] = useState("");
+  const [supplierSearch, setSupplierSearch] = useState("");
+const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
+
   const [productEntries, setProductEntries] = useState([
     {
       name: "",
@@ -695,6 +698,11 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
     });
   };
 
+  // Add this filtered suppliers calculation
+const filteredSuppliers = suppliers.filter(supplier =>
+  supplier.name.toLowerCase().includes(supplierSearch.toLowerCase())
+);
+
   return (
     <>
       <LoaderOverlay isLoading={isUploading} />{" "}
@@ -705,24 +713,82 @@ if (selectedSupplier?.chequeFiles && selectedSupplier.chequeFiles.length > 0) {
           {id ? "✏️ Editing Purchase Order" : "📝 Create Purchase Order"}
         </h2>
 
-        <div className="mb-6">
-          <label className="block font-semibold mb-2">Select Supplier</label>
-          <select
-            className="border border-gray-300 p-2 rounded w-full"
-            value={selectedSupplier?._id || ""} // ✅ bind value
-            onChange={(e) => {
-              const supplier = suppliers.find((s) => s._id === e.target.value);
-              setSelectedSupplier(supplier);
-            }}
-          >
-            <option value="">Select Supplier</option>
-            {suppliers.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-6">
+  <label className="block font-semibold mb-2">Select Supplier</label>
+  <div className="relative">
+    <input
+      type="text"
+      className="border border-gray-300 p-2 rounded w-full"
+      placeholder="Type to search supplier..."
+      value={supplierSearch}
+      onChange={(e) => {
+        setSupplierSearch(e.target.value);
+        setIsSupplierDropdownOpen(true);
+      }}
+      onFocus={() => {
+        setIsSupplierDropdownOpen(true);
+        // If supplier already selected, show their name in search
+        if (selectedSupplier && !supplierSearch) {
+          setSupplierSearch(selectedSupplier.name);
+        }
+      }}
+      onBlur={() => {
+        // Delay closing to allow click on dropdown items
+        setTimeout(() => {
+          setIsSupplierDropdownOpen(false);
+          // If no supplier selected, clear search
+          if (!selectedSupplier) {
+            setSupplierSearch("");
+          }
+        }, 200);
+      }}
+    />
+    
+    {/* Dropdown - only shows when isSupplierDropdownOpen is true AND there's search text or we're in focus */}
+    {isSupplierDropdownOpen && (
+      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+        {filteredSuppliers.length > 0 ? (
+          filteredSuppliers.map((supplier) => (
+            <div
+              key={supplier._id}
+              className={`px-4 py-2 hover:bg-blue-100 cursor-pointer ${
+                selectedSupplier?._id === supplier._id ? "bg-blue-50" : ""
+              }`}
+              onClick={() => {
+                setSelectedSupplier(supplier);
+                setSupplierSearch(supplier.name);
+                setIsSupplierDropdownOpen(false);
+              }}
+            >
+              {supplier.name}
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-gray-500">
+            {supplierSearch ? "No suppliers found" : "Start typing to search..."}
+          </div>
+        )}
+      </div>
+    )}
+    
+    {/* Show selected supplier info */}
+    {selectedSupplier && (
+      <div className="mt-2 p-2 bg-green-50 rounded border border-green-200 text-sm">
+        <span className="font-medium">✓ Selected:</span> {selectedSupplier.name}
+        <button
+          className="ml-3 text-red-500 hover:text-red-700"
+          onClick={() => {
+            setSelectedSupplier(null);
+            setSupplierSearch("");
+            setIsSupplierDropdownOpen(false);
+          }}
+        >
+          ✕ Clear
+        </button>
+      </div>
+    )}
+  </div>
+</div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           <div>
