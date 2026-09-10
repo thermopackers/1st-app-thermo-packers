@@ -124,6 +124,8 @@ import AddPotentialCustomer from "../pages/AddPotentialCustomer";
 import EditPotentialCustomer from "../pages/EditPotentialCustomer";
 import RawBlockStock from "../components/RawBlockStockReport";
 import AccountsMedia from '../pages/AccountsMedia';
+import PostsList from "../pages/PostsList";
+import AddPost from "../pages/AddPost";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -188,6 +190,7 @@ export default function AppRoutes() {
             <Route path="/product/:slug" element={<PageWrapper><ProductDetail /></PageWrapper>} />
             <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
             <Route path="/contact" element={<PageWrapper><Contact /></PageWrapper>} />
+<Route path="/presentation" element={<PageWrapper><AccountsMedia /></PageWrapper>} />
             <Route path="/features/:slug" element={<PageWrapper><FeatureDetail /></PageWrapper>} />
             <Route path="/login" element={<PageWrapper><LoginPage /></PageWrapper>} />
 <Route path="/campaigns" element={<PageWrapper><CampaignsList /></PageWrapper>} />
@@ -207,7 +210,10 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
-<Route path="/accounts-media" element={<AccountsMedia />} />
+
+<Route path="/posts" element={<PostsList />} />
+<Route path="/posts/new" element={<AddPost />} />
+<Route path="/posts/edit/:id" element={<AddPost />} />
             {/* Protected Routes */}
             <Route
               path="/dashboard"

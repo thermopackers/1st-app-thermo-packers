@@ -43,6 +43,7 @@ const [productList, setProductList] = useState([
     quantity: "",
     price: "",
         density: "", // ✅ Already exists
+            weight: "", // ✅ NEW: Product Dry Weight
     density: "",
     productRemarks: "",
     narration: "",
@@ -386,41 +387,55 @@ const handleProductChange = async (index, field, value) => {
   const updated = [...productList];
   const product = productMap.get(value);
 
-  if (field === "product" && product) {
-    const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
-    const imageList = Array.isArray(product.images)
-      ? product.images.map((img) =>
-          img.startsWith("http") ? img : `${BASE_URL}${img}`
-        )
-      : [];
+if (field === "product" && product) {
+  const BASE_URL = import.meta.env.VITE_REACT_APP_API_URL;
+  const imageList = Array.isArray(product.images)
+    ? product.images.map((img) =>
+        img.startsWith("http") ? img : `${BASE_URL}${img}`
+      )
+    : [];
 
-    // ✅ Auto-fill density from product data
-    const densityValue = product.density || "";
+  // ✅ Auto-fill density from product data
+  const densityValue = product.density || "";
+  // ✅ Auto-fill weight from product data
+let weightValue = product.weight || "";
+// If weight is a number and not empty, convert kg to grams (multiply by 1000)
+if (weightValue && !isNaN(parseFloat(weightValue))) {
+  const weightInKg = parseFloat(weightValue);
+  weightValue = (weightInKg * 1000).toString(); // Convert to grams
+}
 
-    updated[index] = {
-      ...updated[index],
-      product: product.name,
-      customProduct: "",
-      size: "",
-      customSize: "",
-      density: densityValue, // ✅ Auto-fill density
-    };
-    
-    // ✅ Auto-fill price if customer is selected
-    if (clientDetails.customerName) {
-      const lastPrice = await fetchLastPrice(clientDetails.customerName, product.name);
-      if (lastPrice !== null && lastPrice !== undefined) {
-        updated[index].price = lastPrice.toString();
-        toast.success(`Price auto-filled: ₹${lastPrice}`, { duration: 2000 });
-      }
+updated[index] = {
+  ...updated[index],
+  product: product.name,
+  customProduct: "",
+  size: "",
+  customSize: "",
+  density: densityValue, // ✅ Auto-fill density
+  weight: weightValue, // ✅ Auto-fill weight (now in grams)
+};
+  
+  // ✅ Auto-fill price if customer is selected
+  if (clientDetails.customerName) {
+    const lastPrice = await fetchLastPrice(clientDetails.customerName, product.name);
+    if (lastPrice !== null && lastPrice !== undefined) {
+      updated[index].price = lastPrice.toString();
+      toast.success(`Price auto-filled: ₹${lastPrice}`, { duration: 2000 });
     }
-    
-    // ✅ Show density auto-filled notification
-    if (densityValue) {
-      toast.success(`Density auto-filled: ${densityValue} kg/m³`, { duration: 2000 });
-    }
-    
-  } else if (field === "customProduct") {
+  }
+  
+  // ✅ Show density auto-filled notification
+  if (densityValue) {
+    toast.success(`Density auto-filled: ${densityValue} kg/m³`, { duration: 2000 });
+  }
+  
+// ✅ Show weight auto-filled notification (in grams)
+if (weightValue) {
+  toast.success(`Dry Weight auto-filled: ${weightValue} grams`, { duration: 2000 });
+}
+
+  
+} else if (field === "customProduct") {
     updated[index] = {
       ...updated[index],
       product: "",
@@ -447,6 +462,7 @@ const handleProductChange = async (index, field, value) => {
       quantity: "",
       price: "",
       density: "",
+            weight: "", // ✅ NEW: Product Dry Weight
       productRemarks: "",
       narration: "",
       narrationImages: [],
@@ -509,17 +525,26 @@ for (const prod of productList) {
       paymentTerms === "Other" ? customPaymentTerms : paymentTerms
     );
     
-    // Send ALL products as an array in a single order
-    const modifiedProductList = productList.map((prod) => ({
-      product: prod.product === "" ? prod.customProduct : prod.product,
-      size: prod.size === "" ? prod.customSize : prod.size,
-      quantity: prod.quantity,
-      price: prod.price,
-      density: prod.density,
-      productRemarks: prod.productRemarks,
-      narration: prod.narration || "",
-      narrationImages: prod.narrationImages || [],
-    }));
+const modifiedProductList = productList.map((prod) => {
+  // Convert weight from grams to kg for storage
+  let weightInKg = prod.weight || "";
+  if (weightInKg && !isNaN(parseFloat(weightInKg))) {
+    const weightInGrams = parseFloat(weightInKg);
+    weightInKg = (weightInGrams / 1000).toString(); // Convert to kg
+  }
+  
+  return {
+    product: prod.product === "" ? prod.customProduct : prod.product,
+    size: prod.size === "" ? prod.customSize : prod.size,
+    quantity: prod.quantity,
+    price: prod.price,
+    density: prod.density,
+    weight: weightInKg, // ✅ Store in kg in database
+    productRemarks: prod.productRemarks,
+    narration: prod.narration || "",
+    narrationImages: prod.narrationImages || [],
+  };
+});
     
     formData.append("products", JSON.stringify(modifiedProductList));
 
@@ -1096,6 +1121,18 @@ const fetchLastPrice = async (customerName, productName) => {
         className="border border-gray-400 p-2 rounded"
       />
     </div>
+
+ {/* Weight - Dry Weight (in grams) */}
+<div className="flex flex-col">
+  <label className="mb-1 font-medium text-gray-700">Dry Weight (grams)</label>
+  <input
+    type="text"
+    value={prod.weight}
+    placeholder="e.g., 200"
+    onChange={(e) => handleProductChange(index, "weight", e.target.value)}
+    className="border border-gray-400 p-2 rounded"
+  />
+</div>
 
     {/* Product Remarks */}
     <div className="col-span-2">

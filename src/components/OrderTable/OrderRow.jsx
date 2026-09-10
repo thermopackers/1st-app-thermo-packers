@@ -898,7 +898,7 @@ const remaining = (parseFloat(order.quantity) || 0) - (parseFloat(order.delivere
           dispatchStatus={order.dispatchStatus}
           type="production"
         />
-      </OrderCell>
+              </OrderCell>
 
       {/* Packaging Status */}
       <OrderCell>

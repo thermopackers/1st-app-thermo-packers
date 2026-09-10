@@ -555,6 +555,25 @@ const clearRecipientFilters = () => {
                 </div>
               </div>
 
+              {/* Show if post/reel was used */}
+{campaign.selectedPostId && (
+  <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+    <div className="flex items-center gap-3">
+      <span className="text-2xl">{campaign.selectedPost?.postType === 'reel' ? '🎬' : '📝'}</span>
+      <div>
+        <h4 className="font-medium text-gray-800">Content Source</h4>
+        <p className="text-sm text-gray-600">
+          This campaign used: <span className="font-medium">{campaign.postTitle || 'Post/Reel'}</span>
+          {campaign.selectedPost?.postType === 'reel' && ' (Reel)'}
+          {campaign.postMediaUrls && campaign.postMediaUrls.length > 0 && 
+            ` • ${campaign.postMediaUrls.length} media files`
+          }
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
               {/* Restricted Customers Info */}
               {campaign.stats?.restricted > 0 && (
                 <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">

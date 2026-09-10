@@ -26,7 +26,7 @@ const [status, setStatus] = useState("pending");
   const [poNumber, setPoNumber] = useState("");
   const [supplierSearch, setSupplierSearch] = useState("");
 const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
-
+const [showPreviousData, setShowPreviousData] = useState(true);
   const [productEntries, setProductEntries] = useState([
     {
       name: "",
@@ -69,65 +69,76 @@ useEffect(() => {
   }
 }, [termsAndConditions]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-const suppliersRes = await axiosInstance.get("/suppliers?limit=100000"); // or a large number
-        setSuppliers(suppliersRes.data.data);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const suppliersRes = await axiosInstance.get("/suppliers?limit=100000");
+      setSuppliers(suppliersRes.data.data);
 
-        const productsRes = await axiosInstance.get("/purchase-products");
-        const allProducts = productsRes.data.data;
-        setProducts(allProducts);
+      const productsRes = await axiosInstance.get("/purchase-products");
+      const allProducts = productsRes.data.data;
+      setProducts(allProducts);
 
-        if (!id) {
-          const poRes = await axiosInstance.get("/purchase-orders/latest-po");
-          setPoNumber(poRes.data.nextPoNumber);
-        }
-
-        if (id) {
-          const poRes = await axiosInstance.get(`/purchase-orders/${id}`);
-          const po = poRes.data;
-          setPoNumber(po.poNumber);
-          setSelectedSupplier(po.supplier);
-          setExistingPdfUrl(po.pdfUrl);
-
-            // ✅ Load saved terms and conditions
-  if (po.termsAndConditions && po.termsAndConditions.length > 0) {
-    setTermsAndConditions(po.termsAndConditions);
-  }
-          // ✅ NEW: Autofill main fields
-          setFreightOption(po.freightOption || "");
-          setFreightComment(po.freightComment || "");
-          setPaymentTerm(po.paymentTerm || "");
-          setPaymentComment(po.paymentComment || "");
-          setRequiredDate(po.requiredDate ? po.requiredDate.slice(0, 10) : ""); // to match input[date] format
-
-          const entries = po.products.map((p) => {
-            const masterProduct = allProducts.find(
-              (prod) => prod.name === p.productName
-            );
-
-            return {
-              name: p.productName || "",
-              qty: p.qty || "",
-              unit: p.unit || masterProduct?.unit || "", // ✅ fallback to master product's unit
-              price: p.rate || masterProduct?.price || "",
-              gstPercent: p.gst || masterProduct?.gstPercent?.toString() || "0",
-              description: masterProduct?.description || "", // ✅ added
-              remarks: p.remarks || "",
-              imageUrls: masterProduct?.files || [], // ✅ now this works!
-            };
-          });
-
-          setProductEntries(entries);
-        }
-      } catch (err) {
-        console.error("❌ Error loading PO data:", err);
+      if (!id) {
+        const poRes = await axiosInstance.get("/purchase-orders/latest-po");
+        setPoNumber(poRes.data.nextPoNumber);
       }
-    };
 
-    fetchData();
-  }, []);
+      if (id) {
+        const poRes = await axiosInstance.get(`/purchase-orders/${id}`);
+        const po = poRes.data;
+        setPoNumber(po.poNumber);
+        setSelectedSupplier(po.supplier);
+        setExistingPdfUrl(po.pdfUrl);
+
+        // ✅ Load saved terms and conditions
+        if (po.termsAndConditions && po.termsAndConditions.length > 0) {
+          setTermsAndConditions(po.termsAndConditions);
+        }
+        
+        // ✅ NEW: Autofill main fields
+        setFreightOption(po.freightOption || "");
+        setFreightComment(po.freightComment || "");
+        setPaymentTerm(po.paymentTerm || "");
+        setPaymentComment(po.paymentComment || "");
+        setRequiredDate(po.requiredDate ? po.requiredDate.slice(0, 10) : "");
+
+      // In handleGeneratePDF, update the product entries mapping
+const entries = po.products.map((p) => {
+  const masterProduct = allProducts.find(
+    (prod) => prod.name === p.productName
+  );
+
+  return {
+    name: p.productName || "",
+    qty: p.qty || "",
+    unit: p.unit || masterProduct?.unit || "",
+    price: p.rate || masterProduct?.price || "",
+    gstPercent: p.gst || masterProduct?.gstPercent?.toString() || "0",
+    description: masterProduct?.description || p.description || "",
+    remarks: p.remarks || "",
+    imageUrls: masterProduct?.files || [],
+    // ✅ Previous data fields
+    previousQty: p.qty || "",
+    previousPrice: p.rate || masterProduct?.price || "",
+    previousGst: p.gst || masterProduct?.gstPercent?.toString() || "0",
+    previousRemarks: p.remarks || "",
+    previousDescription: p.description || "",
+  };
+});
+
+        setProductEntries(entries);
+        
+        // ✅ Set status from existing PO
+        setStatus(po.status || "pending");
+      }
+    } catch (err) {
+      console.error("❌ Error loading PO data:", err);
+    }
+  };
+
+  fetchData();
+}, [id]); // ✅ Add id to dependencies
 
   async function convertImageToBase64(url) {
     try {
@@ -713,6 +724,20 @@ const filteredSuppliers = suppliers.filter(supplier =>
           {id ? "✏️ Editing Purchase Order" : "📝 Create Purchase Order"}
         </h2>
 
+         {id && (
+    <div className="mb-4 flex items-center gap-2">
+      <label className="text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={showPreviousData}
+          onChange={() => setShowPreviousData(!showPreviousData)}
+          className="mr-2"
+        />
+        Show previous product data
+      </label>
+    </div>
+  )}
+
       <div className="mb-6">
   <label className="block font-semibold mb-2">Select Supplier</label>
   <div className="relative">
@@ -856,213 +881,257 @@ const filteredSuppliers = suppliers.filter(supplier =>
         </div>
 
         {productEntries.map((item, index) => (
-          <div
-            key={index}
-            className="mb-6 border border-gray-300 rounded p-4 shadow-sm bg-white relative"
-          >
-            {/* ❌ Delete Button */}
-            {productEntries.length > 1 && (
-              <button
-                onClick={() => {
-                  const updated = [...productEntries];
-                  updated.splice(index, 1);
-                  setProductEntries(updated);
-                }}
-                className="absolute top-2 right-2 text-red-600 hover:text-red-800 text-xl font-bold"
-                title="Remove this product"
-              >
-                ×
-              </button>
-            )}
+  <div
+    key={index}
+    className="mb-6 border border-gray-300 rounded p-4 shadow-sm bg-white relative"
+  >
+    {/* ❌ Delete Button */}
+    {productEntries.length > 1 && (
+      <button
+        onClick={() => {
+          const updated = [...productEntries];
+          updated.splice(index, 1);
+          setProductEntries(updated);
+        }}
+        className="absolute top-2 right-2 text-red-600 hover:text-red-800 text-xl font-bold"
+        title="Remove this product"
+      >
+        ×
+      </button>
+    )}
 
-            <h3 className="font-semibold mb-3 text-lg text-blue-700">
-              Product {index + 1}
-            </h3>
+    <h3 className="font-semibold mb-3 text-lg text-blue-700">
+      Product {index + 1}
+      {id && (
+        <span className="text-sm font-normal text-gray-500 ml-2">
+          (Previous: {item.previousQty || 0} units @ ₹{item.previousPrice || 0})
+        </span>
+      )}
+    </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {/* Product Name */}
-              <div>
-                <label
-                  htmlFor={`product-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Product Name
-                </label>
-                <select
-                  id={`product-${index}`}
-                  className="border p-2 rounded w-full"
-                  value={item.name}
-                  onChange={(e) => {
-                    const p = products.find((p) => p.name === e.target.value);
-                    const updated = [...productEntries];
-                    updated[index].name = e.target.value;
-                    updated[index].price = p?.price || "";
-                    updated[index].gstPercent = p?.gstPercent || "";
-                    updated[index].unit = p?.unit || ""; // ✅ Auto-fill unit
-                    updated[index].description = p?.description || ""; // ✅ Add this line
-                    updated[index].imageUrls = p?.files || []; // Get all image URLs from files
-                    setProductEntries(updated);
-                  }}
-                >
-                  <option>Select Product</option>
-                  {products.map((p) => (
-                    <option key={p._id} value={p.name}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                {/* Show Product Images */}
-                {item.imageUrls && item.imageUrls.length > 0 && (
-                  <div className="col-span-3 text-center mt-4">
-                    {item.imageUrls.map((file, idx) => (
-                      <div key={idx} className="inline-block mx-2">
-                        <img
-                          src={file.url}
-                          alt={`Product Image ${idx + 1}`}
-                          className="w-32 h-32 mx-auto mb-2"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              <div>
-                <label
-                  htmlFor={`description-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Description
-                </label>
-                <input
-                  id={`description-${index}`}
-                  type="text"
-                  placeholder="Enter product description"
-                  className="border p-2 rounded w-full"
-                  value={item.description}
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].description = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-
-              {/* Qty */}
-              <div>
-                <label
-                  htmlFor={`qty-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Quantity to Order
-                </label>
-                <input
-                  id={`qty-${index}`}
-                  type="number"
-                  placeholder="Quantity"
-                  className="border p-2 rounded w-full"
-                  value={item.qty}
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].qty = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-
-              {/* Unit */}
-              <div>
-                <label
-                  htmlFor={`unit-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Unit (e.g., Kg, Nos)
-                </label>
-                <input
-                  id={`unit-${index}`}
-                  type="text"
-                  placeholder="Unit"
-                  className="border p-2 rounded w-full"
-                  value={item.unit}
-                  readOnly
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].unit = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-
-              {/* Rate */}
-              <div>
-                <label
-                  htmlFor={`rate-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Basic Price
-                </label>
-                <input
-                  id={`rate-${index}`}
-                  type="text"
-                  placeholder="Rate"
-                  className="border p-2 rounded w-full"
-                  value={item.price}
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].price = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-
-              {/* GST */}
-              <div>
-                <label
-                  htmlFor={`gst-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  GST (%)
-                </label>
-                <input
-                  id={`gst-${index}`}
-                  type="text"
-                  placeholder="GST"
-                  className="border p-2 rounded w-full"
-                  value={item.gstPercent}
-                  readOnly
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].gstPercent = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-
-              {/* Remarks */}
-              <div>
-                <label
-                  htmlFor={`remarks-${index}`}
-                  className="block font-medium mb-1"
-                >
-                  Remarks
-                </label>
-                <input
-                  id={`remarks-${index}`}
-                  type="text"
-                  placeholder="Remarks"
-                  className="border p-2 rounded w-full"
-                  value={item.remarks}
-                  onChange={(e) => {
-                    const updated = [...productEntries];
-                    updated[index].remarks = e.target.value;
-                    setProductEntries(updated);
-                  }}
-                />
-              </div>
-            </div>
+    {/* ✅ Show previous data summary if editing */}
+      {id && showPreviousData && (
+      <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div>
+            <span className="font-medium">Previous Qty:</span> {item.previousQty || 0}
           </div>
-        ))}
+          <div>
+            <span className="font-medium">Previous Price:</span> ₹{item.previousPrice || 0}
+          </div>
+          <div>
+            <span className="font-medium">Previous GST:</span> {item.previousGst || 0}%
+          </div>
+          {item.previousRemarks && (
+            <div className="col-span-2">
+              <span className="font-medium">Previous Remarks:</span> {item.previousRemarks}
+            </div>
+          )}
+          {item.previousDescription && (
+            <div className="col-span-2">
+              <span className="font-medium">Previous Description:</span> {item.previousDescription}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {/* Product Name */}
+      <div>
+        <label
+          htmlFor={`product-${index}`}
+          className="block font-medium mb-1"
+        >
+          Product Name
+        </label>
+        <select
+          id={`product-${index}`}
+          className="border p-2 rounded w-full"
+          value={item.name}
+          onChange={(e) => {
+            const p = products.find((p) => p.name === e.target.value);
+            const updated = [...productEntries];
+            updated[index].name = e.target.value;
+            updated[index].price = p?.price || "";
+            updated[index].gstPercent = p?.gstPercent || "";
+            updated[index].unit = p?.unit || "";
+            updated[index].description = p?.description || "";
+            updated[index].imageUrls = p?.files || [];
+            
+            // ✅ Keep previous data for reference
+            if (!updated[index].previousQty) {
+              updated[index].previousQty = item.qty;
+            }
+            if (!updated[index].previousPrice) {
+              updated[index].previousPrice = item.price;
+            }
+            if (!updated[index].previousGst) {
+              updated[index].previousGst = item.gstPercent;
+            }
+            
+            setProductEntries(updated);
+          }}
+        >
+          <option>Select Product</option>
+          {products.map((p) => (
+            <option key={p._id} value={p.name}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {/* Show Product Images */}
+        {item.imageUrls && item.imageUrls.length > 0 && (
+          <div className="col-span-3 text-center mt-4">
+            {item.imageUrls.map((file, idx) => (
+              <div key={idx} className="inline-block mx-2">
+                <img
+                  src={file.url}
+                  alt={`Product Image ${idx + 1}`}
+                  className="w-32 h-32 mx-auto mb-2"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      <div>
+        <label
+          htmlFor={`description-${index}`}
+          className="block font-medium mb-1"
+        >
+          Description
+        </label>
+        <input
+          id={`description-${index}`}
+          type="text"
+          placeholder="Enter product description"
+          className="border p-2 rounded w-full"
+          value={item.description}
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].description = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+
+      {/* Qty */}
+      <div>
+        <label
+          htmlFor={`qty-${index}`}
+          className="block font-medium mb-1"
+        >
+          Quantity to Order
+        </label>
+        <input
+          id={`qty-${index}`}
+          type="number"
+          placeholder="Quantity"
+          className="border p-2 rounded w-full"
+          value={item.qty}
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].qty = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+
+      {/* Unit */}
+      <div>
+        <label
+          htmlFor={`unit-${index}`}
+          className="block font-medium mb-1"
+        >
+          Unit (e.g., Kg, Nos)
+        </label>
+        <input
+          id={`unit-${index}`}
+          type="text"
+          placeholder="Unit"
+          className="border p-2 rounded w-full"
+          value={item.unit}
+          readOnly
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].unit = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+
+      {/* Rate */}
+      <div>
+        <label
+          htmlFor={`rate-${index}`}
+          className="block font-medium mb-1"
+        >
+          Basic Price
+        </label>
+        <input
+          id={`rate-${index}`}
+          type="text"
+          placeholder="Rate"
+          className="border p-2 rounded w-full"
+          value={item.price}
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].price = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+
+      {/* GST */}
+      <div>
+        <label
+          htmlFor={`gst-${index}`}
+          className="block font-medium mb-1"
+        >
+          GST (%)
+        </label>
+        <input
+          id={`gst-${index}`}
+          type="text"
+          placeholder="GST"
+          className="border p-2 rounded w-full"
+          value={item.gstPercent}
+          readOnly
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].gstPercent = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+
+      {/* Remarks */}
+      <div>
+        <label
+          htmlFor={`remarks-${index}`}
+          className="block font-medium mb-1"
+        >
+          Remarks
+        </label>
+        <input
+          id={`remarks-${index}`}
+          type="text"
+          placeholder="Remarks"
+          className="border p-2 rounded w-full"
+          value={item.remarks}
+          onChange={(e) => {
+            const updated = [...productEntries];
+            updated[index].remarks = e.target.value;
+            setProductEntries(updated);
+          }}
+        />
+      </div>
+    </div>
+  </div>
+))}
 
   {/* Terms and Conditions Section */}
         <div className="mt-6 mb-6 border border-gray-300 rounded p-4 bg-gray-50">

@@ -29,7 +29,24 @@ export default function CampaignForm() {
       product: ""
     }
   });
-  
+
+  // ============ POST/REEL STATES ============
+  const [posts, setPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState("");
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [usePostMedia, setUsePostMedia] = useState(false);
+  const [postSearch, setPostSearch] = useState("");
+  const [postTypeFilter, setPostTypeFilter] = useState("");
+  // ==========================================
+const [postPagination, setPostPagination] = useState({
+  page: 1,
+  limit: 12,
+  total: 0,
+  pages: 1,
+  hasMore: false
+});
+const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   // Customer states
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -39,7 +56,7 @@ export default function CampaignForm() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   
-  // Potential Customer states - NEW
+  // Potential Customer states
   const [selectedPotentialCustomers, setSelectedPotentialCustomers] = useState([]);
   const [potentialCustomerSearchQuery, setPotentialCustomerSearchQuery] = useState("");
   const [potentialCustomerSearchResults, setPotentialCustomerSearchResults] = useState([]);
@@ -53,8 +70,8 @@ export default function CampaignForm() {
   const [isSearchingSuppliers, setIsSearchingSuppliers] = useState(false);
   const [showSupplierResults, setShowSupplierResults] = useState(false);
   
-  // Target type state - UPDATED to include potential customers
-  const [targetType, setTargetType] = useState('customers'); // 'customers', 'potential_customers', 'suppliers', 'both', 'all'
+  // Target type state
+  const [targetType, setTargetType] = useState('customers');
   
   // Other states
   const [categories, setCategories] = useState([]);
@@ -76,7 +93,97 @@ export default function CampaignForm() {
   const [sampleCustomer, setSampleCustomer] = useState(null);
   const [customerNames, setCustomerNames] = useState([]);
 
-  // Load data
+  // ============ FETCH POSTS FUNCTION ============
+// ============ FETCH POSTS WITH PAGINATION ============
+const fetchPosts = async (search = "", postType = "", page = 1, append = false) => {
+  if (page === 1) {
+    setLoadingPosts(true);
+  } else {
+    setLoadingMorePosts(true);
+  }
+  
+  try {
+    const params = new URLSearchParams({
+      page: page,
+      limit: 12,
+      // 🆕 Don't filter by status - show ALL posts
+    });
+    if (search) params.append('search', search);
+    if (postType) params.append('postType', postType);
+    
+    console.log("📱 Fetching posts page:", page);
+    console.log("📱 With params:", params.toString());
+    
+    const res = await axiosInstance.get(`/posts?${params}`);
+    
+    console.log("📱 API Response:", res.data);
+    console.log("📱 Posts count:", res.data.posts?.length || 0);
+    console.log("📱 Total:", res.data.total || 0);
+    
+    if (append && page > 1) {
+      setPosts(prev => [...prev, ...(res.data.posts || [])]);
+    } else {
+      setPosts(res.data.posts || []);
+    }
+    
+    setPostPagination({
+      page: res.data.page || 1,
+      limit: res.data.limit || 12,
+      total: res.data.total || 0,
+      pages: res.data.pages || 1,
+      hasMore: res.data.page < res.data.pages
+    });
+    
+    // 🆕 If no posts found, show a helpful message
+    if (res.data.total === 0) {
+      console.log("📱 No posts found in database");
+    }
+    
+  } catch (err) {
+    console.error("❌ Failed to fetch posts:", err);
+    console.error("Error response:", err.response?.data);
+    toast.error("Failed to load posts: " + (err.response?.data?.error || err.message));
+  } finally {
+    setLoadingPosts(false);
+    setLoadingMorePosts(false);
+  }
+};
+// Load more posts
+const loadMorePosts = () => {
+  if (postPagination.hasMore && !loadingMorePosts) {
+    const nextPage = postPagination.page + 1;
+    fetchPosts(postSearch, postTypeFilter, nextPage, true);
+  }
+};
+
+
+  // ============ HANDLE POST SELECT ============
+  const handlePostSelect = (postId) => {
+    setSelectedPostId(postId);
+    const post = posts.find(p => p._id === postId);
+    setSelectedPost(post || null);
+    
+    if (post) {
+      setUsePostMedia(true);
+      toast.success(`Selected: ${post.title}`);
+    }
+  };
+
+  // ============ CLEAR POST SELECTION ============
+  const clearPostSelection = () => {
+    setSelectedPostId("");
+    setSelectedPost(null);
+    setUsePostMedia(false);
+  };
+  // =============================================
+
+  // ============ LOAD POSTS ON MOUNT ============
+  useEffect(() => {
+    console.log("📱 Loading posts on mount...");
+    fetchPosts();
+  }, []);
+
+  // Load other data
   useEffect(() => {
     const loadAllData = async () => {
       await loadCategories();
@@ -141,7 +248,7 @@ export default function CampaignForm() {
     }
   };
 
-  // Potential Customer search - NEW
+  // Potential Customer search
   const handlePotentialCustomerSearchChange = async (value) => {
     setPotentialCustomerSearchQuery(value);
     
@@ -202,7 +309,6 @@ export default function CampaignForm() {
         setFilteredCustomers(updatedCustomers);
         setTotalCustomers(updatedCustomers.length);
         
-        // Clear search
         setSearchQuery("");
         setSearchResults([]);
         setShowSearchResults(false);
@@ -212,7 +318,7 @@ export default function CampaignForm() {
     }
   };
 
-  // Add potential customer - NEW
+  // Add potential customer
   const addPotentialCustomerManually = async (potentialCustomer) => {
     if (potentialCustomer && potentialCustomer._id) {
       const exists = selectedPotentialCustomers.some(
@@ -225,7 +331,6 @@ export default function CampaignForm() {
         const updatedPotentialCustomers = [...selectedPotentialCustomers, potentialCustomer];
         setSelectedPotentialCustomers(updatedPotentialCustomers);
         
-        // Clear search
         setPotentialCustomerSearchQuery("");
         setPotentialCustomerSearchResults([]);
         setShowPotentialCustomerResults(false);
@@ -248,7 +353,6 @@ export default function CampaignForm() {
         const updatedSuppliers = [...selectedSuppliers, supplier];
         setSelectedSuppliers(updatedSuppliers);
         
-        // Clear search
         setSupplierSearchQuery("");
         setSupplierSearchResults([]);
         setShowSupplierResults(false);
@@ -269,7 +373,7 @@ export default function CampaignForm() {
     toast.success("Customer removed from selection");
   };
 
-  // Remove potential customer - NEW
+  // Remove potential customer
   const removePotentialCustomer = (potentialCustomerId) => {
     const updatedPotentialCustomers = selectedPotentialCustomers.filter(
       potentialCustomer => potentialCustomer._id !== potentialCustomerId
@@ -286,6 +390,17 @@ export default function CampaignForm() {
     setSelectedSuppliers(updatedSuppliers);
     toast.success("Supplier removed from selection");
   };
+
+  // Update search handler
+const handlePostSearch = () => {
+  fetchPosts(postSearch, postTypeFilter, 1, false);
+};
+
+// Update filter handlers
+const handlePostTypeFilter = (type) => {
+  setPostTypeFilter(type);
+  fetchPosts(postSearch, type, 1, false);
+};
 
   // Form handlers
   const handleChange = (e) => {
@@ -459,109 +574,102 @@ export default function CampaignForm() {
     return localDate.toLocaleString('en-US', options);
   };
 
-  // UPDATED: applyFilters for customers only (can be extended for potential customers)
   const applyFilters = async () => {
-  setApplyingFilters(true);
-  try {
-    // Determine which endpoint to call based on target type
-    let endpoint = "/campaigns/get-filtered-customers";
-    let filterData = {
-      filters: {
-        search: formData.filters.search,
-        categories: formData.filters.categories,
-        createdBy: formData.filters.createdBy,
-        giftType: formData.filters.giftType,
-        product: formData.filters.product
-      }
-    };
-    
-    // If target is potential customers, use the potential-customers endpoint
-    if (targetType === 'potential_customers' || targetType === 'all') {
-      // For potential customers, we need to use the potential-customers endpoint
-      // But we'll handle this differently - fetch potential customers directly
-      const res = await axiosInstance.get("/potential-customers", {
-        params: {
+    setApplyingFilters(true);
+    try {
+      let endpoint = "/campaigns/get-filtered-customers";
+      let filterData = {
+        filters: {
           search: formData.filters.search,
-          category: formData.filters.categories.length > 0 ? formData.filters.categories[0] : '',
+          categories: formData.filters.categories,
           createdBy: formData.filters.createdBy,
           giftType: formData.filters.giftType,
-          product: formData.filters.product,
-          page: 1,
-          limit: 100 // Get up to 100 potential customers
+          product: formData.filters.product
         }
-      });
+      };
       
-      const newPotentialCustomers = res.data.customers || [];
-      const combinedPotentialCustomers = [...selectedPotentialCustomers];
-      
-      newPotentialCustomers.forEach(newPC => {
-        const exists = combinedPotentialCustomers.some(
-          existing => existing._id === newPC._id
-        );
+      if (targetType === 'potential_customers' || targetType === 'all') {
+        const res = await axiosInstance.get("/potential-customers", {
+          params: {
+            search: formData.filters.search,
+            category: formData.filters.categories.length > 0 ? formData.filters.categories[0] : '',
+            createdBy: formData.filters.createdBy,
+            giftType: formData.filters.giftType,
+            product: formData.filters.product,
+            page: 1,
+            limit: 100
+          }
+        });
         
-        if (!exists) {
-          combinedPotentialCustomers.push(newPC);
+        const newPotentialCustomers = res.data.customers || [];
+        const combinedPotentialCustomers = [...selectedPotentialCustomers];
+        
+        newPotentialCustomers.forEach(newPC => {
+          const exists = combinedPotentialCustomers.some(
+            existing => existing._id === newPC._id
+          );
+          
+          if (!exists) {
+            combinedPotentialCustomers.push(newPC);
+          }
+        });
+        
+        setSelectedPotentialCustomers(combinedPotentialCustomers);
+        
+        toast.success(`Found ${res.data.total} potential customers. Added ${newPotentialCustomers.length} new unique potential customers to selection. Total selected: ${combinedPotentialCustomers.length}`);
+        
+      } else {
+        const res = await axiosInstance.post(endpoint, filterData);
+        
+        const newCustomers = res.data.customers || [];
+        const combinedCustomers = [...selectedCustomers];
+        
+        newCustomers.forEach(newCustomer => {
+          const exists = combinedCustomers.some(
+            existing => existing._id === newCustomer._id
+          );
+          
+          if (!exists) {
+            combinedCustomers.push(newCustomer);
+          }
+        });
+        
+        setSelectedCustomers(combinedCustomers);
+        setFilteredCustomers(combinedCustomers);
+        setTotalCustomers(combinedCustomers.length);
+        
+        if (combinedCustomers.length > 0) {
+          const totalLength = combinedCustomers.reduce((sum, customer) => {
+            return sum + (customer.name ? customer.name.trim().length : 0);
+          }, 0);
+          
+          const avgLength = Math.round(totalLength / combinedCustomers.length);
+          setAverageNameLength(avgLength);
+          
+          const firstCustomerWithName = combinedCustomers.find(c => c.name && c.name.trim());
+          if (firstCustomerWithName) {
+            setSampleCustomer(firstCustomerWithName);
+          }
+          
+          const names = combinedCustomers
+            .filter(c => c.name && c.name.trim())
+            .map(c => c.name.trim())
+            .slice(0, 5);
+          
+          setCustomerNames(names);
         }
-      });
-      
-      setSelectedPotentialCustomers(combinedPotentialCustomers);
-      
-      toast.success(`Found ${res.data.total} potential customers. Added ${newPotentialCustomers.length} new unique potential customers to selection. Total selected: ${combinedPotentialCustomers.length}`);
-      
-    } else {
-      // Regular customers
-      const res = await axiosInstance.post(endpoint, filterData);
-      
-      const newCustomers = res.data.customers || [];
-      const combinedCustomers = [...selectedCustomers];
-      
-      newCustomers.forEach(newCustomer => {
-        const exists = combinedCustomers.some(
-          existing => existing._id === newCustomer._id
-        );
         
-        if (!exists) {
-          combinedCustomers.push(newCustomer);
-        }
-      });
-      
-      setSelectedCustomers(combinedCustomers);
-      setFilteredCustomers(combinedCustomers);
-      setTotalCustomers(combinedCustomers.length);
-      
-      if (combinedCustomers.length > 0) {
-        const totalLength = combinedCustomers.reduce((sum, customer) => {
-          return sum + (customer.name ? customer.name.trim().length : 0);
-        }, 0);
-        
-        const avgLength = Math.round(totalLength / combinedCustomers.length);
-        setAverageNameLength(avgLength);
-        
-        const firstCustomerWithName = combinedCustomers.find(c => c.name && c.name.trim());
-        if (firstCustomerWithName) {
-          setSampleCustomer(firstCustomerWithName);
-        }
-        
-        const names = combinedCustomers
-          .filter(c => c.name && c.name.trim())
-          .map(c => c.name.trim())
-          .slice(0, 5);
-        
-        setCustomerNames(names);
+        toast.success(`Found ${res.data.total} customers. Added ${newCustomers.length} new unique customers to selection. Total selected: ${combinedCustomers.length}`);
       }
       
-      toast.success(`Found ${res.data.total} customers. Added ${newCustomers.length} new unique customers to selection. Total selected: ${combinedCustomers.length}`);
+    } catch (err) {
+      toast.error("Failed to apply filters");
+      console.error("Filter error:", err);
+    } finally {
+      setApplyingFilters(false);
     }
-    
-  } catch (err) {
-    toast.error("Failed to apply filters");
-    console.error("Filter error:", err);
-  } finally {
-    setApplyingFilters(false);
-  }
-};
+  };
   
-  // UPDATED: handleSubmit to support potential customers
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -575,7 +683,10 @@ export default function CampaignForm() {
       return;
     }
 
-    const hasMedia = formData.mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
+    // Check if using post media
+    const usingPostMedia = usePostMedia && selectedPost && selectedPost.mediaUrls && selectedPost.mediaUrls.length > 0;
+    const hasManualMedia = formData.mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
+    const hasMedia = usingPostMedia || hasManualMedia;
     
     if (hasMedia && type === 'whatsapp' && !formData.longMessageWithMedia) {
       const messageLength = formData.message ? formData.message.trim().length : 0;
@@ -586,7 +697,6 @@ export default function CampaignForm() {
       }
     }
     
-    // Check if any recipients are selected based on target type - UPDATED
     const totalRecipients = 
       (targetType === 'customers' || targetType === 'both' || targetType === 'all' ? selectedCustomers.length : 0) +
       (targetType === 'potential_customers' || targetType === 'both' || targetType === 'all' ? selectedPotentialCustomers.length : 0) +
@@ -605,7 +715,6 @@ export default function CampaignForm() {
         scheduledAtISO = localDate.toISOString();
       }
 
-      // Prepare campaign data - UPDATED with potential customers
       const campaignData = {
         title: formData.title,
         type: type,
@@ -617,21 +726,34 @@ export default function CampaignForm() {
         timezone: formData.timezone,
         longMessageWithMedia: formData.longMessageWithMedia || false,
         targetType: targetType,
-        // Send customer IDs
+        selectedPostId: selectedPostId || null,
+        usePostMedia: usingPostMedia,
+        postMediaUrls: usingPostMedia ? selectedPost.mediaUrls : [],
+        postMediaTypes: usingPostMedia ? selectedPost.mediaTypes : [],
+        postTitle: usingPostMedia ? selectedPost.title : '',
+        postDescription: usingPostMedia ? selectedPost.description : '',
         selectedCustomerIds: selectedCustomers
           .filter(customer => customer._id && customer._id.length === 24)
           .map(customer => customer._id),
-        // NEW: Send potential customer IDs
         selectedPotentialCustomerIds: selectedPotentialCustomers
           .filter(pc => pc._id && pc._id.length === 24)
           .map(pc => pc._id),
-        // Send supplier IDs
         selectedSupplierIds: selectedSuppliers
           .filter(supplier => supplier._id && supplier._id.length === 24)
           .map(supplier => supplier._id)
       };
       
-      if (uploadedMedia.length > 0) {
+      if (usingPostMedia) {
+        campaignData.multiMediaEnabled = true;
+        campaignData.mediaUrls = selectedPost.mediaUrls;
+        campaignData.mediaTypes = selectedPost.mediaTypes || selectedPost.mediaUrls.map(() => 'image');
+        campaignData.mediaDelaySeconds = 3;
+        campaignData.mediaUrl = selectedPost.mediaUrls[0];
+        campaignData.mediaType = selectedPost.mediaTypes?.[0] || 'image';
+        campaignData.mediaCaptions = selectedPost.mediaUrls.map((url, idx) => 
+          `Post: ${selectedPost.title} - Media ${idx + 1}`
+        );
+      } else if (uploadedMedia.length > 0) {
         campaignData.multiMediaEnabled = true;
         campaignData.mediaUrls = uploadedMedia.map(m => m.url);
         campaignData.mediaTypes = uploadedMedia.map(m => m.type);
@@ -643,6 +765,17 @@ export default function CampaignForm() {
       
       if (res.data.success) {
         setCampaignId(res.data.campaign._id);
+        
+        if (selectedPostId && res.data.campaign._id) {
+          try {
+            await axiosInstance.post(`/posts/${selectedPostId}/used-in-campaign`, {
+              campaignId: res.data.campaign._id
+            });
+            console.log("✅ Post campaign usage updated");
+          } catch (postErr) {
+            console.warn("Failed to update post campaign usage:", postErr);
+          }
+        }
         
         if (res.data.templateCreated) {
           setTemplateStatus({
@@ -867,6 +1000,7 @@ export default function CampaignForm() {
     return "Customer";
   };
 
+  // ============ RENDER ============
   return (
     <>
       <InternalNavbar />
@@ -1088,6 +1222,269 @@ export default function CampaignForm() {
                 )}
               </div>
 
+              {/* ============================================================ */}
+              {/* POST/REEL SELECTION SECTION - FIXED TO SHOW ALL POSTS */}
+              {/* ============================================================ */}
+              {(type === 'whatsapp' || type === 'email' || type === 'both') && (
+                <div className="md:col-span-2 border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📱 Select Post or Reel</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Choose an existing post or reel to use its media in this campaign.
+                  </p>
+                  
+               <div className="flex flex-wrap gap-3 mb-3">
+  <button
+    type="button"
+    onClick={() => handlePostTypeFilter("")}
+    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+      postTypeFilter === "" 
+        ? 'bg-blue-600 text-white' 
+        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+    }`}
+  >
+    All ({postPagination.total || 0})
+  </button>
+  <button
+    type="button"
+    onClick={() => handlePostTypeFilter("post")}
+    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+      postTypeFilter === "post" 
+        ? 'bg-blue-600 text-white' 
+        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+    }`}
+  >
+    📝 Posts
+  </button>
+  <button
+    type="button"
+    onClick={() => handlePostTypeFilter("reel")}
+    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+      postTypeFilter === "reel" 
+        ? 'bg-blue-600 text-white' 
+        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+    }`}
+  >
+    🎬 Reels
+  </button>
+   <button
+    type="button"
+    onClick={() => navigate('/posts')}
+    className={`px-3 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm rounded-full transition-colors`}
+  >
+    🎬 Visit Posts & Reels Database
+  </button>
+</div>
+
+                  <div className="flex gap-3 mb-3">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={postSearch}
+                        onChange={(e) => setPostSearch(e.target.value)}
+                        placeholder="Search posts by title or category..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400"
+                      />
+                      {loadingPosts && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                    </div>
+                   <button
+  type="button"
+  onClick={handlePostSearch}
+  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+>
+  Search
+</button>
+                  </div>
+{/* Posts Grid - With Pagination/Load More */}
+<div className="max-h-[400px] overflow-y-auto border rounded-lg p-3 bg-gray-50">
+  {loadingPosts && posts.length === 0 ? (
+    <div className="text-center py-8">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="text-sm text-gray-500 mt-3">Loading posts...</p>
+    </div>
+  ) : posts.length === 0 ? (
+    <div className="text-center py-8 text-gray-500">
+      <p>No published posts or reels found.</p>
+      <p className="text-sm mt-2">
+        Create a post in the 
+        <button 
+          onClick={() => navigate('/posts/new')} 
+          className="text-blue-600 hover:underline mx-1 font-medium"
+        >
+          Posts section
+        </button>
+        first.
+      </p>
+    </div>
+  ) : (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {posts.map((post) => (
+          <div
+            key={post._id}
+            onClick={() => handlePostSelect(post._id)}
+            className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+              selectedPostId === post._id
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-blue-300'
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate" title={post.title}>
+                  {post.title}
+                </div>
+                {post.category && (
+                  <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                    {post.category}
+                  </span>
+                )}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    post.postType === 'reel' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {post.postType === 'reel' ? '🎬 Reel' : '📝 Post'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {post.mediaUrls?.length || 0} media
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {new Date(post.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+              {selectedPostId === post._id && (
+                <div className="text-blue-600 text-lg flex-shrink-0">✓</div>
+              )}
+            </div>
+            {/* Preview thumbnails */}
+            {post.mediaUrls && post.mediaUrls.length > 0 && (
+              <div className="flex gap-1 mt-2">
+                {post.mediaUrls.slice(0, 3).map((url, idx) => (
+                  <div key={idx} className="w-8 h-8 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                    {post.mediaTypes?.[idx] === 'image' ? (
+                      <img 
+                        src={url} 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs">
+                        {post.mediaTypes?.[idx] === 'video' ? '🎬' : '📄'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {post.mediaUrls.length > 3 && (
+                  <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
+                    +{post.mediaUrls.length - 3}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      {/* Load More Button */}
+      {postPagination.hasMore && (
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={loadMorePosts}
+            disabled={loadingMorePosts}
+            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {loadingMorePosts ? (
+              <>
+                <span className="inline-block animate-spin mr-2">⏳</span>
+                Loading...
+              </>
+            ) : (
+              `Load More (${postPagination.total - posts.length} remaining)`
+            )}
+          </button>
+        </div>
+      )}
+      
+      {/* Show total count */}
+      {postPagination.total > 0 && (
+        <div className="text-xs text-gray-400 text-center mt-3">
+          Showing {posts.length} of {postPagination.total} posts
+        </div>
+      )}
+    </>
+  )}
+</div>
+
+                  {selectedPost && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <span className="font-medium text-blue-800">Selected:</span>
+                        <span className="ml-2">{selectedPost.title}</span>
+                        <span className="ml-2 text-sm text-gray-600">
+                          ({selectedPost.postType === 'reel' ? '🎬 Reel' : '📝 Post'})
+                        </span>
+                        <span className="ml-2 text-sm text-gray-500">
+                          {selectedPost.mediaUrls?.length || 0} media files
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearPostSelection}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Preview of selected post media */}
+                  {selectedPost && selectedPost.mediaUrls && selectedPost.mediaUrls.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-600 mb-2">Selected Media Preview:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {selectedPost.mediaUrls.map((url, idx) => (
+                          <div key={idx} className="border rounded-lg overflow-hidden">
+                            {selectedPost.mediaTypes?.[idx] === 'image' ? (
+                              <img 
+                                src={url} 
+                                alt={`Post media ${idx + 1}`}
+                                className="w-full h-24 object-cover"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'https://via.placeholder.com/150?text=Media';
+                                }}
+                              />
+                            ) : selectedPost.mediaTypes?.[idx] === 'video' ? (
+                              <div className="w-full h-24 bg-gray-800 flex items-center justify-center">
+                                <span className="text-white text-3xl">🎬</span>
+                              </div>
+                            ) : (
+                              <div className="w-full h-24 bg-gray-200 flex items-center justify-center">
+                                <span className="text-3xl">📄</span>
+                              </div>
+                            )}
+                            <div className="text-xs text-center py-1 bg-gray-50 truncate px-1">
+                              {selectedPost.mediaTypes?.[idx] || 'media'} #{idx + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* ============================================================ */}
+              {/* END POST/REEL SELECTION SECTION */}
+              {/* ============================================================ */}
+
               {/* Long Message with Media Option */}
               {(formData.mediaUrl || uploadedMedia.length > 0) && type === 'whatsapp' && (
                 <div className="flex items-center mt-3">
@@ -1141,7 +1538,7 @@ export default function CampaignForm() {
               </div>
             </div>
             
-            {/* Target Audience Selection - UPDATED */}
+            {/* Target Audience Selection */}
             <div className="border-t pt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-800">🎯 Target Audience</h3>
@@ -1154,7 +1551,7 @@ export default function CampaignForm() {
                 </button>
               </div>
               
-              {/* Target Type Selection - UPDATED */}
+              {/* Target Type Selection */}
               <div className="mb-6">
                 <label className="block mb-2 font-medium text-gray-700">
                   Select Target Type
@@ -1304,7 +1701,7 @@ export default function CampaignForm() {
                 </div>
               )}
 
-              {/* Potential Customer Search Section - NEW */}
+              {/* Potential Customer Search Section */}
               {(targetType === 'potential_customers' || targetType === 'all') && (
                 <div className="mb-6 border rounded-lg p-4 border-purple-200 bg-purple-50">
                   <h3 className="font-medium text-gray-800 mb-3">Add Potential Customers</h3>
@@ -1482,7 +1879,7 @@ export default function CampaignForm() {
                 </div>
               )}
 
-              {/* Total Count - UPDATED */}
+              {/* Total Count */}
               <div className="text-center p-4 bg-blue-50 rounded-lg mb-6">
                 <p className="font-bold text-blue-800 text-lg">
                   Total Selected: {
@@ -1504,87 +1901,85 @@ export default function CampaignForm() {
                 </div>
               </div>
               
-              {/* Customer Filters (only shown for customers) */}
-              {/* Customer Filters (shown for customers and potential customers) */}
-{(targetType === 'customers' || targetType === 'potential_customers' || targetType === 'both' || targetType === 'all') && (
-  <>
-    <h4 className="font-medium text-gray-700 mb-3">
-      {targetType === 'potential_customers' ? 'Potential Customer Filters' : 'Customer Filters'}
-    </h4>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-      {/* Sales Person */}
-      <div>
-        <label className="block mb-1 text-sm font-medium text-gray-700">
-          Sales Person
-        </label>
-        <select
-          name="createdBy"
-          value={formData.filters.createdBy}
-          onChange={handleFilterChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400"
-        >
-          <option value="">All Sales</option>
-          {salesUsers.map(user => (
-            <option key={user._id} value={user._id}>
-              {user.name} ({user.email})
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-    
-    {/* Categories */}
-    <div className="mb-4">
-      <label className="block mb-2 text-sm font-medium text-gray-700">
-        Sales Categories
-      </label>
-      <div className="flex flex-wrap gap-2">
-        {categories.map(category => (
-          <button
-            type="button"
-            key={category}
-            onClick={() => handleCategoryToggle(category)}
-            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-              formData.filters.categories?.includes(category)
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            {category}
-            {formData.filters.categories?.includes(category) && ' ✓'}
-          </button>
-        ))}
-        {categories.length === 0 && (
-          <p className="text-sm text-gray-500">
-            No categories defined yet. Add categories in Potential Customer List page.
-          </p>
-        )}
-      </div>
-    </div>
-    
-    {/* Apply Filters Button - Different text for potential customers */}
-    <div className="mb-6">
-      <button
-        type="button"
-        onClick={applyFilters}
-        disabled={applyingFilters}
-        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {applyingFilters ? (
-          <span className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            Searching...
-          </span>
-        ) : (
-          targetType === 'potential_customers' ? 'Search & Add Potential Customers' : 'Search & Add Customers'
-        )}
-      </button>
-    </div>
-  </>
-)}
+              {/* Customer Filters */}
+              {(targetType === 'customers' || targetType === 'potential_customers' || targetType === 'both' || targetType === 'all') && (
+                <>
+                  <h4 className="font-medium text-gray-700 mb-3">
+                    {targetType === 'potential_customers' ? 'Potential Customer Filters' : 'Customer Filters'}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-gray-700">
+                        Sales Person
+                      </label>
+                      <select
+                        name="createdBy"
+                        value={formData.filters.createdBy}
+                        onChange={handleFilterChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="">All Sales</option>
+                        {salesUsers.map(user => (
+                          <option key={user._id} value={user._id}>
+                            {user.name} ({user.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Categories */}
+                  <div className="mb-4">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
+                      Sales Categories
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(category => (
+                        <button
+                          type="button"
+                          key={category}
+                          onClick={() => handleCategoryToggle(category)}
+                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            formData.filters.categories?.includes(category)
+                              ? 'bg-blue-600 text-white hover:bg-blue-700'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {category}
+                          {formData.filters.categories?.includes(category) && ' ✓'}
+                        </button>
+                      ))}
+                      {categories.length === 0 && (
+                        <p className="text-sm text-gray-500">
+                          No categories defined yet. Add categories in Potential Customer List page.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Apply Filters Button */}
+                  <div className="mb-6">
+                    <button
+                      type="button"
+                      onClick={applyFilters}
+                      disabled={applyingFilters}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {applyingFilters ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Searching...
+                        </span>
+                      ) : (
+                        targetType === 'potential_customers' ? 'Search & Add Potential Customers' : 'Search & Add Customers'
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             
-            {/* Template Status Display (for WhatsApp campaigns) */}
+            {/* Template Status Display */}
             {type === 'whatsapp' && campaignId && (
               <div className="border-t pt-6">
                 <h4 className="font-medium text-gray-800 mb-3">📝 WhatsApp Template Status</h4>
@@ -1619,7 +2014,7 @@ export default function CampaignForm() {
               </div>
             )}
             
-            {/* Submit Button - UPDATED validation */}
+            {/* Submit Button */}
             <div className="flex justify-end gap-4 pt-6 border-t">
               <button
                 type="button"

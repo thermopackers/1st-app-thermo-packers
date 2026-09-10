@@ -34,16 +34,25 @@ const SectionSelection = ({ order, sectionsList, localSections, handleSectionRad
               checked={localSections[order._id]?.[section.key] || false}
               onChange={() => handleSectionRadioChange(order._id, section.key)}
             />
-            <span className="flex gap-1">
-              <span className="font-bold">
-                {index + 1}.
+            <span className="flex flex-col gap-0.5">
+              <span className="flex gap-1 flex-wrap items-center">
+                <span className="font-bold">
+                  {index + 1}.
+                </span>
+                <span className="font-medium">
+                  {section.label}
+                </span>
+                {isSectionSent && (
+                  <span className="text-green-600 text-xs font-semibold">
+                    ✅ Sent
+                  </span>
+                )}
               </span>
-               <span className="font-medium">
-               {section.label}
-              </span>
-              {isSectionSent && (
-                <span className="text-green-600 text-xs font-semibold">
-                  ✅ Sent
+
+              {/* ✅ Show who sent to production */}
+              {isSectionSent && order.sentToProductionByUser?.name && (
+                <span className="text-xs text-gray-600 ml-4">
+                  📤 Sent by: <span className="font-medium">{order.sentToProductionByUser.name}</span>
                 </span>
               )}
             </span>
