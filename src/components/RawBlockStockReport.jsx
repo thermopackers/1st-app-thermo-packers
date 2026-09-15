@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Plus, Trash2, Save, X, Calendar, Copy, Edit2, 
   Check, AlertCircle, Loader, ChevronLeft, ChevronRight, 
-  Search, Filter, RefreshCw 
+  Search, Filter, RefreshCw, Info 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from "../axiosInstance";
-import InternalNavbar from './InternalNavbar';
+import InternalNavbar from "../components/InternalNavbar";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -93,18 +93,12 @@ const RawBlockStockReport = () => {
     { key: 'totalBalance', label: 'Total Balance', color: 'text-teal-600' }
   ];
 
-  // Date formatting functions
+  // ==================== DATE HELPERS ====================
+  
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return '';
-    // If already in DD-MM-YYYY format, return as is
-    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
-      return dateString;
-    }
-    // If in DD/MM/YYYY format, convert to DD-MM-YYYY
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      return dateString.replace(/\//g, '-');
-    }
-    // If in YYYY-MM-DD format (from date input), convert to DD-MM-YYYY
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) return dateString;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return dateString.replace(/\//g, '-');
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       const parts = dateString.split('-');
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
@@ -112,38 +106,139 @@ const RawBlockStockReport = () => {
     return dateString;
   };
 
-  const formatDateForDisplay = (dateString) => {
-    return formatDateToDDMMYYYY(dateString);
+  // Convert DD-MM-YYYY to comparable Date object
+  const parseDate = (dateStr) => {
+    if (!dateStr) return new Date(0);
+    const formatted = formatDateToDDMMYYYY(dateStr);
+    const [day, month, year] = formatted.split('-');
+    return new Date(`${year}-${month}-${day}`);
   };
 
-  const formatDateForAPI = (dateString) => {
-    // Convert DD-MM-YYYY to DD/MM/YYYY for API
-    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
-      return dateString.replace(/-/g, '/');
-    }
-    return dateString;
+  // Compare two dates in DD-MM-YYYY format
+  const isDateBefore = (dateA, dateB) => {
+    return parseDate(dateA) < parseDate(dateB);
   };
 
-  const formatDateForInput = (dateString) => {
-    // Convert DD-MM-YYYY to YYYY-MM-DD for date input
-    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
-      const parts = dateString.split('-');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    // Convert DD/MM/YYYY to YYYY-MM-DD for date input
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      const parts = dateString.split('/');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return dateString;
+  const isDateAfter = (dateA, dateB) => {
+    return parseDate(dateA) > parseDate(dateB);
   };
 
-  // Mock data for testing (using DD-MM-YYYY format)
+  const isSameDate = (dateA, dateB) => {
+    return formatDateToDDMMYYYY(dateA) === formatDateToDDMMYYYY(dateB);
+  };
+
+  // ==================== CARRY FORWARD LOGIC ====================
+  
+  /**
+   * Get the immediate previous entry (before the given date)
+   * Uses ALL loaded entries (not just current page)
+   */
+  const getPreviousEntry = (date) => {
+    const sorted = [...entries]
+      .filter(e => e.date && !isSameDate(e.date, date))
+      .sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    
+    // Find the entry with the largest date that is still before `date`
+    let previousEntry = null;
+    for (const entry of sorted) {
+      if (isDateBefore(entry.date, date)) {
+        if (!previousEntry || isDateAfter(entry.date, previousEntry.date)) {
+          previousEntry = entry;
+        }
+      }
+    }
+    return previousEntry;
+  };
+
+  /**
+   * Get carried-forward stock for a specific column from previous entry
+   */
+  const getCarriedForwardStock = (columnKey, date, allEntries = entries) => {
+    const sorted = [...allEntries]
+      .filter(e => e.date && !isSameDate(e.date, date))
+      .sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    
+    let previousEntry = null;
+    for (const entry of sorted) {
+      if (isDateBefore(entry.date, date)) {
+        if (!previousEntry || isDateAfter(entry.date, previousEntry.date)) {
+          previousEntry = entry;
+        }
+      }
+    }
+    
+    if (previousEntry && previousEntry[columnKey]) {
+      return Math.max(0, previousEntry[columnKey].totalBalance || 0);
+    }
+    return 0;
+  };
+
+  /**
+   * Recalculate all balances with carry-forward logic
+   * Sort entries oldest -> newest, then calculate each one's balance
+   */
+  const recalculateWithCarryForward = (allEntries) => {
+    // Sort oldest first
+    const sorted = [...allEntries].sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    
+    const recalculated = [];
+    let previousBalances = {}; // { columnKey: balance }
+    
+    // Initialize with 0
+    columns.forEach(col => {
+      previousBalances[col.key] = 0;
+    });
+    
+    for (const entry of sorted) {
+      const newEntry = { ...entry };
+      
+      columns.forEach(col => {
+        const existing = newEntry[col.key] || {
+          stockInHand: 0,
+          newProduction: 0,
+          totalUsed: 0,
+          totalBalance: 0
+        };
+        
+        // Auto-fill stock in hand from previous balance
+        // Only if the entry doesn't have a manually set stockInHand
+        // (we treat stockInHand === 0 as "not set" - can be adjusted)
+        const carriedStock = previousBalances[col.key] || 0;
+        
+        // If the entry has 0 stockInHand, auto-fill from carry forward
+        // (For existing data with real stockInHand values, we respect them)
+        const effectiveStock = existing.stockInHand > 0 
+          ? existing.stockInHand 
+          : carriedStock;
+        
+        const newProduction = Math.max(0, existing.newProduction || 0);
+        const totalUsed = Math.max(0, existing.totalUsed || 0);
+        const totalBalance = Math.max(0, effectiveStock + newProduction - totalUsed);
+        
+        newEntry[col.key] = {
+          stockInHand: effectiveStock,
+          newProduction,
+          totalUsed,
+          totalBalance
+        };
+        
+        // Store balance for next entry
+        previousBalances[col.key] = totalBalance;
+      });
+      
+      recalculated.push(newEntry);
+    }
+    
+    return recalculated;
+  };
+
+  // ==================== MOCK DATA ====================
+  
   const mockData = [
     {
       _id: '1',
-      date: '29-08-2026',
-      whiteND16kg20kgs: { stockInHand: 10, newProduction: 5, totalUsed: 2, totalBalance: 13 },
+      date: '28-08-2026',
+      whiteND16kg20kgs: { stockInHand: 10, newProduction: 2, totalUsed: 1, totalBalance: 11 },
       white8kg32kgs: { stockInHand: 8, newProduction: 3, totalUsed: 1, totalBalance: 10 },
       white10kg42kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13 },
       white12kg52kgs: { stockInHand: 6, newProduction: 2, totalUsed: 1, totalBalance: 7 },
@@ -158,23 +253,22 @@ const RawBlockStockReport = () => {
     },
     {
       _id: '2',
-      date: '28-08-2026',
-      whiteND16kg20kgs: { stockInHand: 8, newProduction: 3, totalUsed: 1, totalBalance: 10 },
-      white8kg32kgs: { stockInHand: 5, newProduction: 2, totalUsed: 0, totalBalance: 7 },
-      white10kg42kgs: { stockInHand: 10, newProduction: 4, totalUsed: 2, totalBalance: 12 },
-      white12kg52kgs: { stockInHand: 4, newProduction: 1, totalUsed: 0, totalBalance: 5 },
-      white14kg62kgs: { stockInHand: 12, newProduction: 5, totalUsed: 3, totalBalance: 14 },
-      white16kg72kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8 },
-      pink13_14kg55kgs: { stockInHand: 5, newProduction: 1, totalUsed: 0, totalBalance: 6 },
-      pink15_16kg72kgs: { stockInHand: 9, newProduction: 3, totalUsed: 2, totalBalance: 10 },
-      pink20kg92kgs: { stockInHand: 3, newProduction: 1, totalUsed: 0, totalBalance: 4 },
-      whiteFR15_16kg65kgs: { stockInHand: 10, newProduction: 4, totalUsed: 1, totalBalance: 13 },
-      patterns20kg92kgs: { stockInHand: 2, newProduction: 1, totalUsed: 0, totalBalance: 3 },
-      patterns24kg112kgs: { stockInHand: 1, newProduction: 0, totalUsed: 0, totalBalance: 1 }
+      date: '29-08-2026',
+      whiteND16kg20kgs: { stockInHand: 11, newProduction: 5, totalUsed: 2, totalBalance: 14 },
+      white8kg32kgs: { stockInHand: 10, newProduction: 3, totalUsed: 1, totalBalance: 12 },
+      white10kg42kgs: { stockInHand: 13, newProduction: 4, totalUsed: 3, totalBalance: 14 },
+      white12kg52kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8 },
+      white14kg62kgs: { stockInHand: 17, newProduction: 6, totalUsed: 4, totalBalance: 19 },
+      white16kg72kgs: { stockInHand: 10, newProduction: 3, totalUsed: 2, totalBalance: 11 },
+      pink13_14kg55kgs: { stockInHand: 8, newProduction: 2, totalUsed: 1, totalBalance: 9 },
+      pink15_16kg72kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13 },
+      pink20kg92kgs: { stockInHand: 6, newProduction: 1, totalUsed: 0, totalBalance: 7 },
+      whiteFR15_16kg65kgs: { stockInHand: 16, newProduction: 5, totalUsed: 2, totalBalance: 19 },
+      patterns20kg92kgs: { stockInHand: 5, newProduction: 2, totalUsed: 1, totalBalance: 6 },
+      patterns24kg112kgs: { stockInHand: 4, newProduction: 1, totalUsed: 0, totalBalance: 5 }
     }
   ];
 
-  // Fetch entries on component mount
   useEffect(() => {
     fetchEntries();
   }, []);
@@ -183,14 +277,12 @@ const RawBlockStockReport = () => {
     setToast({ message, type });
   };
 
-  // Validate and sanitize value - prevent negatives
   const sanitizeValue = (value) => {
     const num = Number(value);
     if (isNaN(num) || num < 0) return 0;
     return num;
   };
 
-  // Sanitize entire entry - ensure no negative values
   const sanitizeEntry = (entry) => {
     const sanitized = { ...entry };
     columns.forEach(col => {
@@ -200,7 +292,6 @@ const RawBlockStockReport = () => {
             sanitized[col.key][rowType.key] = Math.max(0, Number(sanitized[col.key][rowType.key]) || 0);
           }
         });
-        // Recalculate balance
         const stock = sanitized[col.key].stockInHand || 0;
         const production = sanitized[col.key].newProduction || 0;
         const used = sanitized[col.key].totalUsed || 0;
@@ -210,17 +301,16 @@ const RawBlockStockReport = () => {
     return sanitized;
   };
 
+  // ==================== FETCH ====================
+  
   const fetchEntries = async (page = 1) => {
     setLoading(true);
     try {
-      let url = `/raw-block-stock?page=${page}&limit=${pagination.itemsPerPage}`;
+      // Fetch ALL entries (large limit) so carry-forward works across pages
+      let url = `/raw-block-stock?page=1&limit=1000`;
+      url += `&sortField=date&sortOrder=asc`;
       
-      // Add sorting
-      url += `&sortField=${sortField}&sortOrder=${sortOrder}`;
-      
-      // Add search filter - search in DD-MM-YYYY format
       if (searchTerm.trim()) {
-        // Convert search term to DD-MM-YYYY if it's in DD/MM/YYYY format
         let searchValue = searchTerm.trim();
         if (/^\d{2}\/\d{2}\/\d{4}$/.test(searchValue)) {
           searchValue = searchValue.replace(/\//g, '-');
@@ -228,7 +318,6 @@ const RawBlockStockReport = () => {
         url += `&search=${encodeURIComponent(searchValue)}`;
       }
       
-      // Add date range filter - convert to DD-MM-YYYY
       if (dateFilter.start && dateFilter.end) {
         const startDate = formatDateToDDMMYYYY(dateFilter.start);
         const endDate = formatDateToDDMMYYYY(dateFilter.end);
@@ -237,74 +326,85 @@ const RawBlockStockReport = () => {
       
       const response = await axiosInstance.get(url);
       const data = response.data?.data || [];
-      const paginationData = response.data?.pagination || {};
       
-      // Ensure all dates are in DD-MM-YYYY format
+      // Sanitize + normalize dates
       const sanitizedData = data.map(entry => {
         const sanitized = sanitizeEntry(entry);
         sanitized.date = formatDateToDDMMYYYY(sanitized.date);
         return sanitized;
       });
-      setEntries(Array.isArray(sanitizedData) ? sanitizedData : []);
+      
+      // Apply carry-forward recalculation
+      const recalculated = recalculateWithCarryForward(sanitizedData);
+      
+      // Sort newest first for display
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
+      
+      const totalItems = recalculated.length;
+      const totalPages = Math.ceil(totalItems / pagination.itemsPerPage) || 1;
       
       setPagination({
-        currentPage: paginationData.currentPage || 1,
-        totalPages: paginationData.totalPages || 1,
-        totalItems: paginationData.totalItems || 0,
-        itemsPerPage: paginationData.itemsPerPage || 20,
-        hasNext: paginationData.hasNext || false,
-        hasPrev: paginationData.hasPrev || false
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: pagination.itemsPerPage,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
       });
       
-      if (sanitizedData.length > 0) {
-        showToast(`Loaded ${sanitizedData.length} entries (Page ${page})`, 'success');
+      if (recalculated.length > 0) {
+        showToast(`Loaded ${recalculated.length} entries`, 'success');
       }
     } catch (err) {
       console.warn('API not available, using mock data:', err.message);
-      // For demo, use mock data with pagination simulation
-      const startIndex = (page - 1) * pagination.itemsPerPage;
-      const endIndex = startIndex + pagination.itemsPerPage;
-      const paginatedMock = mockData.slice(startIndex, endIndex);
-      const sanitizedMock = paginatedMock.map(entry => {
+      
+      const sanitizedMock = mockData.map(entry => {
         const sanitized = sanitizeEntry(entry);
         sanitized.date = formatDateToDDMMYYYY(sanitized.date);
         return sanitized;
       });
-      setEntries(sanitizedMock);
+      
+      const recalculated = recalculateWithCarryForward(sanitizedMock);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
+      
+      const totalItems = recalculated.length;
+      const totalPages = Math.ceil(totalItems / pagination.itemsPerPage) || 1;
       
       setPagination({
-        currentPage: page,
-        totalPages: Math.ceil(mockData.length / pagination.itemsPerPage),
-        totalItems: mockData.length,
+        currentPage: 1,
+        totalPages,
+        totalItems,
         itemsPerPage: pagination.itemsPerPage,
-        hasNext: endIndex < mockData.length,
-        hasPrev: page > 1
+        hasNext: 1 < totalPages,
+        hasPrev: false
       });
       
-      showToast('Using mock data (API not available)', 'warning');
+      showToast('Using mock data with carry-forward', 'warning');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle page change
+  // Get paginated entries for display
+  const getPaginatedEntries = () => {
+    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    const endIndex = startIndex + pagination.itemsPerPage;
+    return entries.slice(startIndex, endIndex);
+  };
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      fetchEntries(newPage);
+      setPagination(prev => ({ ...prev, currentPage: newPage }));
     }
   };
 
-  // Handle search
-  const handleSearch = () => {
-    fetchEntries(1);
-  };
+  const handleSearch = () => fetchEntries(1);
+  const handleDateFilter = () => fetchEntries(1);
 
-  // Handle date filter
-  const handleDateFilter = () => {
-    fetchEntries(1);
-  };
-
-  // Clear filters
   const clearFilters = () => {
     setSearchTerm('');
     setDateFilter({ start: '', end: '' });
@@ -313,24 +413,64 @@ const RawBlockStockReport = () => {
     fetchEntries(1);
   };
 
-  // Refresh data
-  const handleRefresh = () => {
-    fetchEntries(pagination.currentPage);
-  };
+  const handleRefresh = () => fetchEntries(pagination.currentPage);
 
-  // Get unique dates from entries
   const getUniqueDates = () => {
     const dates = entries.map(entry => entry.date).filter(Boolean);
-    return [...new Set(dates)];
+    return [...new Set(dates)].sort((a, b) => parseDate(b) - parseDate(a));
   };
 
-  // Get entry for a specific date
   const getEntryByDate = (date) => {
-    return entries.find(entry => entry.date === date);
+    const formatted = formatDateToDDMMYYYY(date);
+    return entries.find(entry => isSameDate(entry.date, formatted));
+  };
+
+  // ==================== ADD / CREATE ====================
+  
+  /**
+   * Build a new entry with stock carried forward from previous date
+   */
+  const buildNewEntryWithCarryForward = (date, sourceEntry = null) => {
+    const formattedDate = formatDateToDDMMYYYY(date);
+    const previousEntry = getPreviousEntry(formattedDate);
+    
+    const entryData = { date: formattedDate };
+    
+    columns.forEach(col => {
+      let stockInHand = 0;
+      let newProduction = 0;
+      let totalUsed = 0;
+      
+      if (sourceEntry && sourceEntry[col.key]) {
+        // When copying from source, use source values
+        // (but stock in hand should still carry forward)
+        newProduction = Math.max(0, sourceEntry[col.key].newProduction || 0);
+        totalUsed = Math.max(0, sourceEntry[col.key].totalUsed || 0);
+        // Stock in hand = previous balance (carry forward)
+        stockInHand = previousEntry && previousEntry[col.key]
+          ? Math.max(0, previousEntry[col.key].totalBalance || 0)
+          : 0;
+      } else {
+        // No source - carry forward the balance from previous date
+        stockInHand = previousEntry && previousEntry[col.key]
+          ? Math.max(0, previousEntry[col.key].totalBalance || 0)
+          : 0;
+      }
+      
+      const totalBalance = Math.max(0, stockInHand + newProduction - totalUsed);
+      
+      entryData[col.key] = {
+        stockInHand,
+        newProduction,
+        totalUsed,
+        totalBalance
+      };
+    });
+    
+    return entryData;
   };
 
   const handleAddEntryForDate = (date) => {
-    // Format date to DD-MM-YYYY
     const formattedDate = formatDateToDDMMYYYY(date);
     
     const existingEntry = getEntryByDate(formattedDate);
@@ -339,37 +479,18 @@ const RawBlockStockReport = () => {
       return;
     }
 
-    const newEntryData = {
-      date: formattedDate,
-      ...columns.reduce((acc, col) => {
-        acc[col.key] = {
-          stockInHand: 0,
-          newProduction: 0,
-          totalUsed: 0,
-          totalBalance: 0
-        };
-        return acc;
-      }, {})
-    };
-
+    const newEntryData = buildNewEntryWithCarryForward(formattedDate);
+    
     setNewEntry(newEntryData);
     setEntries(prev => [newEntryData, ...prev]);
     setShowDateInput(false);
     setSelectedDate('');
-    showToast(`New entry created for ${formattedDate}`, 'success');
+    showToast(`New entry created for ${formattedDate} with carried-forward stock`, 'success');
   };
 
-  const handleShowDateInput = () => {
-    setShowDateInput(true);
-  };
-
-  const handleDateSelect = (e) => {
-    setSelectedDate(e.target.value);
-  };
-
-  const handleCopyFromDate = (e) => {
-    setCopyFromDate(e.target.value);
-  };
+  const handleShowDateInput = () => setShowDateInput(true);
+  const handleDateSelect = (e) => setSelectedDate(e.target.value);
+  const handleCopyFromDate = (e) => setCopyFromDate(e.target.value);
 
   const handleCreateWithCopy = () => {
     if (!selectedDate) {
@@ -377,7 +498,6 @@ const RawBlockStockReport = () => {
       return;
     }
 
-    // Convert selected date to DD-MM-YYYY
     const formattedDate = formatDateToDDMMYYYY(selectedDate);
     
     const existingEntry = getEntryByDate(formattedDate);
@@ -386,57 +506,20 @@ const RawBlockStockReport = () => {
       return;
     }
 
-    let copiedData = {};
-    
+    let sourceEntry = null;
     if (copyFromDate) {
-      const sourceEntry = getEntryByDate(copyFromDate);
+      sourceEntry = getEntryByDate(copyFromDate);
       if (sourceEntry) {
-        columns.forEach(col => {
-          if (sourceEntry[col.key]) {
-            copiedData[col.key] = {
-              stockInHand: Math.max(0, sourceEntry[col.key].stockInHand || 0),
-              newProduction: Math.max(0, sourceEntry[col.key].newProduction || 0),
-              totalUsed: Math.max(0, sourceEntry[col.key].totalUsed || 0),
-              totalBalance: Math.max(0, sourceEntry[col.key].totalBalance || 0)
-            };
-          } else {
-            copiedData[col.key] = {
-              stockInHand: 0,
-              newProduction: 0,
-              totalUsed: 0,
-              totalBalance: 0
-            };
-          }
-        });
-        showToast(`Copying data from ${copyFromDate}`, 'success');
+        showToast(`Copying production/usage from ${copyFromDate}`, 'success');
       } else {
         showToast(`Source entry for date ${copyFromDate} not found. Starting fresh.`, 'warning');
-        columns.forEach(col => {
-          copiedData[col.key] = {
-            stockInHand: 0,
-            newProduction: 0,
-            totalUsed: 0,
-            totalBalance: 0
-          };
-        });
       }
     } else {
-      columns.forEach(col => {
-        copiedData[col.key] = {
-          stockInHand: 0,
-          newProduction: 0,
-          totalUsed: 0,
-          totalBalance: 0
-        };
-      });
-      showToast('Creating new entry with zeros', 'success');
+      showToast('Creating new entry with carried-forward stock', 'success');
     }
 
-    const newEntryData = {
-      date: formattedDate,
-      ...copiedData
-    };
-
+    const newEntryData = buildNewEntryWithCarryForward(formattedDate, sourceEntry);
+    
     setNewEntry(newEntryData);
     setEntries(prev => [newEntryData, ...prev]);
     
@@ -445,38 +528,48 @@ const RawBlockStockReport = () => {
     setCopyFromDate('');
   };
 
+  // ==================== SAVE / UPDATE ====================
+  
   const handleSaveEntry = async () => {
     if (!newEntry) return;
     
     setSaving(true);
     try {
       const sanitizedEntry = sanitizeEntry(newEntry);
-      // Ensure date is in DD-MM-YYYY format
       sanitizedEntry.date = formatDateToDDMMYYYY(sanitizedEntry.date);
       
       const response = await axiosInstance.post('/raw-block-stock', sanitizedEntry);
       const savedEntry = response.data.data;
       savedEntry.date = formatDateToDDMMYYYY(savedEntry.date);
       
-      setEntries(prev => prev.map(entry => 
+      // Replace temp entry with saved
+      const updatedEntries = entries.map(entry => 
         entry === newEntry ? savedEntry : entry
-      ));
+      );
+      
+      // Recalculate all carry-forward
+      const recalculated = recalculateWithCarryForward(updatedEntries);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
       setNewEntry(null);
-      showToast('Entry saved successfully!', 'success');
-      setTimeout(() => fetchEntries(pagination.currentPage), 500);
+      showToast('Entry saved! Balances recalculated for all subsequent dates.', 'success');
     } catch (err) {
       console.warn('API save failed, saving locally:', err.message);
       const sanitizedEntry = sanitizeEntry(newEntry);
       sanitizedEntry.date = formatDateToDDMMYYYY(sanitizedEntry.date);
-      const savedEntry = {
-        ...sanitizedEntry,
-        _id: `temp_${Date.now()}`
-      };
-      setEntries(prev => prev.map(entry => 
+      const savedEntry = { ...sanitizedEntry, _id: `temp_${Date.now()}` };
+      
+      const updatedEntries = entries.map(entry => 
         entry === newEntry ? savedEntry : entry
-      ));
+      );
+      
+      const recalculated = recalculateWithCarryForward(updatedEntries);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
       setNewEntry(null);
-      showToast('Entry saved locally (API not available)', 'warning');
+      showToast('Entry saved locally with recalculated balances', 'warning');
     } finally {
       setSaving(false);
     }
@@ -490,24 +583,25 @@ const RawBlockStockReport = () => {
     setCopyFromDate('');
   };
 
-  // Start editing an entry
   const startEditing = (entry) => {
     setEditingEntryId(entry._id);
     setEditingData(JSON.parse(JSON.stringify(entry)));
     showToast(`Editing entry for ${entry.date}`, 'success');
   };
 
-  // Cancel editing
   const cancelEditing = () => {
     setEditingEntryId(null);
     setEditingData(null);
     showToast('Editing cancelled', 'warning');
   };
 
-  // Update editing data with validation
+  /**
+   * Update editing cell - also recalc balance
+   * Stock in Hand: manual override (uses typed value)
+   * Other fields: recalc balance
+   */
   const updateEditingCell = (columnKey, rowType, value) => {
     if (!editingData) return;
-    
     const sanitizedValue = sanitizeValue(value);
     
     const updatedData = { ...editingData };
@@ -519,9 +613,10 @@ const RawBlockStockReport = () => {
         totalBalance: 0
       };
     }
+    
     updatedData[columnKey][rowType] = sanitizedValue;
     
-    // Auto-calculate balance
+    // Recalc balance for this column
     const stock = Math.max(0, updatedData[columnKey].stockInHand || 0);
     const production = Math.max(0, updatedData[columnKey].newProduction || 0);
     const used = Math.max(0, updatedData[columnKey].totalUsed || 0);
@@ -530,7 +625,9 @@ const RawBlockStockReport = () => {
     setEditingData(updatedData);
   };
 
-  // Save edited entry
+  /**
+   * Save edited entry - and RECALCULATE all subsequent dates' carry-forward
+   */
   const saveEditing = async () => {
     if (!editingData) return;
     
@@ -543,13 +640,22 @@ const RawBlockStockReport = () => {
       const updatedEntry = response.data.data;
       updatedEntry.date = formatDateToDDMMYYYY(updatedEntry.date);
       
-      setEntries(prev => prev.map(entry => 
+      // Replace in entries
+      const updatedEntries = entries.map(entry => 
         entry._id === sanitizedData._id ? updatedEntry : entry
-      ));
+      );
+      
+      // Recalculate carry-forward for ALL entries
+      const recalculated = recalculateWithCarryForward(updatedEntries);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
       setEditingEntryId(null);
       setEditingData(null);
-      showToast('Entry updated successfully!', 'success');
-      setTimeout(() => fetchEntries(pagination.currentPage), 500);
+      showToast('Entry updated! All subsequent balances recalculated.', 'success');
+      
+      // Optionally sync to backend
+      syncRecalculatedEntries(recalculated);
     } catch (err) {
       console.error('Error updating entry:', err);
       showToast('Failed to update entry. Please try again.', 'error');
@@ -558,6 +664,30 @@ const RawBlockStockReport = () => {
     }
   };
 
+  /**
+   * Sync recalculated entries to backend (in background)
+   * Updates only entries whose stockInHand / totalBalance changed
+   */
+  const syncRecalculatedEntries = async (recalculated) => {
+    try {
+      const updates = recalculated
+        .filter(e => e._id && !e._id.toString().startsWith('temp_'))
+        .map(async (entry) => {
+          try {
+            const sanitized = sanitizeEntry(entry);
+            await axiosInstance.put(`/raw-block-stock/${sanitized._id}`, sanitized);
+          } catch (err) {
+            console.warn(`Failed to sync entry ${entry.date}:`, err.message);
+          }
+        });
+      await Promise.all(updates);
+    } catch (err) {
+      console.warn('Sync failed:', err.message);
+    }
+  };
+
+  // ==================== CELL UPDATE (NEW ENTRY) ====================
+  
   const handleUpdateCell = (entryId, columnKey, rowType, value) => {
     const sanitizedValue = sanitizeValue(value);
     
@@ -590,18 +720,27 @@ const RawBlockStockReport = () => {
   };
 
   const handleDeleteEntry = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this entry?')) return;
+    if (!window.confirm('Are you sure you want to delete this entry? Subsequent dates will be recalculated.')) return;
     
     setDeleting(true);
     try {
       await axiosInstance.delete(`/raw-block-stock/${id}`);
-      setEntries(prev => prev.filter(entry => entry._id !== id));
-      showToast('Entry deleted successfully!', 'success');
-      setTimeout(() => fetchEntries(pagination.currentPage), 500);
+      const updatedEntries = entries.filter(entry => entry._id !== id);
+      const recalculated = recalculateWithCarryForward(updatedEntries);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
+      showToast('Entry deleted! Subsequent balances recalculated.', 'success');
+      
+      syncRecalculatedEntries(recalculated);
     } catch (err) {
       console.warn('API delete failed, deleting locally:', err.message);
-      setEntries(prev => prev.filter(entry => entry._id !== id));
-      showToast('Entry deleted locally (API not available)', 'warning');
+      const updatedEntries = entries.filter(entry => entry._id !== id);
+      const recalculated = recalculateWithCarryForward(updatedEntries);
+      recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      
+      setEntries(recalculated);
+      showToast('Entry deleted locally. Subsequent balances recalculated.', 'warning');
     } finally {
       setDeleting(false);
     }
@@ -612,19 +751,13 @@ const RawBlockStockReport = () => {
     return Math.max(0, entry[columnKey][rowType] || 0);
   };
 
-  // Get editing cell value
   const getEditingCellValue = (columnKey, rowType) => {
     if (!editingData || !editingData[columnKey]) return 0;
     return Math.max(0, editingData[columnKey][rowType] || 0);
   };
 
-  // Group entries by date and sort
-  const sortedEntries = [...entries].sort((a, b) => {
-    // Convert DD-MM-YYYY to date for comparison
-    const dateA = a.date?.split('-').reverse().join('-') || '';
-    const dateB = b.date?.split('-').reverse().join('-') || '';
-    return dateB.localeCompare(dateA);
-  });
+  // Get entries for display (paginated)
+  const displayEntries = getPaginatedEntries();
 
   if (loading && entries.length === 0) {
     return (
@@ -641,7 +774,6 @@ const RawBlockStockReport = () => {
     <>
     <InternalNavbar/>
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Toast Notifications */}
       {toast && (
         <Toast
           message={toast.message}
@@ -650,7 +782,8 @@ const RawBlockStockReport = () => {
         />
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">       
+
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -690,18 +823,16 @@ const RawBlockStockReport = () => {
               >
                 <Calendar className="h-4 w-4" /> Add Entry for Date
               </button>
-             
+            
             </div>
           </div>
 
-          {/* Filters Section */}
+          {/* Filters */}
           {showFilters && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Search by Date
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Search by Date</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -720,9 +851,7 @@ const RawBlockStockReport = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Date From
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Date From</label>
                   <input
                     type="date"
                     value={dateFilter.start}
@@ -731,9 +860,7 @@ const RawBlockStockReport = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Date To
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Date To</label>
                   <input
                     type="date"
                     value={dateFilter.end}
@@ -746,7 +873,7 @@ const RawBlockStockReport = () => {
                     onClick={handleDateFilter}
                     className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
-                    Apply Filter
+                    Apply
                   </button>
                   <button
                     onClick={clearFilters}
@@ -756,38 +883,13 @@ const RawBlockStockReport = () => {
                   </button>
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-4">
-                <label className="text-xs font-medium text-gray-700">Sort By:</label>
-                <select
-                  value={sortField}
-                  onChange={(e) => setSortField(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                >
-                  <option value="date">Date</option>
-                  <option value="createdAt">Created At</option>
-                </select>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                >
-                  <option value="desc">Newest First</option>
-                  <option value="asc">Oldest First</option>
-                </select>
-                <button
-                  onClick={() => fetchEntries(1)}
-                  className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  Apply Sort
-                </button>
-              </div>
             </div>
           )}
 
-          {/* API Status */}
+          {/* Status */}
           <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
             <span className={`inline-block w-2 h-2 rounded-full ${loading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></span>
-            {loading ? 'Loading...' : `${entries.length} entries loaded`}
+            {loading ? 'Loading...' : `${entries.length} total entries loaded`}
             {saving && (
               <span className="ml-2 flex items-center gap-1 text-blue-600">
                 <Loader className="h-3 w-3 animate-spin" /> Saving...
@@ -806,9 +908,7 @@ const RawBlockStockReport = () => {
               <h3 className="font-semibold text-gray-700 mb-3">Add Entry for Specific Date</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Date
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
                   <input
                     type="date"
                     value={selectedDate}
@@ -818,7 +918,7 @@ const RawBlockStockReport = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Copy Data From (Optional)
+                    Copy Production/Usage From (Optional)
                   </label>
                   <select
                     value={copyFromDate}
@@ -841,11 +941,7 @@ const RawBlockStockReport = () => {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {saving ? (
-                      <Loader className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
+                    {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
                     Create Entry
                   </button>
                   <button
@@ -860,11 +956,9 @@ const RawBlockStockReport = () => {
                   </button>
                 </div>
               </div>
-              {copyFromDate && (
-                <p className="mt-2 text-sm text-blue-600">
-                  ℹ️ Copying data from {copyFromDate}
-                </p>
-              )}
+              <p className="mt-2 text-xs text-blue-600">
+                ℹ️ Stock in Hand will auto-fill from the previous date's Total Balance.
+              </p>
             </div>
           )}
         </div>
@@ -889,43 +983,41 @@ const RawBlockStockReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {!entries || entries.length === 0 ? (
+                {!displayEntries || displayEntries.length === 0 ? (
                   <tr>
                     <td colSpan={columns.length + 2} className="p-8 text-center text-gray-500">
-                      {loading ? 'Loading...' : 'No entries found. Click "Add Entry for Date" or "Quick Add" to create one.'}
+                      {loading ? 'Loading...' : 'No entries found.'}
                     </td>
                   </tr>
                 ) : (
-                  sortedEntries.map((entry, entryIndex) => {
+                  displayEntries.map((entry, entryIndex) => {
                     const isEditing = editingEntryId === entry._id;
                     const isNewEntry = !entry._id;
                     const isSavingThis = saving && isNewEntry;
-                    
-                    // Use editing data if in edit mode, otherwise use entry data
                     const displayEntry = isEditing ? editingData : entry;
+                    
+                    // Check if this entry's stock was carried forward
+                    const previousEntry = getPreviousEntry(entry.date);
+                    const hasCarryForward = !!previousEntry;
 
                     return (
                       <React.Fragment key={entry._id || entryIndex}>
                         {/* Date Row */}
                         <tr className={`${isNewEntry ? 'bg-yellow-50' : isEditing ? 'bg-blue-50' : 'bg-gray-50'}`}>
                           <td className="p-3 text-left font-medium text-gray-700 border-b border-r border-gray-200 sticky left-0 bg-gray-50">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               📅 {entry.date || 'No Date'}
                               {isNewEntry && (
-                                <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">
-                                  New
-                                </span>
+                                <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">New</span>
                               )}
                               {isEditing && (
-                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
-                                  Editing
-                                </span>
+                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">Editing</span>
                               )}
-                              {entry._id && entry._id.toString().startsWith('temp_') && (
-                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
-                                  Local
+                              {/* {hasCarryForward && !isNewEntry && (
+                                <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full" title={`Carried forward from ${previousEntry.date}`}>
+                                  🔄 CF
                                 </span>
-                              )}
+                              )} */}
                               {isSavingThis && (
                                 <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                                   <Loader className="h-3 w-3 animate-spin" /> Saving...
@@ -936,8 +1028,7 @@ const RawBlockStockReport = () => {
                           {columns.map((col, colIndex) => (
                             <td key={colIndex} className="p-3 text-center text-sm text-gray-700 border-b border-r border-gray-200">
                               {displayEntry && displayEntry[col.key]?.totalBalance !== undefined ? 
-                                `Bal: ${displayEntry[col.key].totalBalance}` : 
-                                '—'
+                                `Bal: ${displayEntry[col.key].totalBalance}` : '—'
                               }
                             </td>
                           ))}
@@ -959,11 +1050,7 @@ const RawBlockStockReport = () => {
                                 title="Delete entry"
                                 disabled={saving || deleting}
                               >
-                                {deleting ? (
-                                  <Loader className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
+                                {deleting ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                               </button>
                             )}
                             {isEditing && (
@@ -974,11 +1061,7 @@ const RawBlockStockReport = () => {
                                   title="Save changes"
                                   disabled={saving}
                                 >
-                                  {saving ? (
-                                    <Loader className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Save className="h-4 w-4" />
-                                  )}
+                                  {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 </button>
                                 <button
                                   onClick={cancelEditing}
@@ -996,6 +1079,7 @@ const RawBlockStockReport = () => {
                         {/* Data Rows */}
                         {rowTypes.map((rowType, rowIdx) => {
                           const isBalanceRow = rowType.key === 'totalBalance';
+                          const isStockRow = rowType.key === 'stockInHand';
                           const isEditingRow = isEditing;
                           
                           return (
@@ -1007,7 +1091,14 @@ const RawBlockStockReport = () => {
                             >
                               <td className={`p-3 text-left text-sm border-b border-r border-gray-200 sticky left-0 
                                 ${isBalanceRow ? 'font-bold text-teal-700 bg-teal-50' : 'text-gray-600 bg-white'}`}>
-                                {rowType.label}
+                                <div className="flex items-center gap-1">
+                                  {rowType.label}
+                                  {isStockRow && hasCarryForward && (
+                                    <span className="text-xs text-teal-600 font-normal" title="Auto-carried from previous date">
+                                      (auto)
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               {columns.map((col, colIndex) => {
                                 const value = isEditingRow 
@@ -1023,11 +1114,7 @@ const RawBlockStockReport = () => {
                                         value={value || ''}
                                         onChange={(e) => {
                                           const val = e.target.value;
-                                          if (val === '') {
-                                            updateEditingCell(col.key, rowType.key, 0);
-                                          } else {
-                                            updateEditingCell(col.key, rowType.key, val);
-                                          }
+                                          updateEditingCell(col.key, rowType.key, val === '' ? 0 : val);
                                         }}
                                         onBlur={(e) => {
                                           const val = Number(e.target.value);
@@ -1035,14 +1122,16 @@ const RawBlockStockReport = () => {
                                             updateEditingCell(col.key, rowType.key, 0);
                                           }
                                         }}
-                                        className="w-full p-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        className={`w-full p-1 text-sm text-center border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+                                          isStockRow 
+                                            ? 'border-teal-300 bg-teal-50 focus:ring-teal-500' 
+                                            : 'border-gray-300 focus:ring-blue-500'
+                                        }`}
                                         placeholder="0"
                                         disabled={saving}
                                       />
                                     ) : isEditingRow && isBalanceRow ? (
-                                      <span className="block text-center font-bold text-teal-700">
-                                        {value}
-                                      </span>
+                                      <span className="block text-center font-bold text-teal-700">{value}</span>
                                     ) : isNewEntry && !isBalanceRow ? (
                                       <input
                                         type="number"
@@ -1050,13 +1139,8 @@ const RawBlockStockReport = () => {
                                         value={value || ''}
                                         onChange={(e) => {
                                           const val = e.target.value;
-                                          if (val === '') {
-                                            const identifier = entry._id || entry;
-                                            handleUpdateCell(identifier, col.key, rowType.key, 0);
-                                          } else {
-                                            const identifier = entry._id || entry;
-                                            handleUpdateCell(identifier, col.key, rowType.key, val);
-                                          }
+                                          const identifier = entry._id || entry;
+                                          handleUpdateCell(identifier, col.key, rowType.key, val === '' ? 0 : val);
                                         }}
                                         onBlur={(e) => {
                                           const val = Number(e.target.value);
@@ -1065,7 +1149,11 @@ const RawBlockStockReport = () => {
                                             handleUpdateCell(identifier, col.key, rowType.key, 0);
                                           }
                                         }}
-                                        className="w-full p-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                                        className={`w-full p-1 text-sm text-center border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+                                          isStockRow 
+                                            ? 'border-teal-300 bg-teal-50 focus:ring-teal-500' 
+                                            : 'border-gray-300 focus:ring-teal-500'
+                                        }`}
                                         placeholder="0"
                                         disabled={saving}
                                       />
@@ -1093,13 +1181,9 @@ const RawBlockStockReport = () => {
                                   className="px-4 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {saving ? (
-                                    <>
-                                      <Loader className="h-4 w-4 animate-spin" /> Saving...
-                                    </>
+                                    <><Loader className="h-4 w-4 animate-spin" /> Saving...</>
                                   ) : (
-                                    <>
-                                      <Save className="h-4 w-4" /> Save Entry
-                                    </>
+                                    <><Save className="h-4 w-4" /> Save Entry</>
                                   )}
                                 </button>
                                 <button
@@ -1126,7 +1210,7 @@ const RawBlockStockReport = () => {
         {pagination.totalPages > 1 && (
           <div className="mt-4 flex items-center justify-between bg-white rounded-lg shadow-sm p-4">
             <div className="text-sm text-gray-600">
-              Showing {entries.length} of {pagination.totalItems} entries
+              Showing {displayEntries.length} of {pagination.totalItems} entries
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1140,15 +1224,10 @@ const RawBlockStockReport = () => {
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                   let pageNum;
-                  if (pagination.totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                    pageNum = pagination.totalPages - 4 + i;
-                  } else {
-                    pageNum = pagination.currentPage - 2 + i;
-                  }
+                  if (pagination.totalPages <= 5) pageNum = i + 1;
+                  else if (pagination.currentPage <= 3) pageNum = i + 1;
+                  else if (pagination.currentPage >= pagination.totalPages - 2) pageNum = pagination.totalPages - 4 + i;
+                  else pageNum = pagination.currentPage - 2 + i;
                   
                   return (
                     <button
@@ -1188,7 +1267,7 @@ const RawBlockStockReport = () => {
           </div>
         )}
 
-        {/* Summary Stats */}
+        {/* Stats */}
         {entries.length > 0 && (
           <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-white rounded-lg shadow-sm p-4">
@@ -1210,16 +1289,18 @@ const RawBlockStockReport = () => {
             <div className="bg-white rounded-lg shadow-sm p-4">
               <div className="text-sm text-gray-500">Latest Entry</div>
               <div className="text-lg font-semibold text-gray-900">
-                {sortedEntries.length > 0 ? sortedEntries[0].date : 'N/A'}
+                {displayEntries.length > 0 ? displayEntries[0].date : 'N/A'}
               </div>
             </div>
           </div>
         )}
 
-     
+    
+      
       </div>
     </div>
-    </>
+        </>
+
   );
 };
 

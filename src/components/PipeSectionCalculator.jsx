@@ -584,34 +584,7 @@ const generatePDF = async () => {
               </div>
             </div>
             
-            {/* Wastage Options */}
-            <div className="mb-4 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showWastage"
-                  checked={showWastage}
-                  onChange={(e) => setShowWastage(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="showWastage" className="text-sm font-medium text-gray-700">
-                  Show Block Wastage Analysis
-                </label>
-              </div>
-              
-              {/* <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includeWastageInPrice"
-                  checked={includeWastageInPrice}
-                  onChange={(e) => setIncludeWastageInPrice(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                />
-                <label htmlFor="includeWastageInPrice" className="text-sm font-medium text-gray-700">
-                  Include Wastage Cost in Final Price
-                </label>
-              </div> */}
-            </div>
+     
             
             {/* Pipe Sizes Table */}
             <div className="mb-6">
@@ -713,9 +686,21 @@ const generatePDF = async () => {
             </div>
             
             {/* Results Table with Expandable Rows */}
-            {results.length > 0 && (
+                       {results.length > 0 && (
               <div className="mt-6">
                 <h3 className="font-semibold text-gray-800 mb-3">Calculation Results</h3>
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showWastage"
+                    checked={showWastage}
+                    onChange={(e) => setShowWastage(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="showWastage" className="text-sm font-medium text-gray-700">
+                    Show Block Wastage Analysis
+                  </label>
+                </div>
                 <div className="space-y-6">
                   {results.map((r) => {
 const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithoutWastage) : parseFloat(r.theoreticalPricePerPiece);

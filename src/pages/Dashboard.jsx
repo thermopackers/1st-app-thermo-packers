@@ -2974,7 +2974,7 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             </DashboardCard>
           </DashboardSection>
               {/* Raw Block Stock Report Button - Add this inside the grid */}
-              {userRoles.includes("dispatch") && (
+              {(userRoles.includes("dispatch") || userRoles.includes("accounts")) && (
 
            <DashboardSection>
                         <DashboardCard>

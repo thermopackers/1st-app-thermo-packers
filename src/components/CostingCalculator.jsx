@@ -659,21 +659,7 @@ const handleDownloadPDF = async () => {
                   </div>
                 </div>
                 
-                {/* Wastage Options - Checkbox */}
-                <div className="mb-4 flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="showWastage"
-                      checked={showWastage}
-                      onChange={(e) => setShowWastage(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="showWastage" className="text-sm font-medium text-gray-700">
-                      Show Block Wastage Analysis
-                    </label>
-                  </div>
-                </div>
+             
                 
                 <div className="flex gap-4">
                   <button
@@ -711,7 +697,21 @@ const handleDownloadPDF = async () => {
 </button>
                 </div>
                 
-                <div className="p-6 space-y-4">
+                             <div className="p-6 space-y-4">
+                  <div className="mb-2 flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="showWastage"
+                        checked={showWastage}
+                        onChange={(e) => setShowWastage(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="showWastage" className="text-sm font-medium text-gray-700">
+                        Show Block Wastage Analysis
+                      </label>
+                    </div>
+                  </div>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-800 mb-2">📏 Outer Dimensions of Thermocol Sheet</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
