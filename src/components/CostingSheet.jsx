@@ -292,7 +292,7 @@ const fetchProductsFromFrequentList = async () => {
       });
     }
     
-    console.log("Final loaded products:", products);
+     console.log("Final loaded products:", products);
     
     if (products.length === 0) {
       toast.error("No products found. Please check product data.");
@@ -300,6 +300,90 @@ const fetchProductsFromFrequentList = async () => {
       setLoading(false);
       return;
     }
+    
+    setRawMaterials(products);
+    
+    // Initialize states from saved sheets or based on unit
+    const initialRates = {};
+    const initialFreight = {};
+    const initialInPcs = {};
+    const initialWeights = {};
+    const initialCalculations = {};
+    const initialInternalNotes = {};
+    const initialRemarks = {};
+
+    products.forEach(product => {
+      // Check if there's a saved sheet for this product
+      const savedSheet = getLatestSheetForProduct(product._id);
+      const isKg = isUnitKg(product.unit || "");
+      // For non-kg units, force per-piece mode regardless of saved data
+      const defaultInPcs = !isKg;
+
+      if (savedSheet) {
+        console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
+        // Load saved values
+        initialRates[product._id] = savedSheet.conversionRate || 0;
+        initialFreight[product._id] = savedSheet.freight || 0;
+        initialInPcs[product._id] = !isKg ? true : (savedSheet.isInPcs || false);
+        initialInternalNotes[product._id] = savedSheet.internalNotes || "";
+        initialRemarks[product._id] = savedSheet.remarks || "";
+        // ✅ Load custom weight if saved
+        if (savedSheet.customWeight !== undefined && savedSheet.customWeight !== null) {
+          initialWeights[product._id] = savedSheet.customWeight;
+        }
+        
+        initialCalculations[product._id] = {
+          totalPerKg: savedSheet.totalPerKg,
+          pricePerPiece: savedSheet.pricePerPiece,
+          productWeight: savedSheet.productWeight,
+          freight: savedSheet.freight || 0,
+          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+          isInPcs: savedSheet.isInPcs || false,
+          weightDisplay: product.weight
+        };
+      } else {
+        // Default values - set inPcs based on unit
+        const defaultInPcs = initializeInPcsMode(product);
+        initialRates[product._id] = 0;
+        initialFreight[product._id] = 0;
+        initialInPcs[product._id] = defaultInPcs;
+      }
+    });
+    
+    setConversionRates(prev => Object.keys(prev).length ? prev : initialRates);
+    setFreightOutward(prev => Object.keys(prev).length ? prev : initialFreight);
+    setInPcsMode(prev => Object.keys(prev).length ? prev : initialInPcs);
+    setCustomWeights(prev => Object.keys(prev).length ? prev : initialWeights);
+    setCalculatedPrices(prev => Object.keys(prev).length ? prev : initialCalculations);
+    setInternalNotes(initialInternalNotes);
+    setRemarks(initialRemarks);
+    
+    // If there are no saved calculations, recalculate for products with rates
+    if (Object.keys(initialCalculations).length === 0) {
+      products.forEach(product => {
+        if (initialRates[product._id] > 0) {
+          calculateProductPrice(
+            product._id, 
+            initialRates[product._id], 
+            rmRate, 
+            initialInPcs[product._id], 
+            initialFreight[product._id],
+            initialWeights[product._id]
+          );
+        }
+      });
+    }
+    
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    console.error("Error details:", err.response?.data);
+    toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
+    setRawMaterials([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
 const fetchSavedCostingSheets = async () => {
   try {
