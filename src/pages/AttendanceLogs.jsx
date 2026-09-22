@@ -73,25 +73,8 @@ const fetchLogs = async () => {
         limit,
       },
     });
-    
-    // 🔴 Fill missing dates in the logs
-    let logsData = res.data.logs;
-    
-    // Determine month/year from filter or current date
-    let targetYear, targetMonth;
-    if (dateFilter) {
-      const parts = dateFilter.split('-');
-      targetYear = parseInt(parts[0]);
-      targetMonth = parseInt(parts[1]);
-    } else {
-      const now = new Date();
-      targetYear = now.getFullYear();
-      targetMonth = now.getMonth() + 1;
-    }
-    
-    const filledLogs = fillMissingDates(logsData, targetMonth, targetYear);
-    
-    setGroupedLogs(filledLogs);
+    // Backend now returns grouped logs directly
+    setGroupedLogs(res.data.logs);
     setTotalPages(res.data.totalPages);
   } catch (err) {
     console.error("Error fetching attendance:", err);
@@ -112,87 +95,6 @@ useEffect(() => {
     setPage(1);
     setIsMobileFilterOpen(false);
   };
-
-  // 🔴 ADD THIS: Function to fill missing dates
-const fillMissingDates = (logs, month, year) => {
-  if (!logs || logs.length === 0) return logs;
-  
-  // Get all dates in the selected month (or current month if no filter)
-  const currentDate = new Date();
-  const targetYear = year || currentDate.getFullYear();
-  const targetMonth = month || (currentDate.getMonth() + 1);
-  
-  const lastDay = new Date(targetYear, targetMonth, 0).getDate();
-  const currentDateStr = currentDate.toISOString().split('T')[0];
-  
-  // Generate all dates in the month up to today
-  const allDatesInMonth = [];
-  for (let day = 1; day <= lastDay; day++) {
-    const dateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    if (dateStr <= currentDateStr) {
-      allDatesInMonth.push(dateStr);
-    }
-  }
-  
-  // Create a map of existing logs by date (for the current user)
-  const logsByDate = {};
-  logs.forEach(log => {
-    if (!logsByDate[log.date]) {
-      logsByDate[log.date] = [];
-    }
-    logsByDate[log.date].push(log);
-  });
-  
-  // Get unique users from logs
-  const uniqueUsers = {};
-  logs.forEach(log => {
-    if (log.user?._id) {
-      uniqueUsers[log.user._id] = log.user;
-    }
-  });
-  
-  // If no users found, return original logs
-  if (Object.keys(uniqueUsers).length === 0) {
-    return logs;
-  }
-  
-  // Fill missing dates for each user
-  const filledLogs = [];
-  
-  Object.values(uniqueUsers).forEach(user => {
-    allDatesInMonth.forEach(dateStr => {
-      const existingLogs = logsByDate[dateStr]?.filter(l => l.user?._id === user._id) || [];
-      
-      if (existingLogs.length > 0) {
-        // Add existing logs
-        filledLogs.push(...existingLogs);
-      } else {
-        // 🔴 Add missing date entry
-        const dateObj = new Date(dateStr);
-        const isSunday = dateObj.getDay() === 0;
-        
-        filledLogs.push({
-          _id: `missing-${user._id}-${dateStr}`,
-          user: user,
-          date: dateStr,
-          checkIn: null,
-          checkOut: null,
-          isMissing: true,
-          dayType: isSunday ? 'sunday' : 'absent'
-        });
-      }
-    });
-  });
-  
-  // Sort by date (newest first) and by user
-  filledLogs.sort((a, b) => {
-    const dateCompare = new Date(b.date) - new Date(a.date);
-    if (dateCompare !== 0) return dateCompare;
-    return (a.user?.name || '').localeCompare(b.user?.name || '');
-  });
-  
-  return filledLogs;
-};
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -598,154 +500,114 @@ const getOnTourBadge = (entry) => {
                         </th>
                       </tr>
                     </thead>
-                <tbody className="divide-y divide-gray-200">
+                   <tbody className="divide-y divide-gray-200">
   <AnimatePresence>
-    {groupedLogs.map((entry, index) => {
-      const isMissing = entry.isMissing;
-      const isSunday = entry.dayType === 'sunday';
-      const isAbsent = entry.dayType === 'absent';
-      
-      // Determine row color for missing dates
-      let rowColor = "hover:bg-gray-50";
-      if (isMissing) {
-        rowColor = isSunday ? "bg-orange-50" : "bg-red-50";
-      }
-      
-      return (
-        <motion.tr
-          key={`${entry.user?._id}-${entry.date}`}
-          custom={index}
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
-          variants={tableRowVariants}
-          className={`${rowColor} transition-colors duration-150`}
-        >
-          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-            {formatDate(entry.date)}
+    {groupedLogs.map((entry, index) => (
+      <motion.tr
+        key={`${entry.user?._id}-${entry.date}`}
+        custom={index}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        variants={tableRowVariants}
+        className="hover:bg-gray-50 transition-colors duration-150"
+      >
+        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+          {formatDate(entry.date)}
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-900">
+          {entry.user?.name || "N/A"}
+        </td>
+        {isPrivileged && (
+          <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+            {entry.user?.role || "N/A"}
           </td>
-          <td className="px-4 py-3 text-sm text-gray-900">
-            {entry.user?.name || "N/A"}
-          </td>
-          {isPrivileged && (
-            <td className="px-4 py-3 text-sm text-gray-600 capitalize">
-              {entry.user?.role || "N/A"}
-            </td>
+        )}
+     <td className={`px-4 py-3 text-sm ${getCheckInColor(entry.checkIn?.time)}`}>
+  {entry.checkIn ? (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1">
+        <Clock className="w-3 h-3 text-green-600" />
+        <span>{formatTime(entry.checkIn.time)}</span>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        {entry.checkIn.photo && (
+          <button
+            onClick={() => handleViewImage(entry.checkIn, 'check-in')}
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
+            title="View Check-In Photo"
+          >
+            <Eye className="w-3 h-3" />
+            <span>Photo</span>
+          </button>
+        )}
+        {entry.checkIn.location && (
+          <button
+            onClick={() => handleViewLocation(entry.checkIn.location)}
+            className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
+            title="View Check-In Location"
+          >
+            <MapPin className="w-3 h-3" />
+            <span>Location</span>
+          </button>
+        )}
+      </div>
+    </div>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+        <td className="px-4 py-3 text-sm text-gray-600">
+          {entry.checkOut ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-red-600" />
+                <span>{formatTime(entry.checkOut.time)}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                {entry.checkOut.photo && (
+                  <button
+                    onClick={() => handleViewImage(entry.checkOut, 'check-out')}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
+                    title="View Check-Out Photo"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Photo</span>
+                  </button>
+                )}
+                {entry.checkOut.location && (
+                  <button
+                    onClick={() => handleViewLocation(entry.checkOut.location)}
+                    className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
+                    title="View Check-Out Location"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>Location</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <span className="text-gray-400">—</span>
           )}
-          
-          {/* Check-In Column */}
-          <td className={`px-4 py-3 text-sm ${!isMissing ? getCheckInColor(entry.checkIn?.time) : ''}`}>
-            {isMissing ? (
-              <span className="text-gray-400">—</span>
-            ) : entry.checkIn ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-green-600" />
-                  <span>{formatTime(entry.checkIn.time)}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  {entry.checkIn.photo && (
-                    <button
-                      onClick={() => handleViewImage(entry.checkIn, 'check-in')}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
-                      title="View Check-In Photo"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span>Photo</span>
-                    </button>
-                  )}
-                  {entry.checkIn.location && (
-                    <button
-                      onClick={() => handleViewLocation(entry.checkIn.location)}
-                      className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
-                      title="View Check-In Location"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      <span>Location</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
-          </td>
-          
-          {/* Check-Out Column */}
-          <td className="px-4 py-3 text-sm text-gray-600">
-            {isMissing ? (
-              <span className="text-gray-400">—</span>
-            ) : entry.checkOut ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-red-600" />
-                  <span>{formatTime(entry.checkOut.time)}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  {entry.checkOut.photo && (
-                    <button
-                      onClick={() => handleViewImage(entry.checkOut, 'check-out')}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
-                      title="View Check-Out Photo"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span>Photo</span>
-                    </button>
-                  )}
-                  {entry.checkOut.location && (
-                    <button
-                      onClick={() => handleViewLocation(entry.checkOut.location)}
-                      className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors text-xs"
-                      title="View Check-Out Location"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      <span>Location</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
-          </td>
-          
-          {/* Hours Column */}
-          <td className="px-4 py-3 text-sm font-medium">
-            {isMissing ? (
-              <span className="text-gray-400">—</span>
-            ) : (
-              calculateWorkingHours(entry.checkIn, entry.checkOut)
-            )}
-          </td>
-          
-          {/* Status Column */}
-          <td className="px-4 py-3">
-            {isMissing ? (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                isSunday 
-                  ? "bg-orange-100 text-orange-800" 
-                  : "bg-red-100 text-red-800"
-              }`}>
-                {isSunday ? "Weekly Off" : "Absent"}
-              </span>
-            ) : (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                entry.checkIn && entry.checkOut 
-                  ? "bg-green-100 text-green-800" 
-                  : "bg-yellow-100 text-yellow-800"
-              }`}>
-                {entry.checkIn && entry.checkOut ? "Complete" : "Incomplete"}
-              </span>
-            )}
-          </td>
-          
-          {/* On Tour Column */}
-          <td className="px-4 py-3">
-            {!isMissing && getOnTourBadge(entry)}
-          </td>
-        </motion.tr>
-      );
-    })}
+        </td>
+        <td className="px-4 py-3 text-sm font-medium">
+          {calculateWorkingHours(entry.checkIn, entry.checkOut)}
+        </td>
+        <td className="px-4 py-3">
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            entry.checkIn && entry.checkOut 
+              ? "bg-green-100 text-green-800" 
+              : "bg-yellow-100 text-yellow-800"
+          }`}>
+            {entry.checkIn && entry.checkOut ? "Complete" : "Incomplete"}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+  {getOnTourBadge(entry)}
+</td>
+      </motion.tr>
+    ))}
   </AnimatePresence>
 </tbody>
                   </table>
