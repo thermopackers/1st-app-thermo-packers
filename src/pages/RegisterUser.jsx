@@ -1694,7 +1694,7 @@ const handleDeleteVisitingCard = async () => {
 />
 
       <FileInput
-        label="Misc Documents"
+        label="Misc Documents (CV, Salary Certificate Issued etc)"
         name="miscDocuments"
         onChange={setMiscDocuments}
         multiple

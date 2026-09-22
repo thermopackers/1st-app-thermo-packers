@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { gsap } from "gsap";
 import axiosInstance from "../axiosInstance";
 import toast from "react-hot-toast";
+import Select from "react-select";
 
 const EditModal = ({ order, onSave, onClose }) => {
   // ✅ Check if multi-product order
@@ -217,21 +218,26 @@ const EditModal = ({ order, onSave, onClose }) => {
                 <tbody>
                   {updatedOrder.products.map((prod, idx) => (
                     <tr key={idx}>
-                      <td className="p-2 border">
-                        <select
-                          value={prod.productName}
-                          onChange={(e) => handleProductChange(idx, "productName", e.target.value)}
-                          className="border border-gray-300 p-2 rounded w-full text-sm"
-                          disabled={isSaving}
-                        >
-                          <option value="">Select Product</option>
-                          {allProducts.map((p) => (
-                            <option key={p._id} value={p.name}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                    <td className="p-2 border">
+ <Select
+  options={allProducts.map((p) => ({ label: p.name, value: p.name }))}
+  value={prod.productName ? { label: prod.productName, value: prod.productName } : null}
+  onChange={(selected) => {
+    handleProductChange(idx, "productName", selected ? selected.value : "");
+  }}
+  isSearchable={true}
+  isClearable={true}
+  placeholder="Search product..."
+  className="w-64"
+  classNamePrefix="react-select"
+  // ✅ ADD THESE 2 LINES
+  menuPortalTarget={document.body}
+  styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+  filterOption={(option, inputValue) =>
+    option.label.toLowerCase().includes(inputValue.toLowerCase())
+  }
+/>
+</td>
                       <td className="p-2 border">
                         <input
                           type="number"
@@ -309,23 +315,27 @@ const EditModal = ({ order, onSave, onClose }) => {
             <Input label="Size" name="size" value={updatedOrder.size} onChange={handleChange} />
             <Input label="Density" name="density" value={updatedOrder.density} onChange={handleChange} />
             
-            <div>
-              <label className="block mb-1 font-semibold">Product</label>
-              <select
-                name="product"
-                value={updatedOrder.product}
-                onChange={handleChange}
-                className="border border-gray-300 p-3 rounded-lg w-full"
-                disabled={isSaving}
-              >
-                <option value="">Select Product</option>
-                {allProducts.map((p) => (
-                  <option key={p._id} value={p.name}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+           <div>
+  <label className="block mb-1 font-semibold">Product</label>
+<Select
+  options={allProducts.map((p) => ({ label: p.name, value: p.name }))}
+  value={updatedOrder.product ? { label: updatedOrder.product, value: updatedOrder.product } : null}
+  onChange={(selected) => {
+    setUpdatedOrder((prev) => ({ ...prev, product: selected ? selected.value : "" }));
+  }}
+  isSearchable={true}
+  isClearable={true}
+  placeholder="Search or select product..."
+  className="w-full"
+  classNamePrefix="react-select"
+  // ✅ ADD THESE 2 LINES
+  menuPortalTarget={document.body}
+  styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+  filterOption={(option, inputValue) =>
+    option.label.toLowerCase().includes(inputValue.toLowerCase())
+  }
+/>
+</div>
           </div>
         )}
 

@@ -291,7 +291,7 @@ useEffect(() => {
   >
     <option value="">Select Freight Type</option>
     <option value="To Pay">To Pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)</option>
-    <option value="Self Dispatch">Self Pickup</option>
+    <option value="Self Dispatch">Self Pickup by Customer</option>
     <option value="Freight Paid">Freight Paid</option>
     <option value="Billed">Billed in Invoice</option>
     <option value="As per (Actual amount on To Pay basis)">As per (Actual amount on To Pay basis)</option>

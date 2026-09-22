@@ -9,7 +9,8 @@ export default function AddSupplier() {
 const [form, setForm] = useState({
   name: "", phone: "", phone2: "", email: "", address: "", gstNumber: "",
   locationLink: "", accountName: "", accountNumber: "", ifscCode: "",
-   bankName: "", vendorCategory: []
+   bankName: "", vendorCategory: [],
+  udyogAadharNumber: "", msmeStatus: "", udyamRegistrationNumber: "", msmeCategory: ""
 });
 const [gstError, setGstError] = useState("");
 const [existingChequeCloudFiles, setExistingChequeCloudFiles] = useState([]);
@@ -38,6 +39,9 @@ const [editingSecurityChequeId, setEditingSecurityChequeId] = useState(null);
   const [files, setFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [existingCloudFiles, setExistingCloudFiles] = useState([]);
+  const [udyogAadharFiles, setUdyogAadharFiles] = useState([]);
+  const [udyogAadharPreviewUrls, setUdyogAadharPreviewUrls] = useState([]);
+  const [existingUdyogAadharCloudFiles, setExistingUdyogAadharCloudFiles] = useState([]);
 
   const navigate = useNavigate();
   const { id } = useParams(); // ← Get supplier ID from URL
@@ -93,6 +97,10 @@ const fetchSupplier = async () => {
     // ✅ Load existing cheque files
     setExistingChequeCloudFiles(supplier.chequeFiles || []);
     setChequePreviewUrls(supplier.chequeFiles?.map(f => f.url || f) || []);
+
+        // ✅ Load existing Udyog Aadhar files
+    setExistingUdyogAadharCloudFiles(supplier.udyogAadharFiles || []);
+    setUdyogAadharPreviewUrls(supplier.udyogAadharFiles?.map(f => f.url || f) || []);
 
     // ✅ Fetch frequently purchased items
     try {
@@ -231,8 +239,9 @@ const handleChange = (e) => {
 
   const gstUploads = await upload(files);
   const chequeUploads = await upload(chequeFiles);
+  const udyogAadharUploads = await upload(udyogAadharFiles);
 
-  return { gstUploads, chequeUploads };
+  return { gstUploads, chequeUploads, udyogAadharUploads };
 };
 
 
@@ -247,13 +256,14 @@ const handleSubmit = async (e) => {
 
   try {
     toast.loading(id ? "Updating..." : "Uploading files...");
-    const { gstUploads, chequeUploads } = await uploadToCloudinary();
+    const { gstUploads, chequeUploads, udyogAadharUploads } = await uploadToCloudinary();
     toast.dismiss();
 
     const payload = {
       ...form,
       files: [...existingCloudFiles, ...gstUploads],
-      chequeFiles: [...existingChequeCloudFiles, ...chequeUploads] // Include existing cheque files
+      chequeFiles: [...existingChequeCloudFiles, ...chequeUploads], // Include existing cheque files
+      udyogAadharFiles: [...existingUdyogAadharCloudFiles, ...udyogAadharUploads]
     };
 
     if (id) {
@@ -289,6 +299,25 @@ const handleRemoveChequeFile = (index) => {
     setChequeFiles(prev => prev.filter((_, i) => i !== localFileIndex));
   }
   setChequePreviewUrls(prev => prev.filter((_, i) => i !== index));
+};
+
+const handleUdyogAadharFileChange = (e) => {
+  const selectedFiles = Array.from(e.target.files);
+  const previews = selectedFiles.map(file =>
+    file.type.startsWith("image/") ? URL.createObjectURL(file) : "pdf"
+  );
+  setUdyogAadharFiles(prev => [...prev, ...selectedFiles]);
+  setUdyogAadharPreviewUrls(prev => [...prev, ...previews]);
+};
+
+const handleRemoveUdyogAadharFile = (index) => {
+  if (index < existingUdyogAadharCloudFiles.length) {
+    setExistingUdyogAadharCloudFiles(prev => prev.filter((_, i) => i !== index));
+  } else {
+    const localFileIndex = index - existingUdyogAadharCloudFiles.length;
+    setUdyogAadharFiles(prev => prev.filter((_, i) => i !== localFileIndex));
+  }
+  setUdyogAadharPreviewUrls(prev => prev.filter((_, i) => i !== index));
 };
 
 // ==================== DIE/MOLD HANDLERS ====================
@@ -448,8 +477,8 @@ const handleDeleteSecurityCheque = async (chequeId) => {
 
   {/* GST Files */}
   <div>
-    <label className="block font-semibold mb-1">GST Documents (Images or PDFs)</label>
-    <input type="file" multiple accept="image/*,.pdf" onChange={handleFileChange} className="w-full border p-2 rounded" />
+    <label className="block font-semibold mb-1">GST Certificate (Mandatory - Upload PDF of JPG File of GST Certificate and should not be written Text)</label>
+    <input type="file" multiple accept="image/*,.pdf" onChange={handleFileChange} className="w-full  font-bold border p-2 rounded bg-yellow-300" />
   </div>
  {/* Upload Previews */}
   {previewUrls.length > 0 && (
@@ -547,7 +576,7 @@ const handleDeleteSecurityCheque = async (chequeId) => {
     multiple
     accept="image/*,.pdf"
     onChange={handleChequeFileChange}
-    className="w-full border p-2 rounded"
+    className="w-full  font-bold border p-2 rounded bg-yellow-300"
   />
 </div>
 
@@ -606,13 +635,141 @@ const handleDeleteSecurityCheque = async (chequeId) => {
         >
           ×
         </button>
-        <div className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-xs text-center py-1">
+               <div className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-xs text-center py-1">
           New
         </div>
       </div>
     ))}
   </div>
 )}
+
+{/* MSME / Udyam Details */}
+<div className="border-t pt-4 mt-4">
+  <h3 className="font-bold mb-2">MSME / Udyam Details</h3>
+
+  <div>
+    <label className="block font-semibold mb-1">Udyog Aadhar Number</label>
+    <input
+      name="udyogAadharNumber"
+      placeholder="Enter Udyog Aadhar number"
+      value={form.udyogAadharNumber || ""}
+      onChange={handleChange}
+      className="w-full border p-2 rounded"
+    />
+  </div>
+
+  <div className="mt-4">
+    <label className="block font-semibold mb-1">Udyog Aadhar Document (Image or PDF)</label>
+    <input
+      type="file"
+      multiple
+      accept="image/*,.pdf"
+      onChange={handleUdyogAadharFileChange}
+      className="w-full font-bold border p-2 rounded bg-yellow-300"
+    />
+  </div>
+
+  {/* Udyog Aadhar Files Preview - Shows both existing and new files */}
+  {(existingUdyogAadharCloudFiles.length > 0 || udyogAadharPreviewUrls.length > 0) && (
+    <div className="flex flex-wrap gap-3 mt-3">
+      {/* Existing Udyog Aadhar files from cloud */}
+      {existingUdyogAadharCloudFiles.map((file, i) => (
+        <div
+          key={`existing-udyog-${i}`}
+          className="relative border rounded bg-blue-50 w-24 h-24 flex items-center justify-center overflow-hidden"
+        >
+          {file.url?.includes('.pdf') ? (
+            <span className="text-3xl text-blue-600">📄</span>
+          ) : (
+            <img
+              src={file.url}
+              alt={`existing-udyog-${i}`}
+              className="object-cover w-full h-full"
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => handleRemoveUdyogAadharFile(i)}
+            className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+          >
+            ×
+          </button>
+          <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-xs text-center py-1">
+            Existing
+          </div>
+        </div>
+      ))}
+
+      {/* New Udyog Aadhar files to be uploaded */}
+      {udyogAadharPreviewUrls.slice(existingUdyogAadharCloudFiles.length).map((preview, i) => (
+        <div
+          key={`new-udyog-${i}`}
+          className="relative border rounded bg-gray-100 w-24 h-24 flex items-center justify-center overflow-hidden"
+        >
+          {preview === "pdf" || preview.includes(".pdf") ? (
+            <span className="text-3xl text-red-600">📄</span>
+          ) : (
+            <img
+              src={preview}
+              alt={`new-udyog-${i}`}
+              className="object-cover w-full h-full"
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => handleRemoveUdyogAadharFile(existingUdyogAadharCloudFiles.length + i)}
+            className="absolute top-1 right-1 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+          >
+            ×
+          </button>
+          <div className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-xs text-center py-1">
+            New
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div className="mt-4">
+    <label className="block font-semibold mb-1">MSME Status</label>
+    <select
+      name="msmeStatus"
+      value={form.msmeStatus || ""}
+      onChange={handleChange}
+      className="w-full border p-2 rounded"
+    >
+      <option value="">Select MSME Status</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+
+  <div className="mt-4">
+    <label className="block font-semibold mb-1">Udyam Registration Number</label>
+    <input
+      name="udyamRegistrationNumber"
+      placeholder="Enter Udyam registration number"
+      value={form.udyamRegistrationNumber || ""}
+      onChange={handleChange}
+      className="w-full border p-2 rounded"
+    />
+  </div>
+
+  <div className="mt-4">
+    <label className="block font-semibold mb-1">MSME Category</label>
+    <select
+      name="msmeCategory"
+      value={form.msmeCategory || ""}
+      onChange={handleChange}
+      className="w-full border p-2 rounded"
+    >
+      <option value="">Select MSME Category</option>
+      <option value="Micro">Micro</option>
+      <option value="Small">Small</option>
+      <option value="Medium">Medium</option>
+    </select>
+  </div>
+</div>
 
 
   {/* Submit */}

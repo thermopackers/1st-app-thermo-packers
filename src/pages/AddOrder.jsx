@@ -15,6 +15,20 @@ const [paymentTerms, setPaymentTerms] = useState("");
 const [customPaymentTerms, setCustomPaymentTerms] = useState("");
   const [availableSizesList, setAvailableSizesList] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+   // ✅ NEW: Incoming Payment states (optional - filled while creating order)
+  const [recordPayment, setRecordPayment] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState({
+    dateOfPayment: new Date().toISOString().split("T")[0],
+    amount: "",
+    modeOfPayment: "cash",
+    chequeDate: "",
+    chequeNumber: "",
+    bankName: "",
+    cashGivenTo: "",
+    remarks: "",
+    files: [],
+  });
+  const [isUploadingPaymentFiles, setIsUploadingPaymentFiles] = useState(false);
   const [convertedInvoices, setConvertedInvoices] = useState(() => {
   // Load from localStorage on initial render
   const saved = localStorage.getItem('convertedInvoices');
@@ -370,6 +384,66 @@ const handleClientChange = (e) => {
   }
 };
 
+// ✅ NEW: Handle incoming payment field changes
+const handlePaymentChange = (e) => {
+  const { name, value, type, files } = e.target;
+
+  if (type === "file") {
+    const selectedFiles = Array.from(files);
+    const validTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    const filtered = selectedFiles.filter(
+      (file) => validTypes.includes(file.type) && file.size > 1000
+    );
+    if (filtered.length !== selectedFiles.length) {
+      toast.error("Some payment files were skipped (invalid type or size).");
+    }
+    setPaymentDetails((prev) => ({
+      ...prev,
+      files: [...prev.files, ...filtered],
+    }));
+    return;
+  }
+
+  setPaymentDetails((prev) => ({ ...prev, [name]: value }));
+};
+
+// ✅ NEW: Upload payment files to Cloudinary via backend
+const uploadPaymentFiles = async () => {
+  if (!paymentDetails.files || paymentDetails.files.length === 0) return [];
+
+  setIsUploadingPaymentFiles(true);
+  const uploadedUrls = [];
+
+  try {
+    for (const file of paymentDetails.files) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axiosInstance.post(
+        "/incoming-payments/upload",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (res.data?.secure_url) {
+        uploadedUrls.push(res.data.secure_url);
+      }
+    }
+  } catch (err) {
+    console.error("Payment file upload error:", err);
+    toast.error("Some payment files failed to upload.");
+  } finally {
+    setIsUploadingPaymentFiles(false);
+  }
+
+  return uploadedUrls;
+};
+
 // Helper function to get last working day (excluding Sunday)
 const getLastWorkingDay = (daysFromNow) => {
   let date = new Date();
@@ -568,6 +642,47 @@ const modifiedProductList = productList.map((prod) => {
       }
     }
 
+    // ✅ NEW: If user opted to record incoming payment, create it now
+    if (recordPayment && paymentDetails.amount && parseFloat(paymentDetails.amount) > 0) {
+      try {
+        // Upload payment files first (if any)
+        const uploadedPaymentFiles = await uploadPaymentFiles();
+
+        // Build payment payload
+        const paymentPayload = {
+          dateOfPayment: paymentDetails.dateOfPayment,
+          customerName: clientDetails.customerName,
+          modeOfPayment: paymentDetails.modeOfPayment,
+          amount: parseFloat(paymentDetails.amount),
+          files: uploadedPaymentFiles,
+          remarks: paymentDetails.remarks || `Payment recorded with Sales Order ${clientDetails.po || ""}`.trim(),
+        };
+
+        // Add mode-specific fields
+        if (paymentDetails.modeOfPayment === "cheque") {
+          if (paymentDetails.chequeDate) paymentPayload.chequeDate = paymentDetails.chequeDate;
+          if (paymentDetails.chequeNumber) paymentPayload.chequeNumber = paymentDetails.chequeNumber;
+          if (paymentDetails.bankName) paymentPayload.bankName = paymentDetails.bankName;
+        }
+        if (paymentDetails.modeOfPayment === "cash" && paymentDetails.cashGivenTo) {
+          paymentPayload.cashGivenTo = paymentDetails.cashGivenTo;
+        }
+
+        await axiosInstance.post("/incoming-payments", paymentPayload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        toast.success("Order & payment recorded successfully!");
+      } catch (paymentErr) {
+        console.error("Payment record failed:", paymentErr);
+        toast.error(
+          "Order created, but incoming payment failed. Please record it manually."
+        );
+      }
+    } else {
+      toast.success("Order submitted!");
+    }
+
     // ✅ ADD THIS: Mark the proforma invoice as converted
     const convertingInvoiceId = localStorage.getItem('convertingInvoiceId');
     if (convertingInvoiceId) {
@@ -575,7 +690,6 @@ const modifiedProductList = productList.map((prod) => {
       localStorage.removeItem('convertingInvoiceId');
     }
 
-    toast.success("Order submitted!");
     navigate("/orders", { 
       state: { scrollToOrderId: response.data.order._id, scrollToSection: true },
       replace: true 
@@ -780,7 +894,7 @@ const fetchLastPrice = async (customerName, productName) => {
   <option value="Other">8) Other (Write in remarks)</option>
 </select>
 
-  {paymentTerms === "Other" && (
+   {paymentTerms === "Other" && (
     <input
       type="text"
       className="w-full mt-2 border border-gray-300 rounded px-3 py-2"
@@ -788,6 +902,201 @@ const fetchLastPrice = async (customerName, productName) => {
       value={customPaymentTerms}
       onChange={(e) => setCustomPaymentTerms(e.target.value)}
     />
+  )}
+</div>
+
+{/* ✅ NEW: Optional Incoming Payment Section */}
+<div className="col-span-2 mt-2 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+  <label className="flex items-center gap-2 cursor-pointer select-none">
+    <input
+      type="checkbox"
+      checked={recordPayment}
+      onChange={(e) => setRecordPayment(e.target.checked)}
+      className="w-4 h-4 accent-blue-600"
+    />
+    <span className="font-semibold text-gray-800">
+      💰 Record Incoming Payment from Customer (Optional)
+    </span>
+  </label>
+
+  {recordPayment && (
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Date of Payment */}
+      <div className="flex flex-col">
+        <label className="mb-1 text-sm font-medium text-gray-700">
+          Date of Payment
+        </label>
+        <input
+          type="date"
+          name="dateOfPayment"
+          value={paymentDetails.dateOfPayment}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={handlePaymentChange}
+          className="border border-gray-400 p-2 rounded"
+        />
+      </div>
+
+      {/* Amount */}
+      <div className="flex flex-col">
+        <label className="mb-1 text-sm font-medium text-gray-700">
+          Amount (₹)
+        </label>
+        <input
+          type="number"
+          name="amount"
+          value={paymentDetails.amount}
+          placeholder="Enter amount received"
+          min="0"
+          step="0.01"
+          onChange={handlePaymentChange}
+          className="border border-gray-400 p-2 rounded"
+        />
+      </div>
+
+      {/* Mode of Payment */}
+      <div className="flex flex-col">
+        <label className="mb-1 text-sm font-medium text-gray-700">
+          Mode of Payment
+        </label>
+        <select
+          name="modeOfPayment"
+          value={paymentDetails.modeOfPayment}
+          onChange={handlePaymentChange}
+          className="border border-gray-400 p-2 rounded"
+        >
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="cheque">Cheque</option>
+          <option value="bankTransfer">Bank Transfer</option>
+        </select>
+      </div>
+
+      {/* Cash: Given To */}
+      {paymentDetails.modeOfPayment === "cash" && (
+        <div className="flex flex-col">
+          <label className="mb-1 text-sm font-medium text-gray-700">
+            Cash Given To
+          </label>
+          <input
+            type="text"
+            name="cashGivenTo"
+            value={paymentDetails.cashGivenTo}
+            placeholder="e.g., John (Driver)"
+            onChange={handlePaymentChange}
+            className="border border-gray-400 p-2 rounded"
+          />
+        </div>
+      )}
+
+      {/* Cheque fields */}
+      {paymentDetails.modeOfPayment === "cheque" && (
+        <>
+          <div className="flex flex-col">
+            <label className="mb-1 text-sm font-medium text-gray-700">
+              Cheque Date
+            </label>
+            <input
+              type="date"
+              name="chequeDate"
+              value={paymentDetails.chequeDate}
+              onChange={handlePaymentChange}
+              className="border border-gray-400 p-2 rounded"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 text-sm font-medium text-gray-700">
+              Cheque Number
+            </label>
+            <input
+              type="text"
+              name="chequeNumber"
+              value={paymentDetails.chequeNumber}
+              placeholder="Cheque No."
+              onChange={handlePaymentChange}
+              className="border border-gray-400 p-2 rounded"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 text-sm font-medium text-gray-700">
+              Bank Name
+            </label>
+            <input
+              type="text"
+              name="bankName"
+              value={paymentDetails.bankName}
+              placeholder="Bank Name"
+              onChange={handlePaymentChange}
+              className="border border-gray-400 p-2 rounded"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Payment Remarks */}
+      <div className="col-span-1 md:col-span-2 flex flex-col">
+        <label className="mb-1 text-sm font-medium text-gray-700">
+          Payment Remarks
+        </label>
+        <textarea
+          name="remarks"
+          value={paymentDetails.remarks}
+          placeholder="Any remarks about this payment"
+          onChange={handlePaymentChange}
+          className="border border-gray-400 p-2 rounded"
+          rows={2}
+        />
+      </div>
+
+      {/* Payment Files */}
+      <div className="col-span-1 md:col-span-2 flex flex-col">
+        <label className="mb-1 text-sm font-medium text-gray-700">
+          Payment Proof / Files (Images or PDF)
+        </label>
+        <input
+          type="file"
+          name="files"
+          multiple
+          accept=".pdf,.png,.jpg,.jpeg"
+          onChange={handlePaymentChange}
+          className="bg-green-100 cursor-pointer p-2 rounded"
+        />
+
+        {paymentDetails.files.length > 0 && (
+          <div className="flex flex-wrap gap-3 mt-2">
+            {paymentDetails.files.map((file, idx) => (
+              <div key={idx} className="relative border p-2 rounded">
+                {file.type.includes("image") ? (
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Payment file ${idx}`}
+                    className="w-20 h-20 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-20 h-20 flex items-center justify-center bg-gray-100 text-xs text-gray-700 rounded">
+                    {file.name}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPaymentDetails((prev) => ({
+                      ...prev,
+                      files: prev.files.filter((_, i) => i !== idx),
+                    }))
+                  }
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {isUploadingPaymentFiles && (
+          <p className="text-xs text-blue-600 mt-1">Uploading payment files...</p>
+        )}
+      </div>
+    </div>
   )}
 </div>
 
@@ -974,7 +1283,7 @@ const fetchLastPrice = async (customerName, productName) => {
     >
       <option value="">Select Freight</option>
       <option value="To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)">To pay(Material sent via part load, Payment to be done to TRANSPORTER as per actual GR Copy Amount)</option>
-      <option value="Self Dispatch">Self Pickup</option>
+      <option value="Self Dispatch">Self Pickup by Customer</option>
       <option value="Freight Paid">Freight Paid</option>
       <option value="Billed in Invoice">Billed in Invoice</option>
           <option value="As per (Actual amount on To Pay basis)">As per (Actual amount on To Pay basis)</option>

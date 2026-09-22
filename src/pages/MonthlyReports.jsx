@@ -464,12 +464,15 @@ export default function MonthlyReports() {
       }
     }
 
-    const presentDateMap = {};
-    if (presentDetails) {
-      presentDetails.forEach(detail => {
-        presentDateMap[detail.date] = detail;
-      });
+const presentDateMap = {};
+if (presentDetails) {
+  presentDetails.forEach(detail => {
+    // 🔴 Only add actual present/half-day records (NOT absent or leave)
+    if (detail.status === 'present' || detail.status === 'half-day' || (!detail.status && detail.checkInTime)) {
+      presentDateMap[detail.date] = detail;
     }
+  });
+}
 
     const absentDateMap = {};
     if (absentDates) {
@@ -485,89 +488,115 @@ export default function MonthlyReports() {
       });
     }
 
-    let fdCount = 0;
-    let hdCount = 0;
-    let totalPresentCount = 0;
-    let totalLeaveCount = leaveDates ? leaveDates.length : 0;
-    let onTourCount = 0;
+let fdCount = 0;
+let hdCount = 0;
+let totalPresentCount = 0;
+let totalLeaveCount = leaveDates ? leaveDates.length : 0;
+let onTourCount = 0;
 
-    if (presentDetails) {
-      presentDetails.forEach(detail => {
-        totalPresentCount++;
-        
-        const dateStr = detail.date;
-        const isSunday = new Date(dateStr).getDay() === 0;
-        
-        // Check if On Tour
-        if (detail.onTour) {
-          onTourCount++;
-        }
-        
-        if (isSunday) {
-          return;
-        }
-        
-        const isIncomplete = detail.checkInTime && !detail.checkOutTime;
-        
-        let isLateHalfDay = false;
-        if (detail.checkInTime) {
-          const checkInDate = new Date(detail.checkInTime);
-          const thresholdTime = new Date(dateStr);
-          thresholdTime.setHours(9, 51, 0, 0);
-          isLateHalfDay = checkInDate > thresholdTime;
-        }
-        
-        let isEarlyHalfDay = false;
-        if (detail.checkOutTime) {
-          const checkOutDate = new Date(detail.checkOutTime);
-          const expectedTime = new Date(dateStr);
-          expectedTime.setHours(18, 0, 0, 0);
-          isEarlyHalfDay = checkOutDate < expectedTime;
-        }
-        
-        const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
-        
-        if (isHalfDay) {
-          hdCount++;
-        } else {
-          fdCount++;
-        }
-      });
+if (presentDetails) {
+  presentDetails.forEach(detail => {
+    // 🔴 Only count actual present/half-day records
+    if (detail.status !== 'present' && detail.status !== 'half-day' && !detail.checkInTime) {
+      return; // Skip absent and leave records
     }
+    
+    totalPresentCount++;
+    
+    const dateStr = detail.date;
+    const isSunday = new Date(dateStr).getDay() === 0;
+    
+    // Check if On Tour
+    if (detail.onTour) {
+      onTourCount++;
+    }
+    
+    if (isSunday) {
+      return;
+    }
+    
+    const isIncomplete = detail.checkInTime && !detail.checkOutTime;
+    
+    let isLateHalfDay = false;
+    if (detail.checkInTime) {
+      const checkInDate = new Date(detail.checkInTime);
+      const thresholdTime = new Date(dateStr);
+      thresholdTime.setHours(9, 51, 0, 0);
+      isLateHalfDay = checkInDate > thresholdTime;
+    }
+    
+    let isEarlyHalfDay = false;
+    if (detail.checkOutTime) {
+      const checkOutDate = new Date(detail.checkOutTime);
+      const expectedTime = new Date(dateStr);
+      expectedTime.setHours(18, 0, 0, 0);
+      isEarlyHalfDay = checkOutDate < expectedTime;
+    }
+    
+    const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
+    
+    if (isHalfDay) {
+      hdCount++;
+    } else {
+      fdCount++;
+    }
+  });
+}
 
     const allAttendanceRecords = [];
     
-    allDates.forEach(dateStr => {
-      const isPresent = presentDateMap[dateStr];
-      const isOnLeave = leaveDateMap[dateStr];
-      const isSunday = new Date(dateStr).getDay() === 0;
-      
-      if (isPresent) {
-        allAttendanceRecords.push({
-          ...presentDateMap[dateStr],
-          type: 'present',
-          onTour: presentDateMap[dateStr]?.onTour || false
-        });
-      } else if (isOnLeave) {
-        allAttendanceRecords.push({
-          date: dateStr,
-          type: 'leave',
-          checkInTime: null,
-          checkOutTime: null,
-          workedHours: null,
-          onTour: false
-        });
-      } else if (isSunday) {
-        allAttendanceRecords.push({
-          date: dateStr,
-          type: 'sunday',
-          checkInTime: null,
-          checkOutTime: null,
-          workedHours: null,
-          onTour: false
-        });
-      }
+allDates.forEach(dateStr => {
+  const isPresent = presentDateMap[dateStr];
+  const isOnLeave = leaveDateMap[dateStr];
+  const isAbsent = absentDateMap[dateStr] && !isPresent;
+  const isSunday = new Date(dateStr).getDay() === 0;
+  
+  if (isPresent) {
+    allAttendanceRecords.push({
+      ...presentDateMap[dateStr],
+      type: 'present',
+      onTour: presentDateMap[dateStr]?.onTour || false
     });
+  } else if (isOnLeave) {
+    allAttendanceRecords.push({
+      date: dateStr,
+      type: 'leave',
+      checkInTime: null,
+      checkOutTime: null,
+      workedHours: null,
+      onTour: false
+    });
+  } else if (isSunday) {
+    allAttendanceRecords.push({
+      date: dateStr,
+      type: 'sunday',
+      checkInTime: null,
+      checkOutTime: null,
+      workedHours: null,
+      onTour: false
+    });
+  } else if (isAbsent) {
+    // 🔴 ADD THIS BLOCK - Show absent days
+    allAttendanceRecords.push({
+      date: dateStr,
+      type: 'absent',
+      checkInTime: null,
+      checkOutTime: null,
+      workedHours: null,
+      onTour: false
+    });
+  } else {
+    // 🔴 ADD THIS - Any other weekday with no record = absent
+    allAttendanceRecords.push({
+      date: dateStr,
+      type: 'absent',
+      checkInTime: null,
+      checkOutTime: null,
+      workedHours: null,
+      onTour: false
+    });
+  }
+});
 
     allAttendanceRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -790,17 +819,23 @@ export default function MonthlyReports() {
                     let attendanceType = "";
                     let attendanceColor = "";
                     
-                    if (record.type === 'leave') {
-                      rowColor = "bg-purple-50";
-                      textColor = "text-purple-700";
-                      attendanceType = "On Leave";
-                      attendanceColor = "bg-purple-100 text-purple-800";
-                    } else if (record.type === 'sunday') {
-                      rowColor = "bg-orange-50";
-                      textColor = "text-orange-700";
-                      attendanceType = "Weekly Off";
-                      attendanceColor = "bg-orange-100 text-orange-800";
-                    } else {
+                   if (record.type === 'leave') {
+  rowColor = "bg-purple-50";
+  textColor = "text-purple-700";
+  attendanceType = "On Leave";
+  attendanceColor = "bg-purple-100 text-purple-800";
+} else if (record.type === 'sunday') {
+  rowColor = "bg-orange-50";
+  textColor = "text-orange-700";
+  attendanceType = "Weekly Off";
+  attendanceColor = "bg-orange-100 text-orange-800";
+} else if (record.type === 'absent') {
+  // 🔴 ADD THIS BLOCK
+  rowColor = "bg-red-50";
+  textColor = "text-red-700";
+  attendanceType = "Absent";
+  attendanceColor = "bg-red-100 text-red-800";
+} else {
                       // Present day
                       if (isSunday) {
                         rowColor = "bg-orange-100";
