@@ -33,7 +33,12 @@ const AttendanceLogs = () => {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
-  
+  const [viewMode, setViewMode] = useState("grouped"); // 'grouped' or 'daily'
+const [dailyReport, setDailyReport] = useState([]);
+const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+});
   // ✅ FIX: Add helper function and proper role checking
   const parseUserRoles = (user) => {
     if (!user || !user.role) {
@@ -83,10 +88,40 @@ const fetchLogs = async () => {
   }
 };
 
+const fetchDailyReport = async () => {
+  setLoading(true);
+  try {
+    const [year, month] = selectedMonth.split("-");
+    const from = `${year}-${month}-01`;
+    
+    const params = { from };
+    if (userFilter) {
+      params.userId = userFilter;
+    }
+    
+    const res = await axiosInstance.get("/attendance/daily-monthly", {
+      headers: { Authorization: `Bearer ${token}` },
+      params
+    });
+    
+    setDailyReport(res.data);
+  } catch (err) {
+    console.error("Error fetching daily report:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 // ✅ ADD THIS USEEFFECT HOOK
 useEffect(() => {
   fetchLogs();
 }, [page, dateFilter, roleFilter, userFilter]);
+
+useEffect(() => {
+  if (viewMode === "daily") {
+    fetchDailyReport();
+  }
+}, [viewMode, selectedMonth, userFilter]);
 
   const clearFilters = () => {
     setDateFilter("");
@@ -262,7 +297,31 @@ const getOnTourBadge = (entry) => {
               </p>
             </div>
 
-          <div className="flex flex-wrap gap-3">
+       <div className="flex flex-wrap gap-3">
+  {/* View Mode Toggle */}
+  <div className="flex bg-gray-100 rounded-xl p-1">
+    <button
+      onClick={() => setViewMode("grouped")}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+        viewMode === "grouped" 
+          ? "bg-white text-blue-600 shadow" 
+          : "text-gray-600 hover:text-gray-800"
+      }`}
+    >
+      Grouped View
+    </button>
+    <button
+      onClick={() => setViewMode("daily")}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+        viewMode === "daily" 
+          ? "bg-white text-blue-600 shadow" 
+          : "text-gray-600 hover:text-gray-800"
+      }`}
+    >
+      Daily View (All Days)
+    </button>
+  </div>
+
   {/* Export Button */}
   <motion.button
     onClick={exportToCSV}
@@ -438,7 +497,8 @@ const getOnTourBadge = (entry) => {
             </AnimatePresence>
           </motion.div>
 
-          {/* Table Section */}
+                    {/* Table Section - Only show in Grouped View */}
+          {viewMode === "grouped" && (
           <motion.div 
             className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
             variants={itemVariants}
@@ -678,8 +738,186 @@ const getOnTourBadge = (entry) => {
               </>
             )}
           </motion.div>
-        </div>
+          )}
+               </div>
       </motion.div>
+
+      {/* DAILY VIEW - Show all days of month */}
+      {viewMode === "daily" && (
+        <motion.div 
+          className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mt-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold text-gray-800">Daily View - All Days</span>
+            </div>
+            
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            />
+            
+            <div className="flex flex-wrap gap-3 text-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-green-500 rounded"></span> Present
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-amber-500 rounded"></span> Half Day
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-purple-500 rounded"></span> Leave
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-red-500 rounded"></span> Absent
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-orange-500 rounded"></span> Sunday
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 bg-amber-300 rounded"></span> 🌍 On Tour
+              </span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading daily report...</p>
+            </div>
+          ) : dailyReport.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">No data available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {dailyReport.map((userReport, userIdx) => (
+                <div key={userIdx} className="border-b border-gray-200 last:border-b-0">
+                  {/* User Header */}
+                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <span className="font-semibold text-gray-800">
+                        {userReport.user.name}
+                      </span>
+                      <span className="text-sm text-gray-500 capitalize">
+                        ({userReport.user.role})
+                      </span>
+                    </div>
+                    <div className="flex gap-3 text-sm">
+                      <span className="text-green-600 font-medium">
+                        Present: {userReport.dailyRecords.filter(r => r.status === 'present' || r.status === 'present-sunday').length}
+                      </span>
+                      <span className="text-amber-600 font-medium">
+                        Half: {userReport.dailyRecords.filter(r => r.status === 'half-day').length}
+                      </span>
+                      <span className="text-purple-600 font-medium">
+                        Leave: {userReport.dailyRecords.filter(r => r.status === 'leave').length}
+                      </span>
+                      <span className="text-red-600 font-medium">
+                        Absent: {userReport.dailyRecords.filter(r => r.status === 'absent').length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Daily Records Table */}
+                  <table className="w-full">
+                    <thead className="bg-gray-100 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Day</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Check-In</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Check-Out</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Hours</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Mode</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {userReport.dailyRecords.map((record, idx) => {
+                        const dayName = new Date(record.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short" });
+                        
+                        let rowColor = "";
+                        let statusBadge = "";
+                        let statusText = "";
+                        
+                        switch (record.status) {
+                          case 'present':
+                            rowColor = "bg-green-50";
+                            statusBadge = "bg-green-100 text-green-800";
+                            statusText = "Present";
+                            break;
+                          case 'present-sunday':
+                            rowColor = "bg-orange-100";
+                            statusBadge = "bg-orange-200 text-orange-800";
+                            statusText = "Sunday (Worked)";
+                            break;
+                          case 'half-day':
+                            rowColor = "bg-amber-50";
+                            statusBadge = "bg-amber-100 text-amber-800";
+                            statusText = "Half Day";
+                            break;
+                          case 'leave':
+                            rowColor = "bg-purple-50";
+                            statusBadge = "bg-purple-100 text-purple-800";
+                            statusText = "On Leave";
+                            break;
+                          case 'sunday':
+                            rowColor = "bg-orange-50";
+                            statusBadge = "bg-orange-100 text-orange-800";
+                            statusText = "Weekly Off";
+                            break;
+                          case 'absent':
+                            rowColor = "bg-red-50";
+                            statusBadge = "bg-red-100 text-red-800";
+                            statusText = "Absent";
+                            break;
+                          default:
+                            rowColor = "";
+                            statusBadge = "bg-gray-100 text-gray-800";
+                            statusText = "Unknown";
+                        }
+                        
+                        return (
+                          <tr key={idx} className={`${rowColor} hover:opacity-90`}>
+                            <td className="px-4 py-2 text-sm">{formatDate(record.date)}</td>
+                            <td className="px-4 py-2 text-sm">{dayName}</td>
+                            <td className="px-4 py-2 text-sm">
+                              {record.checkIn ? formatTime(record.checkIn.time) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              {record.checkOut ? formatTime(record.checkOut.time) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              {record.workedHours > 0 ? `${Math.floor(record.workedHours)}h ${Math.round((record.workedHours % 1) * 60)}m` : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusBadge}`}>
+                                {statusText}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              {record.onTour ? (
+                                <span className="text-amber-600 font-medium">🌍 On Tour</span>
+                              ) : (
+                                <span className="text-gray-500">Office</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Image Modal */}
       <AnimatePresence>
