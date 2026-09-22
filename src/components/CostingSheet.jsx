@@ -182,43 +182,35 @@ const formatWeightDisplay = (weightInKg) => {
   return `${grams.toFixed(0)} g`;
 };
 
-const fetchProductsFromFrequentList = async () => {
-  if (frequentProducts.length === 0) {
-    setRawMaterials([]);
-    return;
-  }
-  
-  setLoading(true);
-  try {
-    console.log("Frequent products data:", frequentProducts);
-    
-    // ✅ Separate products with valid IDs from those without
-    const isValidObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
-    
-    const productsWithValidIds = frequentProducts.filter(p => isValidObjectId(p.productId));
-    const productsWithoutValidIds = frequentProducts.filter(p => !isValidObjectId(p.productId));
-    
-    console.log("Products with valid IDs:", productsWithValidIds);
-    console.log("Products WITHOUT valid IDs (will fetch by name):", productsWithoutValidIds);
-    
-    // If nothing at all, bail out
-    if (productsWithValidIds.length === 0 && productsWithoutValidIds.length === 0) {
+  const fetchProductsFromFrequentList = async () => {
+    if (frequentProducts.length === 0) {
       setRawMaterials([]);
-      setLoading(false);
       return;
     }
     
-    let products = [];
-    
-    // ✅ STEP 1: Batch-fetch products that have valid IDs
-    if (productsWithValidIds.length > 0) {
-      const productIds = productsWithValidIds.map(p => p.productId);
+    setLoading(true);
+    try {
+      console.log("Frequent products data:", frequentProducts);
+      
+      const validProducts = frequentProducts.filter(p => p.productId && p.productId !== null);
+      console.log("Valid products with IDs:", validProducts);
+      
+      if (validProducts.length === 0) {
+        console.warn("No valid product IDs found in frequent products");
+        toast.warning("Products don't have valid IDs. Please check product data.");
+        setRawMaterials([]);
+        setLoading(false);
+        return;
+      }
+      
+      const productIds = validProducts.map(p => p.productId);
       console.log("Product IDs to fetch:", productIds);
       
+      let products = [];
       try {
         console.log("Trying batch endpoint...");
         const batchRes = await axiosInstance.post("/products-multer/batch", { productIds });
-        products = batchRes.data || [];
+        products = batchRes.data;
         console.log("Batch fetch successful, got", products.length, "products");
       } catch (batchError) {
         console.warn("Batch endpoint failed, falling back to individual fetches:", batchError.message);
@@ -234,156 +226,98 @@ const fetchProductsFromFrequentList = async () => {
         const responses = await Promise.all(productPromises);
         products = responses.filter(p => p !== null);
       }
-    }
-    
-    // ✅ STEP 2: For products WITHOUT valid IDs (null / deleted), fetch by NAME
-    if (productsWithoutValidIds.length > 0) {
-      console.log("Fetching products by name for:", productsWithoutValidIds.map(p => p.product));
       
-      const nameFetchPromises = productsWithoutValidIds.map(async (freqProd) => {
-        if (!freqProd.product || !freqProd.product.trim()) return null;
-        
-        try {
-          // Use the search endpoint we already have
-          const res = await axiosInstance.get("/products-multer/search", {
-            params: { q: freqProd.product.trim(), limit: 5 }
-          });
-          
-          const found = res.data?.products || [];
-          if (found.length === 0) {
-            console.warn(`No product found by name: ${freqProd.product}`);
-            return null;
-          }
-          
-          // Prefer exact (case-insensitive) name match
-          const exactMatch = found.find(
-            p => p.name?.trim().toLowerCase() === freqProd.product.trim().toLowerCase()
-          );
-          
-          const chosen = exactMatch || found[0];
-          console.log(`Matched "${freqProd.product}" to product:`, chosen.name, chosen._id);
-          
-          // Fetch the FULL product (search returns a slim object)
-          try {
-            const fullRes = await axiosInstance.get(`/products-multer/${chosen._id}`);
-            return fullRes.data;
-          } catch {
-            // Fall back to slim object if full fetch fails
-            return chosen;
-          }
-        } catch (err) {
-          console.error(`Failed to fetch product by name "${freqProd.product}":`, err.message);
-          return null;
-        }
-      });
+      console.log("Loaded products:", products);
       
-      const nameResults = await Promise.all(nameFetchPromises);
-      const validNameResults = nameResults.filter(p => p !== null);
-      
-      console.log("Products found by name:", validNameResults.length);
-      
-      // Merge, avoiding duplicates by _id
-      const existingIds = new Set(products.map(p => p._id?.toString()));
-      validNameResults.forEach(p => {
-        if (!existingIds.has(p._id?.toString())) {
-          products.push(p);
-          existingIds.add(p._id?.toString());
-        }
-      });
-    }
-    
-     console.log("Final loaded products:", products);
-    
-    if (products.length === 0) {
-      toast.error("No products found. Please check product data.");
-      setRawMaterials([]);
-      setLoading(false);
-      return;
-    }
-    
-    setRawMaterials(products);
-    
-    // Initialize states from saved sheets or based on unit
-    const initialRates = {};
-    const initialFreight = {};
-    const initialInPcs = {};
-    const initialWeights = {};
-    const initialCalculations = {};
-    const initialInternalNotes = {};
-    const initialRemarks = {};
-
-    products.forEach(product => {
-      // Check if there's a saved sheet for this product
-      const savedSheet = getLatestSheetForProduct(product._id);
-      const isKg = isUnitKg(product.unit || "");
-      // For non-kg units, force per-piece mode regardless of saved data
-      const defaultInPcs = !isKg;
-
-      if (savedSheet) {
-        console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
-        // Load saved values
-        initialRates[product._id] = savedSheet.conversionRate || 0;
-        initialFreight[product._id] = savedSheet.freight || 0;
-        initialInPcs[product._id] = !isKg ? true : (savedSheet.isInPcs || false);
-        initialInternalNotes[product._id] = savedSheet.internalNotes || "";
-        initialRemarks[product._id] = savedSheet.remarks || "";
-        // ✅ Load custom weight if saved
-        if (savedSheet.customWeight !== undefined && savedSheet.customWeight !== null) {
-          initialWeights[product._id] = savedSheet.customWeight;
-        }
-        
-        initialCalculations[product._id] = {
-          totalPerKg: savedSheet.totalPerKg,
-          pricePerPiece: savedSheet.pricePerPiece,
-          productWeight: savedSheet.productWeight,
-          freight: savedSheet.freight || 0,
-          totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
-          totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
-          isInPcs: savedSheet.isInPcs || false,
-          weightDisplay: product.weight
-        };
-      } else {
-        // Default values - set inPcs based on unit
-        const defaultInPcs = initializeInPcsMode(product);
-        initialRates[product._id] = 0;
-        initialFreight[product._id] = 0;
-        initialInPcs[product._id] = defaultInPcs;
+      if (products.length === 0) {
+        toast.error("No products found. Please check product IDs.");
+        setRawMaterials([]);
+        setLoading(false);
+        return;
       }
-    });
-    
-    setConversionRates(prev => Object.keys(prev).length ? prev : initialRates);
-    setFreightOutward(prev => Object.keys(prev).length ? prev : initialFreight);
-    setInPcsMode(prev => Object.keys(prev).length ? prev : initialInPcs);
-    setCustomWeights(prev => Object.keys(prev).length ? prev : initialWeights);
-    setCalculatedPrices(prev => Object.keys(prev).length ? prev : initialCalculations);
-    setInternalNotes(initialInternalNotes);
-    setRemarks(initialRemarks);
-    
-    // If there are no saved calculations, recalculate for products with rates
-    if (Object.keys(initialCalculations).length === 0) {
+      
+      setRawMaterials(products);
+      
+      // Initialize states from saved sheets or based on unit
+      const initialRates = {};
+      const initialFreight = {};
+      const initialInPcs = {};
+      const initialWeights = {};
+      const initialCalculations = {};
+      const initialInternalNotes = {};
+const initialRemarks = {};
+
       products.forEach(product => {
-        if (initialRates[product._id] > 0) {
-          calculateProductPrice(
-            product._id, 
-            initialRates[product._id], 
-            rmRate, 
-            initialInPcs[product._id], 
-            initialFreight[product._id],
-            initialWeights[product._id]
-          );
+        // Check if there's a saved sheet for this product
+        const savedSheet = getLatestSheetForProduct(product._id);
+  const isKg = isUnitKg(product.unit || "");
+  // For non-kg units, force per-piece mode regardless of saved data
+  const defaultInPcs = !isKg;
+
+        if (savedSheet) {
+          console.log(`Loading saved sheet for ${product.name}:`, savedSheet);
+  // Load saved values
+  initialRates[product._id] = savedSheet.conversionRate || 0;
+  initialFreight[product._id] = savedSheet.freight || 0;
+    initialInPcs[product._id] = !isKg ? true : (savedSheet.isInPcs || false);
+    initialInternalNotes[product._id] = savedSheet.internalNotes || "";
+  initialRemarks[product._id] = savedSheet.remarks || "";
+  // ✅ Load custom weight if saved
+  if (savedSheet.customWeight !== undefined && savedSheet.customWeight !== null) {
+    initialWeights[product._id] = savedSheet.customWeight;
+  }
+          
+          initialCalculations[product._id] = {
+            totalPerKg: savedSheet.totalPerKg,
+            pricePerPiece: savedSheet.pricePerPiece,
+            productWeight: savedSheet.productWeight,
+            freight: savedSheet.freight || 0,
+            totalWithFreight: savedSheet.totalWithFreight || savedSheet.pricePerPiece,
+            totalWithGST: savedSheet.totalWithGST || (savedSheet.pricePerPiece * 1.18),
+            isInPcs: savedSheet.isInPcs || false,
+            weightDisplay: product.weight
+          };
+        } else {
+          // Default values - set inPcs based on unit
+          const defaultInPcs = initializeInPcsMode(product);
+          initialRates[product._id] = 0;
+          initialFreight[product._id] = 0;
+          initialInPcs[product._id] = defaultInPcs;
         }
       });
+      
+   setConversionRates(prev => Object.keys(prev).length ? prev : initialRates);
+setFreightOutward(prev => Object.keys(prev).length ? prev : initialFreight);
+setInPcsMode(prev => Object.keys(prev).length ? prev : initialInPcs);
+setCustomWeights(prev => Object.keys(prev).length ? prev : initialWeights);
+setCalculatedPrices(prev => Object.keys(prev).length ? prev : initialCalculations);
+      setInternalNotes(initialInternalNotes);
+setRemarks(initialRemarks);
+      // If there are no saved calculations, recalculate for products with rates
+      if (Object.keys(initialCalculations).length === 0) {
+        products.forEach(product => {
+          if (initialRates[product._id] > 0) {
+            calculateProductPrice(
+              product._id, 
+              initialRates[product._id], 
+              rmRate, 
+              initialInPcs[product._id], 
+              initialFreight[product._id],
+              initialWeights[product._id]
+            );
+          }
+        });
+      }
+      
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      console.error("Error details:", err.response?.data);
+      toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
+      setRawMaterials([]);
+    } finally {
+      setLoading(false);
     }
-    
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    console.error("Error details:", err.response?.data);
-    toast.error("Failed to load products: " + (err.response?.data?.error || err.message));
-    setRawMaterials([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 const fetchSavedCostingSheets = async () => {
   try {
