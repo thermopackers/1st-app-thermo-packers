@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import OrderCell from './OrderCell';
 import SectionSelection from './SectionSelection';
 import StatusIndicator from './StatusIndicator';
@@ -7,6 +7,49 @@ import SectionActions from './SectionActions';
 import OrderActions from './OrderActions';
 import Swal from "sweetalert2";
 import axiosInstance from "../../axiosInstance";
+
+// ✅ NEW: Helpers for incoming payment column
+const getPaymentFileIcon = (fileUrl) => {
+  const ext = (fileUrl.split(".").pop() || "").toLowerCase();
+  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(ext)) return "🖼️";
+  if (ext === "pdf") return "📄";
+  if (["doc", "docx"].includes(ext)) return "📝";
+  if (["xls", "xlsx"].includes(ext)) return "📊";
+  return "📎";
+};
+
+const showPaymentFileInSwal = (fileUrl) => {
+  const fileName = fileUrl.split("/").pop();
+  const ext = (fileUrl.split(".").pop() || "").toLowerCase();
+  const imageExts = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
+
+  if (imageExts.includes(ext)) {
+    Swal.fire({
+      title: fileName,
+      imageUrl: fileUrl,
+      imageAlt: fileName,
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: "80%",
+    });
+  } else {
+    Swal.fire({
+      title: fileName,
+      html: `
+        <div class="text-center">
+          <div class="text-4xl mb-4">${getPaymentFileIcon(fileUrl)}</div>
+          <p class="text-gray-600 mb-4">Preview not available for this file type.</p>
+          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer"
+             class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Open / Download
+          </a>
+        </div>
+      `,
+      showCloseButton: true,
+      showConfirmButton: false,
+    });
+  }
+};
 
 const OrderRow = ({
   order,
@@ -32,13 +75,165 @@ const OrderRow = ({
   getCustomerPhone,
   sectionToSlipType,
   swalWithTailwindButtons,
-  token,
+    token,
   refetchOrders
 }) => {
 
+  // ✅ NEW: Incoming payments for this customer
+  const [customerPayments, setCustomerPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!order?.customerName) return;
+    let cancelled = false;
+
+    const fetchPayments = async () => {
+      try {
+        setPaymentsLoading(true);
+        const res = await axiosInstance.get("/incoming-payments", {
+          params: { customerName: order.customerName, limit: 100 },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) {
+          const list = res.data?.data || [];
+          list.sort(
+            (a, b) => new Date(b.dateOfPayment) - new Date(a.dateOfPayment)
+          );
+          setCustomerPayments(list);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incoming payments:", err);
+      } finally {
+        if (!cancelled) setPaymentsLoading(false);
+      }
+    };
+
+    fetchPayments();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.customerName, token]);
+
+  // ✅ NEW: Render the incoming payment cell
+  const renderIncomingPaymentCell = () => {
+    if (paymentsLoading) {
+      return <span className="text-xs text-gray-400">Loading…</span>;
+    }
+    if (!customerPayments.length) {
+      return <span className="text-xs text-gray-400">No payments</span>;
+    }
+
+    const totalReceived = customerPayments.reduce(
+      (sum, p) => sum + (parseFloat(p.amount) || 0),
+      0
+    );
+    const latest = customerPayments[0];
+
+    return (
+      <div className="flex flex-col gap-1 min-w-[150px]">
+        <div className="text-xs font-semibold text-green-700">
+          ₹{totalReceived.toLocaleString("en-IN")}
+          <span className="text-gray-500 font-normal"> ({customerPayments.length})</span>
+        </div>
+        <div className="text-xs text-gray-600 capitalize">
+          Latest: {latest.modeOfPayment}
+        </div>
+
+        {latest.files && latest.files.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {latest.files.slice(0, 2).map((file, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => showPaymentFileInSwal(file)}
+                className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded px-1.5 py-0.5 text-[10px]"
+                title="View file"
+              >
+                <span>{getPaymentFileIcon(file)}</span>
+                <span className="max-w-[60px] truncate">{file.split("/").pop()}</span>
+              </button>
+            ))}
+            {latest.files.length > 2 && (
+              <button
+                type="button"
+                onClick={() => {
+                  Swal.fire({
+                    title: `All Files (${latest.files.length})`,
+                    html: `
+                      <div class="space-y-2 max-h-96 overflow-y-auto text-left">
+                        ${latest.files
+                          .map(
+                            (file) => `
+                          <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <span class="text-sm">${getPaymentFileIcon(file)} ${file.split("/").pop()}</span>
+                            <a href="${file}" target="_blank" rel="noopener noreferrer"
+                               class="text-blue-600 text-sm font-medium">View</a>
+                          </div>`
+                          )
+                          .join("")}
+                      </div>
+                    `,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                  });
+                }}
+                className="bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-1.5 py-0.5 text-[10px] text-gray-600"
+              >
+                +{latest.files.length - 2}
+              </button>
+            )}
+          </div>
+        )}
+
+        {customerPayments.length > 1 && (
+          <button
+            type="button"
+            onClick={() => {
+              Swal.fire({
+                title: `Payments from ${order.customerName}`,
+                html: `
+                  <div class="space-y-2 max-h-96 overflow-y-auto text-left">
+                    ${customerPayments
+                      .map(
+                        (p) => `
+                      <div class="p-2 bg-gray-50 rounded border">
+                        <div class="flex justify-between text-sm font-semibold">
+                          <span>${new Date(p.dateOfPayment).toLocaleDateString("en-GB")}</span>
+                          <span>₹${(p.amount || 0).toLocaleString("en-IN")}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 capitalize">Mode: ${p.modeOfPayment}</div>
+                        ${
+                          p.files && p.files.length
+                            ? `<div class="mt-1 flex flex-wrap gap-1">${p.files
+                                .map(
+                                  (f) =>
+                                    `<a href="${f}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 underline">${f.split("/").pop()}</a>`
+                                )
+                                .join(" ")}</div>`
+                            : ""
+                        }
+                      </div>`
+                      )
+                      .join("")}
+                  </div>
+                `,
+                width: "600px",
+                showCloseButton: true,
+                showConfirmButton: false,
+              });
+            }}
+            className="text-[10px] text-blue-600 hover:underline text-left"
+          >
+            View all payments →
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // ✅ Check if order has multiple products
   const hasMultipleProducts = order.products && order.products.length > 0;
-  
+
   // ✅ For multi-product: store delivered quantities per product
   const [perProductDelivered, setPerProductDelivered] = useState(() => {
     if (hasMultipleProducts && order.products) {
@@ -352,6 +547,11 @@ const getStickyBgClass = () => {
             )}
           </div>
         </div>
+      </OrderCell>
+
+            {/* ✅ NEW: Incoming Payment (before Order Actions) */}
+      <OrderCell>
+        {renderIncomingPaymentCell()}
       </OrderCell>
 
        {/* Order Actions */}

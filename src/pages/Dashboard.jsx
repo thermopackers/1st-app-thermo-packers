@@ -19,7 +19,7 @@ import TaskAssignmentModal from "../components/TaskAssignmentModal";
 import ViewAllUsersModal from "../components/ViewAllUsersModal";
 import ProductRateChecker from "../components/calculateProductPrice";
 import ProductRateTable from "../components/ProductRateTable";
-
+import MoldDieForm from "../components/MoldDieForm";
 
 export default function Dashboard() {
  // Helper function to parse roles properly
@@ -81,6 +81,8 @@ const [birthdayUsers, setBirthdayUsers] = useState([]);
 const [showConfetti, setShowConfetti] = useState(false);
 const [expiringCertificates, setExpiringCertificates] = useState([]);
 const [showProductRates, setShowProductRates] = useState(false);
+const [showMoldDieForm, setShowMoldDieForm] = useState(false);
+
 // Add these new state variables
 const [expiringAirReceiverCertificates, setExpiringAirReceiverCertificates] = useState([]);
 const [expiringManualChainPullyCertificates, setExpiringManualChainPullyCertificates] = useState([]);
@@ -2996,6 +2998,50 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
             </DashboardCard>
           </DashboardSection>
           )}
+
+         {(userRoles.includes("accounts") || userRoles.includes("admin") || userRoles.includes("production")) && (
+            <DashboardSection>
+              <DashboardCard>
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+                  <span className="text-3xl">🔩</span>
+                  Mold/Die Record
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <ActionButton
+                    to="/mold-die-list"
+                    variant="ocean"
+                    icon="📋"
+                  >
+                    <div className="text-lg font-semibold mb-2">
+                      Die/Mold List
+                    </div>
+                    <div className="text-cyan-100 text-sm opacity-90">
+                      View all dies/molds with details
+                    </div>
+                  </ActionButton>
+
+                  <ActionButton
+                    to="/add-edit-mold-die"
+                    variant="sunset"
+                    icon="➕"
+                  >
+                    <div className="text-lg font-semibold mb-2">
+                      Add/Edit Die/Mold
+                    </div>
+                    <div className="text-pink-100 text-sm opacity-90">
+                      Add new or edit existing die/mold records
+                    </div>
+                  </ActionButton>
+                </div>
+              </DashboardCard>
+            </DashboardSection>
+          )}
+
+          {/* Mold/Die Form Modal */}
+          {showMoldDieForm && (
+            <MoldDieForm onClose={() => setShowMoldDieForm(false)} />
+          )}
+
 
         </div>
         {showPaymentForm && (

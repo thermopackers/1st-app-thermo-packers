@@ -126,6 +126,8 @@ import RawBlockStock from "../components/RawBlockStockReport";
 import AccountsMedia from '../pages/AccountsMedia';
 import PostsList from "../pages/PostsList";
 import AddPost from "../pages/AddPost";
+import MoldDieList from "../pages/MoldDieList";
+import AddEditMoldDie from "../pages/AddEditMoldDie";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -250,6 +252,9 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/mold-die-list" element={<MoldDieList />} />
+<Route path="/add-edit-mold-die" element={<AddEditMoldDie />} />
 
 {/* <Route
   path="/caremax-impex/manage-products"

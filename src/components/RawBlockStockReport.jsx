@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Plus, Trash2, Save, X, Calendar, Copy, Edit2, 
   Check, AlertCircle, Loader, ChevronLeft, ChevronRight, 
-  Search, Filter, RefreshCw, Info 
+  Search, Filter, RefreshCw, Info, Lock 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from "../axiosInstance";
@@ -106,7 +106,6 @@ const RawBlockStockReport = () => {
     return dateString;
   };
 
-  // Convert DD-MM-YYYY to comparable Date object
   const parseDate = (dateStr) => {
     if (!dateStr) return new Date(0);
     const formatted = formatDateToDDMMYYYY(dateStr);
@@ -114,31 +113,17 @@ const RawBlockStockReport = () => {
     return new Date(`${year}-${month}-${day}`);
   };
 
-  // Compare two dates in DD-MM-YYYY format
-  const isDateBefore = (dateA, dateB) => {
-    return parseDate(dateA) < parseDate(dateB);
-  };
-
-  const isDateAfter = (dateA, dateB) => {
-    return parseDate(dateA) > parseDate(dateB);
-  };
-
-  const isSameDate = (dateA, dateB) => {
-    return formatDateToDDMMYYYY(dateA) === formatDateToDDMMYYYY(dateB);
-  };
+  const isDateBefore = (dateA, dateB) => parseDate(dateA) < parseDate(dateB);
+  const isDateAfter = (dateA, dateB) => parseDate(dateA) > parseDate(dateB);
+  const isSameDate = (dateA, dateB) => formatDateToDDMMYYYY(dateA) === formatDateToDDMMYYYY(dateB);
 
   // ==================== CARRY FORWARD LOGIC ====================
   
-  /**
-   * Get the immediate previous entry (before the given date)
-   * Uses ALL loaded entries (not just current page)
-   */
   const getPreviousEntry = (date) => {
     const sorted = [...entries]
       .filter(e => e.date && !isSameDate(e.date, date))
       .sort((a, b) => parseDate(a.date) - parseDate(b.date));
     
-    // Find the entry with the largest date that is still before `date`
     let previousEntry = null;
     for (const entry of sorted) {
       if (isDateBefore(entry.date, date)) {
@@ -150,41 +135,12 @@ const RawBlockStockReport = () => {
     return previousEntry;
   };
 
-  /**
-   * Get carried-forward stock for a specific column from previous entry
-   */
-  const getCarriedForwardStock = (columnKey, date, allEntries = entries) => {
-    const sorted = [...allEntries]
-      .filter(e => e.date && !isSameDate(e.date, date))
-      .sort((a, b) => parseDate(a.date) - parseDate(b.date));
-    
-    let previousEntry = null;
-    for (const entry of sorted) {
-      if (isDateBefore(entry.date, date)) {
-        if (!previousEntry || isDateAfter(entry.date, previousEntry.date)) {
-          previousEntry = entry;
-        }
-      }
-    }
-    
-    if (previousEntry && previousEntry[columnKey]) {
-      return Math.max(0, previousEntry[columnKey].totalBalance || 0);
-    }
-    return 0;
-  };
-
-  /**
-   * Recalculate all balances with carry-forward logic
-   * Sort entries oldest -> newest, then calculate each one's balance
-   */
   const recalculateWithCarryForward = (allEntries) => {
-    // Sort oldest first
     const sorted = [...allEntries].sort((a, b) => parseDate(a.date) - parseDate(b.date));
     
     const recalculated = [];
-    let previousBalances = {}; // { columnKey: balance }
+    let previousBalances = {};
     
-    // Initialize with 0
     columns.forEach(col => {
       previousBalances[col.key] = 0;
     });
@@ -200,16 +156,16 @@ const RawBlockStockReport = () => {
           totalBalance: 0
         };
         
-        // Auto-fill stock in hand from previous balance
-        // Only if the entry doesn't have a manually set stockInHand
-        // (we treat stockInHand === 0 as "not set" - can be adjusted)
         const carriedStock = previousBalances[col.key] || 0;
         
-        // If the entry has 0 stockInHand, auto-fill from carry forward
-        // (For existing data with real stockInHand values, we respect them)
-        const effectiveStock = existing.stockInHand > 0 
-          ? existing.stockInHand 
-          : carriedStock;
+        // Stock in Hand is always driven by carry-forward
+        // Preserve locked value (historical saved data), otherwise use carry-forward
+        let effectiveStock;
+        if (existing.isLocked && existing.stockInHand > 0) {
+          effectiveStock = existing.stockInHand;
+        } else {
+          effectiveStock = carriedStock;
+        }
         
         const newProduction = Math.max(0, existing.newProduction || 0);
         const totalUsed = Math.max(0, existing.totalUsed || 0);
@@ -219,10 +175,10 @@ const RawBlockStockReport = () => {
           stockInHand: effectiveStock,
           newProduction,
           totalUsed,
-          totalBalance
+          totalBalance,
+          isLocked: true // Always locked
         };
         
-        // Store balance for next entry
         previousBalances[col.key] = totalBalance;
       });
       
@@ -238,34 +194,34 @@ const RawBlockStockReport = () => {
     {
       _id: '1',
       date: '28-08-2026',
-      whiteND16kg20kgs: { stockInHand: 10, newProduction: 2, totalUsed: 1, totalBalance: 11 },
-      white8kg32kgs: { stockInHand: 8, newProduction: 3, totalUsed: 1, totalBalance: 10 },
-      white10kg42kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13 },
-      white12kg52kgs: { stockInHand: 6, newProduction: 2, totalUsed: 1, totalBalance: 7 },
-      white14kg62kgs: { stockInHand: 15, newProduction: 6, totalUsed: 4, totalBalance: 17 },
-      white16kg72kgs: { stockInHand: 9, newProduction: 3, totalUsed: 2, totalBalance: 10 },
-      pink13_14kg55kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8 },
-      pink15_16kg72kgs: { stockInHand: 11, newProduction: 4, totalUsed: 3, totalBalance: 12 },
-      pink20kg92kgs: { stockInHand: 5, newProduction: 1, totalUsed: 0, totalBalance: 6 },
-      whiteFR15_16kg65kgs: { stockInHand: 13, newProduction: 5, totalUsed: 2, totalBalance: 16 },
-      patterns20kg92kgs: { stockInHand: 4, newProduction: 2, totalUsed: 1, totalBalance: 5 },
-      patterns24kg112kgs: { stockInHand: 3, newProduction: 1, totalUsed: 0, totalBalance: 4 }
+      whiteND16kg20kgs: { stockInHand: 10, newProduction: 2, totalUsed: 1, totalBalance: 11, isLocked: true },
+      white8kg32kgs: { stockInHand: 8, newProduction: 3, totalUsed: 1, totalBalance: 10, isLocked: true },
+      white10kg42kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13, isLocked: true },
+      white12kg52kgs: { stockInHand: 6, newProduction: 2, totalUsed: 1, totalBalance: 7, isLocked: true },
+      white14kg62kgs: { stockInHand: 15, newProduction: 6, totalUsed: 4, totalBalance: 17, isLocked: true },
+      white16kg72kgs: { stockInHand: 9, newProduction: 3, totalUsed: 2, totalBalance: 10, isLocked: true },
+      pink13_14kg55kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8, isLocked: true },
+      pink15_16kg72kgs: { stockInHand: 11, newProduction: 4, totalUsed: 3, totalBalance: 12, isLocked: true },
+      pink20kg92kgs: { stockInHand: 5, newProduction: 1, totalUsed: 0, totalBalance: 6, isLocked: true },
+      whiteFR15_16kg65kgs: { stockInHand: 13, newProduction: 5, totalUsed: 2, totalBalance: 16, isLocked: true },
+      patterns20kg92kgs: { stockInHand: 4, newProduction: 2, totalUsed: 1, totalBalance: 5, isLocked: true },
+      patterns24kg112kgs: { stockInHand: 3, newProduction: 1, totalUsed: 0, totalBalance: 4, isLocked: true }
     },
     {
       _id: '2',
       date: '29-08-2026',
-      whiteND16kg20kgs: { stockInHand: 11, newProduction: 5, totalUsed: 2, totalBalance: 14 },
-      white8kg32kgs: { stockInHand: 10, newProduction: 3, totalUsed: 1, totalBalance: 12 },
-      white10kg42kgs: { stockInHand: 13, newProduction: 4, totalUsed: 3, totalBalance: 14 },
-      white12kg52kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8 },
-      white14kg62kgs: { stockInHand: 17, newProduction: 6, totalUsed: 4, totalBalance: 19 },
-      white16kg72kgs: { stockInHand: 10, newProduction: 3, totalUsed: 2, totalBalance: 11 },
-      pink13_14kg55kgs: { stockInHand: 8, newProduction: 2, totalUsed: 1, totalBalance: 9 },
-      pink15_16kg72kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13 },
-      pink20kg92kgs: { stockInHand: 6, newProduction: 1, totalUsed: 0, totalBalance: 7 },
-      whiteFR15_16kg65kgs: { stockInHand: 16, newProduction: 5, totalUsed: 2, totalBalance: 19 },
-      patterns20kg92kgs: { stockInHand: 5, newProduction: 2, totalUsed: 1, totalBalance: 6 },
-      patterns24kg112kgs: { stockInHand: 4, newProduction: 1, totalUsed: 0, totalBalance: 5 }
+      whiteND16kg20kgs: { stockInHand: 11, newProduction: 5, totalUsed: 2, totalBalance: 14, isLocked: true },
+      white8kg32kgs: { stockInHand: 10, newProduction: 3, totalUsed: 1, totalBalance: 12, isLocked: true },
+      white10kg42kgs: { stockInHand: 13, newProduction: 4, totalUsed: 3, totalBalance: 14, isLocked: true },
+      white12kg52kgs: { stockInHand: 7, newProduction: 2, totalUsed: 1, totalBalance: 8, isLocked: true },
+      white14kg62kgs: { stockInHand: 17, newProduction: 6, totalUsed: 4, totalBalance: 19, isLocked: true },
+      white16kg72kgs: { stockInHand: 10, newProduction: 3, totalUsed: 2, totalBalance: 11, isLocked: true },
+      pink13_14kg55kgs: { stockInHand: 8, newProduction: 2, totalUsed: 1, totalBalance: 9, isLocked: true },
+      pink15_16kg72kgs: { stockInHand: 12, newProduction: 4, totalUsed: 3, totalBalance: 13, isLocked: true },
+      pink20kg92kgs: { stockInHand: 6, newProduction: 1, totalUsed: 0, totalBalance: 7, isLocked: true },
+      whiteFR15_16kg65kgs: { stockInHand: 16, newProduction: 5, totalUsed: 2, totalBalance: 19, isLocked: true },
+      patterns20kg92kgs: { stockInHand: 5, newProduction: 2, totalUsed: 1, totalBalance: 6, isLocked: true },
+      patterns24kg112kgs: { stockInHand: 4, newProduction: 1, totalUsed: 0, totalBalance: 5, isLocked: true }
     }
   ];
 
@@ -296,9 +252,38 @@ const RawBlockStockReport = () => {
         const production = sanitized[col.key].newProduction || 0;
         const used = sanitized[col.key].totalUsed || 0;
         sanitized[col.key].totalBalance = Math.max(0, stock + production - used);
+        sanitized[col.key].isLocked = true; // Always locked
       }
     });
     return sanitized;
+  };
+
+  // ==================== LOCKING HELPERS ====================
+  
+  const lockStockInHand = (entry) => {
+    const locked = { ...entry };
+    columns.forEach(col => {
+      if (locked[col.key]) {
+        locked[col.key] = {
+          ...locked[col.key],
+          isLocked: true
+        };
+      } else {
+        locked[col.key] = {
+          stockInHand: 0,
+          newProduction: 0,
+          totalUsed: 0,
+          totalBalance: 0,
+          isLocked: true
+        };
+      }
+    });
+    return locked;
+  };
+
+  const isStockCellLocked = (entry, columnKey) => {
+    if (!entry || !entry[columnKey]) return true; // Default to locked
+    return true; // Always locked — stock in hand is never manually editable
   };
 
   // ==================== FETCH ====================
@@ -306,7 +291,6 @@ const RawBlockStockReport = () => {
   const fetchEntries = async (page = 1) => {
     setLoading(true);
     try {
-      // Fetch ALL entries (large limit) so carry-forward works across pages
       let url = `/raw-block-stock?page=1&limit=1000`;
       url += `&sortField=date&sortOrder=asc`;
       
@@ -327,17 +311,13 @@ const RawBlockStockReport = () => {
       const response = await axiosInstance.get(url);
       const data = response.data?.data || [];
       
-      // Sanitize + normalize dates
       const sanitizedData = data.map(entry => {
         const sanitized = sanitizeEntry(entry);
         sanitized.date = formatDateToDDMMYYYY(sanitized.date);
         return sanitized;
       });
       
-      // Apply carry-forward recalculation
       const recalculated = recalculateWithCarryForward(sanitizedData);
-      
-      // Sort newest first for display
       recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
       
       setEntries(recalculated);
@@ -383,13 +363,12 @@ const RawBlockStockReport = () => {
         hasPrev: false
       });
       
-      showToast('Using mock data with carry-forward', 'warning');
+      showToast('Using mock data', 'warning');
     } finally {
       setLoading(false);
     }
   };
 
-  // Get paginated entries for display
   const getPaginatedEntries = () => {
     const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
     const endIndex = startIndex + pagination.itemsPerPage;
@@ -427,9 +406,6 @@ const RawBlockStockReport = () => {
 
   // ==================== ADD / CREATE ====================
   
-  /**
-   * Build a new entry with stock carried forward from previous date
-   */
   const buildNewEntryWithCarryForward = (date, sourceEntry = null) => {
     const formattedDate = formatDateToDDMMYYYY(date);
     const previousEntry = getPreviousEntry(formattedDate);
@@ -437,25 +413,19 @@ const RawBlockStockReport = () => {
     const entryData = { date: formattedDate };
     
     columns.forEach(col => {
-      let stockInHand = 0;
       let newProduction = 0;
       let totalUsed = 0;
       
+      // Copy production/usage from source if provided
       if (sourceEntry && sourceEntry[col.key]) {
-        // When copying from source, use source values
-        // (but stock in hand should still carry forward)
         newProduction = Math.max(0, sourceEntry[col.key].newProduction || 0);
         totalUsed = Math.max(0, sourceEntry[col.key].totalUsed || 0);
-        // Stock in hand = previous balance (carry forward)
-        stockInHand = previousEntry && previousEntry[col.key]
-          ? Math.max(0, previousEntry[col.key].totalBalance || 0)
-          : 0;
-      } else {
-        // No source - carry forward the balance from previous date
-        stockInHand = previousEntry && previousEntry[col.key]
-          ? Math.max(0, previousEntry[col.key].totalBalance || 0)
-          : 0;
       }
+      
+      // Stock in Hand ALWAYS carries forward from previous date's balance
+      const stockInHand = previousEntry && previousEntry[col.key]
+        ? Math.max(0, previousEntry[col.key].totalBalance || 0)
+        : 0;
       
       const totalBalance = Math.max(0, stockInHand + newProduction - totalUsed);
       
@@ -463,7 +433,8 @@ const RawBlockStockReport = () => {
         stockInHand,
         newProduction,
         totalUsed,
-        totalBalance
+        totalBalance,
+        isLocked: true // Locked from the moment it's created
       };
     });
     
@@ -485,7 +456,7 @@ const RawBlockStockReport = () => {
     setEntries(prev => [newEntryData, ...prev]);
     setShowDateInput(false);
     setSelectedDate('');
-    showToast(`New entry created for ${formattedDate} with carried-forward stock`, 'success');
+    showToast(`New entry created for ${formattedDate}. Stock in Hand is locked (carried forward).`, 'success');
   };
 
   const handleShowDateInput = () => setShowDateInput(true);
@@ -534,34 +505,39 @@ const RawBlockStockReport = () => {
     if (!newEntry) return;
     
     setSaving(true);
+    
+    // Lock before saving (safety - already locked but just in case)
+    const lockedNewEntry = lockStockInHand(newEntry);
+    setNewEntry(lockedNewEntry);
+    
     try {
-      const sanitizedEntry = sanitizeEntry(newEntry);
+      const sanitizedEntry = sanitizeEntry(lockedNewEntry);
       sanitizedEntry.date = formatDateToDDMMYYYY(sanitizedEntry.date);
       
       const response = await axiosInstance.post('/raw-block-stock', sanitizedEntry);
-      const savedEntry = response.data.data;
+      let savedEntry = response.data.data;
       savedEntry.date = formatDateToDDMMYYYY(savedEntry.date);
+      savedEntry = lockStockInHand(savedEntry);
       
-      // Replace temp entry with saved
       const updatedEntries = entries.map(entry => 
-        entry === newEntry ? savedEntry : entry
+        entry === newEntry || entry === lockedNewEntry ? savedEntry : entry
       );
       
-      // Recalculate all carry-forward
       const recalculated = recalculateWithCarryForward(updatedEntries);
       recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
       
       setEntries(recalculated);
       setNewEntry(null);
-      showToast('Entry saved! Balances recalculated for all subsequent dates.', 'success');
+      showToast('Entry saved! Stock in Hand is locked.', 'success');
     } catch (err) {
       console.warn('API save failed, saving locally:', err.message);
-      const sanitizedEntry = sanitizeEntry(newEntry);
+      const sanitizedEntry = sanitizeEntry(lockedNewEntry);
       sanitizedEntry.date = formatDateToDDMMYYYY(sanitizedEntry.date);
-      const savedEntry = { ...sanitizedEntry, _id: `temp_${Date.now()}` };
+      let savedEntry = { ...sanitizedEntry, _id: `temp_${Date.now()}` };
+      savedEntry = lockStockInHand(savedEntry);
       
       const updatedEntries = entries.map(entry => 
-        entry === newEntry ? savedEntry : entry
+        entry === newEntry || entry === lockedNewEntry ? savedEntry : entry
       );
       
       const recalculated = recalculateWithCarryForward(updatedEntries);
@@ -569,7 +545,7 @@ const RawBlockStockReport = () => {
       
       setEntries(recalculated);
       setNewEntry(null);
-      showToast('Entry saved locally with recalculated balances', 'warning');
+      showToast('Entry saved locally. Stock in Hand is locked.', 'warning');
     } finally {
       setSaving(false);
     }
@@ -595,13 +571,15 @@ const RawBlockStockReport = () => {
     showToast('Editing cancelled', 'warning');
   };
 
-  /**
-   * Update editing cell - also recalc balance
-   * Stock in Hand: manual override (uses typed value)
-   * Other fields: recalc balance
-   */
   const updateEditingCell = (columnKey, rowType, value) => {
     if (!editingData) return;
+    
+    // Block editing of stockInHand — always locked
+    if (rowType === 'stockInHand') {
+      showToast('Stock in Hand is locked and cannot be edited.', 'warning');
+      return;
+    }
+    
     const sanitizedValue = sanitizeValue(value);
     
     const updatedData = { ...editingData };
@@ -610,13 +588,13 @@ const RawBlockStockReport = () => {
         stockInHand: 0,
         newProduction: 0,
         totalUsed: 0,
-        totalBalance: 0
+        totalBalance: 0,
+        isLocked: true
       };
     }
     
     updatedData[columnKey][rowType] = sanitizedValue;
     
-    // Recalc balance for this column
     const stock = Math.max(0, updatedData[columnKey].stockInHand || 0);
     const production = Math.max(0, updatedData[columnKey].newProduction || 0);
     const used = Math.max(0, updatedData[columnKey].totalUsed || 0);
@@ -625,36 +603,35 @@ const RawBlockStockReport = () => {
     setEditingData(updatedData);
   };
 
-  /**
-   * Save edited entry - and RECALCULATE all subsequent dates' carry-forward
-   */
   const saveEditing = async () => {
     if (!editingData) return;
     
     setSaving(true);
+    
+    const lockedData = lockStockInHand(editingData);
+    setEditingData(lockedData);
+    
     try {
-      const sanitizedData = sanitizeEntry(editingData);
+      const sanitizedData = sanitizeEntry(lockedData);
       sanitizedData.date = formatDateToDDMMYYYY(sanitizedData.date);
       
       const response = await axiosInstance.put(`/raw-block-stock/${sanitizedData._id}`, sanitizedData);
-      const updatedEntry = response.data.data;
+      let updatedEntry = response.data.data;
       updatedEntry.date = formatDateToDDMMYYYY(updatedEntry.date);
+      updatedEntry = lockStockInHand(updatedEntry);
       
-      // Replace in entries
       const updatedEntries = entries.map(entry => 
         entry._id === sanitizedData._id ? updatedEntry : entry
       );
       
-      // Recalculate carry-forward for ALL entries
       const recalculated = recalculateWithCarryForward(updatedEntries);
       recalculated.sort((a, b) => parseDate(b.date) - parseDate(a.date));
       
       setEntries(recalculated);
       setEditingEntryId(null);
       setEditingData(null);
-      showToast('Entry updated! All subsequent balances recalculated.', 'success');
+      showToast('Entry updated! Stock in Hand locked.', 'success');
       
-      // Optionally sync to backend
       syncRecalculatedEntries(recalculated);
     } catch (err) {
       console.error('Error updating entry:', err);
@@ -664,10 +641,6 @@ const RawBlockStockReport = () => {
     }
   };
 
-  /**
-   * Sync recalculated entries to backend (in background)
-   * Updates only entries whose stockInHand / totalBalance changed
-   */
   const syncRecalculatedEntries = async (recalculated) => {
     try {
       const updates = recalculated
@@ -689,6 +662,11 @@ const RawBlockStockReport = () => {
   // ==================== CELL UPDATE (NEW ENTRY) ====================
   
   const handleUpdateCell = (entryId, columnKey, rowType, value) => {
+    // Block editing of stockInHand — always locked
+    if (rowType === 'stockInHand') {
+      return;
+    }
+    
     const sanitizedValue = sanitizeValue(value);
     
     setEntries(prev => prev.map(entry => {
@@ -703,7 +681,8 @@ const RawBlockStockReport = () => {
             stockInHand: 0,
             newProduction: 0,
             totalUsed: 0,
-            totalBalance: 0
+            totalBalance: 0,
+            isLocked: true
           };
         }
         updatedEntry[columnKey][rowType] = sanitizedValue;
@@ -756,7 +735,6 @@ const RawBlockStockReport = () => {
     return Math.max(0, editingData[columnKey][rowType] || 0);
   };
 
-  // Get entries for display (paginated)
   const displayEntries = getPaginatedEntries();
 
   if (loading && entries.length === 0) {
@@ -823,7 +801,6 @@ const RawBlockStockReport = () => {
               >
                 <Calendar className="h-4 w-4" /> Add Entry for Date
               </button>
-            
             </div>
           </div>
 
@@ -906,7 +883,7 @@ const RawBlockStockReport = () => {
           {showDateInput && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <h3 className="font-semibold text-gray-700 mb-3">Add Entry for Specific Date</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
                   <input
@@ -916,21 +893,7 @@ const RawBlockStockReport = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Copy Production/Usage From (Optional)
-                  </label>
-                  <select
-                    value={copyFromDate}
-                    onChange={handleCopyFromDate}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">None (Start Fresh)</option>
-                    {getUniqueDates().map((date, idx) => (
-                      <option key={idx} value={date}>{date}</option>
-                    ))}
-                  </select>
-                </div>
+                
                 <div className="flex items-end gap-2">
                   <button
                     onClick={handleCreateWithCopy}
@@ -957,7 +920,7 @@ const RawBlockStockReport = () => {
                 </div>
               </div>
               <p className="mt-2 text-xs text-blue-600">
-                ℹ️ Stock in Hand will auto-fill from the previous date's Total Balance.
+                ℹ️ Stock in Hand will auto-fill from the previous date's Total Balance and is <strong>always locked</strong>.
               </p>
             </div>
           )}
@@ -996,7 +959,6 @@ const RawBlockStockReport = () => {
                     const isSavingThis = saving && isNewEntry;
                     const displayEntry = isEditing ? editingData : entry;
                     
-                    // Check if this entry's stock was carried forward
                     const previousEntry = getPreviousEntry(entry.date);
                     const hasCarryForward = !!previousEntry;
 
@@ -1013,11 +975,6 @@ const RawBlockStockReport = () => {
                               {isEditing && (
                                 <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">Editing</span>
                               )}
-                              {/* {hasCarryForward && !isNewEntry && (
-                                <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full" title={`Carried forward from ${previousEntry.date}`}>
-                                  🔄 CF
-                                </span>
-                              )} */}
                               {isSavingThis && (
                                 <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                                   <Loader className="h-3 w-3 animate-spin" /> Saving...
@@ -1093,6 +1050,9 @@ const RawBlockStockReport = () => {
                                 ${isBalanceRow ? 'font-bold text-teal-700 bg-teal-50' : 'text-gray-600 bg-white'}`}>
                                 <div className="flex items-center gap-1">
                                   {rowType.label}
+                                  {isStockRow && (
+                                    <Lock className="h-3 w-3 text-amber-500" title="Locked (auto carry-forward)" />
+                                  )}
                                   {isStockRow && hasCarryForward && (
                                     <span className="text-xs text-teal-600 font-normal" title="Auto-carried from previous date">
                                       (auto)
@@ -1107,60 +1067,53 @@ const RawBlockStockReport = () => {
                                 
                                 return (
                                   <td key={colIndex} className="p-2 border-b border-r border-gray-200">
-                                    {isEditingRow && !isBalanceRow ? (
+                                    {/* 1️⃣ Balance row — always read-only */}
+                                    {isBalanceRow ? (
+                                      <span className="block text-center font-bold text-teal-700">
+                                        {value}
+                                      </span>
+                                    ) : isStockRow ? (
+                                      /* 2️⃣ Stock in Hand — ALWAYS locked (new + saved + editing) */
+                                      <div 
+                                        className="w-full p-1 text-sm text-center border border-amber-300 bg-amber-50 rounded-lg cursor-not-allowed flex items-center justify-center gap-1 select-none"
+                                        title="Stock in Hand is locked. It auto-carries forward from the previous date's Total Balance."
+                                      >
+                                        <Lock className="h-3 w-3 text-amber-600" />
+                                        <span className="font-semibold text-amber-800">{value}</span>
+                                      </div>
+                                    ) : (isEditingRow || isNewEntry) ? (
+                                      /* 3️⃣ Editable — only New Production / Total Used */
                                       <input
                                         type="number"
                                         min="0"
                                         value={value || ''}
                                         onChange={(e) => {
                                           const val = e.target.value;
-                                          updateEditingCell(col.key, rowType.key, val === '' ? 0 : val);
-                                        }}
-                                        onBlur={(e) => {
-                                          const val = Number(e.target.value);
-                                          if (val < 0 || isNaN(val)) {
-                                            updateEditingCell(col.key, rowType.key, 0);
-                                          }
-                                        }}
-                                        className={`w-full p-1 text-sm text-center border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
-                                          isStockRow 
-                                            ? 'border-teal-300 bg-teal-50 focus:ring-teal-500' 
-                                            : 'border-gray-300 focus:ring-blue-500'
-                                        }`}
-                                        placeholder="0"
-                                        disabled={saving}
-                                      />
-                                    ) : isEditingRow && isBalanceRow ? (
-                                      <span className="block text-center font-bold text-teal-700">{value}</span>
-                                    ) : isNewEntry && !isBalanceRow ? (
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={value || ''}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          const identifier = entry._id || entry;
-                                          handleUpdateCell(identifier, col.key, rowType.key, val === '' ? 0 : val);
-                                        }}
-                                        onBlur={(e) => {
-                                          const val = Number(e.target.value);
-                                          if (val < 0 || isNaN(val)) {
+                                          if (isEditingRow) {
+                                            updateEditingCell(col.key, rowType.key, val === '' ? 0 : val);
+                                          } else {
                                             const identifier = entry._id || entry;
-                                            handleUpdateCell(identifier, col.key, rowType.key, 0);
+                                            handleUpdateCell(identifier, col.key, rowType.key, val === '' ? 0 : val);
                                           }
                                         }}
-                                        className={`w-full p-1 text-sm text-center border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
-                                          isStockRow 
-                                            ? 'border-teal-300 bg-teal-50 focus:ring-teal-500' 
-                                            : 'border-gray-300 focus:ring-teal-500'
-                                        }`}
+                                        onBlur={(e) => {
+                                          const val = Number(e.target.value);
+                                          if (val < 0 || isNaN(val)) {
+                                            if (isEditingRow) {
+                                              updateEditingCell(col.key, rowType.key, 0);
+                                            } else {
+                                              const identifier = entry._id || entry;
+                                              handleUpdateCell(identifier, col.key, rowType.key, 0);
+                                            }
+                                          }
+                                        }}
+                                        className="w-full p-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                         placeholder="0"
                                         disabled={saving}
                                       />
                                     ) : (
-                                      <span className={`block text-center ${isBalanceRow ? 'font-bold text-teal-700' : 'text-gray-700'}`}>
-                                        {value}
-                                      </span>
+                                      /* 4️⃣ Read-only view for saved entries (not editing) */
+                                      <span className="block text-center text-gray-700">{value}</span>
                                     )}
                                   </td>
                                 );
@@ -1294,13 +1247,9 @@ const RawBlockStockReport = () => {
             </div>
           </div>
         )}
-
-    
-      
       </div>
     </div>
-        </>
-
+    </>
   );
 };
 

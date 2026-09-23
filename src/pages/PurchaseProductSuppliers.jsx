@@ -49,6 +49,8 @@ export default function PurchaseProductSuppliers() {
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
     const [pdfGenerating, setPdfGenerating] = useState(false);
+    const [matchingSuppliers, setMatchingSuppliers] = useState([]);
+    const [loadingSuppliers, setLoadingSuppliers] = useState(false);
     
     const userRoles = user ? parseUserRoles(user) : [];
 
@@ -96,10 +98,40 @@ export default function PurchaseProductSuppliers() {
         setSearchResults([]);
     };
 
+    // Fetch suppliers matching the product's category
+    const fetchMatchingSuppliers = async (categoryName) => {
+        if (!categoryName) {
+            setMatchingSuppliers([]);
+            return;
+        }
+        setLoadingSuppliers(true);
+        try {
+            const res = await axiosInstance.get(
+                `/suppliers/by-category/${encodeURIComponent(categoryName)}`
+            );
+            if (res.data.success) {
+                setMatchingSuppliers(res.data.suppliers || []);
+            } else {
+                setMatchingSuppliers([]);
+            }
+        } catch (err) {
+            console.warn("Failed to fetch matching suppliers", err);
+            setMatchingSuppliers([]);
+        } finally {
+            setLoadingSuppliers(false);
+        }
+    };
+
     // View product details
     const viewProductDetails = (product) => {
         setSelectedProduct(product);
         setShowProductModal(true);
+        // Fetch matching suppliers based on product's category
+        if (product?.category?.name) {
+            fetchMatchingSuppliers(product.category.name);
+        } else {
+            setMatchingSuppliers([]);
+        }
     };
 
     // View supplier details
@@ -108,182 +140,362 @@ export default function PurchaseProductSuppliers() {
         setShowSupplierModal(true);
     };
 
-    // Optimized: Generate PDF with images using direct URL (faster)
-  // Generate PDF for product with smaller images
-const generateProductPDF = async (product) => {
-    setPdfGenerating(true);
-    try {
-        const doc = new jsPDF();
-        
-        // Add header
-        doc.setFontSize(18);
-        doc.text("Product Details", 14, 22);
-        doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-        doc.line(14, 32, 196, 32);
-
-        let yPos = 40;
-        const lineHeight = 10;
-
-        // Product details
-        const details = [
-            ["Name", product.name || "N/A"],
-            ["Unit", product.unit || "N/A"],
-            ["Weight", product.weight ? `${product.weight} kg` : "N/A"],
-            ["HSN Code", product.hsnCode || "N/A"],
-            ["GST Percent", product.gstPercent ? `${product.gstPercent}%` : "N/A"],
-            ["Price", product.price ? `₹${product.price}` : "N/A"],
-            ["Stock", product.stock || 0],
-            ["Available Quantity", product.availableQuantity || 0],
-            ["Category", product.category?.name || "N/A"],
-            ["Description", product.description || "N/A"],
-            ["Comment", product.comment || "N/A"],
-            ["Is Gift Item", product.isGiftItem ? "Yes" : "No"],
-            ["Gift Category", product.giftCategory || "N/A"],
-            ["Created At", product.createdAt ? new Date(product.createdAt).toLocaleDateString() : "N/A"]
-        ];
-
-        details.forEach(([label, value]) => {
-            doc.setFontSize(11);
-            doc.setFont("helvetica", "bold");
-            doc.text(label + ":", 14, yPos);
-            doc.setFont("helvetica", "normal");
-            const valueStr = String(value);
-            const wrappedText = doc.splitTextToSize(valueStr, 140);
-            doc.text(wrappedText, 60, yPos);
-            yPos += lineHeight * Math.max(1, wrappedText.length);
-        });
-
-        // Add product images - SMALLER VERSION
-        const allImages = [
-            ...(product.files || []).slice(0, 4).map(f => ({ url: f.url, type: 'Product' })),
-            ...(product.internalImages || []).slice(0, 4).map(f => ({ url: f.url, type: 'Internal' }))
-        ];
-
-        if (allImages.length > 0) {
-            yPos += 10;
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Product Images", 14, yPos);
-            yPos += 10;
-
-            // Load images in parallel
-            const imagePromises = allImages.map(async (img, index) => {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
-                    
-                    const response = await fetch(img.url, { 
-                        signal: controller.signal,
-                        mode: 'cors'
-                    });
-                    clearTimeout(timeoutId);
-                    
-                    if (!response.ok) return null;
-                    
-                    const blob = await response.blob();
-                    const reader = new FileReader();
-                    
-                    return new Promise((resolve) => {
-                        reader.onload = () => resolve({
-                            data: reader.result,
-                            index: index,
-                            type: img.type
-                        });
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (error) {
-                    console.error(`Error loading image ${index}:`, error);
-                    return null;
-                }
+    // Generate PDF for product with smaller images
+    const generateProductPDF = async (product) => {
+        setPdfGenerating(true);
+        try {
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
             });
 
-            const results = await Promise.all(imagePromises);
-            const loadedImages = results.filter(r => r !== null);
+            const PAGE_WIDTH = 210;
+            const PAGE_HEIGHT = 297;
+            const MARGIN = 10;
+            const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2; // 190mm
 
-            // Add images to PDF with SMALLER dimensions
-            let imageYPos = yPos;
-            let imagesInRow = 0;
-            const maxImagesPerRow = 2;
-            
-            // SMALLER image sizes - reduced from 85x65 to 55x45
-            const maxWidth = 35;  // Reduced from 85
-            const maxHeight = 25; // Reduced from 65
+            let yPos = MARGIN;
 
-            for (const imgData of loadedImages) {
-                try {
-                    const img = new Image();
-                    img.src = imgData.data;
-                    await new Promise((resolve) => {
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                    });
+            // ==================== HEADER ====================
+            doc.setFillColor(41, 128, 185);
+            doc.rect(0, 0, PAGE_WIDTH, 14, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("PRODUCT DETAILS", PAGE_WIDTH / 2, 9, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
 
-                    let width = img.width || 200;
-                    let height = img.height || 200;
-                    
-                    if (width > maxWidth) {
-                        height = (height * maxWidth) / width;
-                        width = maxWidth;
-                    }
-                    if (height > maxHeight) {
-                        width = (width * maxHeight) / height;
-                        height = maxHeight;
-                    }
+            yPos = 18;
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, MARGIN, yPos);
+            doc.setTextColor(0, 0, 0);
 
-                    const widthPt = width * 2.83465;
-                    const heightPt = height * 2.83465;
+            yPos += 3;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+            yPos += 4;
 
-                    const xPos = (imagesInRow % 2 === 0) ? 14 : 14 + 65; // Reduced spacing
-                    doc.addImage(imgData.data, 'JPEG', xPos, imageYPos, widthPt, heightPt);
-                    
-                    imagesInRow++;
-                    if (imagesInRow % 2 === 0) {
-                        imageYPos += heightPt + 5; // Reduced spacing
-                    }
-                } catch (error) {
-                    console.error("Error adding image to PDF:", error);
+            // ==================== PRODUCT DETAILS (2-column grid) ====================
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(41, 128, 185);
+            doc.text("Product Information", MARGIN, yPos);
+            doc.setTextColor(0, 0, 0);
+            yPos += 4;
+
+            const details = [
+                ["Name", product.name || "N/A"],
+                ["Unit", product.unit || "N/A"],
+                ["Weight", product.weight ? `${product.weight} kg` : "N/A"],
+                ["HSN Code", product.hsnCode || "N/A"],
+                ["GST %", product.gstPercent ? `${product.gstPercent}%` : "N/A"],
+                ["Price", product.price ? `Rs. ${product.price}` : "N/A"],
+                ["Stock", product.stock || 0],
+                ["Available Qty", product.availableQuantity || 0],
+                ["Category", product.category?.name || "N/A"],
+                ["Is Gift Item", product.isGiftItem ? "Yes" : "No"],
+                ["Gift Category", product.giftCategory || "N/A"],
+                ["Created At", product.createdAt ? new Date(product.createdAt).toLocaleDateString() : "N/A"]
+            ];
+
+            // 2-column layout for details
+            const colWidth = CONTENT_WIDTH / 2;
+            const rowHeight = 5.5;
+            const labelWidth = 22;
+
+            details.forEach(([label, value], index) => {
+                const col = index % 2;
+                const row = Math.floor(index / 2);
+                const xBase = MARGIN + col * colWidth;
+                const yBase = yPos + row * rowHeight;
+
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(80, 80, 80);
+                doc.text(`${label}:`, xBase, yBase);
+
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 0, 0);
+                const valueStr = String(value);
+                const truncated = valueStr.length > 30 ? valueStr.slice(0, 28) + "…" : valueStr;
+                doc.text(truncated, xBase + labelWidth, yBase);
+            });
+
+            const detailRows = Math.ceil(details.length / 2);
+            yPos += detailRows * rowHeight + 3;
+
+            // ==================== DESCRIPTION & COMMENT ====================
+            if (product.description || product.comment) {
+                doc.setDrawColor(220, 220, 220);
+                doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+                yPos += 4;
+
+                if (product.description) {
+                    doc.setFontSize(8);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(80, 80, 80);
+                    doc.text("Description:", MARGIN, yPos);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(0, 0, 0);
+                    const descLines = doc.splitTextToSize(product.description, CONTENT_WIDTH - 25);
+                    doc.text(descLines, MARGIN + 25, yPos);
+                    yPos += descLines.length * 3.5 + 1;
                 }
+
+                if (product.comment) {
+                    doc.setFontSize(8);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(80, 80, 80);
+                    doc.text("Comment:", MARGIN, yPos);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(0, 0, 0);
+                    const commentLines = doc.splitTextToSize(product.comment, CONTENT_WIDTH - 25);
+                    doc.text(commentLines, MARGIN + 25, yPos);
+                    yPos += commentLines.length * 3.5 + 1;
+                }
+                yPos += 2;
             }
 
-            yPos = imageYPos + 10;
+            // ==================== PRODUCT IMAGES ====================
+            const allImages = [
+                ...(product.files || []).slice(0, 4).map(f => ({ url: f.url, type: 'Product' })),
+                ...(product.internalImages || []).slice(0, 4).map(f => ({ url: f.url, type: 'Internal' }))
+            ];
+
+            if (allImages.length > 0) {
+                doc.setDrawColor(220, 220, 220);
+                doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+                yPos += 4;
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(41, 128, 185);
+                doc.text(`Product Images (${allImages.length})`, MARGIN, yPos);
+                doc.setTextColor(0, 0, 0);
+                yPos += 4;
+
+                // Load images in parallel
+                const imagePromises = allImages.map(async (img, index) => {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        const response = await fetch(img.url, { 
+                            signal: controller.signal,
+                            mode: 'cors'
+                        });
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) return null;
+                        
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        
+                        return new Promise((resolve) => {
+                            reader.onload = () => resolve({
+                                data: reader.result,
+                                index: index,
+                                type: img.type
+                            });
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (error) {
+                        console.error(`Error loading image ${index}:`, error);
+                        return null;
+                    }
+                });
+
+                const results = await Promise.all(imagePromises);
+                const loadedImages = results.filter(r => r !== null);
+
+                // Grid layout - 4 images per row, compact cells
+                const maxImagesPerRow = 4;
+                const cellWidth = (CONTENT_WIDTH - 9) / 4; // ~45mm each with gaps
+                const cellHeight = 32;
+                const gapX = 3;
+                const gapY = 3;
+                const startX = MARGIN;
+                const imageStartY = yPos;
+
+                for (let i = 0; i < loadedImages.length; i++) {
+                    const imgData = loadedImages[i];
+                    try {
+                        const img = new Image();
+                        img.src = imgData.data;
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+
+                        let naturalWidth = img.width || 200;
+                        let naturalHeight = img.height || 200;
+
+                        // Fit inside cell preserving aspect ratio
+                        const scale = Math.min(
+                            cellWidth / naturalWidth,
+                            cellHeight / naturalHeight
+                        );
+                        const widthMm = naturalWidth * scale;
+                        const heightMm = naturalHeight * scale;
+
+                        const colIndex = i % maxImagesPerRow;
+                        const rowIndex = Math.floor(i / maxImagesPerRow);
+
+                        const cellX = startX + colIndex * (cellWidth + gapX);
+                        const cellY = imageStartY + rowIndex * (cellHeight + gapY);
+
+                        // Center inside cell
+                        const xPos = cellX + (cellWidth - widthMm) / 2;
+                        const yPosImg = cellY + (cellHeight - heightMm) / 2;
+
+                        doc.addImage(imgData.data, 'JPEG', xPos, yPosImg, widthMm, heightMm);
+                    } catch (error) {
+                        console.error("Error adding image to PDF:", error);
+                    }
+                }
+
+                const totalRows = Math.ceil(loadedImages.length / maxImagesPerRow) || 1;
+                yPos = imageStartY + totalRows * (cellHeight + gapY) + 2;
+            }
+
+            // ==================== MATCHING SUPPLIERS ====================
+            if (matchingSuppliers.length > 0) {
+                doc.setDrawColor(220, 220, 220);
+                doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+                yPos += 4;
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(41, 128, 185);
+                doc.text(`Suppliers for "${product?.category?.name || 'N/A'}" (${matchingSuppliers.length})`, MARGIN, yPos);
+                doc.setTextColor(0, 0, 0);
+                yPos += 2;
+
+                const supplierData = matchingSuppliers.map(s => [
+                    s.name || "N/A",
+                    [s.phone, s.phone2].filter(Boolean).join(", ") || "N/A",
+                    s.email || "N/A",
+                    s.gstNumber || "N/A",
+                    s.address || "N/A"
+                ]);
+
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [["Supplier Name", "Phone", "Email", "GST Number", "Address"]],
+                    body: supplierData,
+                    theme: "grid",
+                    margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN },
+                    styles: { 
+                        fontSize: 7, 
+                        cellPadding: 1.2,
+                        overflow: 'linebreak',
+                        lineColor: [220, 220, 220],
+                        lineWidth: 0.1
+                    },
+                    headStyles: { 
+                        fillColor: [41, 128, 185],
+                        textColor: [255, 255, 255],
+                        fontSize: 7.5,
+                        fontStyle: 'bold',
+                        halign: 'center'
+                    },
+                    alternateRowStyles: { fillColor: [245, 248, 252] },
+                    columnStyles: {
+                        0: { cellWidth: 32 },
+                        1: { cellWidth: 30 },
+                        2: { cellWidth: 42 },
+                        3: { cellWidth: 30 },
+                        4: { cellWidth: 56 }
+                    }
+                });
+
+                yPos = doc.lastAutoTable.finalY + 3;
+            }
+
+            // ==================== STOCK HISTORY ====================
+            if (product.stockHistory && product.stockHistory.length > 0) {
+                // Check if we need a page break
+                if (yPos > PAGE_HEIGHT - 50) {
+                    doc.addPage();
+                    yPos = MARGIN;
+                }
+
+                doc.setDrawColor(220, 220, 220);
+                doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+                yPos += 4;
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(41, 128, 185);
+                doc.text(`Stock History (Latest ${Math.min(product.stockHistory.length, 10)})`, MARGIN, yPos);
+                doc.setTextColor(0, 0, 0);
+                yPos += 2;
+
+                const historyData = product.stockHistory.slice(0, 10).map(entry => [
+                    new Date(entry.date).toLocaleDateString(),
+                    entry.added || 0,
+                    entry.removed || 0,
+                    entry.newStock || 0,
+                    entry.reason || "N/A"
+                ]);
+
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [["Date", "Added", "Removed", "New Stock", "Reason"]],
+                    body: historyData,
+                    theme: "grid",
+                    margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: MARGIN },
+                    styles: { 
+                        fontSize: 7, 
+                        cellPadding: 1.2,
+                        overflow: 'linebreak',
+                        lineColor: [220, 220, 220],
+                        lineWidth: 0.1
+                    },
+                    headStyles: { 
+                        fillColor: [41, 128, 185],
+                        textColor: [255, 255, 255],
+                        fontSize: 7.5,
+                        fontStyle: 'bold',
+                        halign: 'center'
+                    },
+                    alternateRowStyles: { fillColor: [245, 248, 252] },
+                    columnStyles: {
+                        0: { cellWidth: 30, halign: 'center' },
+                        1: { cellWidth: 25, halign: 'center' },
+                        2: { cellWidth: 25, halign: 'center' },
+                        3: { cellWidth: 30, halign: 'center' },
+                        4: { cellWidth: 80 }
+                    }
+                });
+            }
+
+            // ==================== FOOTER ====================
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(7);
+                doc.setTextColor(150, 150, 150);
+                doc.text(
+                    `Page ${i} of ${totalPages}`,
+                    PAGE_WIDTH / 2,
+                    PAGE_HEIGHT - 5,
+                    { align: 'center' }
+                );
+            }
+
+            // Save PDF
+            doc.save(`${(product.name || 'product').replace(/\s+/g, '_')}_details.pdf`);
+        } catch (error) {
+            console.error("PDF generation error:", error);
+            alert("Error generating PDF. Please try again.");
+        } finally {
+            setPdfGenerating(false);
         }
-
-        // Add stock history
-        if (product.stockHistory && product.stockHistory.length > 0) {
-            yPos += 10;
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Stock History", 14, yPos);
-            yPos += 10;
-            
-            const historyData = product.stockHistory.slice(0, 10).map(entry => [
-                new Date(entry.date).toLocaleDateString(),
-                entry.added || 0,
-                entry.removed || 0,
-                entry.newStock || 0,
-                entry.reason || "N/A"
-            ]);
-
-            autoTable(doc, {
-                startY: yPos,
-                head: [["Date", "Added", "Removed", "New Stock", "Reason"]],
-                body: historyData,
-                theme: "striped",
-                margin: { left: 14, right: 14 },
-                styles: { fontSize: 8 }, // Smaller font for table
-            });
-        }
-
-        // Save PDF
-        doc.save(`${product.name || 'product'}_details.pdf`);
-    } catch (error) {
-        console.error("PDF generation error:", error);
-        alert("Error generating PDF. Please try again.");
-    } finally {
-        setPdfGenerating(false);
-    }
-};
+    };
     return (
         <>
         <InternalNavbar />
@@ -508,7 +720,10 @@ const generateProductPDF = async (product) => {
                                 )}
                             </button>
                             <button
-                                onClick={() => setShowProductModal(false)}
+                                onClick={() => {
+                                    setShowProductModal(false);
+                                    setMatchingSuppliers([]);
+                                }}
                                 className="p-2 hover:bg-gray-100 rounded-full"
                             >
                                 <X size={24} />
@@ -617,6 +832,59 @@ const generateProductPDF = async (product) => {
                                         ))}
                                     </div>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* ✅ NEW: Matching Suppliers Section */}
+                        <div className="md:col-span-2 mt-6 border-t pt-4">
+                            <h3 className="font-semibold mb-3 text-blue-700">
+                                🏭 Suppliers for "{selectedProduct?.category?.name || 'N/A'}" Category
+                            </h3>
+                            
+                            {loadingSuppliers ? (
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <Loader2 size={18} className="animate-spin" />
+                                    Loading suppliers...
+                                </div>
+                            ) : matchingSuppliers.length > 0 ? (
+                                <div className="overflow-x-auto border rounded-lg">
+                                    <table className="min-w-full table-auto border-collapse text-sm">
+                                        <thead className="bg-gray-100 text-left">
+                                            <tr>
+                                                <th className="px-4 py-2 border">Supplier Name</th>
+                                                <th className="px-4 py-2 border">Phone</th>
+                                                <th className="px-4 py-2 border">Email</th>
+                                                <th className="px-4 py-2 border">GST Number</th>
+                                                <th className="px-4 py-2 border">Address</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {matchingSuppliers.map((supplier, i) => (
+                                                <tr key={supplier._id || i} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-2 border font-semibold">
+                                                        {supplier.name || "N/A"}
+                                                    </td>
+                                                    <td className="px-4 py-2 border">
+                                                        {[supplier.phone, supplier.phone2].filter(Boolean).join(", ") || "-"}
+                                                    </td>
+                                                    <td className="px-4 py-2 border">
+                                                        {supplier.email || "-"}
+                                                    </td>
+                                                    <td className="px-4 py-2 border">
+                                                        {supplier.gstNumber || "-"}
+                                                    </td>
+                                                    <td className="px-4 py-2 border">
+                                                        {supplier.address || "-"}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 text-sm italic">
+                                    No suppliers found for this category.
+                                </p>
                             )}
                         </div>
 

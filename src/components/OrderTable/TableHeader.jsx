@@ -11,6 +11,7 @@ const TableHeader = ({ role }) => (
   <div>Customer Name</div>
   <div className="text-indigo-600">Product Name</div>
 </TableHeaderCell>
+      <TableHeaderCell>Incoming Payments</TableHeaderCell>
       <TableHeaderCell>Order Actions</TableHeaderCell>
       <TableHeaderCell>Narration</TableHeaderCell>
       <TableHeaderCell>Narration Images</TableHeaderCell>
