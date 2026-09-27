@@ -169,7 +169,12 @@ useEffect(() => {
         {/* Invoice Header */}
         <div className="grid md:grid-cols-2 gap-4">
           <input className="input" placeholder="Invoice No" value={form.invoiceNo} readOnly />
-          <input className="input" type="date" value={form.date} readOnly />
+         <input 
+  className="input" 
+  type="date" 
+  value={form.date} 
+  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} 
+/>
         </div>
 
         {/* Address Section */}
