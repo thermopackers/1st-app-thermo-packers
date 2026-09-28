@@ -980,8 +980,8 @@ const MoldDieForm = ({ onClose, editId }) => {
                 <th className="border p-2 text-left">Remarks</th>
                 <th className="border p-2 text-left">Owner Name</th>
                 <th className="border p-2 text-left">Die Location</th>
-                <th className="border p-2 text-left">Documents</th>
-                <th className="border p-2 text-left">Challan</th>
+                <th className="border p-2 text-left">Inward Challan</th>
+                <th className="border p-2 text-left">Outward Challan</th>
                 <th className="border p-2 text-left">Actions</th>
               </tr>
             </thead>
