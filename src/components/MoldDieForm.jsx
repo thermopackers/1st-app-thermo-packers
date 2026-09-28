@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import Swal from "sweetalert2";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const MoldDieForm = ({ onClose, editId }) => {
   const navigate = useNavigate();
@@ -10,6 +10,17 @@ const MoldDieForm = ({ onClose, editId }) => {
   const [uploading, setUploading] = useState(false);
   const [dies, setDies] = useState([]);
   const [editingId, setEditingId] = useState(editId || null);
+
+  // Product & Customer lists
+  const [salesProducts, setSalesProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
+
+  // Searchable dropdown state
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+
   const [formData, setFormData] = useState({
     srNo: "",
     nameOfDie: "",
@@ -18,8 +29,14 @@ const MoldDieForm = ({ onClose, editId }) => {
     dieCavity: "",
     remarks: "",
     ownerName: "",
+    customerId: "",
+    customerName: "",
+    salesProductId: "",
+    salesProductName: "",
     dieLocation: "",
+    dieLocationOther: "",
     challanImage: [],
+    documents: [],
   });
 
   // Pagination
@@ -27,7 +44,7 @@ const MoldDieForm = ({ onClose, editId }) => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const CLOUDINARY_CLOUD_NAME = "dcr8k5amk";
-  const CLOUDINARY_UPLOAD_PRESET = "unsigned_preset"; // ⚠️ Replace with your actual preset
+  const CLOUDINARY_UPLOAD_PRESET = "mold_die_unsigned";
 
   // ---------- Helpers ----------
   const normalizeFiles = (value) => {
@@ -59,31 +76,39 @@ const MoldDieForm = ({ onClose, editId }) => {
     return url.toLowerCase().includes(".pdf");
   };
 
-  const getLocationLabel = (loc) => {
+  const getLocationLabel = (loc, other = "") => {
     const labels = {
       withThermoPackers: "With Thermo Packers",
       sentBackToCustomer: "Sent Back to Customer",
       withSupplier: "With Supplier for Job Work",
+      other: other ? `Other: ${other}` : "Other",
     };
     return labels[loc] || loc;
   };
 
-  // ---------- Fetch ----------
+  // ---------- Fetch on mount ----------
   useEffect(() => {
     fetchDies();
+    fetchSalesProducts();
+    fetchCustomers();
   }, []);
 
+  // Load for edit when editId prop is provided
   useEffect(() => {
     if (editId) loadForEdit(editId);
   }, [editId]);
 
-  // Auto-set Sr No when adding a new record (not editing)
+  // Auto-set Sr No only when adding a new record (not editing, no editId)
   useEffect(() => {
-    if (!editingId) {
-      const nextSr = dies.length + 1;
-      setFormData((prev) => ({ ...prev, srNo: String(nextSr) }));
-    }
-  }, [dies, editingId]);
+    if (editId) return;
+    if (editingId) return;
+    if (dies.length === 0) return;
+    const nextSr = dies.length + 1;
+    setFormData((prev) => {
+      if (prev.srNo) return prev;
+      return { ...prev, srNo: String(nextSr) };
+    });
+  }, [dies, editingId, editId]);
 
   const fetchDies = async () => {
     try {
@@ -93,6 +118,7 @@ const MoldDieForm = ({ onClose, editId }) => {
         ...d,
         photo: normalizeFiles(d.photo),
         challanImage: normalizeFiles(d.challanImage),
+        documents: normalizeFiles(d.documents),
       }));
       setDies(normalized);
     } catch (err) {
@@ -108,6 +134,32 @@ const MoldDieForm = ({ onClose, editId }) => {
     }
   };
 
+  const fetchSalesProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/products/dropdown-products");
+      const list =
+        res.data?.products ||
+        res.data?.data ||
+        (Array.isArray(res.data) ? res.data : []);
+      setSalesProducts(list);
+    } catch (err) {
+      console.error("Error fetching sales products:", err);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await axiosInstance.get("/customers/all/dropdown");
+      const list =
+        res.data?.customers ||
+        res.data?.data ||
+        (Array.isArray(res.data) ? res.data : []);
+      setCustomers(list);
+    } catch (err) {
+      console.error("Error fetching customers:", err);
+    }
+  };
+
   const loadForEdit = async (id) => {
     try {
       const res = await axiosInstance.get(`/mold-die/${id}`);
@@ -120,8 +172,14 @@ const MoldDieForm = ({ onClose, editId }) => {
         dieCavity: die.dieCavity || "",
         remarks: die.remarks || "",
         ownerName: die.ownerName || "",
+        customerId: die.customerId || "",
+        customerName: die.customerName || "",
+        salesProductId: die.salesProductId || "",
+        salesProductName: die.salesProductName || "",
         dieLocation: die.dieLocation || "",
+        dieLocationOther: die.dieLocationOther || "",
         challanImage: normalizeFiles(die.challanImage),
+        documents: normalizeFiles(die.documents),
       });
       setEditingId(die._id);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -136,7 +194,7 @@ const MoldDieForm = ({ onClose, editId }) => {
     }
   };
 
-  // ---------- Cloudinary Upload ----------
+  // ---------- Cloudinary ----------
   const uploadToCloudinary = async (file, folder = "mold-die") => {
     const fd = new FormData();
     fd.append("file", file);
@@ -145,18 +203,13 @@ const MoldDieForm = ({ onClose, editId }) => {
 
     const res = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-      {
-        method: "POST",
-        body: fd,
-      }
+      { method: "POST", body: fd }
     );
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      console.error("Cloudinary error:", errorData);
       throw new Error(errorData?.error?.message || "Cloudinary upload failed");
     }
-
     const data = await res.json();
     return data.secure_url;
   };
@@ -201,12 +254,10 @@ const MoldDieForm = ({ onClose, editId }) => {
       const uploadedUrls = await Promise.all(
         files.map((file) => uploadToCloudinary(file, `mold-die/${field}`))
       );
-
       setFormData((prev) => ({
         ...prev,
         [field]: [...prev[field], ...uploadedUrls],
       }));
-
       Swal.fire({
         title: "Uploaded!",
         text: `${uploadedUrls.length} file(s) uploaded successfully`,
@@ -237,9 +288,80 @@ const MoldDieForm = ({ onClose, editId }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "ownerName" && value !== "Customer") {
+        next.customerId = "";
+        next.customerName = "";
+      }
+      if (name === "dieLocation" && value !== "other") {
+        next.dieLocationOther = "";
+      }
+      return next;
+    });
   };
 
+  // ---------- Filtered lists ----------
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return salesProducts;
+    return salesProducts.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.productName?.toLowerCase().includes(q) ||
+        p.productCode?.toLowerCase().includes(q)
+    );
+  }, [productSearch, salesProducts]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(q) ||
+        c.customerName?.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.phone?.toLowerCase().includes(q)
+    );
+  }, [customerSearch, customers]);
+
+  const handleSelectProduct = (p) => {
+    setFormData((prev) => ({
+      ...prev,
+      salesProductId: p._id || "",
+      salesProductName: p.name || p.productName || "",
+    }));
+    setShowProductDropdown(false);
+    setProductSearch("");
+  };
+
+  const handleSelectCustomer = (c) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerId: c._id || "",
+      customerName: c.name || c.customerName || "",
+    }));
+    setShowCustomerDropdown(false);
+    setCustomerSearch("");
+  };
+
+  const clearSalesProduct = () => {
+    setFormData((prev) => ({
+      ...prev,
+      salesProductId: "",
+      salesProductName: "",
+    }));
+  };
+
+  const clearCustomer = () => {
+    setFormData((prev) => ({
+      ...prev,
+      customerId: "",
+      customerName: "",
+    }));
+  };
+
+  // ---------- Submit ----------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -252,6 +374,29 @@ const MoldDieForm = ({ onClose, editId }) => {
       Swal.fire({
         title: "Missing Fields",
         text: "Please fill all required fields",
+        icon: "warning",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
+    if (formData.ownerName === "Customer" && !formData.customerName) {
+      Swal.fire({
+        title: "Customer Required",
+        text: "Please select a customer",
+        icon: "warning",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
+    if (
+      formData.dieLocation === "other" &&
+      !formData.dieLocationOther.trim()
+    ) {
+      Swal.fire({
+        title: "Location Required",
+        text: "Please enter the die location",
         icon: "warning",
         confirmButtonColor: "#2563eb",
       });
@@ -314,10 +459,18 @@ const MoldDieForm = ({ onClose, editId }) => {
       dieCavity: "",
       remarks: "",
       ownerName: "",
+      customerId: "",
+      customerName: "",
+      salesProductId: "",
+      salesProductName: "",
       dieLocation: "",
+      dieLocationOther: "",
       challanImage: [],
+      documents: [],
     });
     setEditingId(null);
+    setProductSearch("");
+    setCustomerSearch("");
   };
 
   const handleEdit = (die) => {
@@ -329,8 +482,14 @@ const MoldDieForm = ({ onClose, editId }) => {
       dieCavity: die.dieCavity || "",
       remarks: die.remarks || "",
       ownerName: die.ownerName || "",
+      customerId: die.customerId || "",
+      customerName: die.customerName || "",
+      salesProductId: die.salesProductId || "",
+      salesProductName: die.salesProductName || "",
       dieLocation: die.dieLocation || "",
+      dieLocationOther: die.dieLocationOther || "",
       challanImage: normalizeFiles(die.challanImage),
+      documents: normalizeFiles(die.documents),
     });
     setEditingId(die._id);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -440,6 +599,84 @@ const MoldDieForm = ({ onClose, editId }) => {
               />
             </div>
 
+            {/* Sales Product (searchable) */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sales Product
+              </label>
+              {formData.salesProductName ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                  <span className="text-sm text-gray-800 truncate">
+                    {formData.salesProductName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearSalesProduct}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                    title="Remove"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowProductDropdown((s) => !s)}
+                  disabled={salesProducts.length === 0}
+                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {salesProducts.length === 0
+                    ? "Loading products…"
+                    : "Select Sales Product…"}
+                </button>
+              )}
+
+              <AnimatePresence>
+                {showProductDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute z-30 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden"
+                  >
+                    <input
+                      type="text"
+                      autoFocus
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search products..."
+                      className="w-full px-3 py-2 border-b border-gray-200 text-sm focus:outline-none"
+                    />
+                    <div className="max-h-48 overflow-y-auto">
+                      {filteredProducts.length === 0 ? (
+                        <div className="p-3 text-sm text-gray-500">
+                          No products found
+                        </div>
+                      ) : (
+                        filteredProducts.map((p) => (
+                          <button
+                            key={p._id}
+                            type="button"
+                            onClick={() => handleSelectProduct(p)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-100"
+                          >
+                            <div className="font-medium text-gray-800">
+                              {p.name || p.productName}
+                            </div>
+                            {p.productCode && (
+                              <div className="text-xs text-gray-500">
+                                {p.productCode}
+                              </div>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Name of Die */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -539,6 +776,86 @@ const MoldDieForm = ({ onClose, editId }) => {
               </select>
             </div>
 
+            {/* Customer (searchable) - only when owner is Customer */}
+            {formData.ownerName === "Customer" && (
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Customer <span className="text-red-500">*</span>
+                </label>
+                {formData.customerName ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                    <span className="text-sm text-gray-800 truncate">
+                      {formData.customerName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearCustomer}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerDropdown((s) => !s)}
+                    disabled={customers.length === 0}
+                    className="w-full text-left px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {customers.length === 0
+                      ? "Loading customers…"
+                      : "Select Customer…"}
+                  </button>
+                )}
+
+                <AnimatePresence>
+                  {showCustomerDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="absolute z-30 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden"
+                    >
+                      <input
+                        type="text"
+                        autoFocus
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        placeholder="Search customers..."
+                        className="w-full px-3 py-2 border-b border-gray-200 text-sm focus:outline-none"
+                      />
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredCustomers.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-500">
+                            No customers found
+                          </div>
+                        ) : (
+                          filteredCustomers.map((c) => (
+                            <button
+                              key={c._id}
+                              type="button"
+                              onClick={() => handleSelectCustomer(c)}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-100"
+                            >
+                              <div className="font-medium text-gray-800">
+                                {c.name || c.customerName}
+                              </div>
+                              {(c.email || c.phone) && (
+                                <div className="text-xs text-gray-500">
+                                  {c.email} {c.phone && `• ${c.phone}`}
+                                </div>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* Die Location */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -557,14 +874,58 @@ const MoldDieForm = ({ onClose, editId }) => {
                   Sent Back to Customer
                 </option>
                 <option value="withSupplier">With Supplier for Job Work</option>
+                <option value="other">Other (type manually)</option>
               </select>
             </div>
+
+            {/* Die Location Other - manual text */}
+            {formData.dieLocation === "other" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Specify Location <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="dieLocationOther"
+                  value={formData.dieLocationOther}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter die location manually"
+                  required
+                />
+              </div>
+            )}
+
+            {/* Documents - MULTIPLE, only when withThermoPackers */}
+            {formData.dieLocation === "withThermoPackers" && (
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Upload Inward Challan
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  multiple
+                  onChange={(e) => handleFileUpload(e, "documents")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  disabled={uploading}
+                />
+                {uploading && (
+                  <p className="text-xs text-blue-600 mt-1">Uploading...</p>
+                )}
+                <FilePreviewGrid
+                  field="documents"
+                  urls={formData.documents}
+                  size="w-24 h-24"
+                />
+              </div>
+            )}
 
             {/* Challan - MULTIPLE, only when sentBackToCustomer */}
             {formData.dieLocation === "sentBackToCustomer" && (
               <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Challan Files (multiple allowed){" "}
+                  Upload Outward Challan{" "}
                   <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -611,6 +972,7 @@ const MoldDieForm = ({ onClose, editId }) => {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2 text-left">Sr No</th>
+                <th className="border p-2 text-left">Sales Product</th>
                 <th className="border p-2 text-left">Name of Die</th>
                 <th className="border p-2 text-left">Die No</th>
                 <th className="border p-2 text-left">Photo</th>
@@ -618,6 +980,7 @@ const MoldDieForm = ({ onClose, editId }) => {
                 <th className="border p-2 text-left">Remarks</th>
                 <th className="border p-2 text-left">Owner Name</th>
                 <th className="border p-2 text-left">Die Location</th>
+                <th className="border p-2 text-left">Documents</th>
                 <th className="border p-2 text-left">Challan</th>
                 <th className="border p-2 text-left">Actions</th>
               </tr>
@@ -625,13 +988,13 @@ const MoldDieForm = ({ onClose, editId }) => {
             <tbody>
               {loading && dies.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center p-4 text-gray-500">
+                  <td colSpan="12" className="text-center p-4 text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : dies.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center p-4 text-gray-500">
+                  <td colSpan="12" className="text-center p-4 text-gray-500">
                     No records found
                   </td>
                 </tr>
@@ -640,6 +1003,9 @@ const MoldDieForm = ({ onClose, editId }) => {
                   <tr key={die._id} className="hover:bg-gray-50">
                     <td className="border p-2">
                       {(currentPage - 1) * itemsPerPage + idx + 1}
+                    </td>
+                    <td className="border p-2">
+                      {die.salesProductName || "—"}
                     </td>
                     <td className="border p-2">{die.nameOfDie}</td>
                     <td className="border p-2">{die.dieNo}</td>
@@ -674,9 +1040,46 @@ const MoldDieForm = ({ onClose, editId }) => {
                     </td>
                     <td className="border p-2">{die.dieCavity || "—"}</td>
                     <td className="border p-2">{die.remarks || "—"}</td>
-                    <td className="border p-2">{die.ownerName}</td>
                     <td className="border p-2">
-                      {getLocationLabel(die.dieLocation)}
+                      {die.ownerName}
+                      {die.ownerName === "Customer" && die.customerName && (
+                        <div className="text-xs text-gray-500">
+                          ({die.customerName})
+                        </div>
+                      )}
+                    </td>
+                    <td className="border p-2">
+                      {getLocationLabel(die.dieLocation, die.dieLocationOther)}
+                    </td>
+                    <td className="border p-2">
+                      {Array.isArray(die.documents) &&
+                      die.documents.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {die.documents.map((url, i) =>
+                            isPDF(url) ? (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center w-10 h-10 bg-red-50 border border-red-200 rounded text-red-600 font-bold text-[9px]"
+                              >
+                                PDF
+                              </a>
+                            ) : (
+                              <img
+                                key={i}
+                                src={url}
+                                alt="doc"
+                                className="w-10 h-10 object-cover rounded cursor-pointer"
+                                onClick={() => window.open(url, "_blank")}
+                              />
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="border p-2">
                       {Array.isArray(die.challanImage) &&

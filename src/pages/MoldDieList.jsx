@@ -48,11 +48,12 @@ const MoldDieList = () => {
     return url.toLowerCase().includes(".pdf");
   };
 
-  const getLocationLabel = (loc) => {
+  const getLocationLabel = (loc, other = "") => {
     const labels = {
       withThermoPackers: "With Thermo Packers",
       sentBackToCustomer: "Sent Back to Customer",
       withSupplier: "With Supplier for Job Work",
+      other: other ? `Other: ${other}` : "Other",
     };
     return labels[loc] || loc;
   };
@@ -70,6 +71,7 @@ const MoldDieList = () => {
         ...d,
         photo: normalizeFiles(d.photo),
         challanImage: normalizeFiles(d.challanImage),
+        documents: normalizeFiles(d.documents),
       }));
       setDies(normalized);
     } catch (err) {
@@ -123,7 +125,9 @@ const MoldDieList = () => {
     (d) =>
       d.nameOfDie?.toLowerCase().includes(search.toLowerCase()) ||
       d.dieNo?.toLowerCase().includes(search.toLowerCase()) ||
-      d.ownerName?.toLowerCase().includes(search.toLowerCase())
+      d.ownerName?.toLowerCase().includes(search.toLowerCase()) ||
+      d.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      d.salesProductName?.toLowerCase().includes(search.toLowerCase())
   );
 
   useEffect(() => {
@@ -170,7 +174,7 @@ const MoldDieList = () => {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, die no, owner..."
+                  placeholder="Search by name, die no, owner, product..."
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
                 <button
@@ -187,6 +191,7 @@ const MoldDieList = () => {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border p-2 text-left">Sr No</th>
+                    <th className="border p-2 text-left">Sales Product</th>
                     <th className="border p-2 text-left">Name of Die</th>
                     <th className="border p-2 text-left">Die No</th>
                     <th className="border p-2 text-left">Photo</th>
@@ -194,20 +199,21 @@ const MoldDieList = () => {
                     <th className="border p-2 text-left">Remarks</th>
                     <th className="border p-2 text-left">Owner Name</th>
                     <th className="border p-2 text-left">Die Location</th>
-                    <th className="border p-2 text-left">Challan</th>
+                    <th className="border p-2 text-left">Inward Challan</th>
+                    <th className="border p-2 text-left">Outward Challan</th>
                     <th className="border p-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="10" className="text-center p-4 text-gray-500">
+                      <td colSpan="12" className="text-center p-4 text-gray-500">
                         Loading...
                       </td>
                     </tr>
                   ) : paginatedDies.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="text-center p-4 text-gray-500">
+                      <td colSpan="12" className="text-center p-4 text-gray-500">
                         No records found
                       </td>
                     </tr>
@@ -216,6 +222,9 @@ const MoldDieList = () => {
                       <tr key={die._id} className="hover:bg-gray-50">
                         <td className="border p-2">
                           {(currentPage - 1) * itemsPerPage + idx + 1}
+                        </td>
+                        <td className="border p-2">
+                          {die.salesProductName || "—"}
                         </td>
                         <td className="border p-2">{die.nameOfDie}</td>
                         <td className="border p-2">{die.dieNo}</td>
@@ -250,9 +259,49 @@ const MoldDieList = () => {
                         </td>
                         <td className="border p-2">{die.dieCavity || "—"}</td>
                         <td className="border p-2">{die.remarks || "—"}</td>
-                        <td className="border p-2">{die.ownerName}</td>
                         <td className="border p-2">
-                          {getLocationLabel(die.dieLocation)}
+                          {die.ownerName}
+                          {die.ownerName === "Customer" && die.customerName && (
+                            <div className="text-xs text-gray-500">
+                              ({die.customerName})
+                            </div>
+                          )}
+                        </td>
+                        <td className="border p-2">
+                          {getLocationLabel(
+                            die.dieLocation,
+                            die.dieLocationOther
+                          )}
+                        </td>
+                        <td className="border p-2">
+                          {Array.isArray(die.documents) &&
+                          die.documents.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {die.documents.map((url, i) =>
+                                isPDF(url) ? (
+                                  <a
+                                    key={i}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center w-10 h-10 bg-red-50 border border-red-200 rounded text-red-600 font-bold text-[9px]"
+                                  >
+                                    PDF
+                                  </a>
+                                ) : (
+                                  <img
+                                    key={i}
+                                    src={url}
+                                    alt="doc"
+                                    className="w-10 h-10 object-cover rounded cursor-pointer"
+                                    onClick={() => window.open(url, "_blank")}
+                                  />
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="border p-2">
                           {Array.isArray(die.challanImage) &&
@@ -382,9 +431,13 @@ const MoldDieList = () => {
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Modal — key forces remount so loadForEdit runs fresh */}
       {showEditModal && (
-        <MoldDieForm editId={editId} onClose={closeEditModal} />
+        <MoldDieForm
+          key={editId || "new"}
+          editId={editId}
+          onClose={closeEditModal}
+        />
       )}
     </>
   );
