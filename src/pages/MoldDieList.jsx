@@ -204,6 +204,7 @@ const MoldDieList = () => {
                     <th className="border p-2 text-left">Actions</th>
                   </tr>
                 </thead>
+                
                 <tbody>
                   {loading ? (
                     <tr>
