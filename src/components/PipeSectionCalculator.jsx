@@ -128,59 +128,65 @@ const fetchRMRate = async () => {
     return volume;
   };
 
-  const calculateBestPieces = (odMM, lengthMM = 1000) => {
-    const blockL = 6100;
-    const blockB = 1220;
-    const blockH = 620;
-    
-    const orientations = [
-      { l: blockL, b: blockB, h: blockH, name: "Length along L axis (6100mm)" },
-      { l: blockL, b: blockH, h: blockB, name: "Length along L axis, rotated (6100mm)" },
-      { l: blockB, b: blockL, h: blockH, name: "Length along B axis (1220mm)" },
-      { l: blockB, b: blockH, h: blockL, name: "Length along B axis, rotated (1220mm)" },
-      { l: blockH, b: blockL, h: blockB, name: "Length along H axis (620mm)" },
-      { l: blockH, b: blockB, h: blockL, name: "Length along H axis, rotated (620mm)" }
-    ];
-    
-    let maxPieces = 0;
-    let bestOrientation = null;
-    
-    orientations.forEach(orient => {
-      if (lengthMM <= orient.l) {
-        const piecesL = Math.floor(orient.l / lengthMM);
-        const piecesB = Math.floor(orient.b / odMM);
-        const piecesH = Math.floor(orient.h / odMM);
-        const totalPieces = piecesL * piecesB * piecesH;
-        
-        if (totalPieces > maxPieces) {
-          maxPieces = totalPieces;
-          bestOrientation = {
-            orientation: orient.name,
-            piecesL,
-            piecesB,
-            piecesH,
-            totalPieces
-          };
-        }
+const calculateBestPieces = (odMM, lengthMM = 1000) => {
+  const blockL = 6100;
+  const blockB = 1220;
+  const blockH = 620;
+  
+  // ✅ Use half of OD for height (half-section manufacturing)
+  const halfOD = odMM / 2;
+  
+  const orientations = [
+    { l: blockL, b: blockB, h: blockH, name: "Length along L axis (6100mm)" },
+    { l: blockL, b: blockH, h: blockB, name: "Length along L axis, rotated (6100mm)" },
+    { l: blockB, b: blockL, h: blockH, name: "Length along B axis (1220mm)" },
+    { l: blockB, b: blockH, h: blockL, name: "Length along B axis, rotated (1220mm)" },
+    { l: blockH, b: blockL, h: blockB, name: "Length along H axis (620mm)" },
+    { l: blockH, b: blockB, h: blockL, name: "Length along H axis, rotated (620mm)" }
+  ];
+  
+  let maxHalves = 0;
+  let bestOrientation = null;
+  
+  orientations.forEach(orient => {
+    if (lengthMM <= orient.l) {
+      const piecesL = Math.floor(orient.l / lengthMM);
+      const piecesB = Math.floor(orient.b / odMM);
+      const piecesH = Math.floor(orient.h / halfOD); // ✅ half OD used here
+      const totalHalves = piecesL * piecesB * piecesH;
+      
+      if (totalHalves > maxHalves) {
+        maxHalves = totalHalves;
+        bestOrientation = {
+          orientation: orient.name,
+          piecesL,
+          piecesB,
+          piecesH,
+          totalHalves
+        };
       }
-    });
-    
-    if (maxPieces === 0) {
-      const piecesL = Math.floor(blockL / lengthMM);
-      const piecesB = Math.floor(blockB / odMM);
-      const piecesH = Math.floor(blockH / odMM);
-      maxPieces = piecesL * piecesB * piecesH;
-      bestOrientation = {
-        orientation: "Default (L axis)",
-        piecesL,
-        piecesB,
-        piecesH,
-        totalPieces: maxPieces
-      };
     }
-    
-    return { maxPieces, bestOrientation };
-  };
+  });
+  
+  if (maxHalves === 0) {
+    const piecesL = Math.floor(blockL / lengthMM);
+    const piecesB = Math.floor(blockB / odMM);
+    const piecesH = Math.floor(blockH / halfOD);
+    maxHalves = piecesL * piecesB * piecesH;
+    bestOrientation = {
+      orientation: "Default (L axis)",
+      piecesL,
+      piecesB,
+      piecesH,
+      totalHalves: maxHalves
+    };
+  }
+  
+  // ✅ Full pipe equivalents = halves ÷ 2
+  const maxPieces = Math.floor(maxHalves / 2);
+  
+  return { maxPieces, maxHalves, bestOrientation };
+};
 
   // Calculate wastage analysis with wastage rate
   const calculateWastage = (odMM, piecesFromBlock, volumeM3, density, wastageRatePerKg) => {
@@ -238,7 +244,7 @@ const handleCalculate = () => {
     const calculatedResults = sizes.map(size => {
       const odMM = calculateOD(size.pipeSize, size.thickness);
       const volumeM3 = calculateVolume(odMM);
-      const { maxPieces, bestOrientation } = calculateBestPieces(odMM);
+      const { maxPieces, maxHalves, bestOrientation } = calculateBestPieces(odMM);
       
       const priceWithWastage = maxPieces > 0 ? costPerBlock / maxPieces : 0;
       
@@ -269,9 +275,10 @@ const handleCalculate = () => {
         pipeOD: pipe?.od || 0,
         thicknessMM: thicknessMM,
         volumeM3: volumeM3.toFixed(6),
-        piecesFromBlock: maxPieces,
+       piecesFromBlock: maxPieces,
+piecesHalvesFromBlock: maxHalves, // ✅ new field
         orientation: bestOrientation?.orientation || "N/A",
-        piecesLayout: bestOrientation ? `${bestOrientation.piecesL} x ${bestOrientation.piecesB} x ${bestOrientation.piecesH}` : "N/A",
+      piecesLayout: bestOrientation ? `${bestOrientation.piecesL} x ${bestOrientation.piecesB} x ${bestOrientation.piecesH}` : "N/A",
         priceWithWastage: priceWithWastage.toFixed(2),
         priceWithoutWastage: priceWithoutWastage.toFixed(2),
         wastageCostPerPiece: wastageCostPerPiece.toFixed(2),
@@ -378,12 +385,15 @@ const generatePDF = async () => {
     );
 
     // Step 3: Pieces per Block
-    content.push(
-      { text: '\n3. Pieces per Block:', style: 'stepHeader', margin: [0, 5, 0, 2] },
-      { text: `   Block size: 6100 × 1220 × 620 mm`, style: 'stepDetail' },
-      { text: `   Orientation: ${r.orientation}`, style: 'stepDetail' },
-      { text: `   Layout: ${r.piecesLayout} = ${r.piecesFromBlock} pieces`, style: 'stepDetail' }
-    );
+  // Step 3: Pieces per Block
+content.push(
+  { text: '\n3. Pieces per Block:', style: 'stepHeader', margin: [0, 5, 0, 2] },
+  { text: `   Block size: 6100 × 1220 × 620 mm`, style: 'stepDetail' },
+  { text: `   Half-section height used: ${r.odMM} ÷ 2 = ${(r.odMM / 2).toFixed(2)} mm`, style: 'stepDetail' },
+  { text: `   Orientation: ${r.orientation}`, style: 'stepDetail' },
+  { text: `   Layout: ${r.piecesLayout} = ${r.piecesHalvesFromBlock} halves`, style: 'stepDetail' },
+  { text: `   Full Pipe Equivalents = ${r.piecesHalvesFromBlock} ÷ 2 = ${r.piecesFromBlock} pieces`, style: 'stepDetail' }
+);
 
     // Step 4: Cost per Block
     content.push(
@@ -747,11 +757,13 @@ const displayPrice = includeWastageInPrice ? parseFloat(r.priceWithoutWastage) :
           <p className="ml-4">Radius = {r.odMM}/2 = {r.odMM/2} mm = {(r.odMM/2/1000).toFixed(4)} m</p>
           <p className="ml-4">Volume = π × r² × h = 3.1416 × {(r.odMM/2/1000).toFixed(4)}² × 1 = <strong>{r.volumeM3} m³</strong></p>
           
-          <p className="mt-2"><strong>3. Pieces per Block:</strong></p>
-          <p className="ml-4">Block size: 6100 × 1220 × 620 mm</p>
-          <p className="ml-4">Orientation: {r.orientation}</p>
-          <p className="ml-4">Layout: {r.piecesLayout} = <strong>{r.piecesFromBlock} pieces</strong></p>
-        </div>
+         <p className="mt-2"><strong>3. Pieces per Block:</strong></p>
+<p className="ml-4">Block size: 6100 × 1220 × 620 mm</p>
+<p className="ml-4">Half-section height used: {r.odMM} ÷ 2 = {(r.odMM / 2).toFixed(2)} mm</p>
+<p className="ml-4">Orientation: {r.orientation}</p>
+<p className="ml-4">Layout: {r.piecesLayout} = <strong>{r.piecesHalvesFromBlock} halves</strong></p>
+<p className="ml-4">Full Pipe Equivalents = {r.piecesHalvesFromBlock} ÷ 2 = <strong>{r.piecesFromBlock} pieces</strong></p>
+</div>
         
         <div className="space-y-1">
           <p><strong>4. Cost per Block:</strong></p>

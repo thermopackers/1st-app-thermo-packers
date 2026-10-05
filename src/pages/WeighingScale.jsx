@@ -17,7 +17,10 @@ export default function WeighingScale() {
     { id: "TPWS5", name: "Weighing Scale 5", defaultLocation: "" },
     { id: "TPWS6", name: "Weighing Scale 6", defaultLocation: "" },
     { id: "TPWS7", name: "Weighing Scale 7", defaultLocation: "" },
-    { id: "TPWS8", name: "Weighing Scale 8", defaultLocation: "" }
+    { id: "TPWS8", name: "Weighing Scale 8", defaultLocation: "" },
+    { id: "TPWS9", name: "Weighing Scale 9", defaultLocation: "" },
+    { id: "TPWS10", name: "Weighing Scale 10", defaultLocation: "" },
+    { id: "TPWS11", name: "Weighing Scale 11", defaultLocation: "" }
   ];
 
   useEffect(() => {

@@ -602,7 +602,7 @@ const MoldDieForm = ({ onClose, editId }) => {
             {/* Sales Product (searchable) */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sales Product
+                Sales Product made from this Die
               </label>
               {formData.salesProductName ? (
                 <div className="flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white">
@@ -972,7 +972,7 @@ const MoldDieForm = ({ onClose, editId }) => {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2 text-left">Sr No</th>
-                <th className="border p-2 text-left">Sales Product</th>
+                <th className="border p-2 text-left">Sales Product made from this Die</th>
                 <th className="border p-2 text-left">Name of Die</th>
                 <th className="border p-2 text-left">Die No</th>
                 <th className="border p-2 text-left">Photo</th>

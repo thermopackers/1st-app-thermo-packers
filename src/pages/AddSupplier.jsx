@@ -744,31 +744,35 @@ const handleDeleteSecurityCheque = async (chequeId) => {
     </select>
   </div>
 
-  <div className="mt-4">
-    <label className="block font-semibold mb-1">Udyam Registration Number</label>
-    <input
-      name="udyamRegistrationNumber"
-      placeholder="Enter Udyam registration number"
-      value={form.udyamRegistrationNumber || ""}
-      onChange={handleChange}
-      className="w-full border p-2 rounded"
-    />
-  </div>
+   {form.msmeStatus === "Yes" && (
+    <>
+      <div className="mt-4">
+        <label className="block font-semibold mb-1">Udyam Registration Number</label>
+        <input
+          name="udyamRegistrationNumber"
+          placeholder="Enter Udyam registration number"
+          value={form.udyamRegistrationNumber || ""}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+        />
+      </div>
 
-  <div className="mt-4">
-    <label className="block font-semibold mb-1">MSME Category</label>
-    <select
-      name="msmeCategory"
-      value={form.msmeCategory || ""}
-      onChange={handleChange}
-      className="w-full border p-2 rounded"
-    >
-      <option value="">Select MSME Category</option>
-      <option value="Micro">Micro</option>
-      <option value="Small">Small</option>
-      <option value="Medium">Medium</option>
-    </select>
-  </div>
+      <div className="mt-4">
+        <label className="block font-semibold mb-1">MSME Category</label>
+        <select
+          name="msmeCategory"
+          value={form.msmeCategory || ""}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+        >
+          <option value="">Select MSME Category</option>
+          <option value="Micro">Micro</option>
+          <option value="Small">Small</option>
+          <option value="Medium">Medium</option>
+        </select>
+      </div>
+    </>
+  )}
 </div>
 
 

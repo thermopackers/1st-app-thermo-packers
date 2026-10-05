@@ -60,6 +60,9 @@ export default function MonthlyReports() {
   const [expandedUser, setExpandedUser] = useState(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+    const [employeeSearch, setEmployeeSearch] = useState("");
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const employeeDropdownRef = React.useRef(null);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -88,6 +91,35 @@ export default function MonthlyReports() {
       setSelectedMonthName(monthName);
     }
   }, [month]);
+
+  // Close employee dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target)) {
+        setIsEmployeeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Filter employees based on search term
+  const filteredEmployees = employees.filter((emp) => {
+    const search = employeeSearch.toLowerCase();
+    return (
+      emp.name?.toLowerCase().includes(search) ||
+      (typeof emp.role === "string" && emp.role.toLowerCase().includes(search))
+    );
+  });
+
+  // Get display label for selected employee
+  const getSelectedEmployeeLabel = () => {
+    if (!employee) return "All Employees";
+    const emp = employees.find((e) => e._id === employee);
+    return emp ? `${emp.name} (${emp.role})` : "All Employees";
+  };
 
   const fetchReport = async (type) => {
     setExpandedUser(null);
@@ -825,7 +857,7 @@ allDates.forEach(dateStr => {
   attendanceType = "On Leave";
   attendanceColor = "bg-purple-100 text-purple-800";
 } else if (record.type === 'sunday') {
-  rowColor = "bg-orange-50";
+  rowColor = "bg-orange-300";
   textColor = "text-orange-700";
   attendanceType = "Weekly Off";
   attendanceColor = "bg-orange-100 text-orange-800";
@@ -1537,28 +1569,89 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
                 />
               </div>
 
-              {(() => {
+                          {(() => {
                 const userRoles = parseUserRoles(user);
                 const hasAdminAccess = userRoles.some(role => ['admin', 'accounts'].includes(role));
                 
                 return hasAdminAccess ? (
-                  <div>
+                  <div ref={employeeDropdownRef} className="relative">
                     <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       Select Employee
                     </label>
-                    <select
-                      value={employee}
-                      onChange={(e) => setEmployee(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                    >
-                      <option value="">All Employees</option>
-                      {employees.map((emp) => (
-                        <option key={emp._id} value={emp._id}>
-                          {emp.name} ({emp.role})
-                        </option>
-                      ))}
-                    </select>
+                    
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search employee..."
+                        value={isEmployeeDropdownOpen ? employeeSearch : getSelectedEmployeeLabel()}
+                        onChange={(e) => {
+                          setEmployeeSearch(e.target.value);
+                          setIsEmployeeDropdownOpen(true);
+                        }}
+                        onFocus={() => {
+                          setIsEmployeeDropdownOpen(true);
+                          setEmployeeSearch("");
+                        }}
+                        className="w-full border border-gray-300 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsEmployeeDropdownOpen((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isEmployeeDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+                    </div>
+
+                    <AnimatePresence>
+                      {isEmployeeDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEmployee("");
+                              setEmployeeSearch("");
+                              setIsEmployeeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
+                              employee === "" ? "bg-blue-100 font-medium text-blue-800" : "text-gray-700"
+                            }`}
+                          >
+                            All Employees
+                          </button>
+
+                          {filteredEmployees.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              No employees found
+                            </div>
+                          ) : (
+                            filteredEmployees.map((emp) => (
+                              <button
+                                key={emp._id}
+                                type="button"
+                                onClick={() => {
+                                  setEmployee(emp._id);
+                                  setEmployeeSearch("");
+                                  setIsEmployeeDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
+                                  employee === emp._id ? "bg-blue-100 font-medium text-blue-800" : "text-gray-700"
+                                }`}
+                              >
+                                {emp.name} <span className="text-gray-400">({emp.role})</span>
+                              </button>
+                            ))
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 ) : (
                   <div>
