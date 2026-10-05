@@ -54,6 +54,9 @@ const [entriesVehicleFilter, setEntriesVehicleFilter] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
 const [editSelectedFiles, setEditSelectedFiles] = useState([]);
 const [editUploading, setEditUploading] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [extractedData, setExtractedData] = useState(null);
 
   // State for entries pagination
   const [entriesPage, setEntriesPage] = useState(1);
@@ -243,10 +246,176 @@ useEffect(() => {
     fetchAllMileageData();
     fetchTableData();
   };
-
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles(files);
+  };
+
+  // ✅ Compress image before sending to AI (reduces upload time by 90%)
+  const compressImage = (file, maxWidth = 1600, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => resolve(new File([blob], file.name, { type: 'image/jpeg' })),
+            'image/jpeg',
+            quality
+          );
+        };
+      };
+    });
+  };
+
+  const processImageWithAI = async (file) => {
+    if (!file) return;
+
+    setAiProcessing(true);
+    setAiProgress(20);
+    setExtractedData(null);
+
+    try {
+      // ✅ Compress image first
+      const compressed = await compressImage(file);
+      console.log(
+        `Original: ${(file.size / 1024).toFixed(0)} KB → Compressed: ${(compressed.size / 1024).toFixed(0)} KB`
+      );
+
+      setAiProgress(40);
+
+      const formData = new FormData();
+      formData.append('image', compressed);
+
+      const res = await axiosInstance.post('/ai/extract-fuel-slip', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setAiProgress(90);
+
+      const extracted = res.data.data || {};
+      console.log('AI Extracted Data:', extracted);
+      console.log('AI raw vehicle:', extracted.vehicleNumber);
+      console.log('Vehicle list:', vehicleList.map((v) => v.vehicleNumber));
+      setExtractedData(extracted);
+
+      // ✅ Normalize: uppercase + strip spaces/dashes
+      const normalizeVehicle = (v) =>
+        (v || '').toString().toUpperCase().replace(/[\s\-]/g, '').trim();
+
+      // ✅ Find matching vehicle from the dropdown list
+      let matchedVehicle = '';
+      if (extracted.vehicleNumber) {
+        const aiNormalized = normalizeVehicle(extracted.vehicleNumber);
+        console.log('AI normalized:', aiNormalized);
+
+        // Exact match after normalization
+        const match = vehicleList.find(
+          (v) => normalizeVehicle(v.vehicleNumber) === aiNormalized
+        );
+
+        if (match) {
+          matchedVehicle = match.vehicleNumber;
+          console.log('✅ Exact match found:', matchedVehicle);
+        } else {
+          // Partial match — AI may have misread 1-2 characters
+          const partialMatch = vehicleList.find((v) => {
+            const dbNorm = normalizeVehicle(v.vehicleNumber);
+            if (Math.abs(dbNorm.length - aiNormalized.length) > 1) return false;
+
+            const maxLen = Math.max(dbNorm.length, aiNormalized.length);
+            let same = 0;
+            for (let i = 0; i < Math.min(dbNorm.length, aiNormalized.length); i++) {
+              if (dbNorm[i] === aiNormalized[i]) same++;
+            }
+            return same / maxLen >= 0.75;
+          });
+
+          if (partialMatch) {
+            matchedVehicle = partialMatch.vehicleNumber;
+            console.log('⚠️ Partial match:', matchedVehicle);
+            toast(
+              `Vehicle matched to ${partialMatch.vehicleNumber} (AI read: ${extracted.vehicleNumber})`,
+              { icon: '⚠️' }
+            );
+          } else {
+            console.warn('❌ AI vehicle not found in list:', extracted.vehicleNumber);
+            toast.error(
+              `AI read "${extracted.vehicleNumber}" but no matching vehicle found. Please select manually.`
+            );
+          }
+        }
+      }
+
+      // Auto-fill form fields
+      setEntryFormData((prev) => ({
+        ...prev,
+        date: extracted.date || prev.date,
+        vehicleNo: matchedVehicle || prev.vehicleNo,
+        fuelSlipNo: extracted.fuelSlipNo || prev.fuelSlipNo,
+        meterReading:
+          extracted.meterReading !== undefined && extracted.meterReading !== null
+            ? String(extracted.meterReading)
+            : prev.meterReading,
+        dieselLtrs:
+          extracted.dieselLtrs !== undefined && extracted.dieselLtrs !== null
+            ? String(extracted.dieselLtrs)
+            : prev.dieselLtrs,
+        ureaQty:
+          extracted.ureaQty !== undefined && extracted.ureaQty !== null
+            ? String(extracted.ureaQty)
+            : prev.ureaQty,
+      }));
+
+      const foundFields = Object.keys(extracted).filter(
+        (k) => extracted[k] !== undefined && extracted[k] !== null && extracted[k] !== ''
+      );
+
+      if (foundFields.length > 0) {
+        toast.success(`AI extracted ${foundFields.length} field(s). Please verify.`);
+      } else {
+        toast.error('AI could not extract data. Please enter manually.');
+      }
+    } catch (err) {
+      console.error('AI extraction error:', err);
+      toast.error(
+        err.response?.data?.message ||
+          'Failed to process image with AI. Please enter manually.'
+      );
+    } finally {
+      setAiProgress(100);
+      setTimeout(() => {
+        setAiProcessing(false);
+        setAiProgress(0);
+      }, 400);
+    }
+  };
+
+  // ✅ Handle file selection + auto-trigger AI
+  const handleFileChangeWithAI = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
+    if (files.length > 0) {
+      processImageWithAI(files[0]);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -313,6 +482,9 @@ const handleSubmitEntry = async (e) => {
     });
     setSelectedFiles([]);
     document.getElementById('fileInput').value = '';
+      setExtractedData(null);      // ✅ NEW
+    setAiProcessing(false);       // ✅ NEW
+    setAiProgress(0);             // ✅ NEW
     
     setEntrySuccess(true);
     setTimeout(() => setEntrySuccess(false), 3000);
@@ -1545,21 +1717,60 @@ const handleRemoveFile = async (entryId, fileUrl) => {
   />
 </div>
 
-  <div>
+  <div className="md:col-span-2 lg:col-span-3">
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      Upload Files (Multiple)
+      Upload Files (Multiple) — <span className="text-green-600 font-semibold">AI will auto-fill data</span>
     </label>
     <input
       type="file"
       id="fileInput"
       multiple
-      onChange={handleFileChange}
+      accept="image/*"
+      onChange={handleFileChangeWithAI}
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
     />
     {selectedFiles.length > 0 && (
       <p className="mt-1 text-sm text-gray-500">
         {selectedFiles.length} file(s) selected
       </p>
+    )}
+
+    {/* ✅ AI Processing Indicator */}
+    {aiProcessing && (
+      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-sm font-medium text-blue-700">
+            🤖 AI is reading your fuel slip... {aiProgress}%
+          </span>
+        </div>
+        <div className="w-full bg-blue-200 rounded-full h-2">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${aiProgress}%` }}
+          ></div>
+        </div>
+      </div>
+    )}
+
+    {/* ✅ Extracted Data Summary */}
+    {extractedData && !aiProcessing && (
+      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <p className="text-sm font-semibold text-green-800 mb-1">
+          ✅ AI Extracted Data (Please verify):
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-xs text-green-700">
+          {extractedData.date && <span>📅 Date: {extractedData.date}</span>}
+          {extractedData.vehicleNumber && <span>🚛 Vehicle: {extractedData.vehicleNumber}</span>}
+          {extractedData.fuelSlipNo && <span>🧾 Slip: {extractedData.fuelSlipNo}</span>}
+          {extractedData.meterReading && <span>📊 Meter: {extractedData.meterReading}</span>}
+          {extractedData.dieselLtrs && <span>⛽ Fuel: {extractedData.dieselLtrs} L</span>}
+          {extractedData.ureaQty && <span>💧 Urea: {extractedData.ureaQty} L</span>}
+        </div>
+        <p className="text-xs text-green-600 mt-1">
+          Fields may be inaccurate. Please double-check before submitting.
+        </p>
+      </div>
     )}
   </div>
 
