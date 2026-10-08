@@ -1952,11 +1952,11 @@ const handleRemoveFile = async (entryId, fileUrl) => {
               <tr>
                 <th className="px-2 py-2 text-left font-medium text-gray-500">#</th>
                 <th className="px-2 py-2 text-left font-medium text-gray-500">Date</th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Vehicle</th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Slip No</th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Meter</th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Diesel (L)</th>
-                <th className="px-2 py-2 text-left font-medium text-gray-500">Urea (L)</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Vehicle No *</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Fuel Slip No *</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Meter Reading (KM) *</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Urea/DEF/Ad Blue (in Ltrs)</th>
                 <th className="px-2 py-2 text-left font-medium text-gray-500">Status</th>
                 <th className="px-2 py-2 text-left font-medium text-gray-500">Action</th>
               </tr>
@@ -2088,7 +2088,7 @@ const handleRemoveFile = async (entryId, fileUrl) => {
     </div>
   )}
 
-  <div className="md:col-span-2 lg:col-span-3 flex justify-end">
+  {/* <div className="md:col-span-2 lg:col-span-3 flex justify-end">
     <button
       type="submit"
       disabled={entryLoading}
@@ -2108,7 +2108,7 @@ const handleRemoveFile = async (entryId, fileUrl) => {
         </>
       )}
     </button>
-  </div>
+  </div> */}
 </form>
           {/* Mileage Entries Table with Edit */}
 <div className="mt-8">
