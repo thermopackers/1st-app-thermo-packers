@@ -57,6 +57,8 @@ const [editUploading, setEditUploading] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
   const [extractedData, setExtractedData] = useState(null);
+ const [bulkExtracted, setBulkExtracted] = useState([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   // State for entries pagination
   const [entriesPage, setEntriesPage] = useState(1);
@@ -292,12 +294,15 @@ useEffect(() => {
 
     try {
       // ✅ Compress image first
+         const t0 = Date.now();
+      // ✅ Compress image first
       const compressed = await compressImage(file);
       console.log(
-        `Original: ${(file.size / 1024).toFixed(0)} KB → Compressed: ${(compressed.size / 1024).toFixed(0)} KB`
+        `[Frontend] Compression: ${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} KB in ${Date.now() - t0}ms`
       );
 
       setAiProgress(40);
+      const t1 = Date.now();
 
       const formData = new FormData();
       formData.append('image', compressed);
@@ -308,6 +313,8 @@ useEffect(() => {
           Authorization: `Bearer ${token}`,
         },
       });
+      const t2 = Date.now();
+      console.log(`[Frontend] Server round-trip: ${t2 - t1}ms`);
 
       setAiProgress(90);
 
@@ -409,12 +416,183 @@ useEffect(() => {
     }
   };
 
-  // ✅ Handle file selection + auto-trigger AI
-  const handleFileChangeWithAI = (e) => {
+  const compressAllImages = async (files) => {
+    // ✅ Compress all in parallel
+    return Promise.all(files.map((file) => compressImage(file, 2000, 0.9)));
+  };
+
+  // ✅ Bulk: main handler for multi-file upload
+  const handleBulkFileChangeWithAI = async (e) => {
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
     setSelectedFiles(files);
-    if (files.length > 0) {
-      processImageWithAI(files[0]);
+    setAiProcessing(true);
+    setBulkExtracted([]);
+
+    try {
+      const t0 = Date.now();
+      // Compress all images in parallel-ish
+          // Slightly lower quality = faster upload, still readable by AI
+      const compressed = await Promise.all(files.map((f) => compressImage(f, 1600, 0.75)));
+      console.log(`[Bulk] Compressed ${files.length} images in ${Date.now() - t0}ms`);
+
+      const formData = new FormData();
+      compressed.forEach((file) => formData.append('images', file));
+
+      const res = await axiosInstance.post('/ai/extract-fuel-slips-bulk', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 120000, // 2 min for bulk
+      });
+
+      console.log(`[Bulk] Server responded in ${Date.now() - t0}ms`);
+
+      const results = res.data.data || [];
+
+      // Normalize + match vehicles on the frontend
+      const normalizeVehicle = (v) =>
+        (v || '').toString().toUpperCase().replace(/[\s\-]/g, '').trim();
+
+      const processed = results.map((row) => {
+        let matchedVehicle = '';
+        if (row.vehicleNumber) {
+          const aiNorm = normalizeVehicle(row.vehicleNumber);
+          const exact = vehicleList.find(
+            (v) => normalizeVehicle(v.vehicleNumber) === aiNorm
+          );
+          if (exact) {
+            matchedVehicle = exact.vehicleNumber;
+          } else {
+            // Partial match
+            const partial = vehicleList.find((v) => {
+              const dbNorm = normalizeVehicle(v.vehicleNumber);
+              if (Math.abs(dbNorm.length - aiNorm.length) > 1) return false;
+              const maxLen = Math.max(dbNorm.length, aiNorm.length);
+              let same = 0;
+              for (let i = 0; i < Math.min(dbNorm.length, aiNorm.length); i++) {
+                if (dbNorm[i] === aiNorm[i]) same++;
+              }
+              return same / maxLen >= 0.75;
+            });
+            if (partial) matchedVehicle = partial.vehicleNumber;
+          }
+        }
+
+        return {
+          ...row,
+          _matchedVehicle: matchedVehicle,
+          _vehicleMatched: !!matchedVehicle,
+        };
+      });
+
+      setBulkExtracted(processed);
+
+      const readyCount = processed.filter((r) => r._vehicleMatched && !r._error).length;
+      if (readyCount > 0) {
+        toast.success(`AI extracted ${readyCount} of ${processed.length} slips. Review and save.`);
+      } else {
+        toast.error('AI could not extract valid data. Please review manually.');
+      }
+    } catch (err) {
+      console.error('Bulk AI extraction error:', err);
+      toast.error(err.response?.data?.message || 'Failed to process images.');
+    } finally {
+      setAiProcessing(false);
+      setSelectedFiles([]);
+      if (document.getElementById('fileInput')) {
+        document.getElementById('fileInput').value = '';
+      }
+    }
+  };
+
+  // ✅ Bulk: update a single field in a row
+  const updateBulkRow = (idx, field, value) => {
+    setBulkExtracted((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: value };
+      // If user manually selects a vehicle, mark as matched
+      if (field === '_matchedVehicle') {
+        copy[idx]._vehicleMatched = !!value;
+      }
+      return copy;
+    });
+  };
+
+  // ✅ Bulk: remove a row
+  const removeBulkRow = (idx) => {
+    setBulkExtracted((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // ✅ Bulk: save all entries
+  const saveAllBulkEntries = async () => {
+    const validRows = bulkExtracted.filter((r) => r._vehicleMatched && !r._error);
+    if (validRows.length === 0) {
+      toast.error('No valid entries to save.');
+      return;
+    }
+
+    setBulkSaving(true);
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+       // ✅ Parallel save with Promise.allSettled
+      const results = await Promise.allSettled(
+        validRows.map((row) => {
+          const meterReading = parseFloat(row.meterReading);
+          if (isNaN(meterReading)) {
+            return Promise.reject(new Error(`Invalid meter reading for row ${row._index + 1}`));
+          }
+          return axiosInstance.post(
+            '/diesel/add',
+            {
+              vehicleNumber: row._matchedVehicle,
+              date: row.date,
+              kmsReading: meterReading,
+              dieselLiters: row.dieselLtrs ? parseFloat(row.dieselLtrs) : null,
+              ureaQty: row.ureaQty ? parseFloat(row.ureaQty) : null,
+              fuelSlipNo: row.fuelSlipNo || null,
+              imageUrls: [],
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        })
+      );
+
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') successCount++;
+        else {
+          console.error('Failed to save row:', validRows[i], r.reason);
+          failCount++;
+        }
+      });
+
+      toast.success(`Saved ${successCount} entries${failCount > 0 ? `, ${failCount} failed` : ''}.`);
+
+      // Reset bulk UI
+      setBulkExtracted([]);
+      setEntryFormData({
+        date: dayjs().format('YYYY-MM-DD'),
+        vehicleNo: '',
+        fuelSlipNo: '',
+        meterReading: '',
+        dieselLtrs: '',
+        ureaQty: '',
+        files: [],
+      });
+
+      // Refresh all data
+      fetchAllMileageData();
+      fetchTableData();
+      fetchMileageEntries(1);
+    } catch (err) {
+      console.error('Bulk save error:', err);
+      toast.error('Failed to save entries.');
+    } finally {
+      setBulkSaving(false);
     }
   };
 
@@ -1717,16 +1895,19 @@ const handleRemoveFile = async (entryId, fileUrl) => {
   />
 </div>
 
-  <div className="md:col-span-2 lg:col-span-3">
+   <div className="md:col-span-2 lg:col-span-3">
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      Upload Files (Multiple) — <span className="text-green-600 font-semibold">AI will auto-fill data</span>
+      Upload Files (Multiple) —{' '}
+      <span className="text-green-600 font-semibold">
+        AI will extract data from all images
+      </span>
     </label>
     <input
       type="file"
       id="fileInput"
       multiple
       accept="image/*"
-      onChange={handleFileChangeWithAI}
+      onChange={handleBulkFileChangeWithAI}
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
     />
     {selectedFiles.length > 0 && (
@@ -1741,38 +1922,171 @@ const handleRemoveFile = async (entryId, fileUrl) => {
         <div className="flex items-center gap-2 mb-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
           <span className="text-sm font-medium text-blue-700">
-            🤖 AI is reading your fuel slip... {aiProgress}%
+            🤖 AI is reading {selectedFiles.length} image(s)...
           </span>
         </div>
-        <div className="w-full bg-blue-200 rounded-full h-2">
-          <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${aiProgress}%` }}
-          ></div>
-        </div>
-      </div>
-    )}
-
-    {/* ✅ Extracted Data Summary */}
-    {extractedData && !aiProcessing && (
-      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-        <p className="text-sm font-semibold text-green-800 mb-1">
-          ✅ AI Extracted Data (Please verify):
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-xs text-green-700">
-          {extractedData.date && <span>📅 Date: {extractedData.date}</span>}
-          {extractedData.vehicleNumber && <span>🚛 Vehicle: {extractedData.vehicleNumber}</span>}
-          {extractedData.fuelSlipNo && <span>🧾 Slip: {extractedData.fuelSlipNo}</span>}
-          {extractedData.meterReading && <span>📊 Meter: {extractedData.meterReading}</span>}
-          {extractedData.dieselLtrs && <span>⛽ Fuel: {extractedData.dieselLtrs} L</span>}
-          {extractedData.ureaQty && <span>💧 Urea: {extractedData.ureaQty} L</span>}
-        </div>
-        <p className="text-xs text-green-600 mt-1">
-          Fields may be inaccurate. Please double-check before submitting.
-        </p>
       </div>
     )}
   </div>
+
+  {/* ✅ Bulk Preview Table */}
+  {bulkExtracted.length > 0 && (
+    <div className="md:col-span-2 lg:col-span-3 mt-4">
+      <div className="bg-white border-2 border-green-300 rounded-lg p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">
+            📋 AI Extracted Data ({bulkExtracted.length} slips)
+          </h3>
+          <button
+            type="button"
+            onClick={() => setBulkExtracted([])}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            ✕ Clear All
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">#</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Date</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Vehicle</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Slip No</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Meter</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Diesel (L)</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Urea (L)</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Status</th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">Action</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {bulkExtracted.map((row, idx) => (
+                <tr key={idx} className={row._error ? 'bg-red-50' : row._vehicleMatched ? 'bg-green-50' : 'bg-yellow-50'}>
+                  <td className="px-2 py-2 text-gray-600">{idx + 1}</td>
+
+                  {/* Date */}
+                  <td className="px-2 py-2">
+                    <input
+                      type="date"
+                      value={row.date || ''}
+                      onChange={(e) => updateBulkRow(idx, 'date', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </td>
+
+                  {/* Vehicle */}
+                  <td className="px-2 py-2">
+                    <select
+                      value={row._matchedVehicle || ''}
+                      onChange={(e) => updateBulkRow(idx, '_matchedVehicle', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    >
+                      <option value="">-- Select --</option>
+                      {vehicleList.map((v) => (
+                        <option key={v._id} value={v.vehicleNumber}>
+                          {v.vehicleNumber}
+                        </option>
+                      ))}
+                    </select>
+                    {row.vehicleNumber && !row._vehicleMatched && (
+                      <p className="text-red-500 text-[10px] mt-0.5">
+                        AI read: {row.vehicleNumber}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Fuel Slip No */}
+                  <td className="px-2 py-2">
+                    <input
+                      type="text"
+                      value={row.fuelSlipNo || ''}
+                      onChange={(e) => updateBulkRow(idx, 'fuelSlipNo', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </td>
+
+                  {/* Meter Reading */}
+                  <td className="px-2 py-2">
+                    <input
+                      type="number"
+                      value={row.meterReading || ''}
+                      onChange={(e) => updateBulkRow(idx, 'meterReading', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </td>
+
+                  {/* Diesel Liters */}
+                  <td className="px-2 py-2">
+                    <input
+                      type="number"
+                      value={row.dieselLtrs || ''}
+                      onChange={(e) => updateBulkRow(idx, 'dieselLtrs', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </td>
+
+                  {/* Urea */}
+                  <td className="px-2 py-2">
+                    <input
+                      type="number"
+                      value={row.ureaQty || ''}
+                      onChange={(e) => updateBulkRow(idx, 'ureaQty', e.target.value)}
+                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-2 py-2">
+                    {row._error ? (
+                      <span className="text-red-600 font-semibold text-[10px]">❌ Failed</span>
+                    ) : row._vehicleMatched ? (
+                      <span className="text-green-600 font-semibold text-[10px]">✅ Ready</span>
+                    ) : (
+                      <span className="text-yellow-600 font-semibold text-[10px]">⚠️ Select vehicle</span>
+                    )}
+                  </td>
+
+                  {/* Remove */}
+                  <td className="px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => removeBulkRow(idx)}
+                      className="text-red-500 hover:text-red-700 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Save All Button */}
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            type="button"
+            onClick={saveAllBulkEntries}
+            disabled={bulkSaving || bulkExtracted.filter(r => r._vehicleMatched && !r._error).length === 0}
+            className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center gap-2"
+          >
+            {bulkSaving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                💾 Save All ({bulkExtracted.filter(r => r._vehicleMatched && !r._error).length})
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
 
   <div className="md:col-span-2 lg:col-span-3 flex justify-end">
     <button
