@@ -743,12 +743,11 @@ const renderSearchResultItem = (item) => {
               )}
             </div>
 
-            {/* ✅ NEW: Camera button for image search */}
+                      {/* ✅ NEW: Camera button for image search (allows camera OR file picker) */}
             <input
               ref={imageInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleImageSearch}
               className="hidden"
             />
