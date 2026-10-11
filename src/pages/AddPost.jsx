@@ -18,23 +18,41 @@ export default function AddPost() {
     mediaTypes: [],
     postType: "post",
     duration: 0,
-    category: "",
+    categoryId: "",       // ✅ Category ID
+    categoryName: "",     // ✅ Category name
     status: "draft",
     tags: [],
     scheduledPublishDate: ""
   });
 
+  const [categories, setCategories] = useState([]);  // ✅ Categories from SalesCategory
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEdit);
 
-  // Load post data if editing
+  // ✅ Load categories on mount
   useEffect(() => {
+    fetchCategories();
     if (isEdit) {
       fetchPost();
     }
   }, [id]);
+
+  const fetchCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const res = await axiosInstance.get("/posts/settings/categories");
+      setCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+      // Fallback to default categories
+      setCategories(['VIP', 'Regular', 'New', 'Corporate', 'Retail']);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const fetchPost = async () => {
     try {
@@ -47,7 +65,8 @@ export default function AddPost() {
         mediaTypes: post.mediaTypes || [],
         postType: post.postType || "post",
         duration: post.duration || 0,
-        category: post.category || "",
+        categoryId: post.category?._id || post.category || "",  // ✅ Handle populated or raw ID
+        categoryName: post.categoryName || "",
         status: post.status || "draft",
         tags: post.tags || [],
         scheduledPublishDate: post.scheduledPublishDate ? post.scheduledPublishDate.split('T')[0] : ""
@@ -120,6 +139,16 @@ export default function AddPost() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // ✅ Handle category change - update both ID and name
+  const handleCategoryChange = (e) => {
+    const selectedName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      categoryName: selectedName,
+      categoryId: "" // We'll resolve it on the backend
+    }));
+  };
+
   const handleTagChange = (e) => {
     const tags = e.target.value.split(',').map(t => t.trim()).filter(t => t);
     setFormData(prev => ({ ...prev, tags }));
@@ -143,6 +172,8 @@ export default function AddPost() {
       const payload = {
         ...formData,
         title: formData.title.trim(),
+        category: formData.categoryId,        // ✅ Send ID
+        categoryName: formData.categoryName,  // ✅ Send name
         tags: formData.tags,
         createdBy: user?._id
       };
@@ -303,17 +334,30 @@ export default function AddPost() {
               </div>
             )}
 
-            {/* Category */}
+            {/* ✅ CATEGORY DROPDOWN - Uses SalesCategory */}
             <div>
-              <label className="block mb-2 font-medium text-gray-700">Category</label>
-              <input
-                type="text"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400"
-                placeholder="e.g., Product, Promotional, Educational"
-              />
+              <label className="block mb-2 font-medium text-gray-700">
+                Category (from Sales Categories)
+              </label>
+              {loadingCategories ? (
+                <div className="text-sm text-gray-500">Loading categories...</div>
+              ) : (
+                <select
+                  value={formData.categoryName}
+                  onChange={handleCategoryChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">Select a category (optional)</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Categories are managed in the Sales Category settings
+              </p>
             </div>
 
             {/* Tags */}

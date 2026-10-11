@@ -38,15 +38,21 @@ export default function CampaignForm() {
   const [usePostMedia, setUsePostMedia] = useState(false);
   const [postSearch, setPostSearch] = useState("");
   const [postTypeFilter, setPostTypeFilter] = useState("");
-  // ==========================================
-const [postPagination, setPostPagination] = useState({
-  page: 1,
-  limit: 12,
-  total: 0,
-  pages: 1,
-  hasMore: false
-});
-const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [postPagination, setPostPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    pages: 1,
+    hasMore: false
+  });
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+
+  // ✅ CATEGORY FILTER STATES (moved here - was inside WhatsAppPreview before)
+  const [postCategories, setPostCategories] = useState([]);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
+  const [categoryCounts, setCategoryCounts] = useState([]);
+  const [loadingCategoryCounts, setLoadingCategoryCounts] = useState(false);
+
   // Customer states
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -93,69 +99,140 @@ const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [sampleCustomer, setSampleCustomer] = useState(null);
   const [customerNames, setCustomerNames] = useState([]);
 
-  // ============ FETCH POSTS FUNCTION ============
-// ============ FETCH POSTS WITH PAGINATION ============
-const fetchPosts = async (search = "", postType = "", page = 1, append = false) => {
-  if (page === 1) {
-    setLoadingPosts(true);
-  } else {
-    setLoadingMorePosts(true);
-  }
-  
-  try {
-    const params = new URLSearchParams({
-      page: page,
-      limit: 12,
-      // 🆕 Don't filter by status - show ALL posts
-    });
-    if (search) params.append('search', search);
-    if (postType) params.append('postType', postType);
-    
-    console.log("📱 Fetching posts page:", page);
-    console.log("📱 With params:", params.toString());
-    
-    const res = await axiosInstance.get(`/posts?${params}`);
-    
-    console.log("📱 API Response:", res.data);
-    console.log("📱 Posts count:", res.data.posts?.length || 0);
-    console.log("📱 Total:", res.data.total || 0);
-    
-    if (append && page > 1) {
-      setPosts(prev => [...prev, ...(res.data.posts || [])]);
+  // ============ FETCH POSTS ============
+  const fetchPosts = async (search = "", postType = "", page = 1, append = false) => {
+    if (page === 1) {
+      setLoadingPosts(true);
     } else {
-      setPosts(res.data.posts || []);
+      setLoadingMorePosts(true);
     }
     
-    setPostPagination({
-      page: res.data.page || 1,
-      limit: res.data.limit || 12,
-      total: res.data.total || 0,
-      pages: res.data.pages || 1,
-      hasMore: res.data.page < res.data.pages
-    });
-    
-    // 🆕 If no posts found, show a helpful message
-    if (res.data.total === 0) {
-      console.log("📱 No posts found in database");
+    try {
+      const params = new URLSearchParams({
+        page: page,
+        limit: 12,
+      });
+      if (search) params.append('search', search);
+      if (postType) params.append('postType', postType);
+      
+      console.log("📱 Fetching posts page:", page);
+      console.log("📱 With params:", params.toString());
+      
+      const res = await axiosInstance.get(`/posts?${params}`);
+      
+      console.log("📱 API Response:", res.data);
+      console.log("📱 Posts count:", res.data.posts?.length || 0);
+      console.log("📱 Total:", res.data.total || 0);
+      
+      if (append && page > 1) {
+        setPosts(prev => [...prev, ...(res.data.posts || [])]);
+      } else {
+        setPosts(res.data.posts || []);
+      }
+      
+      setPostPagination({
+        page: res.data.page || 1,
+        limit: res.data.limit || 12,
+        total: res.data.total || 0,
+        pages: res.data.pages || 1,
+        hasMore: res.data.page < res.data.pages
+      });
+      
+      if (res.data.total === 0) {
+        console.log("📱 No posts found in database");
+      }
+      
+    } catch (err) {
+      console.error("❌ Failed to fetch posts:", err);
+      console.error("Error response:", err.response?.data);
+      toast.error("Failed to load posts: " + (err.response?.data?.error || err.message));
+    } finally {
+      setLoadingPosts(false);
+      setLoadingMorePosts(false);
     }
-    
-  } catch (err) {
-    console.error("❌ Failed to fetch posts:", err);
-    console.error("Error response:", err.response?.data);
-    toast.error("Failed to load posts: " + (err.response?.data?.error || err.message));
-  } finally {
-    setLoadingPosts(false);
-    setLoadingMorePosts(false);
-  }
-};
-// Load more posts
-const loadMorePosts = () => {
-  if (postPagination.hasMore && !loadingMorePosts) {
-    const nextPage = postPagination.page + 1;
-    fetchPosts(postSearch, postTypeFilter, nextPage, true);
-  }
-};
+  };
 
+  // ============ FETCH POSTS BY CATEGORY ============
+  const fetchPostsByCategory = async (search = "", postType = "", category = "", page = 1, append = false) => {
+    if (page === 1) {
+      setLoadingPosts(true);
+    } else {
+      setLoadingMorePosts(true);
+    }
+    
+    try {
+      const params = new URLSearchParams({
+        page: page,
+        limit: 12,
+      });
+      if (search) params.append('search', search);
+      if (postType) params.append('postType', postType);
+      if (category) params.append('category', category);
+      
+      console.log("📱 Fetching posts with category:", category);
+      const res = await axiosInstance.get(`/posts?${params}`);
+      
+      if (append && page > 1) {
+        setPosts(prev => [...prev, ...(res.data.posts || [])]);
+      } else {
+        setPosts(res.data.posts || []);
+      }
+      
+      setPostPagination({
+        page: res.data.page || 1,
+        limit: res.data.limit || 12,
+        total: res.data.total || 0,
+        pages: res.data.pages || 1,
+        hasMore: res.data.page < res.data.pages
+      });
+      
+    } catch (err) {
+      console.error("Failed to fetch posts", err);
+      toast.error("Failed to load posts");
+    } finally {
+      setLoadingPosts(false);
+      setLoadingMorePosts(false);
+    }
+  };
+
+  // ============ FETCH POST CATEGORIES ============
+  const fetchPostCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/posts/settings/categories");
+      setPostCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load post categories", err);
+      setPostCategories(['VIP', 'Regular', 'New', 'Corporate', 'Retail']);
+    }
+  };
+
+  // ============ FETCH CATEGORY COUNTS ============
+  const fetchCategoryCounts = async () => {
+    setLoadingCategoryCounts(true);
+    try {
+      const res = await axiosInstance.get("/posts/category-counts");
+      console.log("📱 Category counts:", res.data.categoryCounts);
+      setCategoryCounts(res.data.categoryCounts || []);
+    } catch (err) {
+      console.error("Failed to load category counts", err);
+    } finally {
+      setLoadingCategoryCounts(false);
+    }
+  };
+
+  // ============ HANDLE CATEGORY FILTER ============
+  const handleCategoryFilter = (categoryName) => {
+    setSelectedCategoryFilter(categoryName);
+    fetchPostsByCategory(postSearch, postTypeFilter, categoryName, 1, false);
+  };
+
+  // ============ LOAD MORE POSTS ============
+  const loadMorePosts = () => {
+    if (postPagination.hasMore && !loadingMorePosts) {
+      const nextPage = postPagination.page + 1;
+      fetchPostsByCategory(postSearch, postTypeFilter, selectedCategoryFilter, nextPage, true);
+    }
+  };
 
   // ============ HANDLE POST SELECT ============
   const handlePostSelect = (postId) => {
@@ -175,12 +252,13 @@ const loadMorePosts = () => {
     setSelectedPost(null);
     setUsePostMedia(false);
   };
-  // =============================================
 
   // ============ LOAD POSTS ON MOUNT ============
   useEffect(() => {
     console.log("📱 Loading posts on mount...");
     fetchPosts();
+    fetchPostCategories();
+    fetchCategoryCounts();
   }, []);
 
   // Load other data
@@ -391,16 +469,16 @@ const loadMorePosts = () => {
     toast.success("Supplier removed from selection");
   };
 
-  // Update search handler
-const handlePostSearch = () => {
-  fetchPosts(postSearch, postTypeFilter, 1, false);
-};
+  // Post search handler
+  const handlePostSearch = () => {
+    fetchPostsByCategory(postSearch, postTypeFilter, selectedCategoryFilter, 1, false);
+  };
 
-// Update filter handlers
-const handlePostTypeFilter = (type) => {
-  setPostTypeFilter(type);
-  fetchPosts(postSearch, type, 1, false);
-};
+  // Post type filter handler
+  const handlePostTypeFilter = (type) => {
+    setPostTypeFilter(type);
+    fetchPostsByCategory(postSearch, type, selectedCategoryFilter, 1, false);
+  };
 
   // Form handlers
   const handleChange = (e) => {
@@ -683,7 +761,6 @@ const handlePostTypeFilter = (type) => {
       return;
     }
 
-    // Check if using post media
     const usingPostMedia = usePostMedia && selectedPost && selectedPost.mediaUrls && selectedPost.mediaUrls.length > 0;
     const hasManualMedia = formData.mediaUrl || (uploadedMedia && uploadedMedia.length > 0);
     const hasMedia = usingPostMedia || hasManualMedia;
@@ -1103,38 +1180,6 @@ const handlePostTypeFilter = (type) => {
                     longMessageWithMedia={formData.longMessageWithMedia || false}
                   />
                 </div>
-                
-                {(formData.mediaUrl || uploadedMedia.length > 0) && type === 'whatsapp' && !formData.longMessageWithMedia && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <div className="flex items-start gap-2">
-                      <span className="text-yellow-600 mt-0.5">📝</span>
-                      <div>
-                        <p className="text-sm font-medium text-yellow-800">WhatsApp Media Campaign Rules</p>
-                        <p className="text-sm text-yellow-700 mt-1">
-                          • Maximum <strong>75 characters</strong> for message<br/>
-                          • Combined with customer name like: "<span className="font-medium">{getDisplayCustomerName()}: [Your Message]</span>"<br/>
-                          • Total should stay under 100 characters
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(formData.mediaUrl || uploadedMedia.length > 0) && type === 'whatsapp' && formData.longMessageWithMedia && (
-                  <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded">
-                    <div className="flex items-start gap-2">
-                      <span className="text-purple-600 mt-0.5">💡</span>
-                      <div>
-                        <p className="text-sm font-medium text-purple-800">Long Message with Media Mode</p>
-                        <p className="text-sm text-purple-700 mt-1">
-                          • <strong>Step 1:</strong> Media files will be sent first with short captions<br/>
-                          • <strong>Step 2:</strong> Your full message ({formData.message?.length || 0} chars) will be sent as separate text<br/>
-                          • <strong>Benefit:</strong> No 75-character limit! Send detailed messages with media
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               
               {/* Media Upload Section */}
@@ -1160,7 +1205,6 @@ const handlePostTypeFilter = (type) => {
                   </p>
                 )}
                 
-                {/* Preview uploaded files */}
                 {uploadedMedia.length > 0 && (
                   <div className="mt-4">
                     <p className="text-sm font-medium text-gray-600 mb-2">
@@ -1201,7 +1245,6 @@ const handlePostTypeFilter = (type) => {
                   </div>
                 )}
                 
-                {/* Single file preview */}
                 {previewUrl && (
                   <div className="mt-3">
                     <p className="text-sm font-medium text-gray-600 mb-2">Preview:</p>
@@ -1212,18 +1255,10 @@ const handlePostTypeFilter = (type) => {
                     />
                   </div>
                 )}
-                
-                {formData.mediaUrl && !previewUrl && !uploadedMedia.length && (
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-600">
-                      ✅ File uploaded: {formData.mediaType}
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* ============================================================ */}
-              {/* POST/REEL SELECTION SECTION - FIXED TO SHOW ALL POSTS */}
+              {/* POST/REEL SELECTION SECTION WITH CATEGORY FILTER */}
               {/* ============================================================ */}
               {(type === 'whatsapp' || type === 'email' || type === 'both') && (
                 <div className="md:col-span-2 border-t pt-4 mt-4">
@@ -1231,50 +1266,101 @@ const handlePostTypeFilter = (type) => {
                   <p className="text-sm text-gray-600 mb-3">
                     Choose an existing post or reel to use its media in this campaign.
                   </p>
-                  
-               <div className="flex flex-wrap gap-3 mb-3">
-  <button
-    type="button"
-    onClick={() => handlePostTypeFilter("")}
-    className={`px-3 py-1 text-sm rounded-full transition-colors ${
-      postTypeFilter === "" 
-        ? 'bg-blue-600 text-white' 
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    All ({postPagination.total || 0})
-  </button>
-  <button
-    type="button"
-    onClick={() => handlePostTypeFilter("post")}
-    className={`px-3 py-1 text-sm rounded-full transition-colors ${
-      postTypeFilter === "post" 
-        ? 'bg-blue-600 text-white' 
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    📝 Posts
-  </button>
-  <button
-    type="button"
-    onClick={() => handlePostTypeFilter("reel")}
-    className={`px-3 py-1 text-sm rounded-full transition-colors ${
-      postTypeFilter === "reel" 
-        ? 'bg-blue-600 text-white' 
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    🎬 Reels
-  </button>
-   <button
-    type="button"
-    onClick={() => navigate('/posts')}
-    className={`px-3 py-1 bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm rounded-full transition-colors`}
-  >
-    🎬 Visit Posts & Reels Database
-  </button>
-</div>
 
+                  {/* ✅ CATEGORY FILTER TABS */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Filter by Category
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {/* All Categories Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleCategoryFilter("")}
+                        className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                          selectedCategoryFilter === "" 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        All Categories ({categoryCounts.reduce((sum, c) => sum + c.count, 0)})
+                      </button>
+                      
+                      {/* Category Buttons with counts */}
+                      {categoryCounts.map((cat) => (
+                        <button
+                          key={cat.categoryName}
+                          type="button"
+                          onClick={() => handleCategoryFilter(cat.categoryName)}
+                          className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                            selectedCategoryFilter === cat.categoryName 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {cat.categoryName} ({cat.count})
+                        </button>
+                      ))}
+                      
+                      {loadingCategoryCounts && (
+                        <span className="text-sm text-gray-500 px-3 py-1.5">
+                          <span className="animate-spin inline-block">⏳</span> Loading categories...
+                        </span>
+                      )}
+                      
+                      {categoryCounts.length === 0 && !loadingCategoryCounts && (
+                        <p className="text-sm text-gray-500">No categories with posts yet</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Post type filter */}
+                  <div className="flex flex-wrap gap-3 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPostTypeFilter("");
+                        fetchPostsByCategory(postSearch, "", selectedCategoryFilter, 1, false);
+                      }}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        postTypeFilter === "" 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      All Types
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPostTypeFilter("post");
+                        fetchPostsByCategory(postSearch, "post", selectedCategoryFilter, 1, false);
+                      }}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        postTypeFilter === "post" 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      📝 Posts
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPostTypeFilter("reel");
+                        fetchPostsByCategory(postSearch, "reel", selectedCategoryFilter, 1, false);
+                      }}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        postTypeFilter === "reel" 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      🎬 Reels
+                    </button>
+                  </div>
+
+                  {/* Search box */}
                   <div className="flex gap-3 mb-3">
                     <div className="flex-1 relative">
                       <input
@@ -1290,144 +1376,145 @@ const handlePostTypeFilter = (type) => {
                         </div>
                       )}
                     </div>
-                   <button
-  type="button"
-  onClick={handlePostSearch}
-  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
->
-  Search
-</button>
+                    <button
+                      type="button"
+                      onClick={() => fetchPostsByCategory(postSearch, postTypeFilter, selectedCategoryFilter, 1, false)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Search
+                    </button>
                   </div>
-{/* Posts Grid - With Pagination/Load More */}
-<div className="max-h-[400px] overflow-y-auto border rounded-lg p-3 bg-gray-50">
-  {loadingPosts && posts.length === 0 ? (
-    <div className="text-center py-8">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
-      <p className="text-sm text-gray-500 mt-3">Loading posts...</p>
-    </div>
-  ) : posts.length === 0 ? (
-    <div className="text-center py-8 text-gray-500">
-      <p>No published posts or reels found.</p>
-      <p className="text-sm mt-2">
-        Create a post in the 
-        <button 
-          onClick={() => navigate('/posts/new')} 
-          className="text-blue-600 hover:underline mx-1 font-medium"
-        >
-          Posts section
-        </button>
-        first.
-      </p>
-    </div>
-  ) : (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {posts.map((post) => (
-          <div
-            key={post._id}
-            onClick={() => handlePostSelect(post._id)}
-            className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
-              selectedPostId === post._id
-                ? 'border-blue-500 bg-blue-50 shadow-md'
-                : 'border-gray-200 bg-white hover:border-blue-300'
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate" title={post.title}>
-                  {post.title}
-                </div>
-                {post.category && (
-                  <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                    {post.category}
-                  </span>
-                )}
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    post.postType === 'reel' 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {post.postType === 'reel' ? '🎬 Reel' : '📝 Post'}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {post.mediaUrls?.length || 0} media
-                  </span>
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {new Date(post.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-              {selectedPostId === post._id && (
-                <div className="text-blue-600 text-lg flex-shrink-0">✓</div>
-              )}
-            </div>
-            {/* Preview thumbnails */}
-            {post.mediaUrls && post.mediaUrls.length > 0 && (
-              <div className="flex gap-1 mt-2">
-                {post.mediaUrls.slice(0, 3).map((url, idx) => (
-                  <div key={idx} className="w-8 h-8 rounded overflow-hidden bg-gray-200 flex-shrink-0">
-                    {post.mediaTypes?.[idx] === 'image' ? (
-                      <img 
-                        src={url} 
-                        alt="" 
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs">
-                        {post.mediaTypes?.[idx] === 'video' ? '🎬' : '📄'}
+
+                  {/* Posts Grid */}
+                  <div className="max-h-[400px] overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                    {loadingPosts && posts.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-sm text-gray-500 mt-3">Loading posts...</p>
                       </div>
+                    ) : posts.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>
+                          {selectedCategoryFilter 
+                            ? `No posts found in "${selectedCategoryFilter}" category.` 
+                            : 'No posts or reels found.'}
+                        </p>
+                        <p className="text-sm mt-2">
+                          Create a post in the 
+                          <button 
+                            onClick={() => navigate('/posts/new')} 
+                            className="text-blue-600 hover:underline mx-1 font-medium"
+                          >
+                            Posts section
+                          </button>
+                          first.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {posts.map((post) => (
+                            <div
+                              key={post._id}
+                              onClick={() => handlePostSelect(post._id)}
+                              className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+                                selectedPostId === post._id
+                                  ? 'border-blue-500 bg-blue-50 shadow-md'
+                                  : 'border-gray-200 bg-white hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm truncate" title={post.title}>
+                                    {post.title}
+                                  </div>
+                                  {post.categoryName && (
+                                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                                      🏷️ {post.categoryName}
+                                    </span>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      post.postType === 'reel' 
+                                        ? 'bg-purple-100 text-purple-700' 
+                                        : 'bg-green-100 text-green-700'
+                                    }`}>
+                                      {post.postType === 'reel' ? '🎬 Reel' : '📝 Post'}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {post.mediaUrls?.length || 0} media
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {new Date(post.createdAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                {selectedPostId === post._id && (
+                                  <div className="text-blue-600 text-lg flex-shrink-0">✓</div>
+                                )}
+                              </div>
+                              {post.mediaUrls && post.mediaUrls.length > 0 && (
+                                <div className="flex gap-1 mt-2">
+                                  {post.mediaUrls.slice(0, 3).map((url, idx) => (
+                                    <div key={idx} className="w-8 h-8 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                                      {post.mediaTypes?.[idx] === 'image' ? (
+                                        <img 
+                                          src={url} 
+                                          alt="" 
+                                          className="w-full h-full object-cover"
+                                          loading="lazy"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-xs">
+                                          {post.mediaTypes?.[idx] === 'video' ? '🎬' : '📄'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {post.mediaUrls.length > 3 && (
+                                    <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
+                                      +{post.mediaUrls.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Load More Button */}
+                        {postPagination.hasMore && (
+                          <div className="text-center mt-4">
+                            <button
+                              type="button"
+                              onClick={() => fetchPostsByCategory(postSearch, postTypeFilter, selectedCategoryFilter, postPagination.page + 1, true)}
+                              disabled={loadingMorePosts}
+                              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
+                            >
+                              {loadingMorePosts ? '⏳ Loading...' : `Load More (${postPagination.total - posts.length} remaining)`}
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Total count */}
+                        <div className="text-xs text-gray-400 text-center mt-3">
+                          Showing {posts.length} of {postPagination.total} posts
+                          {selectedCategoryFilter && ` in "${selectedCategoryFilter}"`}
+                        </div>
+                      </>
                     )}
                   </div>
-                ))}
-                {post.mediaUrls.length > 3 && (
-                  <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
-                    +{post.mediaUrls.length - 3}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      
-      {/* Load More Button */}
-      {postPagination.hasMore && (
-        <div className="text-center mt-4">
-          <button
-            type="button"
-            onClick={loadMorePosts}
-            disabled={loadingMorePosts}
-            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            {loadingMorePosts ? (
-              <>
-                <span className="inline-block animate-spin mr-2">⏳</span>
-                Loading...
-              </>
-            ) : (
-              `Load More (${postPagination.total - posts.length} remaining)`
-            )}
-          </button>
-        </div>
-      )}
-      
-      {/* Show total count */}
-      {postPagination.total > 0 && (
-        <div className="text-xs text-gray-400 text-center mt-3">
-          Showing {posts.length} of {postPagination.total} posts
-        </div>
-      )}
-    </>
-  )}
-</div>
 
                   {selectedPost && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                       <div>
                         <span className="font-medium text-blue-800">Selected:</span>
                         <span className="ml-2">{selectedPost.title}</span>
+                        {selectedPost.categoryName && (
+                          <span className="ml-2 text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                            🏷️ {selectedPost.categoryName}
+                          </span>
+                        )}
                         <span className="ml-2 text-sm text-gray-600">
                           ({selectedPost.postType === 'reel' ? '🎬 Reel' : '📝 Post'})
                         </span>
@@ -1457,6 +1544,7 @@ const handlePostTypeFilter = (type) => {
                                 src={url} 
                                 alt={`Post media ${idx + 1}`}
                                 className="w-full h-24 object-cover"
+                                loading="lazy"
                                 onError={(e) => {
                                   e.target.onerror = null;
                                   e.target.src = 'https://via.placeholder.com/150?text=Media';
@@ -1507,7 +1595,7 @@ const handlePostTypeFilter = (type) => {
                 </div>
               )}
 
-              {/* WhatsApp Preview - Only show for WhatsApp campaigns */}
+              {/* WhatsApp Preview */}
               {type === 'whatsapp' && (
                 <div className="md:col-span-2">
                   <WhatsAppPreview 
@@ -1636,7 +1724,6 @@ const handlePostTypeFilter = (type) => {
                     )}
                   </div>
 
-                  {/* Customer Search Results Dropdown */}
                   {showSearchResults && searchResults.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full max-w-lg bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {searchResults.map((customer) => (
@@ -1659,7 +1746,6 @@ const handlePostTypeFilter = (type) => {
                     </div>
                   )}
 
-                  {/* Selected Customers */}
                   {selectedCustomers.length > 0 && (
                     <div className="mt-4">
                       <div className="flex justify-between items-center mb-2">
@@ -1722,7 +1808,6 @@ const handlePostTypeFilter = (type) => {
                     )}
                   </div>
 
-                  {/* Potential Customer Search Results Dropdown */}
                   {showPotentialCustomerResults && potentialCustomerSearchResults.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full max-w-lg bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {potentialCustomerSearchResults.map((potentialCustomer) => (
@@ -1750,7 +1835,6 @@ const handlePostTypeFilter = (type) => {
                     </div>
                   )}
 
-                  {/* Selected Potential Customers */}
                   {selectedPotentialCustomers.length > 0 && (
                     <div className="mt-4">
                       <div className="flex justify-between items-center mb-2">
@@ -1818,7 +1902,6 @@ const handlePostTypeFilter = (type) => {
                     )}
                   </div>
 
-                  {/* Supplier Search Results Dropdown */}
                   {showSupplierResults && supplierSearchResults.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full max-w-lg bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {supplierSearchResults.map((supplier) => (
@@ -1837,7 +1920,6 @@ const handlePostTypeFilter = (type) => {
                     </div>
                   )}
 
-                  {/* Selected Suppliers */}
                   {selectedSuppliers.length > 0 && (
                     <div className="mt-4">
                       <div className="flex justify-between items-center mb-2">

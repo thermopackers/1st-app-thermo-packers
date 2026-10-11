@@ -4,10 +4,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
+import { useUserContext } from "../context/UserContext";
 
 export default function ProductCustomerSearch() {
   const navigate = useNavigate();
+  const { token } = useUserContext();
   const [searchQuery, setSearchQuery] = useState("");
+  // ✅ NEW: Image search states
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const [imageSearchPreview, setImageSearchPreview] = useState(null);
+  const [imageSearchMatches, setImageSearchMatches] = useState([]);
+  const [imageSearchDescription, setImageSearchDescription] = useState("");
+  const imageInputRef = useRef(null);
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -568,6 +576,144 @@ const renderSearchResultItem = (item) => {
   }
 };
 
+  // ✅ NEW: Compress image before AI upload
+  const compressImage = (file, maxWidth = 1200, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => resolve(new File([blob], file.name, { type: 'image/jpeg' })),
+            'image/jpeg',
+            quality
+          );
+        };
+      };
+    });
+  };
+
+  // ✅ NEW: Handle image search
+  const handleImageSearch = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageSearchLoading(true);
+    setImageSearchMatches([]);
+    setImageSearchDescription('');
+    setShowResults(false);
+
+    // Show preview
+    const previewUrl = URL.createObjectURL(file);
+    setImageSearchPreview(previewUrl);
+
+    try {
+      // 1. Fetch all sales products (needed as catalog for AI)
+      const productsRes = await axiosInstance.get('/products-multer?limit=500');
+      const allProducts = productsRes.data.products || [];
+
+      if (allProducts.length === 0) {
+        Swal.fire({
+          title: 'No products',
+          text: 'No sales products found in the catalog.',
+          icon: 'warning',
+          confirmButtonColor: '#2563eb',
+        });
+        return;
+      }
+
+               // 2. Build catalog — send BOTH images and internalImages
+      //    (backend prefers internal, falls back to public when internal is empty)
+      const catalog = allProducts.map((p) => ({
+        _id: p._id,
+        name: p.name,
+        description: p.description || '',
+        unit: p.unit || '',
+        internalImages: Array.isArray(p.internalImages) ? p.internalImages : [],
+        images: Array.isArray(p.images) ? p.images : [],
+      }));
+
+      // 3. Compress and upload image
+      const compressed = await compressImage(file, 1200, 0.8);
+      const formData = new FormData();
+      formData.append('image', compressed);
+      formData.append('products', JSON.stringify(catalog));
+
+      const res = await axiosInstance.post('/ai/search-product-by-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 60000,
+      });
+
+      const matches = res.data.matches || [];
+      const description = res.data.visualDescription || '';
+
+      setImageSearchDescription(description);
+
+      // 4. Enrich matches with full product data + image URLs
+      const enriched = matches
+        .map((match) => {
+          const fullProduct = allProducts.find(
+            (p) => p.name.toLowerCase() === match.name.toLowerCase()
+          );
+          if (!fullProduct) return null;
+          return {
+            ...fullProduct,
+            _matchConfidence: match.confidence,
+            _matchReason: match.reason,
+          };
+        })
+        .filter(Boolean);
+
+      setImageSearchMatches(enriched);
+
+      if (enriched.length === 0) {
+        Swal.fire({
+          title: 'No matches found',
+          html: description
+            ? `<p class="text-sm text-gray-600 mb-2">AI saw: <em>${description}</em></p><p>No similar products found in catalog.</p>`
+            : 'No similar products found in catalog.',
+          icon: 'info',
+          confirmButtonColor: '#2563eb',
+        });
+      }
+    } catch (err) {
+      console.error('Image search error:', err);
+      Swal.fire({
+        title: 'Image Search Failed',
+        text: err.response?.data?.message || 'Could not search by image. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#2563eb',
+      });
+    } finally {
+      setImageSearchLoading(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  // ✅ NEW: Clear image search
+  const clearImageSearch = () => {
+    if (imageSearchPreview) URL.revokeObjectURL(imageSearchPreview);
+    setImageSearchPreview(null);
+    setImageSearchMatches([]);
+    setImageSearchDescription('');
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
   return (
     <>
       {/* Unified Search Bar */}
@@ -578,17 +724,17 @@ const renderSearchResultItem = (item) => {
         transition={{ duration: 0.5 }}
       >
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
-placeholder="🔍 Search pages, products, suppliers, or categories..."
+                placeholder="🔍 Search pages, products, suppliers, or categories..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   handleUnifiedSearch(e.target.value);
                 }}
-                className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                className="w-full border-2 border-gray-200 rounded-2xl px-6 py-3 pr-14 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white/80 backdrop-blur-sm"
               />
               {loading && (
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -596,7 +742,124 @@ placeholder="🔍 Search pages, products, suppliers, or categories..."
                 </div>
               )}
             </div>
+
+            {/* ✅ NEW: Camera button for image search */}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageSearch}
+              className="hidden"
+            />
+            <motion.button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={imageSearchLoading}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title="Search by photo"
+            >
+              {imageSearchLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span className="text-xl">📷</span>
+              )}
+              <span className="hidden md:inline text-sm">Search by Photo</span>
+            </motion.button>
           </div>
+
+          {/* ✅ Image Search Preview + Results */}
+          {(imageSearchPreview || imageSearchMatches.length > 0) && (
+            <motion.div
+              className="mt-4 bg-white border-2 border-purple-200 rounded-2xl p-4"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-start gap-4">
+                {/* Preview */}
+                {imageSearchPreview && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={imageSearchPreview}
+                      alt="Search preview"
+                      className="w-24 h-24 object-cover rounded-xl border-2 border-purple-200"
+                    />
+                  </div>
+                )}
+
+                {/* Info + Results */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                        <span>🔍</span> Image Search Results
+                      </h4>
+                      {imageSearchDescription && (
+                        <p className="text-xs text-gray-500 mt-0.5 italic">
+                          AI saw: {imageSearchDescription}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={clearImageSearch}
+                      className="text-gray-500 hover:text-gray-700 text-sm font-medium px-2 py-1 rounded-lg hover:bg-gray-100"
+                    >
+                      ✕ Clear
+                    </button>
+                  </div>
+
+                  {imageSearchLoading ? (
+                    <div className="flex items-center gap-2 text-purple-700 text-sm">
+                      <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                      Analyzing image with AI...
+                    </div>
+                  ) : imageSearchMatches.length === 0 ? (
+                    <p className="text-sm text-gray-500">No matches found.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {imageSearchMatches.map((product, idx) => (
+                        <motion.div
+                          key={product._id || idx}
+                          onClick={() => navigate(`/products/edit/${product._id}`)}
+                          className="flex items-center gap-3 p-2 bg-purple-50 hover:bg-purple-100 rounded-lg cursor-pointer transition-all border border-purple-100"
+                          whileHover={{ x: 3 }}
+                        >
+                          {product.images?.[0] ? (
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded-lg border border-purple-200 flex-shrink-0"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-purple-200 rounded-lg flex items-center justify-center flex-shrink-0 text-xl">
+                              📦
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">
+                              {product.name}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {product.unit && `${product.unit} • `}
+                              {product._matchReason}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <div className="text-xs font-bold text-purple-700">
+                              {Math.round((product._matchConfidence || 0) * 100)}%
+                            </div>
+                            <div className="text-[10px] text-gray-400">match</div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
           
           {/* Search Info */}
       {/* <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">

@@ -23,6 +23,20 @@ export default function PostsList() {
     status: 'published'
   });
   const [showFilters, setShowFilters] = useState(false);
+const [postCategories, setPostCategories] = useState([]);
+
+// Add useEffect to load categories
+useEffect(() => {
+  const loadCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/posts/settings/categories");
+      setPostCategories(res.data.categories || []);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+    }
+  };
+  loadCategories();
+}, []);
 
   useEffect(() => {
     fetchPosts();
@@ -190,16 +204,21 @@ export default function PostsList() {
               </select>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <input
-                type="text"
-                value={filters.category}
-                onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value, page: 1 }))}
-                placeholder="Filter by category..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+          <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+  <select
+    value={filters.category}
+    onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value, page: 1 }))}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+  >
+    <option value="">All Categories</option>
+    {postCategories.map((category) => (
+      <option key={category} value={category}>
+        {category}
+      </option>
+    ))}
+  </select>
+</div>
           </div>
         </div>
 

@@ -823,7 +823,7 @@ const handleDownloadPDF = async () => {
                     <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-lg shadow-sm border border-purple-100 overflow-hidden">
                       <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2">
                         <p className="text-white text-sm">
-                          <span className="font-semibold">Price per Piece (with wastage):</span>
+                          <span className="font-semibold">Price per Piece (including wastage):</span>
                           <span className="text-lg font-bold ml-1">₹{showWastage ? result.priceWithWastage : result.priceWithoutWastage}</span>
                         </p>
                       </div>
@@ -865,10 +865,10 @@ const handleDownloadPDF = async () => {
                     </div>
                     
                     {showWastage && (
-                      <div className="bg-gradient-to-br from-white to-green-50/30 rounded-lg shadow-sm border border-green-100 overflow-hidden">
+                      <div className="bg-gradient-to-br border border-amber-500 border-8 from-white to-green-50/30 rounded-lg shadow-sm overflow-hidden">
                         <div className="bg-gradient-to-r from-green-600 to-green-700 px-3 py-2">
                           <p className="text-white text-sm">
-                            <span className="font-semibold">Price per Piece (without wastage):</span>
+                            <span className="font-semibold">Price per Piece (without including wastage):</span>
                             <span className="text-lg font-bold ml-1">₹{result.priceWithoutWastage}</span>
                           </p>
                         </div>

@@ -972,13 +972,13 @@ const MoldDieForm = ({ onClose, editId }) => {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2 text-left">Sr No</th>
-                <th className="border p-2 text-left">Sales Product made from this Die</th>
                 <th className="border p-2 text-left">Name of Die</th>
                 <th className="border p-2 text-left">Die No</th>
                 <th className="border p-2 text-left">Photo</th>
                 <th className="border p-2 text-left">Die Cavity</th>
                 <th className="border p-2 text-left">Remarks</th>
                 <th className="border p-2 text-left">Owner Name</th>
+                                <th className="border p-2 text-left">Sales Product made from this Die</th>
                 <th className="border p-2 text-left">Die Location</th>
                 <th className="border p-2 text-left">Inward Challan</th>
                 <th className="border p-2 text-left">Outward Challan</th>
@@ -1004,9 +1004,7 @@ const MoldDieForm = ({ onClose, editId }) => {
                     <td className="border p-2">
                       {(currentPage - 1) * itemsPerPage + idx + 1}
                     </td>
-                    <td className="border p-2">
-                      {die.salesProductName || "—"}
-                    </td>
+                    
                     <td className="border p-2">{die.nameOfDie}</td>
                     <td className="border p-2">{die.dieNo}</td>
                     <td className="border p-2">
@@ -1047,6 +1045,9 @@ const MoldDieForm = ({ onClose, editId }) => {
                           ({die.customerName})
                         </div>
                       )}
+                    </td>
+                    <td className="border p-2">
+                      {die.salesProductName || "—"}
                     </td>
                     <td className="border p-2">
                       {getLocationLabel(die.dieLocation, die.dieLocationOther)}

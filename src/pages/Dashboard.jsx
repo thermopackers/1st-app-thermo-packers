@@ -846,27 +846,7 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
           </div>
         )}
         
-        {/* Notification Badges */}
-        {/* <div className="flex items-center gap-1">
-          {unreadCount > 0 && (
-            <motion.span
-              className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-            >
-              {unreadCount}
-            </motion.span>
-          )}
-          {docNotifCount > 0 && userRoles.includes("accounts") && (
-            <motion.span
-              className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-            >
-              {docNotifCount}
-            </motion.span>
-          )}
-        </div> */}
+       
       </div>
     </motion.button>
 
