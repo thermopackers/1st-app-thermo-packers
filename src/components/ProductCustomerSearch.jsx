@@ -751,20 +751,20 @@ const renderSearchResultItem = (item) => {
               onChange={handleImageSearch}
               className="hidden"
             />
-            <motion.button
+                       <motion.button
               onClick={() => imageInputRef.current?.click()}
               disabled={imageSearchLoading}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="glass-btn p-3 rounded-2xl flex items-center gap-2 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Search by photo"
             >
               {imageSearchLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <span className="text-xl">📷</span>
               )}
-              <span className="hidden md:inline text-sm">Search by Photo</span>
+              <span className="hidden md:inline text-sm text-gray-800">Search by Photo</span>
             </motion.button>
           </div>
 
