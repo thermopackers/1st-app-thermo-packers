@@ -49,8 +49,10 @@ const [entriesVehicleFilter, setEntriesVehicleFilter] = useState("");
     files: []
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [entryLoading, setEntryLoading] = useState(false);
+  const [manualFiles, setManualFiles] = useState([]); // ✅ NEW: files attached to manual entry  const [entryLoading, setEntryLoading] = useState(false);
   const [entrySuccess, setEntrySuccess] = useState(false);
+    const [entryLoading, setEntryLoading] = useState(false); // ✅ FIX: missing state
+
   const [previewImage, setPreviewImage] = useState(null);
 const [editSelectedFiles, setEditSelectedFiles] = useState([]);
 const [editUploading, setEditUploading] = useState(false);
@@ -251,6 +253,12 @@ useEffect(() => {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles(files);
+  };
+
+  // ✅ NEW: Handle manual entry file selection
+  const handleManualFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setManualFiles(files);
   };
 
   // ✅ Compress image before sending to AI (reduces upload time by 90%)
@@ -611,9 +619,11 @@ const handleSubmitEntry = async (e) => {
 
   try {
     let imageUrls = [];
-    if (selectedFiles.length > 0) {
+    // ✅ Use manualFiles (from manual entry input), fallback to selectedFiles
+    const filesToUpload = manualFiles.length > 0 ? manualFiles : selectedFiles;
+    if (filesToUpload.length > 0) {
       const formData = new FormData();
-      selectedFiles.forEach(file => {
+      filesToUpload.forEach(file => {
         formData.append('images', file);
       });
 
@@ -658,12 +668,16 @@ const handleSubmitEntry = async (e) => {
         ureaQty: "",  // ✅ ADD THIS
       files: []
     });
-    setSelectedFiles([]);
-    document.getElementById('fileInput').value = '';
-      setExtractedData(null);      // ✅ NEW
-    setAiProcessing(false);       // ✅ NEW
-    setAiProgress(0);             // ✅ NEW
-    
+       setSelectedFiles([]);
+    setManualFiles([]); // ✅ NEW: reset manual files
+    const manualInput = document.getElementById('manualFileInput');
+    if (manualInput) manualInput.value = '';
+    const aiInput = document.getElementById('fileInput');
+    if (aiInput) aiInput.value = '';
+    setExtractedData(null);
+    setAiProcessing(false);
+    setAiProgress(0);
+
     setEntrySuccess(true);
     setTimeout(() => setEntrySuccess(false), 3000);
 
@@ -745,7 +759,8 @@ const handleUpdateEntry = async (e) => {
       kmsReading: parseFloat(editFormData.kmsReading),
       fuelSlipNo: editFormData.fuelSlipNo || null,
       imageUrls: imageUrls,
-        ureaQty: editFormData.ureaQty ? parseFloat(editFormData.ureaQty) : null  // ✅ ADD THIS
+        ureaQty: editFormData.ureaQty ? parseFloat(editFormData.ureaQty) : null,
+              date: editFormData.date || undefined, // ✅ NEW: allow date update
     };
 
     await axiosInstance.patch(`/diesel/update/${editingEntry._id}`, payload, {
@@ -1798,7 +1813,21 @@ const handleRemoveFile = async (entryId, fileUrl) => {
             )}
 
           <form onSubmit={handleSubmitEntry} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-  {/* <div>
+  {/* ✅ Manual Entry Section Header */}
+  <div className="md:col-span-2 lg:col-span-3 mt-2 mb-2">
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+      <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+        <span>✍️</span> Manual Entry
+      </span>
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+    </div>
+    <p className="text-xs text-gray-500 text-center mt-1">
+      Fill in the fields below manually, or use the AI photo upload below to auto-fill
+    </p>
+  </div>
+
+  <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
       Date *
     </label>
@@ -1839,8 +1868,8 @@ const handleRemoveFile = async (entryId, fileUrl) => {
     <input
       type="text"
       name="fuelSlipNo"
-      value={entryFormData.fuelSlipNo}  // ✅ FIXED
-      onChange={handleInputChange}       // ✅ FIXED
+      value={entryFormData.fuelSlipNo}
+      onChange={handleInputChange}
       required
       placeholder="e.g., FSL-2025-001"
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
@@ -1865,7 +1894,7 @@ const handleRemoveFile = async (entryId, fileUrl) => {
 
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
-     FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
+      FUEL-Petrol/Diesel/CNG (in Ltrs/Kg)
     </label>
     <input
       type="number"
@@ -1880,20 +1909,102 @@ const handleRemoveFile = async (entryId, fileUrl) => {
   </div>
 
   <div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Urea/DEF/Ad Blue (in Ltrs)
-  </label>
-  <input
-    type="number"
-    name="ureaQty"
-    value={entryFormData.ureaQty}
-    onChange={handleInputChange}
-    placeholder="e.g., 5.0"
-    step="0.01"
-    min="0"
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
-  />
-</div> */}
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Urea/DEF/Ad Blue (in Ltrs)
+    </label>
+    <input
+      type="number"
+      name="ureaQty"
+      value={entryFormData.ureaQty}
+      onChange={handleInputChange}
+      placeholder="e.g., 5.0"
+      step="0.01"
+      min="0"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+    />
+  </div>
+
+   {/* ✅ Manual Entry: Upload Proof Files */}
+  <div className="md:col-span-2 lg:col-span-3">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      📎 Attach Files (Optional) —{' '}
+      <span className="text-gray-500 font-normal">
+        fuel slip photo, receipt, etc.
+      </span>
+    </label>
+    <input
+      type="file"
+      id="manualFileInput"
+      multiple
+      accept="image/*,application/pdf"
+      onChange={handleManualFileChange}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+    />
+    {manualFiles.length > 0 && (
+      <div className="mt-2 flex flex-wrap gap-2">
+        {manualFiles.map((file, idx) => (
+          <div
+            key={idx}
+            className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 text-xs"
+          >
+            <span className="text-blue-700">📎 {file.name}</span>
+            <button
+              type="button"
+              onClick={() => {
+                const updated = manualFiles.filter((_, i) => i !== idx);
+                setManualFiles(updated);
+                if (updated.length === 0) {
+                  const inp = document.getElementById('manualFileInput');
+                  if (inp) inp.value = '';
+                }
+              }}
+              className="text-red-500 hover:text-red-700 font-bold"
+              title="Remove file"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  {/* ✅ Manual Submit Button */}
+  <div className="md:col-span-2 lg:col-span-3 flex justify-end">
+    <button
+      type="submit"
+      disabled={entryLoading}
+      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {entryLoading ? (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          Adding...
+        </>
+      ) : (
+        <>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Entry Manually
+        </>
+      )}
+    </button>
+  </div>
+
+     {/* ✅ AI Upload Section Header */}
+   <div className="md:col-span-2 lg:col-span-3 mt-4">
+     <div className="flex items-center gap-3">
+       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
+       <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-2">
+         <span>🤖</span> AI Photo Upload (Bulk)
+       </span>
+       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
+     </div>
+     <p className="text-xs text-gray-500 text-center mt-1">
+       Upload one or more fuel slip photos — AI will extract data and populate the table below
+     </p>
+   </div>
 
    <div className="md:col-span-2 lg:col-span-3">
     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2406,19 +2517,18 @@ const handleRemoveFile = async (entryId, fileUrl) => {
 
       <form onSubmit={handleUpdateEntry} className="p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+                  <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date
+              Date *
             </label>
             <input
               type="date"
               name="date"
               value={editFormData.date}
               onChange={handleEditInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              disabled
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
             />
-            <p className="text-xs text-gray-500 mt-1">Date cannot be changed</p>
+            <p className="text-xs text-gray-500 mt-1">You can change the entry date</p>
           </div>
 
           <div>
