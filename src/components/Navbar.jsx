@@ -1,20 +1,16 @@
 // src/components/Navbar.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
-import { FiMenu, FiX, FiUser, FiLogOut, FiShoppingCart } from "react-icons/fi";
+import { FiMenu, FiX } from "react-icons/fi";
 import { useAppContext } from "../context/AppContext";
-import { useCaremaxCustomer } from "../context/CaremaxCustomerContext";
-import CaremaxAuthModal from "./CaremaxAuthModal";
+
 
 export default function Navbar() {
   const { menuOpen, setMenuOpen } = useAppContext();
-  const { customer, isAuthenticated, logout } = useCaremaxCustomer();
   const [scrolled, setScrolled] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef(null);
   const userMenuRef = useRef(null);
-  const navigate = useNavigate();
 
   const navLinkClass = ({ isActive }) =>
     `relative drop-shadow-md block px-4 py-2 text-sm md:text-base font-semibold transition-colors duration-300
@@ -43,11 +39,7 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    setShowUserMenu(false);
-    navigate('/');
-  };
+
 
   return (
     <>
@@ -86,14 +78,7 @@ export default function Navbar() {
        
         {/* Mobile Menu Icon */}
         <div className="md:hidden z-50 flex items-center gap-3">
-          {isAuthenticated && (
-            <button
-              onClick={() => navigate('/caremax/orders')}
-              className="p-2 hover:bg-gray-100 rounded-full relative"
-            >
-              <FiShoppingCart size={20} />
-            </button>
-          )}
+      
           <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
             {menuOpen ? <FiX size={26} /> : <FiMenu size={26} />}
           </button>
@@ -126,7 +111,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      <CaremaxAuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }
