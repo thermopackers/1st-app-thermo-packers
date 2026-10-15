@@ -659,10 +659,18 @@ const renderSearchResultItem = (item) => {
         timeout: 60000,
       });
 
-      const matches = res.data.matches || [];
+           const matches = res.data.matches || [];
       const description = res.data.visualDescription || '';
+      const usedFallback = res.data.usedFallback || false;
 
       setImageSearchDescription(description);
+
+      if (usedFallback && matches.length > 0) {
+        toast(
+          'AI visual match was weak — showing keyword-based suggestions. Please verify.',
+          { icon: '⚠️', duration: 5000 }
+        );
+      }
 
       // 4. Enrich matches with full product data + image URLs
       const enriched = matches
