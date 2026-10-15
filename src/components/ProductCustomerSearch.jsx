@@ -615,43 +615,17 @@ const renderSearchResultItem = (item) => {
     setImageSearchDescription('');
     setShowResults(false);
 
-    // Show preview
     const previewUrl = URL.createObjectURL(file);
     setImageSearchPreview(previewUrl);
 
     try {
-      // 1. Fetch all sales products (needed as catalog for AI)
-      const productsRes = await axiosInstance.get('/products-multer?limit=500');
-      const allProducts = productsRes.data.products || [];
-
-      if (allProducts.length === 0) {
-        Swal.fire({
-          title: 'No products',
-          text: 'No sales products found in the catalog.',
-          icon: 'warning',
-          confirmButtonColor: '#2563eb',
-        });
-        return;
-      }
-
-               // 2. Build catalog — send BOTH images and internalImages
-      //    (backend prefers internal, falls back to public when internal is empty)
-      const catalog = allProducts.map((p) => ({
-        _id: p._id,
-        name: p.name,
-        description: p.description || '',
-        unit: p.unit || '',
-        internalImages: Array.isArray(p.internalImages) ? p.internalImages : [],
-        images: Array.isArray(p.images) ? p.images : [],
-      }));
-
-      // 3. Compress and upload image
       const compressed = await compressImage(file, 1200, 0.8);
       const formData = new FormData();
       formData.append('image', compressed);
-      // formData.append('products', JSON.stringify(catalog));
 
-            const res = await axiosInstance.post('/ai/search-product-by-image-clip', formData, {
+      console.log('[IMG SEARCH] Sending request to /ai/search-product-by-image-clip...');
+
+      const res = await axiosInstance.post('/ai/search-product-by-image-clip', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
@@ -659,51 +633,83 @@ const renderSearchResultItem = (item) => {
         timeout: 60000,
       });
 
-           const matches = res.data.matches || [];
+      console.log('[IMG SEARCH] Response status:', res.status);
+      console.log('[IMG SEARCH] Response body:', res.data);
+
+      const matches = res.data.matches || [];
       const description = res.data.visualDescription || '';
-      const usedFallback = res.data.usedFallback || false;
+
+      console.log(`[IMG SEARCH] Received ${matches.length} matches from backend`);
+      console.log('[IMG SEARCH] Matches:', matches);
 
       setImageSearchDescription(description);
 
-      if (usedFallback && matches.length > 0) {
-        toast(
-          'AI visual match was weak — showing keyword-based suggestions. Please verify.',
-          { icon: '⚠️', duration: 5000 }
-        );
-      }
-
-      // 4. Enrich matches with full product data + image URLs
-      const enriched = matches
-        .map((match) => {
-          const fullProduct = allProducts.find(
-            (p) => p.name.toLowerCase() === match.name.toLowerCase()
-          );
-          if (!fullProduct) return null;
-          return {
-            ...fullProduct,
-            _matchConfidence: match.confidence,
-            _matchReason: match.reason,
-          };
-        })
-        .filter(Boolean);
-
-      setImageSearchMatches(enriched);
-
-      if (enriched.length === 0) {
+      if (matches.length === 0) {
+        console.warn('[IMG SEARCH] Backend returned 0 matches');
         Swal.fire({
           title: 'No matches found',
           html: description
-            ? `<p class="text-sm text-gray-600 mb-2">AI saw: <em>${description}</em></p><p>No similar products found in catalog.</p>`
-            : 'No similar products found in catalog.',
+            ? `<p class="text-sm text-gray-600 mb-2">Description: <em>${description}</em></p><p>The backend returned 0 matches.</p>`
+            : 'The backend returned 0 matches. Check browser console for details.',
           icon: 'info',
           confirmButtonColor: '#2563eb',
         });
+        return;
       }
+
+      // Enrich each match with full product data
+      const enriched = [];
+      for (const match of matches) {
+        try {
+          const prodRes = await axiosInstance.get(
+            `/products-multer?search=${encodeURIComponent(match.name)}&limit=5`
+          );
+          const list = prodRes.data.products || [];
+          console.log(`[IMG SEARCH] Lookup "${match.name}" → ${list.length} products found`);
+
+          const exact = list.find(p => p.name === match.name) || list[0];
+          if (exact) {
+            enriched.push({
+              ...exact,
+              _matchConfidence: match.confidence,
+              _matchReason: match.reason,
+            });
+          } else {
+            // ✅ FALLBACK: If no product lookup, still show the match with name only
+            enriched.push({
+              _id: `clip-${match.name}`,
+              name: match.name,
+              unit: '',
+              images: [],
+              _matchConfidence: match.confidence,
+              _matchReason: match.reason,
+            });
+          }
+        } catch (err) {
+          console.warn(`[IMG SEARCH] Lookup failed for "${match.name}":`, err.message);
+          // Still show the match even if lookup fails
+          enriched.push({
+            _id: `clip-${match.name}`,
+            name: match.name,
+            unit: '',
+            images: [],
+            _matchConfidence: match.confidence,
+            _matchReason: match.reason,
+          });
+        }
+      }
+
+      console.log(`[IMG SEARCH] Final enriched count: ${enriched.length}`);
+      setImageSearchMatches(enriched);
     } catch (err) {
-      console.error('Image search error:', err);
+      console.error('[IMG SEARCH] Request failed:', err);
+      console.error('[IMG SEARCH] Error details:', err.response?.data);
+
       Swal.fire({
         title: 'Image Search Failed',
-        text: err.response?.data?.message || 'Could not search by image. Please try again.',
+        html: `<pre class="text-xs text-left">${
+          err.response?.data?.message || err.message
+        }</pre>`,
         icon: 'error',
         confirmButtonColor: '#2563eb',
       });
