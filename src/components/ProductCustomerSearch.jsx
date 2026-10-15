@@ -649,9 +649,9 @@ const renderSearchResultItem = (item) => {
       const compressed = await compressImage(file, 1200, 0.8);
       const formData = new FormData();
       formData.append('image', compressed);
-      formData.append('products', JSON.stringify(catalog));
+      // formData.append('products', JSON.stringify(catalog));
 
-      const res = await axiosInstance.post('/ai/search-product-by-image', formData, {
+            const res = await axiosInstance.post('/ai/search-product-by-image-clip', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
