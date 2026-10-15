@@ -10,9 +10,11 @@ import { ScrollTrigger } from "gsap/all";
 import { slugifyProduct } from "../utils/slugify";
 import { motion } from "framer-motion";
 import { Search, X, ChevronLeft, Loader } from "lucide-react";
+import { sendTraffic } from "../utils/trafficTracker";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Slug utilities
 // Slug utilities
 const slugify = (str) =>
   str.replace(/\//g, "").replace(/\s+/g, "-").toLowerCase();
@@ -23,6 +25,10 @@ const slugToCategory = (slug) => {
   }
   return "";
 };
+
+// Normalize category for consistent tracking (backend will store lowercase)
+const normalizeCategory = (cat) =>
+  cat ? String(cat).trim().toLowerCase() : "";
 
 export default function Products() {
   const { category } = useParams();
@@ -118,6 +124,18 @@ export default function Products() {
     setSelectedCat(decodedCat);
     setSearchTerm("");
     setPage(1);
+
+    // ✅ Track category view for traffic checker
+    if (decodedCat) {
+      sendTraffic({
+        categoryChecked: normalizeCategory(decodedCat),
+        pageVisited: `/products/${slugify(decodedCat)}`,
+      });
+    } else {
+      sendTraffic({
+        pageVisited: "/products",
+      });
+    }
   }, [decodedCat]);
 
   const containerVariants = {

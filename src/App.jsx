@@ -9,6 +9,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import Swal from "sweetalert2";
 import { useEffect } from "react";
 import './index.css';
+  import { initTraffic, trackExit } from "./utils/trafficTracker";
 
 export default function App() {
   const location = useLocation();
@@ -17,6 +18,7 @@ export default function App() {
   const hideLayout = [
     "/login",
     "/campaigns",
+    "/traffic-checker",
     // "/shopping-products",
     "/add-potential-customer",
     "/potential-customers",
@@ -135,6 +137,14 @@ export default function App() {
     "/inventory",
     "/unauthorized",
   ].some((path) => location.pathname.startsWith(path));
+
+// inside App component, add this useEffect:
+useEffect(() => {
+  initTraffic();
+  const handleUnload = () => trackExit();
+  window.addEventListener("beforeunload", handleUnload);
+  return () => window.removeEventListener("beforeunload", handleUnload);
+}, []);
 
   useEffect(() => {
     const handleOffline = () => {

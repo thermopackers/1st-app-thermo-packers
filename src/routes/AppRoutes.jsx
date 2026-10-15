@@ -128,6 +128,7 @@ import PostsList from "../pages/PostsList";
 import AddPost from "../pages/AddPost";
 import MoldDieList from "../pages/MoldDieList";
 import AddEditMoldDie from "../pages/AddEditMoldDie";
+import TrafficChecker from "../pages/TrafficChecker";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -320,6 +321,17 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+
+<Route
+  path="/traffic-checker"
+  element={
+    <ProtectedRoute allowedRoles={["accounts", "admin"]}>
+      <PageWrapper>
+        <TrafficChecker />
+      </PageWrapper>
+    </ProtectedRoute>
+  }
+/>
 
             <Route
               path="/production-dashboard"

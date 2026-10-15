@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet";
 import { Mail, MessageCircle, Phone, ChevronLeft, Star, Share2, Truck, Shield, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import axiosInstance from "../axiosInstance";
+import { sendTraffic } from "../utils/trafficTracker";
 
 const slugify = (text) =>
   text?.toLowerCase().replace(/\//g, "-").replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
@@ -29,6 +30,13 @@ export default function ProductDetail() {
             ? res.data.images[0]
             : res.data.image || null;
         setSelectedMedia(initialMedia);
+
+        // ✅ Track product view for traffic checker
+        sendTraffic({
+          productChecked: res.data.name,
+          categoryChecked: res.data.category,
+          pageVisited: `/product/${slugify(name)}`,
+        });
       } catch (err) {
         console.error("Error fetching product:", err.message);
       } finally {
