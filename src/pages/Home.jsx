@@ -3,7 +3,7 @@ import FloatingWhatsApp from "../components/FloatingWhatsapp";
 import { Helmet } from "react-helmet";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-
+import { Link } from "lucide-react";
 import Hero from "../components/Hero";
 import Features from "../components/Features";
 import Catalog from "../components/Catalog";
