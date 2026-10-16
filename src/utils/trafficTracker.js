@@ -2,6 +2,7 @@ import axiosInstance from "../axiosInstance";
 
 const VISITOR_KEY = "tp_visitor_id";
 const SESSION_START_KEY = "tp_session_start";
+let heartbeatInterval = null;
 
 export const getVisitorId = () => {
   let id = localStorage.getItem(VISITOR_KEY);
@@ -28,7 +29,7 @@ export const sendTraffic = async (extra = {}) => {
       ...extra,
     };
 
-    // Strip empty values so we don't accidentally clear fields
+    // Strip empty values
     Object.keys(payload).forEach((k) => {
       if (
         payload[k] === undefined ||
@@ -40,6 +41,7 @@ export const sendTraffic = async (extra = {}) => {
     });
 
     const res = await axiosInstance.post("/traffic/track", payload);
+    console.log("[Traffic] tracked:", res.data);
     return res.data;
   } catch (err) {
     console.warn("traffic track failed", err?.message);
@@ -51,14 +53,25 @@ export const initTraffic = () => {
   if (!sessionStorage.getItem(SESSION_START_KEY)) {
     sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
   }
+
+  // Initial page view
   sendTraffic({ pageVisited: window.location.pathname });
 
+  // Clear any existing interval to prevent duplicates
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+
   // Heartbeat every 30s to update timeSpent
-  setInterval(() => {
+  heartbeatInterval = setInterval(() => {
     sendTraffic();
   }, 30000);
 };
 
 export const trackExit = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
   sendTraffic({ sessionEnd: new Date().toISOString() });
 };

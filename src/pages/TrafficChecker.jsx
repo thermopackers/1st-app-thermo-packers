@@ -229,9 +229,7 @@ export default function TrafficChecker() {
                       >
                         <td className="py-4 px-6">
                           <div>
-                            <p className="font-semibold text-gray-800">
-                              {v.visitorId || v.ip || "Anonymous"}
-                            </p>
+                           
                             <p className="text-xs text-gray-500">
                               {v.location || v.country || "Unknown location"}
                             </p>
