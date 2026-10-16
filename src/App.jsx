@@ -143,7 +143,10 @@ useEffect(() => {
   initTraffic();
   const handleUnload = () => trackExit();
   window.addEventListener("beforeunload", handleUnload);
-  return () => window.removeEventListener("beforeunload", handleUnload);
+  return () => {
+    window.removeEventListener("beforeunload", handleUnload);
+    trackExit(); // also cleanup on unmount
+  };
 }, []);
 
   useEffect(() => {
