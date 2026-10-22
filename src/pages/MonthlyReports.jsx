@@ -1230,13 +1230,11 @@ allDates.forEach(dateStr => {
 const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount, hdCount, leaveCount) => {
   setDownloadingPDF(true);
   try {
-    // Dynamically import jspdf and jspdf-autotable
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    
-    // Use portrait orientation for more rows per page
+
     const doc = new jsPDF('portrait', 'mm', 'a4');
-    
+
     // Get user name
     let userName = "Employee";
     if (userId && report) {
@@ -1245,41 +1243,38 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         userName = userReport.user.name;
       }
     }
-    
+
     // Format month name
     let monthName = month;
     if (month) {
       const [year, m] = month.split("-");
-      monthName = new Date(year, parseInt(m) - 1).toLocaleString('default', { 
-        month: 'long', 
-        year: 'numeric' 
+      monthName = new Date(year, parseInt(m) - 1).toLocaleString('default', {
+        month: 'long',
+        year: 'numeric'
       });
     }
-    
+
     // Title
     doc.setFontSize(16);
     doc.text(`Attendance Report - ${userName}`, 14, 20);
     doc.setFontSize(11);
     doc.text(`Month: ${monthName}`, 14, 28);
     doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 34);
-    
+
     // Calculate all dates in the month up to today
     const [year, m] = month.split("-");
     const monthNum = parseInt(m);
     const today = new Date();
-    
-    // Get last day of the month
+
     const lastDay = new Date(year, monthNum, 0).getDate();
-    
-    // Generate all dates in the month up to today
+
     const allDatesInMonth = [];
     const sundays = [];
-    
+
     for (let day = 1; day <= lastDay; day++) {
       const dateStr = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const date = new Date(dateStr);
-      
-      // Only include dates up to today
+
       if (date <= today) {
         allDatesInMonth.push(dateStr);
         if (date.getDay() === 0) {
@@ -1287,52 +1282,58 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
         }
       }
     }
-    
-    // Create a map of attendance records by date for quick lookup
+
+    // Map records by date
     const attendanceMap = {};
     attendanceRecords.forEach(record => {
       attendanceMap[record.date] = record;
     });
-    
-    // Prepare table data for ALL dates in the month
+
+    // Helper: hex to RGB
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result
+        ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+        : [255, 255, 255];
+    };
+
+    // Prepare table data + per-row styles matching UI colors
     const tableData = allDatesInMonth.map(dateStr => {
       const record = attendanceMap[dateStr];
       const dateObj = new Date(dateStr);
       const dayName = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
       const isSunday = dateObj.getDay() === 0;
       const isOnTour = record?.onTour || false;
-      
+
       let checkIn = "—";
       let checkOut = "—";
       let hours = "—";
       let attendanceType = "";
-      
-      if (record) {
-        if (record.type === 'leave') {
-          attendanceType = "Leave";
-        } else if (record.type === 'present') {
-          checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
-          checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
-          
-          // Calculate worked hours
-          if (record.checkInTime && record.checkOutTime) {
-            const checkInDate = new Date(record.checkInTime);
-            const checkOutDate = new Date(record.checkOutTime);
-            const diffMs = checkOutDate - checkInDate;
-            const totalMinutes = Math.round(diffMs / (1000 * 60));
-            const hrs = Math.floor(totalMinutes / 60);
-            const mins = totalMinutes % 60;
-            hours = `${hrs}h ${mins}m`;
-          }
+      let attendanceLabel = "";
+      let bgColor = [255, 255, 255]; // default white
+
+      if (record && record.type === 'leave') {
+        attendanceLabel = "On Leave";
+        attendanceType = "On Leave";
+        bgColor = hexToRgb("#F3E8FF"); // purple-50
+      } else if (record && record.type === 'present') {
+        checkIn = record.checkInTime ? formatTime(record.checkInTime) : "—";
+        checkOut = record.checkOutTime ? formatTime(record.checkOutTime) : "—";
+
+        if (record.checkInTime && record.checkOutTime) {
+          const checkInDate = new Date(record.checkInTime);
+          const checkOutDate = new Date(record.checkOutTime);
+          const diffMs = checkOutDate - checkInDate;
+          const totalMinutes = Math.round(diffMs / (1000 * 60));
+          const hrs = Math.floor(totalMinutes / 60);
+          const mins = totalMinutes % 60;
+          hours = `${hrs}h ${mins}m`;
         }
-      }
-      
-      // Determine attendance type if not already set
-      if (!attendanceType) {
+
         if (isSunday) {
-          attendanceType = "Weekly Off";
-        } else if (record && record.type === 'present') {
-          // Check for half day reasons
+          attendanceLabel = "Sunday (Worked)";
+          bgColor = hexToRgb("#FFEDD5"); // orange-100
+        } else {
           const isIncomplete = record.checkInTime && !record.checkOutTime;
           const isLateHalfDay = (() => {
             if (!record.checkInTime) return false;
@@ -1348,114 +1349,156 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
             expectedTime.setHours(18, 0, 0, 0);
             return checkOutDate < expectedTime;
           })();
-          
+
           const isHalfDay = isIncomplete || isLateHalfDay || isEarlyHalfDay;
-          
-          // Add On Tour indicator
-          const onTourText = isOnTour ? " (On Tour)" : "";
-          
+          const onTourText = isOnTour ? " 🌍" : "";
+
           if (isHalfDay) {
-            if (isIncomplete) {
-              attendanceType = `Half Day${onTourText}`;
-            } else if (isLateHalfDay && isEarlyHalfDay) {
-              attendanceType = `Half Day${onTourText}`;
-            } else if (isLateHalfDay) {
-              attendanceType = `Half Day${onTourText}`;
-            } else if (isEarlyHalfDay) {
-              attendanceType = `Half Day${onTourText}`;
-            } else {
-              attendanceType = `Half Day${onTourText}`;
-            }
+            let reasons = [];
+            if (isIncomplete) reasons.push("Incomplete");
+            if (isLateHalfDay) reasons.push("Late");
+            if (isEarlyHalfDay) reasons.push("Early");
+            attendanceLabel = `Half Day${reasons.length ? ' (' + reasons.join(', ') + ')' : ''}${onTourText}`;
+            bgColor = hexToRgb("#FEF3C7"); // amber-50
           } else {
-            attendanceType = `Full Day${onTourText}`;
+            attendanceLabel = `Full Day${onTourText}`;
+            bgColor = hexToRgb("#DCFCE7"); // green-50
           }
-        } else {
-          attendanceType = "Absent";
         }
+      } else if (isSunday) {
+        attendanceLabel = "Weekly Off";
+        bgColor = hexToRgb("#FFEDD5"); // orange-100
+      } else {
+        // Absent
+        attendanceLabel = "Absent";
+        bgColor = hexToRgb("#FEE2E2"); // red-50
       }
-      
-      return [
-        formatDate(dateStr),
-        dayName,
-        checkIn,
-        checkOut,
-        hours,
-        attendanceType,
-        isOnTour ? "On Tour" : "Office"
-      ];
+
+      // Return row data + the bg color for that row
+      return {
+        rowData: [
+          formatDate(dateStr),
+          dayName,
+          checkIn,
+          checkOut,
+          hours,
+          attendanceLabel,
+          isOnTour ? "On Tour" : "Office"
+        ],
+        bgColor
+      };
     });
-    
-    // Generate table with proper column widths
+
+    const bodyRows = tableData.map(r => r.rowData);
+
+    // Generate table with color-coded rows
     autoTable(doc, {
       head: [['Date', 'Day', 'Check-In', 'Check-Out', 'Hours', 'Status', 'Mode']],
-      body: tableData,
+      body: bodyRows,
       startY: 42,
-      theme: 'striped',
-      headStyles: { 
-        fillColor: [41, 128, 185], 
-        textColor: 255, 
+      theme: 'grid',
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
         fontStyle: 'bold',
         fontSize: 9,
         halign: 'center',
         cellPadding: 3
       },
-      styles: { 
-        fontSize: 8, 
+      styles: {
+        fontSize: 8,
         cellPadding: 2.5,
         lineHeight: 1.3,
         valign: 'middle',
         halign: 'center',
-        overflow: 'linebreak'
+        overflow: 'linebreak',
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1
       },
       columnStyles: {
-        0: { cellWidth: 20, halign: 'center' },   // Date
-        1: { cellWidth: 18, halign: 'center' },   // Day
-        2: { cellWidth: 25, halign: 'center' },   // Check-In
-        3: { cellWidth: 25, halign: 'center' },   // Check-Out
-        4: { cellWidth: 20, halign: 'center' },   // Hours
-        5: { cellWidth: 35, halign: 'left' },     // Status (left align for longer text)
-        6: { cellWidth: 20, halign: 'center' }    // Mode
+        0: { cellWidth: 20, halign: 'center' },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 25, halign: 'center' },
+        4: { cellWidth: 20, halign: 'center' },
+        5: { cellWidth: 35, halign: 'left' },
+        6: { cellWidth: 20, halign: 'center' }
       },
       margin: { top: 42, bottom: 50, left: 12, right: 12 },
       pageBreak: 'auto',
       rowPageBreak: 'avoid',
-      didParseCell: function(data) {
-        // Highlight On Tour rows
-        if (data.section === 'body' && data.column.index === 6) {
-          if (data.cell.raw === 'On Tour') {
-            data.cell.styles.fillColor = [255, 235, 59]; // Amber background
-            data.cell.styles.textColor = [0, 0, 0];
+      didParseCell: function (data) {
+        // Apply row background colors matching the UI
+        if (data.section === 'body') {
+          const rowIndex = data.row.index;
+          const bg = tableData[rowIndex]?.bgColor;
+          if (bg) {
+            data.cell.styles.fillColor = bg;
+          }
+
+          // Highlight On Tour mode cell
+          if (data.column.index === 6 && data.cell.raw === 'On Tour') {
+            data.cell.styles.fillColor = [255, 235, 59]; // amber
+            data.cell.styles.textColor = [120, 53, 15];  // amber-900
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Absent rows - red text
+          if (data.column.index === 5 && data.cell.raw === 'Absent') {
+            data.cell.styles.textColor = [185, 28, 28]; // red-700
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Leave rows - purple text
+          if (data.column.index === 5 && data.cell.raw === 'On Leave') {
+            data.cell.styles.textColor = [107, 33, 168]; // purple-800
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Weekly Off - orange text
+          if (data.column.index === 5 && (data.cell.raw === 'Weekly Off' || data.cell.raw === 'Sunday (Worked)')) {
+            data.cell.styles.textColor = [154, 52, 18]; // orange-800
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Full Day - green text
+          if (data.column.index === 5 && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('Full Day')) {
+            data.cell.styles.textColor = [21, 128, 61]; // green-700
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Half Day - amber text
+          if (data.column.index === 5 && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('Half Day')) {
+            data.cell.styles.textColor = [180, 83, 9]; // amber-700
             data.cell.styles.fontStyle = 'bold';
           }
         }
       }
     });
-    
-    // Get the final Y position after table
+
+    // ---- Summary section (unchanged logic) ----
     let finalY = doc.lastAutoTable.finalY || 42;
-    
-    // Add summary
+
     if (finalY + 60 > 280) {
       doc.addPage();
       finalY = 20;
     } else {
       finalY += 10;
     }
-    
+
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text('Summary:', 14, finalY);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    
+
     let currentY = finalY + 8;
-    
-    // Calculate stats
+
     const presentRecords = attendanceRecords.filter(r => r.type === 'present');
     const leaveRecords = attendanceRecords.filter(r => r.type === 'leave');
     const presentDates = presentRecords.map(r => r.date);
     const leaveDates = leaveRecords.map(r => r.date);
-    
+
     const workingDays = allDatesInMonth.filter(date => {
       const dateObj = new Date(date);
       const isSunday = dateObj.getDay() === 0;
@@ -1463,42 +1506,35 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
       if (isSunday) return isPresent;
       return true;
     });
-    
+
     const absentDays = workingDays.filter(date => {
       const isPresent = presentDates.includes(date);
       const isOnLeave = leaveDates.includes(date);
       return !isPresent && !isOnLeave;
     });
-    
+
     const onTourDays = attendanceRecords.filter(r => r.onTour && r.type === 'present').length;
-    
-    // Line 1
+
     doc.text(`Total Days: ${allDatesInMonth.length}`, 14, currentY);
     currentY += 7;
-    
-    // Line 2
+
     doc.text(`Sundays: ${sundays.length} total (${sundays.length} off)`, 14, currentY);
     currentY += 7;
-    
-    // Line 3
+
     doc.text(`Working Days: ${workingDays.length}`, 14, currentY);
     currentY += 7;
-    
-    // Line 4
+
     doc.text(`Present: ${presentDates.length} | Absent: ${absentDays.length}`, 14, currentY);
     currentY += 7;
-    
-    // Line 5
+
     doc.text(`Full Days (FD): ${fdCount} | Half Days (HD): ${hdCount}`, 14, currentY);
     currentY += 7;
-    
-    // Line 6 - FIXED: Removed emoji
+
     if (onTourDays > 0) {
       doc.text(`On Tour Days: ${onTourDays}`, 14, currentY);
       currentY += 7;
     }
-    
-    // Line 7
+
     if (leaveCount > 0) {
       const monthlyOff = 1;
       const netLeaves = leaveCount > 0 ? leaveCount - monthlyOff : 0;
@@ -1506,8 +1542,7 @@ const downloadAttendanceTable = async (attendanceRecords, month, userId, fdCount
     } else {
       doc.text(`Leaves: 0`, 14, currentY);
     }
-    
-    // Save PDF
+
     doc.save(`attendance-${userName}-${month}.pdf`);
 
   } catch (error) {

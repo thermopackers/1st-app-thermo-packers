@@ -41,7 +41,7 @@ export const sendTraffic = async (extra = {}) => {
     });
 
     const res = await axiosInstance.post("/traffic/track", payload);
-    console.log("[Traffic] tracked:", res.data);
+    // console.log("[Traffic] tracked:", res.data);
     return res.data;
   } catch (err) {
     console.warn("traffic track failed", err?.message);

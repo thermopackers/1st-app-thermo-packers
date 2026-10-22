@@ -19,6 +19,7 @@ export default function App() {
     "/login",
     "/campaigns",
     "/traffic-checker",
+    "/sheet-cutting-dispatch",
     // "/shopping-products",
     "/add-potential-customer",
     "/potential-customers",

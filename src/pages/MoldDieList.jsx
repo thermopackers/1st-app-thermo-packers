@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { motion } from "framer-motion";
 import InternalNavbar from "../components/InternalNavbar";
 import MoldDieForm from "../components/MoldDieForm";
+import ProductImageModal from "../components/ProductImageModal";
 
 const MoldDieList = () => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ const MoldDieList = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [products, setProducts] = useState([]);
+  const [activeProductImage, setActiveProductImage] = useState(null);
 
   // ---------- Helpers ----------
   const normalizeFiles = (value) => {
@@ -61,6 +64,13 @@ const MoldDieList = () => {
   // ---------- Fetch ----------
   useEffect(() => {
     fetchDies();
+  }, []);
+
+  useEffect(() => {
+    axiosInstance
+      .get("/products/all-backend-products")
+      .then((res) => setProducts(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
   }, []);
 
   const fetchDies = async () => {
@@ -127,7 +137,7 @@ const MoldDieList = () => {
       d.dieNo?.toLowerCase().includes(search.toLowerCase()) ||
       d.ownerName?.toLowerCase().includes(search.toLowerCase()) ||
       d.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-      d.salesProductName?.toLowerCase().includes(search.toLowerCase())
+      d.salesProductName?.toLowerCase().includes(search.toLowerCase()),
   );
 
   useEffect(() => {
@@ -137,7 +147,7 @@ const MoldDieList = () => {
   const totalPages = Math.ceil(filteredDies.length / itemsPerPage);
   const paginatedDies = filteredDies.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   return (
@@ -193,28 +203,36 @@ const MoldDieList = () => {
                     <th className="border p-2 text-left">Sr No</th>
                     <th className="border p-2 text-left">Name of Die</th>
                     <th className="border p-2 text-left">Die No</th>
-                    <th className="border p-2 text-left">Photo</th>
+                    <th className="border p-2 text-left">Die Photo</th>
                     <th className="border p-2 text-left">Die Cavity</th>
                     <th className="border p-2 text-left">Remarks</th>
                     <th className="border p-2 text-left">Owner Name</th>
-                                        <th className="border p-2 text-left">Sales Product made from this Die</th>
+                    <th className="border p-2 text-left">
+                      Sales Product made from this Die
+                    </th>
                     <th className="border p-2 text-left">Die Location</th>
                     <th className="border p-2 text-left">Inward Challan</th>
                     <th className="border p-2 text-left">Outward Challan</th>
                     <th className="border p-2 text-left">Actions</th>
                   </tr>
                 </thead>
-                
+
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="12" className="text-center p-4 text-gray-500">
+                      <td
+                        colSpan="12"
+                        className="text-center p-4 text-gray-500"
+                      >
                         Loading...
                       </td>
                     </tr>
                   ) : paginatedDies.length === 0 ? (
                     <tr>
-                      <td colSpan="12" className="text-center p-4 text-gray-500">
+                      <td
+                        colSpan="12"
+                        className="text-center p-4 text-gray-500"
+                      >
                         No records found
                       </td>
                     </tr>
@@ -224,7 +242,7 @@ const MoldDieList = () => {
                         <td className="border p-2">
                           {(currentPage - 1) * itemsPerPage + idx + 1}
                         </td>
-                       
+
                         <td className="border p-2">{die.nameOfDie}</td>
                         <td className="border p-2">{die.dieNo}</td>
                         <td className="border p-2">
@@ -249,7 +267,7 @@ const MoldDieList = () => {
                                     className="w-10 h-10 object-cover rounded cursor-pointer"
                                     onClick={() => window.open(url, "_blank")}
                                   />
-                                )
+                                ),
                               )}
                             </div>
                           ) : (
@@ -266,13 +284,35 @@ const MoldDieList = () => {
                             </div>
                           )}
                         </td>
-                         <td className="border p-2">
-                          {die.salesProductName || "—"}
-                        </td>
+                        
+                     <td className="border p-2">
+  <button
+    onClick={() => {
+      const product = products.find(
+        (p) => p.name === die.salesProductName,
+      );
+      if (product?.images?.length > 0) {
+        setActiveProductImage({
+          name: product.name,
+          images: product.images,
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "No Image",
+          text: "No images available for this product.",
+        });
+      }
+    }}
+    className="underline cursor-pointer text-left !text-[9px] md:!text-sm"
+  >
+    {die.salesProductName || "—"}
+  </button>
+</td>
                         <td className="border p-2">
                           {getLocationLabel(
                             die.dieLocation,
-                            die.dieLocationOther
+                            die.dieLocationOther,
                           )}
                         </td>
                         <td className="border p-2">
@@ -298,7 +338,7 @@ const MoldDieList = () => {
                                     className="w-10 h-10 object-cover rounded cursor-pointer"
                                     onClick={() => window.open(url, "_blank")}
                                   />
-                                )
+                                ),
                               )}
                             </div>
                           ) : (
@@ -328,7 +368,7 @@ const MoldDieList = () => {
                                     className="w-10 h-10 object-cover rounded cursor-pointer"
                                     onClick={() => window.open(url, "_blank")}
                                   />
-                                )
+                                ),
                               )}
                             </div>
                           ) : (
@@ -395,7 +435,7 @@ const MoldDieList = () => {
                     const maxVisible = 5;
                     let start = Math.max(
                       1,
-                      currentPage - Math.floor(maxVisible / 2)
+                      currentPage - Math.floor(maxVisible / 2),
                     );
                     let end = Math.min(totalPages, start + maxVisible - 1);
                     if (end - start + 1 < maxVisible) {
@@ -441,6 +481,13 @@ const MoldDieList = () => {
           onClose={closeEditModal}
         />
       )}
+
+       {activeProductImage && (
+          <ProductImageModal
+            activeProductImage={activeProductImage}
+            setActiveProductImage={setActiveProductImage}
+          />
+        )}
     </>
   );
 };

@@ -113,17 +113,16 @@ if (form.freightType === 'Billed' && (!form.freight || Number(form.freight) <= 0
 
   try {
     setLoading(true);
-    const updatedForm = {
-      ...form,
-        remarks: form.remarks, // ✅ explicitly preserve
-      products: form.products.map((p, i) => ({
-        ...p,
-            productRemarks: p.narration || "",              // ✅ include this
-        images: selectedImages[i] || [],
-          narrationImages: p.narrationImages || [] // ✅ Add this line
-
-      }))
-    };
+ const updatedForm = {
+  ...form,
+  remarks: form.remarks,
+  convertedToOrder: !!JSON.parse(localStorage.getItem('convertedInvoices') || '{}')[form._id],
+  products: form.products.map((p, i) => ({ ...p,
+    productRemarks: p.narration || "",
+    images: selectedImages[i] || [],
+    narrationImages: p.narrationImages || []
+  }))
+};
 
     const res = await axiosInstance.put(`/proforma/${form._id}/edit-and-regenerate`, updatedForm);
 

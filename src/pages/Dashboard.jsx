@@ -2955,29 +2955,105 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
               </div>
             </DashboardCard>
           </DashboardSection>
-              {/* Raw Block Stock Report Button - Add this inside the grid */}
-              {(userRoles.includes("dispatch") || userRoles.includes("accounts")) && (
+              
+            
 
-           <DashboardSection>
-                        <DashboardCard>
-             <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
-                Raw Block Stock Report
-              </h3>
-  <ActionButton
-    to="/raw-block-stock"
-    variant="royal"
-    icon="📊"
-  >
-    <div className="text-lg font-semibold mb-2">
-      Raw Block Stock Report
-    </div>
-    <div className="text-white/90 text-xs opacity-90">
-      Manage stock in hand, production & usage
-    </div>
-  </ActionButton>
-            </DashboardCard>
-          </DashboardSection>
-          )}
+                 {/* Daily Progress Report Section - Accounts only */}
+{userRoles.includes("accounts") && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">📈</span>
+        Daily Progress Report
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Shape Molding QC - Disabled */}
+        <div className="relative opacity-60 cursor-not-allowed">
+          <div className="w-full text-white p-6 rounded-2xl shadow-lg bg-gradient-to-r from-gray-400 to-gray-500">
+            <div className="flex flex-col items-center text-center">
+              <div className="text-3xl mb-3">🔍</div>
+              <div className="text-lg font-semibold mb-2">Shape Molding QC</div>
+              <div className="text-gray-100 text-xs opacity-90">
+                Quality Check for Shape Molding
+              </div>
+              <div className="mt-2 text-xs bg-gray-600 text-white px-2 py-1 rounded-full">
+                Coming Soon
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Shape Molding QC & Dispatch - Disabled */}
+        <div className="relative opacity-60 cursor-not-allowed">
+          <div className="w-full text-white p-6 rounded-2xl shadow-lg bg-gradient-to-r from-gray-400 to-gray-500">
+            <div className="flex flex-col items-center text-center">
+              <div className="text-3xl mb-3">📦</div>
+              <div className="text-lg font-semibold mb-2">Shape Molding QC & Dispatch</div>
+              <div className="text-gray-100 text-xs opacity-90">
+                Quality Check & Dispatch for Shape Molding
+              </div>
+              <div className="mt-2 text-xs bg-gray-600 text-white px-2 py-1 rounded-full">
+                Coming Soon
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Raw Block Report - Active */}
+        <ActionButton
+          to="/raw-block-stock"
+          variant="teal"
+          icon="🧱"
+        >
+          <div className="text-lg font-semibold mb-2">Raw Block Report</div>
+          <div className="text-teal-100 text-xs opacity-90">
+            Manage stock in hand, production & usage
+          </div>
+        </ActionButton>
+
+        {/* Sheet Cutting & Dispatch - Active */}
+        <ActionButton
+          onClick={() => navigate("/sheet-cutting-dispatch")}
+          variant="indigo"
+          icon="✂️"
+        >
+          <div className="text-lg font-semibold mb-2">Sheet Cutting & Dispatch</div>
+          <div className="text-indigo-100 text-xs opacity-90">
+            Daily sheet cutting & dispatch report
+          </div>
+        </ActionButton>
+      </div>
+    </DashboardCard>
+  </DashboardSection>
+)}
+
+          {/* Traffic Checker Section - Accounts only */}
+{userRoles.includes("accounts") && (
+  <DashboardSection>
+    <DashboardCard>
+      <h3 className="text-2xl font-bold text-gray-900 text-center mb-6 flex items-center justify-center gap-3">
+        <span className="text-3xl">📊</span>
+        Website Traffic Checker
+      </h3>
+      <p className="text-gray-600 text-center mb-6">
+        Monitor visitors on www.thermopackers.com — time spent, products & categories viewed, by date
+      </p>
+      <ActionButton
+        to="/traffic-checker"
+        variant="ocean"
+        icon="🌐"
+        className="max-w-2xl mx-auto"
+      >
+        <div className="text-xl font-semibold mb-2">
+          Open Traffic Checker
+        </div>
+        <div className="text-cyan-100 text-sm opacity-90">
+          View visitor activity dashboard
+        </div>
+      </ActionButton>
+    </DashboardCard>
+  </DashboardSection>
+)}
 
          {(userRoles.includes("accounts") || userRoles.includes("admin") || userRoles.includes("production")) && (
             <DashboardSection>

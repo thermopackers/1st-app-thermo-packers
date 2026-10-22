@@ -129,6 +129,7 @@ import AddPost from "../pages/AddPost";
 import MoldDieList from "../pages/MoldDieList";
 import AddEditMoldDie from "../pages/AddEditMoldDie";
 import TrafficChecker from "../pages/TrafficChecker";
+import SheetCuttingDispatch from "../pages/SheetCuttingDispatch";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -321,6 +322,8 @@ export default function AppRoutes() {
                 </ProtectedRoute>
               }
             />
+
+<Route path="/sheet-cutting-dispatch" element={<SheetCuttingDispatch />} />
 
 <Route
   path="/traffic-checker"

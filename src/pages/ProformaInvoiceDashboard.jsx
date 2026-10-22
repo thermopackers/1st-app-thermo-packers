@@ -57,6 +57,45 @@ const ConversionTracker = {
   }
 };
 
+// ✅ Validity helper — mirrors backend logic
+const getValidityInfo = (piDate, convertedToOrder = false) => {
+  if (convertedToOrder) {
+    return { text: 'Converted to Order', color: 'text-white', bg: 'bg-gray-800' };
+  }
+  if (!piDate) return { text: '7 days', color: 'text-gray-800', bg: 'bg-gray-100' };
+
+  let created;
+  if (typeof piDate === 'string') {
+    const dmy = piDate.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    const ymd = piDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (ymd) {
+      created = new Date(parseInt(ymd[1]), parseInt(ymd[2]) - 1, parseInt(ymd[3]));
+    } else if (dmy) {
+      let year = parseInt(dmy[3]);
+      if (year < 100) year += 2000;
+      created = new Date(year, parseInt(dmy[2]) - 1, parseInt(dmy[1]));
+    } else {
+      created = new Date(piDate);
+    }
+  } else {
+    created = new Date(piDate);
+  }
+
+  if (!created || isNaN(created.getTime())) {
+    return { text: '7 days', color: 'text-gray-800', bg: 'bg-gray-100' };
+  }
+
+  const today = new Date();
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const c = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+  const diffDays = Math.round((t - c) / (1000 * 60 * 60 * 24));
+  const remaining = 7 - diffDays;
+
+  if (remaining <= 0) return { text: 'Expired', color: 'text-red-700', bg: 'bg-red-100' };
+  if (remaining <= 3) return { text: `${remaining} days`, color: 'text-orange-700', bg: 'bg-orange-100' };
+  return { text: `${remaining} days`, color: 'text-gray-800', bg: 'bg-gray-100' };
+};
+
 export default function ProformaInvoiceDashboard() {
   const { user } = useUserContext();
   const [invoices, setInvoices] = useState([]);
@@ -372,9 +411,10 @@ const downloadPdf = async (pdfUrl, invoiceNo, customerName, invoiceId) => {
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Customer</th>
                                 <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Created By</th> {/* NEW COLUMN */}
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Bill To</th>
-                      <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Products</th>
+                                         <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Products</th>
+                      <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Validity</th>
                       <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Actions</th>
-                      <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Convert</th>
+                       <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Convert</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -410,12 +450,24 @@ const downloadPdf = async (pdfUrl, invoiceNo, customerName, invoiceId) => {
                           <td className="py-4 px-6 text-sm text-gray-600 max-w-xs truncate">
                             {inv.billTo}
                           </td>
-                          <td className="py-4 px-6 text-center">
+                                                   <td className="py-4 px-6 text-center">
                             <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
                               {inv.products?.length || 0}
                             </span>
                           </td>
-                          
+
+                          {/* Validity */}
+                          <td className="py-4 px-6">
+                            {(() => {
+                              const v = getValidityInfo(inv.date, isConverted);
+                              return (
+                                <span className={`${v.bg} ${v.color} px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap`}>
+                                  {v.text}
+                                </span>
+                              );
+                            })()}
+                          </td>
+
                           {/* Actions */}
                           <td className="py-4 px-6">
                             <div className="flex flex-col gap-2 min-w-[200px]">
@@ -530,9 +582,19 @@ const downloadPdf = async (pdfUrl, invoiceNo, customerName, invoiceId) => {
                           <h3 className="font-bold text-gray-800">{inv.invoiceNo}</h3>
                           <p className="text-sm text-gray-600">{formatDateDDMMYYYY(inv.date)}</p>
                         </div>
-                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                          {inv.products?.length || 0} products
-                        </span>
+                                               <div className="flex flex-col items-end gap-1">
+                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                            {inv.products?.length || 0} products
+                          </span>
+                          {(() => {
+                            const v = getValidityInfo(inv.date, isConverted);
+                            return (
+                              <span className={`${v.bg} ${v.color} px-2 py-1 rounded-full text-xs font-semibold`}>
+                                {v.text}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
 
                       {/* Customer Info */}

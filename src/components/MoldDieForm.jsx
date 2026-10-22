@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../axiosInstance";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
+import ProductImageModal from "./ProductImageModal";
 
 const MoldDieForm = ({ onClose, editId }) => {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ const MoldDieForm = ({ onClose, editId }) => {
   const [uploading, setUploading] = useState(false);
   const [dies, setDies] = useState([]);
   const [editingId, setEditingId] = useState(editId || null);
+  const [products, setProducts] = useState([]);
+  const [activeProductImage, setActiveProductImage] = useState(null);
 
   // Product & Customer lists
   const [salesProducts, setSalesProducts] = useState([]);
@@ -91,6 +94,13 @@ const MoldDieForm = ({ onClose, editId }) => {
     fetchDies();
     fetchSalesProducts();
     fetchCustomers();
+  }, []);
+
+    useEffect(() => {
+    axiosInstance
+      .get("/products/all-backend-products")
+      .then((res) => setProducts(res.data))
+      .catch((err) => console.error("Error fetching products:", err));
   }, []);
 
   // Load for edit when editId prop is provided
@@ -974,7 +984,7 @@ const MoldDieForm = ({ onClose, editId }) => {
                 <th className="border p-2 text-left">Sr No</th>
                 <th className="border p-2 text-left">Name of Die</th>
                 <th className="border p-2 text-left">Die No</th>
-                <th className="border p-2 text-left">Photo</th>
+                <th className="border p-2 text-left">Die Photo</th>
                 <th className="border p-2 text-left">Die Cavity</th>
                 <th className="border p-2 text-left">Remarks</th>
                 <th className="border p-2 text-left">Owner Name</th>
@@ -1047,8 +1057,29 @@ const MoldDieForm = ({ onClose, editId }) => {
                       )}
                     </td>
                     <td className="border p-2">
+                    <button
+                      onClick={() => {
+                        const product = products.find(
+                          (p) => p.name === die.salesProductName,
+                        );
+                        if (product?.images?.length > 0) {
+                          setActiveProductImage({
+                            name: product.name,
+                            images: product.images,
+                          });
+                        } else {
+                          Swal.fire({
+                            icon: "info",
+                            title: "No Image",
+                            text: "No images available for this product.",
+                          });
+                        }
+                      }}
+                      className="underline cursor-pointer text-left !text-[9px] md:!text-sm"
+                    >
                       {die.salesProductName || "—"}
-                    </td>
+                    </button>
+                  </td>
                     <td className="border p-2">
                       {getLocationLabel(die.dieLocation, die.dieLocationOther)}
                     </td>
@@ -1212,6 +1243,12 @@ const MoldDieForm = ({ onClose, editId }) => {
           </div>
         )}
       </motion.div>
+      {activeProductImage && (
+  <ProductImageModal
+    activeProductImage={activeProductImage}
+    setActiveProductImage={setActiveProductImage}
+  />
+)}
     </div>
   );
 };
