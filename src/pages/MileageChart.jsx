@@ -261,6 +261,36 @@ useEffect(() => {
     setManualFiles(files);
   };
 
+  // ✅ NEW: Determine highlight color based on per-field confidence
+  //   ≥ 80%   → white (high confidence, safe to save)
+  //   70–80%  → yellow (medium confidence, please review)
+  //   < 70%   → red (low confidence, likely wrong)
+  //   null/empty → gray (AI couldn't extract)
+  const getFieldHighlight = (value, confidence) => {
+    const isEmpty =
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      (typeof value === 'string' && value.trim() === '');
+
+    if (isEmpty) return 'bg-gray-50 border-gray-300';
+
+    if (typeof confidence !== 'number' || isNaN(confidence)) {
+      // No confidence data → treat as medium (yellow) so user reviews
+      return 'bg-yellow-50 border-yellow-300';
+    }
+
+    if (confidence >= 0.8) return 'bg-white border-gray-300';
+    if (confidence >= 0.7) return 'bg-yellow-100 border-yellow-400';
+    return 'bg-red-100 border-red-400';
+  };
+
+  // ✅ NEW: Get a title tooltip showing confidence %
+  const getConfidenceTooltip = (confidence) => {
+    if (typeof confidence !== 'number' || isNaN(confidence)) return '';
+    return `AI confidence: ${Math.round(confidence * 100)}%`;
+  };
+
   // ✅ Compress image before sending to AI (reduces upload time by 90%)
   const compressImage = (file, maxWidth = 1600, quality = 0.8) => {
     return new Promise((resolve) => {
@@ -2040,7 +2070,7 @@ const handleRemoveFile = async (entryId, fileUrl) => {
     )}
   </div>
 
-  {/* ✅ Bulk Preview Table */}
+  {/* ✅ Bulk Preview Table with per-field confidence highlighting */}
   {bulkExtracted.length > 0 && (
     <div className="md:col-span-2 lg:col-span-3 mt-4">
       <div className="bg-white border-2 border-green-300 rounded-lg p-4">
@@ -2055,6 +2085,27 @@ const handleRemoveFile = async (entryId, fileUrl) => {
           >
             ✕ Clear All
           </button>
+        </div>
+
+        {/* ✅ Confidence Legend */}
+        <div className="flex flex-wrap items-center gap-3 mb-3 p-2 bg-blue-50 rounded text-xs">
+          <span className="font-semibold text-blue-800">Confidence:</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-4 bg-white border border-gray-300 rounded"></span>
+            <span className="text-gray-700">≥80% (high — safe to save)</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-4 bg-yellow-100 border border-yellow-400 rounded"></span>
+            <span className="text-yellow-800">70–80% (review)</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-4 bg-red-100 border border-red-400 rounded"></span>
+            <span className="text-red-700">&lt;70% (verify!)</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-4 bg-gray-50 border border-gray-300 rounded"></span>
+            <span className="text-gray-500">empty</span>
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -2074,25 +2125,44 @@ const handleRemoveFile = async (entryId, fileUrl) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {bulkExtracted.map((row, idx) => (
-                <tr key={idx} className={row._error ? 'bg-red-50' : row._vehicleMatched ? 'bg-green-50' : 'bg-yellow-50'}>
+                <tr
+                  key={idx}
+                  className={
+                    row._error
+                      ? 'bg-red-50'
+                      : row._vehicleMatched
+                      ? 'bg-green-50'
+                      : 'bg-yellow-50'
+                  }
+                >
                   <td className="px-2 py-2 text-gray-600">{idx + 1}</td>
 
-                  {/* Date */}
+                  {/* Date — highlighted by confidence */}
                   <td className="px-2 py-2">
                     <input
                       type="date"
                       value={row.date || ''}
                       onChange={(e) => updateBulkRow(idx, 'date', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                      className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(
+                        row.date,
+                        row._confidence?.date
+                      )}`}
+                      title={getConfidenceTooltip(row._confidence?.date)}
                     />
                   </td>
 
-                  {/* Vehicle */}
+                  {/* Vehicle — highlighted by confidence */}
                   <td className="px-2 py-2">
                     <select
                       value={row._matchedVehicle || ''}
-                      onChange={(e) => updateBulkRow(idx, '_matchedVehicle', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                      onChange={(e) =>
+                        updateBulkRow(idx, '_matchedVehicle', e.target.value)
+                      }
+                      className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(
+                        row._matchedVehicle,
+                        row._confidence?.vehicleNumber
+                      )}`}
+                      title={getConfidenceTooltip(row._confidence?.vehicleNumber)}
                     >
                       <option value="">-- Select --</option>
                       {vehicleList.map((v) => (
@@ -2108,54 +2178,84 @@ const handleRemoveFile = async (entryId, fileUrl) => {
                     )}
                   </td>
 
-                  {/* Fuel Slip No */}
+                  {/* Fuel Slip No — highlighted */}
                   <td className="px-2 py-2">
                     <input
                       type="text"
                       value={row.fuelSlipNo || ''}
-                      onChange={(e) => updateBulkRow(idx, 'fuelSlipNo', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                      onChange={(e) =>
+                        updateBulkRow(idx, 'fuelSlipNo', e.target.value)
+                      }
+                      className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(
+                        row.fuelSlipNo,
+                        row._confidence?.fuelSlipNo
+                      )}`}
+                      title={getConfidenceTooltip(row._confidence?.fuelSlipNo)}
                     />
                   </td>
 
-                  {/* Meter Reading */}
+                  {/* Meter Reading — highlighted */}
                   <td className="px-2 py-2">
                     <input
                       type="number"
                       value={row.meterReading || ''}
-                      onChange={(e) => updateBulkRow(idx, 'meterReading', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                      onChange={(e) =>
+                        updateBulkRow(idx, 'meterReading', e.target.value)
+                      }
+                      className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(
+                        row.meterReading,
+                        row._confidence?.meterReading
+                      )}`}
+                      title={getConfidenceTooltip(row._confidence?.meterReading)}
                     />
                   </td>
 
-                  {/* Diesel Liters */}
+                  {/* Diesel — highlighted */}
                   <td className="px-2 py-2">
                     <input
                       type="number"
                       value={row.dieselLtrs || ''}
-                      onChange={(e) => updateBulkRow(idx, 'dieselLtrs', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
+                      onChange={(e) =>
+                        updateBulkRow(idx, 'dieselLtrs', e.target.value)
+                      }
+                      className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(
+                        row.dieselLtrs,
+                        row._confidence?.dieselLtrs
+                      )}`}
+                      title={getConfidenceTooltip(row._confidence?.dieselLtrs)}
                     />
                   </td>
 
-                  {/* Urea */}
+                  {/* Urea — highlighted */}
                   <td className="px-2 py-2">
-                    <input
-                      type="number"
-                      value={row.ureaQty || ''}
-                      onChange={(e) => updateBulkRow(idx, 'ureaQty', e.target.value)}
-                      className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                    />
+                  <div className="relative">
+  <input
+    type="number"
+    value={row.ureaQty || ''}
+    onChange={(e) => updateBulkRow(idx, 'ureaQty', e.target.value)}
+    className={`w-full px-1 py-1 border rounded text-xs transition-colors ${getFieldHighlight(row.ureaQty, row._confidence?.ureaQty)}`}
+    title={getConfidenceTooltip(row._confidence?.ureaQty)}
+  />
+  {typeof row._confidence?.ureaQty === 'number' && row._confidence.ureaQty < 0.7 && row.ureaQty != null && (
+    <span className="absolute -top-1 -right-1 text-red-500 text-[10px] font-bold">!</span>
+  )}
+</div>
                   </td>
 
                   {/* Status */}
                   <td className="px-2 py-2">
                     {row._error ? (
-                      <span className="text-red-600 font-semibold text-[10px]">❌ Failed</span>
+                      <span className="text-red-600 font-semibold text-[10px]">
+                        ❌ Failed
+                      </span>
                     ) : row._vehicleMatched ? (
-                      <span className="text-green-600 font-semibold text-[10px]">✅ Ready</span>
+                      <span className="text-green-600 font-semibold text-[10px]">
+                        ✅ Ready
+                      </span>
                     ) : (
-                      <span className="text-yellow-600 font-semibold text-[10px]">⚠️ Select vehicle</span>
+                      <span className="text-yellow-600 font-semibold text-[10px]">
+                        ⚠️ Select vehicle
+                      </span>
                     )}
                   </td>
 
@@ -2180,7 +2280,11 @@ const handleRemoveFile = async (entryId, fileUrl) => {
           <button
             type="button"
             onClick={saveAllBulkEntries}
-            disabled={bulkSaving || bulkExtracted.filter(r => r._vehicleMatched && !r._error).length === 0}
+            disabled={
+              bulkSaving ||
+              bulkExtracted.filter((r) => r._vehicleMatched && !r._error)
+                .length === 0
+            }
             className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center gap-2"
           >
             {bulkSaving ? (
@@ -2190,7 +2294,12 @@ const handleRemoveFile = async (entryId, fileUrl) => {
               </>
             ) : (
               <>
-                💾 Save All ({bulkExtracted.filter(r => r._vehicleMatched && !r._error).length})
+                💾 Save All (
+                {
+                  bulkExtracted.filter((r) => r._vehicleMatched && !r._error)
+                    .length
+                }
+                )
               </>
             )}
           </button>

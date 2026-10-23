@@ -457,6 +457,15 @@ const getLastWorkingDay = (daysFromNow) => {
   return date.toISOString().split("T")[0];
 };
 
+// Helper function to format ISO date (YYYY-MM-DD) to Indian format (DD/MM/YYYY)
+const formatIndianDate = (isoDate) => {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year}`;
+};
+
 const handleProductChange = async (index, field, value) => {
   const updated = [...productList];
   const product = productMap.get(value);
@@ -922,6 +931,7 @@ const fetchLastPrice = async (customerName, productName) => {
   {recordPayment && (
     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
       {/* Date of Payment */}
+           {/* Date of Payment */}
       <div className="flex flex-col">
         <label className="mb-1 text-sm font-medium text-gray-700">
           Date of Payment
@@ -934,6 +944,11 @@ const fetchLastPrice = async (customerName, productName) => {
           onChange={handlePaymentChange}
           className="border border-gray-400 p-2 rounded"
         />
+        {paymentDetails.dateOfPayment && (
+          <span className="text-xs text-gray-500 mt-1">
+            Selected: {formatIndianDate(paymentDetails.dateOfPayment)}
+          </span>
+        )}
       </div>
 
       {/* Amount */}
@@ -991,7 +1006,7 @@ const fetchLastPrice = async (customerName, productName) => {
       {/* Cheque fields */}
       {paymentDetails.modeOfPayment === "cheque" && (
         <>
-          <div className="flex flex-col">
+                   <div className="flex flex-col">
             <label className="mb-1 text-sm font-medium text-gray-700">
               Cheque Date
             </label>
@@ -1002,6 +1017,11 @@ const fetchLastPrice = async (customerName, productName) => {
               onChange={handlePaymentChange}
               className="border border-gray-400 p-2 rounded"
             />
+            {paymentDetails.chequeDate && (
+              <span className="text-xs text-gray-500 mt-1">
+                Selected: {formatIndianDate(paymentDetails.chequeDate)}
+              </span>
+            )}
           </div>
           <div className="flex flex-col">
             <label className="mb-1 text-sm font-medium text-gray-700">
@@ -1220,7 +1240,7 @@ const fetchLastPrice = async (customerName, productName) => {
 
 
 
-           <div className="flex flex-col col-span-2">
+                     <div className="flex flex-col col-span-2">
   <label className="mb-1 font-medium text-gray-700">Delivery Time (Material required by Customer on Date?)</label>
   <select
     name="deliveryOption"
@@ -1235,20 +1255,27 @@ const fetchLastPrice = async (customerName, productName) => {
   </select>
   
   {clientDetails.deliveryOption === "particular" && (
-    <input
-      type="date"
-      name="date"
-      value={clientDetails.date}
-      onChange={handleClientChange}
-      min={new Date().toISOString().split("T")[0]}
-      className="border border-gray-400 p-2 rounded"
-      required
-    />
+    <>
+      <input
+        type="date"
+        name="date"
+        value={clientDetails.date}
+        onChange={handleClientChange}
+        min={new Date().toISOString().split("T")[0]}
+        className="border border-gray-400 p-2 rounded"
+        required
+      />
+      {clientDetails.date && (
+        <span className="text-xs text-gray-500 mt-1">
+          Selected: {formatIndianDate(clientDetails.date)}
+        </span>
+      )}
+    </>
   )}
   
   {clientDetails.deliveryOption && clientDetails.deliveryOption !== "particular" && (
     <div className="text-sm text-green-600 mt-1">
-      Delivery Date: {clientDetails.date || "Calculating..."}
+      Delivery Date: {clientDetails.date ? formatIndianDate(clientDetails.date) : "Calculating..."}
     </div>
   )}
 </div>
