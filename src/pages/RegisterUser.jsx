@@ -71,9 +71,13 @@ const [allowIncomingPayments, setAllowIncomingPayments] = useState(false);
 const [allowQuotation, setAllowQuotation] = useState(false);
 // Add this line with other allow states
 const [allowDanaBeads, setAllowDanaBeads] = useState(false);
+const [scopeOfWork, setScopeOfWork] = useState([]); // ✅ ADD THIS LINE
 const [role, setRole] = useState([]);
 const [isDeletingProfilePic, setIsDeletingProfilePic] = useState(false);
-const [isDeletingVisitingCard, setIsDeletingVisitingCard] = useState(false);
+  const [isDeletingVisitingCard, setIsDeletingVisitingCard] = useState(false);
+  const [isDeletingDigitalSignature, setIsDeletingDigitalSignature] = useState(false);
+  const [digitalSignature, setDigitalSignature] = useState(null);
+  const [digitalSignaturePreview, setDigitalSignaturePreview] = useState('');
   const [visitingCard, setVisitingCard] = useState(null);
   const [visitingCardPreview, setVisitingCardPreview] = useState('');
   const [phone, setPhone] = useState('');
@@ -208,6 +212,7 @@ formData.append('allowTourExpenses', allowTourExpenses);
 formData.append('allowIncomingPayments', allowIncomingPayments); // Add this line
 formData.append('allowQuotation', allowQuotation); // Add this line 
 formData.append('allowDanaBeads', allowDanaBeads);     
+formData.append('scopeOfWork', JSON.stringify(scopeOfWork)); // ✅ ADD THIS LINE    
 formData.append("dob", dob);
 formData.append('gender', gender);
       formData.append("address", address);
@@ -246,8 +251,12 @@ formData.append("personalPhone", personalPhone);
         formData.append('profilePicture', profilePicture);
       }
 
-      if (visitingCard) {
+           if (visitingCard) {
         formData.append('visitingCard', visitingCard);
+      }
+
+      if (digitalSignature) {
+        formData.append('digitalSignature', digitalSignature);
       }
 
       if (isEditing) {
@@ -276,8 +285,10 @@ if (!isEditing) {
   setProductionSection([]);
   setProfilePicture(null);
   setProfilePicturePreview('');
-  setVisitingCard(null);
+   setVisitingCard(null);
   setVisitingCardPreview('');
+  setDigitalSignature(null);
+  setDigitalSignaturePreview('');
   setDob('');
   setAddress('');
   setEmergencyNumber('');
@@ -313,6 +324,7 @@ setAllowTourExpenses(false);
 setAllowIncomingPayments(false);
 setAllowQuotation(false);
 setAllowDanaBeads(false);
+setScopeOfWork([]); // ✅ ADD THIS LINE
 fetchUsers();
 
    } catch (err) {
@@ -423,6 +435,7 @@ setAllowTourExpenses(user.allowTourExpenses || false);
 setAllowIncomingPayments(user.allowIncomingPayments || false); // Add this line
 setAllowQuotation(user.allowQuotation || false); // Add this line    
 setAllowDanaBeads(user.allowDanaBeads || false);
+setScopeOfWork(Array.isArray(user.scopeOfWork) ? user.scopeOfWork : []); // ✅ ADD THIS LINE
 setDob(user.dob ? formatDateForInput(user.dob) : "");
 setGender(user.gender || 'male');
     setAddress(user.address || "");
@@ -435,12 +448,14 @@ setGender(user.gender || 'male');
  setIsActive(user.isActive || 'active'); // String value
   setStatusText(user.statusText || ''); // Manual status text if any
     // Previews for files (Cloudinary URLs are already saved in DB)
-    setProfilePicturePreview(user.profilePicture || "");
+      setProfilePicturePreview(user.profilePicture || "");
     setVisitingCardPreview(user.visitingCard || "");
+    setDigitalSignaturePreview(user.digitalSignature || "");
 
     // reset files (you only preview, not re-upload until user changes)
-    setProfilePicture(null);
+       setProfilePicture(null);
     setVisitingCard(null);
+    setDigitalSignature(null);
     setFrontFacePicture(null);
     setAadharCard([]);
     setPanCard([]);
@@ -471,6 +486,8 @@ setAllowPlantMaintenance(false);
 setAllowTourExpenses(false);
 setAllowIncomingPayments(false); // Add this line
 setAllowQuotation(false); // Add this line
+    setScopeOfWork([]); // ✅ ADD THIS LINE
+    // Reset existing files
     // Reset existing files
     setExistingFrontFace([]);
     setExistingAadharCard([]);
@@ -507,8 +524,10 @@ setAllowQuotation(false); // Add this line
   setStatusText(''); // Reset manual text
     setProfilePicture(null);
     setProfilePicturePreview("");
-    setVisitingCard(null);
+       setVisitingCard(null);
     setVisitingCardPreview("");
+    setDigitalSignature(null);
+    setDigitalSignaturePreview("");
 
     setFrontFacePicture(null);
     setAadharCard([]);
@@ -864,6 +883,29 @@ const handleDeleteProfilePicture = async () => {
   }
 };
 
+// Handle digital signature deletion
+const handleDeleteDigitalSignature = async () => {
+  if (!isEditing || !editUserId) {
+    toast.error('Only available in edit mode');
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete the digital signature?')) return;
+
+  setIsDeletingDigitalSignature(true);
+  try {
+    await axiosInstance.delete(`/users/delete-digital-signature/${editUserId}`);
+    setDigitalSignaturePreview('');
+    setDigitalSignature(null);
+    toast.success('Digital signature deleted successfully');
+    fetchUsers();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to delete digital signature');
+  } finally {
+    setIsDeletingDigitalSignature(false);
+  }
+};
+
 // Handle visiting card deletion
 const handleDeleteVisitingCard = async () => {
   if (!isEditing || !editUserId) {
@@ -948,7 +990,8 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">WhatsApp/Gmail Profile Photo</th>
                 <th className="px-4 py-2">Front Face Picture</th>  {/* NEW COLUMN */}
-                <th className="px-4 py-2">Visiting Card</th>
+                               <th className="px-4 py-2">Visiting Card</th>
+                <th className="px-4 py-2">Digital Signature</th>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Role</th>
@@ -961,7 +1004,8 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">Emergency No.</th>
                 <th className="px-4 py-2">Designation</th>
                     <th className="px-4 py-2">Status</th> {/* ✅ MOVED HERE - AFTER DESIGNATION */}
-                <th className="px-4 py-2">ESIC No</th>
+                <th className="px-4 py-2">Scope of Work</th> {/* ✅ ADD THIS */}
+<th className="px-4 py-2">ESIC No</th>
                 <th className="px-4 py-2">EPFO No</th>
                  <th className="px-4 py-2">UAN No</th> {/* ✅ ADD THIS */}
                 <th className="px-4 py-2">Documents</th>
@@ -1003,11 +1047,23 @@ const handleDeleteVisitingCard = async () => {
     </div>
   )}
 </td>
-                  <td className="px-4 py-2">
+                                 <td className="px-4 py-2">
                     {u.visitingCard ? (
                       <a href={u.visitingCard} target="_blank" rel="noopener noreferrer">
                         <img src={u.visitingCard} alt="Visiting Card" className="h-12 w-20 object-cover rounded" />
                       </a>
+                    ) : (
+                      <span className="text-gray-400 italic">None</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {u.digitalSignature ? (
+                      <img
+                        src={u.digitalSignature}
+                        alt="Digital Signature"
+                        className="h-12 w-20 object-contain cursor-pointer bg-white border rounded"
+                        onClick={() => showDocument(u.digitalSignature, "Digital Signature")}
+                      />
                     ) : (
                       <span className="text-gray-400 italic">None</span>
                     )}
@@ -1067,9 +1123,58 @@ const handleDeleteVisitingCard = async () => {
     {u.isActive === 'active' && '🟢 Active'}
     {u.isActive === 'left' && '🔴 Left Company'}
     {u.isActive === 'leave' && '🟡 On Leave'}
-    {u.isActive === 'manual' && `✏️ ${u.statusText || 'Custom'}`}
+       {u.isActive === 'manual' && `✏️ ${u.statusText || 'Custom'}`}
   </span>
 </td>
+                                   <td className="px-4 py-2 align-top">
+                    {Array.isArray(u.scopeOfWork) && u.scopeOfWork.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-1 max-w-[140px]">
+                        {u.scopeOfWork.slice(0, 2).map((s, idx) => (
+                          <span
+                            key={idx}
+                            title={s}
+                            className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded-full truncate max-w-[70px]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                        {u.scopeOfWork.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              Swal.fire({
+                                title: `Scope of Work — ${u.name}`,
+                                html: `
+                                  <div style="text-align:left; max-height:60vh; overflow-y:auto;">
+                                    <ul style="list-style:none; padding:0; margin:0;">
+                                      ${u.scopeOfWork
+                                        .map(
+                                          (item, i) => `
+                                        <li style="display:flex; align-items:flex-start; gap:8px; padding:6px 8px; border-radius:8px; background:#eef2ff; margin-bottom:6px;">
+                                          <span style="background:#4f46e5; color:#fff; width:20px; height:20px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;">${i + 1}</span>
+                                          <span style="font-size:13px; color:#1e293b;">${item}</span>
+                                        </li>`
+                                        )
+                                        .join("")}
+                                    </ul>
+                                  </div>
+                                `,
+                                confirmButtonText: "Close",
+                                confirmButtonColor: "#4f46e5",
+                                width: "min(90vw, 480px)",
+                              })
+                            }
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition"
+                            title="View all"
+                          >
+                            +{u.scopeOfWork.length - 2}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">{u.esicNo || "-"}</td>
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
                   <td className="px-4 py-2">{u.unNo || "-"}</td> {/* ✅ ADD THIS */}
@@ -1230,7 +1335,7 @@ const handleDeleteVisitingCard = async () => {
              
 {users.length === 0 && (
   <tr>
-    <td colSpan="17" className="text-center py-4 text-gray-400">
+    <td colSpan="18" className="text-center py-4 text-gray-400">
       No users found.
     </td>
   </tr>
@@ -1563,7 +1668,7 @@ const handleDeleteVisitingCard = async () => {
     )}
   </div>
 
-  <div>
+   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">Visiting Card (optional)</label>
     <input
       type="file"
@@ -1597,9 +1702,44 @@ const handleDeleteVisitingCard = async () => {
       </div>
     )}
   </div>
+
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Digital Signature (optional)</label>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        if (e.target.files[0]) {
+          setDigitalSignature(e.target.files[0]);
+          setDigitalSignaturePreview(URL.createObjectURL(e.target.files[0]));
+        }
+      }}
+      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none text-xs"
+    />
+    {digitalSignaturePreview && (
+      <div className="mt-2 relative inline-block">
+        <img
+          src={digitalSignaturePreview}
+          alt="Digital Signature Preview"
+          className="h-16 w-24 object-contain border bg-white"
+        />
+        {isEditing && (
+          <button
+            type="button"
+            onClick={handleDeleteDigitalSignature}
+            disabled={isDeletingDigitalSignature}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition disabled:opacity-50"
+            title="Delete digital signature"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    )}
+  </div>
+</div>
 </div>
     </div>
-  </div>
 
   {/* File Uploads Section - Full Width */}
   <div className="border-t pt-6">
@@ -1904,6 +2044,60 @@ const handleDeleteVisitingCard = async () => {
       </div>
     </div>
   )}
+
+    <div className="border-t pt-6">
+      <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
+      
+      {/* Custom input to add a work item */}
+      <div className="flex gap-2 mt-2">
+        <input
+          type="text"
+          id="customScopeInput"
+          placeholder="Add custom work..."
+          className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const val = e.target.value.trim();
+              if (val && !scopeOfWork.includes(val)) {
+                setScopeOfWork([...scopeOfWork, val]);
+                e.target.value = '';
+              }
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const input = document.getElementById('customScopeInput');
+            const val = input.value.trim();
+            if (val && !scopeOfWork.includes(val)) {
+              setScopeOfWork([...scopeOfWork, val]);
+              input.value = '';
+            }
+          }}
+          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+        >
+          + Add
+        </button>
+      </div>
+      {scopeOfWork.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {scopeOfWork.map((s, idx) => (
+            <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              {s}
+              <button
+                type="button"
+                onClick={() => setScopeOfWork(scopeOfWork.filter((_, i) => i !== idx))}
+                className="text-blue-600 hover:text-red-600 font-bold"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
 
   {/* Submit Buttons */}
   <div className="border-t pt-6">

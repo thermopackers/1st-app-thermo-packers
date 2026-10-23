@@ -82,7 +82,7 @@ const [showConfetti, setShowConfetti] = useState(false);
 const [expiringCertificates, setExpiringCertificates] = useState([]);
 const [showProductRates, setShowProductRates] = useState(false);
 const [showMoldDieForm, setShowMoldDieForm] = useState(false);
-
+const [showScopeOfWork, setShowScopeOfWork] = useState(false); // ✅ ADD THIS LINE
 // Add these new state variables
 const [expiringAirReceiverCertificates, setExpiringAirReceiverCertificates] = useState([]);
 const [expiringManualChainPullyCertificates, setExpiringManualChainPullyCertificates] = useState([]);
@@ -915,6 +915,17 @@ const BirthdayNotification = ({ birthdayUsers, onClose, currentUser }) => {
           View Visiting Card
         </motion.button>
       )}
+
+          {/* ✅ Scope of Work Button - for accounts role */}
+        <motion.button
+          onClick={() => setShowScopeOfWork(true)}
+          className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 flex items-center justify-center gap-2 mb-4"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span>📋</span>
+          Scope of Work
+        </motion.button>
 
       {/* Attendance Banner (if allowed) */}
       {user?.allowAttendance && (
@@ -3104,11 +3115,156 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           <IncomingPaymentForm onClose={() => setShowPaymentForm(false)} />
         )}
       </main>
-         <TaskAssignmentModal 
+              <TaskAssignmentModal 
         isOpen={showTaskAssignment} 
         onClose={() => setShowTaskAssignment(false)}
         currentUser={user}
       />
+
+            {/* ✅ Scope of Work Modal - Scrollable, Responsive & Informative */}
+            <AnimatePresence>
+      {showScopeOfWork && (
+        <div
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
+          onClick={() => setShowScopeOfWork(false)}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-2xl 
+                       sm:max-w-lg md:max-w-xl lg:max-w-2xl 
+                       max-h-[92vh] sm:max-h-[85vh] 
+                       flex flex-col overflow-hidden relative"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {/* ── Sticky Header ── */}
+            <div className="relative bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white px-5 sm:px-6 py-5 flex-shrink-0">
+              <button
+                onClick={() => setShowScopeOfWork(false)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 
+                           flex items-center justify-center text-white transition"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+
+              <div className="flex items-center gap-3 pr-8">
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt="Profile"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white/40 shadow-md flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/20 border-2 border-white/40 
+                                  flex items-center justify-center text-lg font-bold shadow-md flex-shrink-0">
+                    {user?.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold truncate">
+                    {user?.name || "My Scope of Work"}
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-indigo-100 truncate">
+                    {user?.email || "Scope of Work"}
+                  </p>
+                  {user?.designation && (
+                    <p className="text-[10px] sm:text-[11px] text-indigo-200 capitalize mt-0.5">
+                      {user.designation}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Count badge */}
+              <div className="mt-3 inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm 
+                              px-3 py-1.5 rounded-full text-xs font-medium">
+                📋
+                <span>
+                  {Array.isArray(user?.scopeOfWork) ? user.scopeOfWork.length : 0}{" "}
+                  {(Array.isArray(user?.scopeOfWork) ? user.scopeOfWork.length : 0) === 1
+                    ? "Responsibility"
+                    : "Responsibilities"}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Scrollable Body ── */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 overscroll-contain">
+              {Array.isArray(user?.scopeOfWork) && user.scopeOfWork.length > 0 ? (
+                <>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3">
+                    You are assigned the following responsibilities. Please ensure timely and accurate completion.
+                  </p>
+
+                  <ul className="space-y-2.5">
+                    {user.scopeOfWork.map((s, idx) => (
+                      <motion.li
+                        key={idx}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.03 }}
+                        className="group flex items-start gap-3 p-3 rounded-xl 
+                                   bg-gradient-to-r from-indigo-50 to-blue-50 
+                                   border border-indigo-100 
+                                   hover:from-indigo-100 hover:to-blue-100 
+                                   hover:border-indigo-200 transition-all"
+                      >
+                        <span className="w-7 h-7 rounded-lg bg-indigo-600 text-white 
+                                         flex items-center justify-center text-xs font-bold 
+                                         flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                          {idx + 1}
+                        </span>
+                        <span className="text-sm text-gray-800 font-medium leading-snug pt-0.5 break-words">
+                          {s}
+                        </span>
+                        <span className="ml-auto text-green-500 text-lg flex-shrink-0">✓</span>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="text-center py-10 sm:py-14">
+                  <div className="text-5xl sm:text-6xl mb-4 opacity-60">📭</div>
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">
+                    No Scope of Work Assigned
+                  </h4>
+                  <p className="text-xs sm:text-sm text-gray-500 max-w-xs mx-auto">
+                    Your administrator has not assigned any responsibilities yet. Please contact HR/Admin to get your scope of work updated.
+                  </p>
+                </div>
+              )}
+
+              {/* Informative footer note */}
+              {Array.isArray(user?.scopeOfWork) && user.scopeOfWork.length > 0 && (
+                <div className="mt-5 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+                  <span className="text-amber-500 text-base flex-shrink-0">💡</span>
+                  <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                    This list is maintained by the Accounts team. If any work item is missing or incorrect, please request an update from Accounts.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Sticky Footer ── */}
+            <div className="flex-shrink-0 border-t border-gray-100 bg-white px-5 sm:px-6 py-3 sm:py-4 
+                            flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowScopeOfWork(false)}
+                className="w-full sm:flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 
+                           py-2.5 rounded-xl font-semibold text-sm transition"
+              >
+                Close
+              </button>
+             
+            </div>
+          </motion.div>
+        </div>
+      )}
+      </AnimatePresence>
+
             {/* View All Users Modal */}
       {showAllUsersModal && (
         <ViewAllUsersModal onClose={() => setShowAllUsersModal(false)} />

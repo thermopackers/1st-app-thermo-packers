@@ -11,6 +11,7 @@ import {
   Trash2,
   Save,
   Loader,
+  Download,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import axiosInstance from "../axiosInstance";
@@ -43,6 +44,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -219,6 +221,133 @@ const HolidaysList = ({ isOpen, onClose }) => {
     }
   };
 
+  // ==================== EXPORT TO PDF ====================
+  const handleExportPDF = async () => {
+    if (sortedHolidays.length === 0) {
+      Swal.fire("No Data", "There are no holidays to export.", "info");
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+
+      const doc = new jsPDF("portrait");
+
+      // Determine year(s) covered
+      const years = [
+        ...new Set(sortedHolidays.map((h) => new Date(h.date).getFullYear())),
+      ].sort();
+      const yearLabel = years.length === 1 ? years[0] : years.join(", ");
+
+      // Title
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Holiday Calendar ${yearLabel}`, 14, 15);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Generated: ${new Date().toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}`,
+        14,
+        22
+      );
+      doc.text(`Total Holidays: ${sortedHolidays.length}`, 14, 28);
+
+      // Build table data — grouped by month for readability
+      const tableBody = [];
+      let counter = 1;
+
+      months.forEach((monthName, idx) => {
+        const monthHolidays = sortedHolidays.filter(
+          (h) => new Date(h.date).getMonth() === idx
+        );
+        if (monthHolidays.length === 0) return;
+
+        // Month header row
+        tableBody.push([
+          {
+            content: monthName.toUpperCase(),
+            colSpan: 4,
+            styles: {
+              fillColor: [220, 252, 231],
+              textColor: [22, 101, 52],
+              fontStyle: "bold",
+              halign: "left",
+            },
+          },
+        ]);
+
+        monthHolidays.forEach((h) => {
+          tableBody.push([
+            counter++,
+            h.name,
+            formatDate(h.date),
+            h.day || "",
+          ]);
+        });
+      });
+
+      autoTable(doc, {
+        head: [["S.N.", "Holiday", "Date", "Day"]],
+        body: tableBody,
+        startY: 34,
+        theme: "striped",
+        headStyles: {
+          fillColor: [22, 163, 74],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 10,
+          cellPadding: 2.5,
+        },
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+          lineHeight: 1.2,
+          valign: "middle",
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: "center" },
+          1: { cellWidth: 90 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 35 },
+        },
+        margin: { top: 34, bottom: 20, left: 14, right: 14 },
+        pageBreak: "auto",
+        rowPageBreak: "avoid",
+        didDrawPage: (data) => {
+          const pageCount = doc.internal.getNumberOfPages();
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height
+            ? pageSize.height
+            : pageSize.getHeight();
+
+          doc.setFontSize(8);
+          doc.setTextColor(120);
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}`,
+            pageSize.width / 2,
+            pageHeight - 8,
+            { align: "center" }
+          );
+        },
+      });
+
+      // Save
+      doc.save(`Holiday-Calendar-${yearLabel}.pdf`);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+      Swal.fire("Error", "Failed to generate PDF. Please try again.", "error");
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   return (
     <>
       {/* ==================== MAIN MODAL ==================== */}
@@ -250,6 +379,23 @@ const HolidaysList = ({ isOpen, onClose }) => {
                   </h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Export to PDF */}
+                  <button
+                    onClick={handleExportPDF}
+                    disabled={exportingPDF || loading}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Download full holiday list as PDF"
+                  >
+                    {exportingPDF ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {exportingPDF ? "Generating..." : "Export PDF"}
+                    </span>
+                  </button>
+
                   {canManage && (
                     <button
                       onClick={handleAddClick}
