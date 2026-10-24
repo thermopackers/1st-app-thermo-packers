@@ -494,7 +494,7 @@ useEffect(() => {
       const normalizeVehicle = (v) =>
         (v || '').toString().toUpperCase().replace(/[\s\-]/g, '').trim();
 
-      const processed = results.map((row) => {
+       const processed = results.map((row, i) => {
         let matchedVehicle = '';
         if (row.vehicleNumber) {
           const aiNorm = normalizeVehicle(row.vehicleNumber);
@@ -504,14 +504,13 @@ useEffect(() => {
           if (exact) {
             matchedVehicle = exact.vehicleNumber;
           } else {
-            // Partial match
             const partial = vehicleList.find((v) => {
               const dbNorm = normalizeVehicle(v.vehicleNumber);
               if (Math.abs(dbNorm.length - aiNorm.length) > 1) return false;
               const maxLen = Math.max(dbNorm.length, aiNorm.length);
               let same = 0;
-              for (let i = 0; i < Math.min(dbNorm.length, aiNorm.length); i++) {
-                if (dbNorm[i] === aiNorm[i]) same++;
+              for (let k = 0; k < Math.min(dbNorm.length, aiNorm.length); k++) {
+                if (dbNorm[k] === aiNorm[k]) same++;
               }
               return same / maxLen >= 0.75;
             });
@@ -523,6 +522,8 @@ useEffect(() => {
           ...row,
           _matchedVehicle: matchedVehicle,
           _vehicleMatched: !!matchedVehicle,
+          // ✅ NEW: keep the original compressed file for later upload
+          _file: compressed[i] || files[i] || null,
         };
       });
 
@@ -564,7 +565,7 @@ useEffect(() => {
     setBulkExtracted((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // ✅ Bulk: save all entries
+  // ✅ Bulk: save all entries (uploads files first, then saves entries)
   const saveAllBulkEntries = async () => {
     const validRows = bulkExtracted.filter((r) => r._vehicleMatched && !r._error);
     if (validRows.length === 0) {
@@ -577,13 +578,51 @@ useEffect(() => {
       let successCount = 0;
       let failCount = 0;
 
-       // ✅ Parallel save with Promise.allSettled
+      console.log(`[Bulk Save] Saving ${validRows.length} entries...`);
+
+      // ✅ For each row: upload file (if any), then save entry
       const results = await Promise.allSettled(
-        validRows.map((row) => {
+        validRows.map(async (row) => {
+          // Validate meter reading
           const meterReading = parseFloat(row.meterReading);
           if (isNaN(meterReading)) {
-            return Promise.reject(new Error(`Invalid meter reading for row ${row._index + 1}`));
+            throw new Error(`Invalid meter reading for row ${row._index + 1}`);
           }
+
+          // ────────────────────────────────────────────────
+          // STEP A: Upload the attached file (if any)
+          // ────────────────────────────────────────────────
+          let imageUrls = [];
+          if (row._file) {
+            try {
+              const formData = new FormData();
+              formData.append('images', row._file);
+
+              const uploadRes = await axiosInstance.post('/upload', formData, {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              imageUrls = uploadRes.data.fileUrls || [];
+              console.log(
+                `[Bulk Save] Row ${row._index + 1}: Uploaded file "${row._file.name}" → ${imageUrls.join(', ')}`
+              );
+            } catch (uploadErr) {
+              // Log but don't fail the whole row — save without file
+              console.error(
+                `[Bulk Save] Row ${row._index + 1}: File upload failed:`,
+                uploadErr.response?.data || uploadErr.message
+              );
+            }
+          } else {
+            console.log(`[Bulk Save] Row ${row._index + 1}: No file attached, skipping upload`);
+          }
+
+          // ────────────────────────────────────────────────
+          // STEP B: Save the mileage entry with imageUrls
+          // ────────────────────────────────────────────────
           return axiosInstance.post(
             '/diesel/add',
             {
@@ -593,24 +632,38 @@ useEffect(() => {
               dieselLiters: row.dieselLtrs ? parseFloat(row.dieselLtrs) : null,
               ureaQty: row.ureaQty ? parseFloat(row.ureaQty) : null,
               fuelSlipNo: row.fuelSlipNo || null,
-              imageUrls: [],
+              imageUrls, // ✅ Now includes the uploaded file URLs
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
         })
       );
 
+      // Count successes / failures
       results.forEach((r, i) => {
-        if (r.status === 'fulfilled') successCount++;
-        else {
-          console.error('Failed to save row:', validRows[i], r.reason);
+        if (r.status === 'fulfilled') {
+          successCount++;
+        } else {
+          console.error(
+            `[Bulk Save] Row ${validRows[i]._index + 1} failed:`,
+            r.reason?.response?.data || r.reason?.message
+          );
           failCount++;
         }
       });
 
-      toast.success(`Saved ${successCount} entries${failCount > 0 ? `, ${failCount} failed` : ''}.`);
+      // Show result
+      if (successCount > 0) {
+        toast.success(
+          `Saved ${successCount} entries${failCount > 0 ? `, ${failCount} failed` : ''}.`
+        );
+      } else {
+        toast.error(`Failed to save all ${failCount} entries.`);
+      }
 
-      // Reset bulk UI
+      // ────────────────────────────────────────────────
+      // RESET bulk UI
+      // ────────────────────────────────────────────────
       setBulkExtracted([]);
       setEntryFormData({
         date: dayjs().format('YYYY-MM-DD'),
@@ -622,13 +675,13 @@ useEffect(() => {
         files: [],
       });
 
-      // Refresh all data
+      // Refresh data
       fetchAllMileageData();
       fetchTableData();
       fetchMileageEntries(1);
     } catch (err) {
-      console.error('Bulk save error:', err);
-      toast.error('Failed to save entries.');
+      console.error('[Bulk Save] Fatal error:', err);
+      toast.error('Failed to save entries. Please try again.');
     } finally {
       setBulkSaving(false);
     }
