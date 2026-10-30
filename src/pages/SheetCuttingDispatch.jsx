@@ -4,6 +4,8 @@ import axiosInstance from "../axiosInstance";
 import InternalNavbar from "../components/InternalNavbar";
 import Swal from "sweetalert2";
 import { motion } from "framer-motion";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function SheetCuttingDispatch() {
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ export default function SheetCuttingDispatch() {
   const [showDropdown, setShowDropdown] = useState({});
   const [manualProductInput, setManualProductInput] = useState({});
   const [showManualInput, setShowManualInput] = useState({});
+  const [savedBy, setSavedBy] = useState(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -60,14 +63,16 @@ export default function SheetCuttingDispatch() {
         const res = await axiosInstance.get(
           `/sheet-cutting-dispatch?date=${selectedDate}`
         );
-        if (res.data) {
+               if (res.data) {
           setRows(res.data.rows || []);
           setTapeUsed(res.data.tapeUsed || "");
+          setSavedBy(res.data.savedBy || null);
         } else {
           setRows([]);
           setTapeUsed("");
+          setSavedBy(null);
         }
-      } catch (err) {
+          } catch (err) {
         console.error(
           "❌ Report fetch error:",
           err?.response?.status,
@@ -76,6 +81,7 @@ export default function SheetCuttingDispatch() {
         );
         setRows([]);
         setTapeUsed("");
+        setSavedBy(null);
       } finally {
         setLoading(false);
       }
@@ -183,11 +189,16 @@ export default function SheetCuttingDispatch() {
       // Strip client-only _id before sending to backend
       const cleanedRows = rows.map(({ _id, ...rest }) => rest);
 
-      await axiosInstance.post("/sheet-cutting-dispatch", {
+           const saveRes = await axiosInstance.post("/sheet-cutting-dispatch", {
         date: selectedDate,
         rows: cleanedRows,
         tapeUsed,
       });
+
+      // Update savedBy immediately so signature shows right after saving
+      if (saveRes.data?.savedBy) {
+        setSavedBy(saveRes.data.savedBy);
+      }
 
       Swal.fire({
         title: "Saved!",
@@ -221,6 +232,133 @@ export default function SheetCuttingDispatch() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+    // Export current report as PDF
+  const handleExportPDF = () => {
+    if (rows.length === 0) {
+      Swal.fire({
+        title: "Nothing to export",
+        text: "Add at least one row before exporting.",
+        icon: "info",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    // ---- Header ----
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Sheet Cutting & Dispatch Report", 14, 15);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date: ${formatIndianDate(selectedDate)}`, 14, 22);
+    doc.text(
+      `Generated on: ${formatIndianDate(new Date().toISOString().split("T")[0])}`,
+      14,
+      27
+    );
+
+    // ---- Table ----
+    const tableBody = rows.map((r, i) => [
+      i + 1,
+      r.workers || "",
+      r.thermocolName || "",
+      r.rawBlocksUsed || "0",
+      r.qtyReadyForDispatch || "0",
+      r.remarks || "",
+    ]);
+
+    autoTable(doc, {
+      startY: 32,
+      head: [["#", "Name of Workers", "Thermocol Name", "Raw Block Used", "Qty Ready for Dispatch", "Remarks"]],
+      body: tableBody,
+      styles: { fontSize: 9, cellPadding: 2, valign: "top" },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 248, 255] },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 30, halign: "center" },
+        4: { cellWidth: 40, halign: "center" },
+        5: { cellWidth: 55 },
+      },
+    });
+
+    let finalY = doc.lastAutoTable.finalY + 8;
+
+    // ---- Tape Used ----
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Tape Used (Full Day):", 14, finalY);
+    doc.setFont("helvetica", "normal");
+    doc.text(tapeUsed ? `${tapeUsed} pcs` : "-", 70, finalY);
+
+    finalY += 12;
+
+    // ---- Saved By + Signature ----
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Report saved by:", 14, finalY);
+
+    doc.setFont("helvetica", "normal");
+    if (savedBy?.name) {
+      doc.text(`${savedBy.name}${savedBy.email ? ` (${savedBy.email})` : ""}`, 14, finalY + 6);
+    } else {
+      doc.text("—", 14, finalY + 6);
+    }
+
+    // Digital signature image (if present)
+    if (savedBy?.digitalSignature) {
+      try {
+        // Detect extension from URL (default png for unknown)
+        const match = savedBy.digitalSignature.match(/\.(png|jpe?g|webp)(\?.*)?$/i);
+        const ext = match ? match[1].toLowerCase() : "png";
+        const imageType = ext === "jpg" || ext === "jpeg" ? "JPEG" : "PNG";
+
+        doc.addImage(
+          savedBy.digitalSignature,
+          imageType,
+          120, // x
+          finalY - 2, // y
+          55, // width mm
+          20, // height mm
+          undefined,
+          "FAST"
+        );
+
+        doc.setFontSize(7);
+        doc.setTextColor(120);
+        doc.text("Authorised Signature", 120, finalY + 20);
+        doc.setTextColor(0);
+      } catch (imgErr) {
+        console.error("Could not embed signature image in PDF:", imgErr);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("[Signature could not be embedded]", 120, finalY + 8);
+        doc.setTextColor(0);
+      }
+    }
+
+    // ---- Footer line ----
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(200);
+    doc.line(14, pageHeight - 12, 283, pageHeight - 12);
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Thermo Packers — Sheet Cutting & Dispatch Report",
+      14,
+      pageHeight - 7
+    );
+
+    // ---- Save ----
+    const dateForFile = selectedDate.replace(/-/g, "_");
+    doc.save(`Sheet_Cutting_Dispatch_${dateForFile}.pdf`);
+  };
 
   return (
     <>
@@ -334,7 +472,7 @@ export default function SheetCuttingDispatch() {
                               </p>
                             </td>
 
-                            {/* Thermocol Name - Searchable */}
+                                                      {/* Thermocol Name - Searchable */}
                             <td className="px-3 py-2 align-top product-dropdown-container">
                               <div className="relative">
                                 <input
@@ -373,51 +511,9 @@ export default function SheetCuttingDispatch() {
                                   <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                     {getFilteredProducts(index).length === 0 ? (
                                       <div className="p-2">
-                                        <p className="text-xs text-gray-500 mb-2">
+                                        <p className="text-xs text-gray-500">
                                           No match found
                                         </p>
-                                        {!showManualInput[index] ? (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setShowManualInput((prev) => ({
-                                                ...prev,
-                                                [index]: true,
-                                              }))
-                                            }
-                                            className="text-xs text-blue-600 hover:underline font-medium"
-                                          >
-                                            + Add manually
-                                          </button>
-                                        ) : (
-                                          <div className="flex gap-1">
-                                            <input
-                                              type="text"
-                                              value={
-                                                manualProductInput[index] || ""
-                                              }
-                                              onChange={(e) =>
-                                                setManualProductInput(
-                                                  (prev) => ({
-                                                    ...prev,
-                                                    [index]: e.target.value,
-                                                  })
-                                                )
-                                              }
-                                              placeholder="Enter name"
-                                              className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
-                                            />
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                addManualProduct(index)
-                                              }
-                                              className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
-                                            >
-                                              Add
-                                            </button>
-                                          </div>
-                                        )}
                                       </div>
                                     ) : (
                                       getFilteredProducts(index).map((p) => (
@@ -433,53 +529,60 @@ export default function SheetCuttingDispatch() {
                                         </button>
                                       ))
                                     )}
-                                    {getFilteredProducts(index).length > 0 &&
-                                      !showManualInput[index] && (
-                                        <div className="border-t border-gray-100 p-2">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setShowManualInput((prev) => ({
-                                                ...prev,
-                                                [index]: true,
-                                              }))
-                                            }
-                                            className="text-xs text-blue-600 hover:underline font-medium"
-                                          >
-                                            + Add manually
-                                          </button>
-                                        </div>
-                                      )}
-                                    {showManualInput[index] && (
-                                      <div className="border-t border-gray-100 p-2 flex gap-1">
-                                        <input
-                                          type="text"
-                                          value={
-                                            manualProductInput[index] || ""
-                                          }
-                                          onChange={(e) =>
-                                            setManualProductInput((prev) => ({
-                                              ...prev,
-                                              [index]: e.target.value,
-                                            }))
-                                          }
-                                          placeholder="Enter name"
-                                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            addManualProduct(index)
-                                          }
-                                          className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
-                                        >
-                                          Add
-                                        </button>
-                                      </div>
-                                    )}
                                   </div>
                                 )}
                               </div>
+
+                              {/* + Add manually button always below input */}
+                              {!showManualInput[index] ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowManualInput((prev) => ({
+                                      ...prev,
+                                      [index]: true,
+                                    }))
+                                  }
+                                  className="mt-1 text-xs text-blue-600 hover:underline font-medium"
+                                >
+                                  + Add manually
+                                </button>
+                              ) : (
+                                <div className="mt-1 flex gap-1">
+                                  <input
+                                    type="text"
+                                    value={manualProductInput[index] || ""}
+                                    onChange={(e) =>
+                                      setManualProductInput((prev) => ({
+                                        ...prev,
+                                        [index]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Enter name"
+                                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => addManualProduct(index)}
+                                    className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
+                                  >
+                                    Add
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowManualInput((prev) => ({
+                                        ...prev,
+                                        [index]: false,
+                                      }))
+                                    }
+                                    className="text-gray-500 text-xs px-1"
+                                    title="Cancel"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              )}
                             </td>
 
                             {/* Raw Blocks Used */}
@@ -546,7 +649,7 @@ export default function SheetCuttingDispatch() {
                         ))
                       )}
 
-                                          {/* Inline Action Row: Add Row + Save Report */}
+                                                                {/* Inline Action Row: Add Row + Save Report + Export PDF */}
                       <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t-2 border-blue-200">
                         <td colSpan={6} className="px-3 py-3">
                           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -561,6 +664,13 @@ export default function SheetCuttingDispatch() {
                                 className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md transition-all"
                               >
                                 ➕ Add Row
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleExportPDF}
+                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md transition-all"
+                              >
+                                📄 Export PDF
                               </button>
                               <button
                                 type="button"
@@ -637,7 +747,7 @@ export default function SheetCuttingDispatch() {
                   </div>
                 )}
 
-                {/* Tape Used (Full Day) - at the very end */}
+                              {/* Tape Used (Full Day) - at the very end */}
                 <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                   <label className="block font-semibold text-amber-900 mb-2">
                     🎗️ Tape Used (Full Day)
@@ -648,9 +758,79 @@ export default function SheetCuttingDispatch() {
                     onChange={(e) => setTapeUsed(e.target.value)}
                     placeholder="e.g. 5 rolls"
                     className="w-full md:w-1/2 border border-amber-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                  /> 
+                  />
                   <span className="ml-2">pcs</span>
                 </div>
+
+                {/* Saved By + Digital Signature */}
+                {savedBy && (
+                  <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
+                        Report saved by
+                      </p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {savedBy.name || "—"}
+                      </p>
+                      {savedBy.email && (
+                        <p className="text-xs text-slate-600">{savedBy.email}</p>
+                      )}
+                    </div>
+
+                                    {savedBy.digitalSignature ? (
+                      <div className="flex flex-col items-center sm:items-end">
+                        <img
+                          src={savedBy.digitalSignature}
+                          alt="Digital Signature"
+                          className="h-16 max-w-[200px] object-contain border border-slate-200 rounded bg-white p-1 cursor-pointer hover:shadow-md hover:border-blue-400 transition-all"
+                          onClick={() =>
+                            Swal.fire({
+                              title: "Authorised Signature",
+                              imageUrl: savedBy.digitalSignature,
+                              imageAlt: "Digital Signature",
+                              html: `
+                                <p style="margin-top:8px;font-size:12px;color:#64748b;">
+                                  ${savedBy.name || ""}${savedBy.email ? ` — ${savedBy.email}` : ""}
+                                </p>
+                              `,
+                              showCloseButton: true,
+                              showConfirmButton: false,
+                              showCancelButton: true,
+                              cancelButtonText: "Close",
+                              cancelButtonColor: "#6b7280",
+                              width: "min(90vw, 600px)",
+                              background: "rgba(255,255,255,0.95)",
+                              backdrop: "rgba(0,0,0,0.4)",
+                              customClass: {
+                                image: "swal-signature-image",
+                                popup: "rounded-2xl",
+                              },
+                              didOpen: () => {
+                                // Make the image clickable to open full in new tab
+                                const imgEl = Swal.getImage();
+                                if (imgEl) {
+                                  imgEl.style.cursor = "zoom-in";
+                                  imgEl.style.maxHeight = "70vh";
+                                  imgEl.style.objectFit = "contain";
+                                  imgEl.addEventListener("click", () => {
+                                    window.open(savedBy.digitalSignature, "_blank");
+                                  });
+                                }
+                              },
+                            })
+                          }
+                        />
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 mt-1">
+                          Authorised Signature · Click to view
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs italic text-slate-400">
+                        No digital signature on file for this user.
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

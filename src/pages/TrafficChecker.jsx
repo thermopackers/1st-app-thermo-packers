@@ -55,22 +55,23 @@ export default function TrafficChecker() {
     setSearchParams({ page });
   }, [page, setSearchParams]);
 
-  const stats = {
-    totalVisitors: totalVisitors,
-    avgTimeSpent:
-      visitors.length > 0
-        ? (
-            visitors.reduce((acc, v) => acc + (v.timeSpent || 0), 0) /
-            visitors.length
-          ).toFixed(1)
-        : 0,
-    uniqueProducts: new Set(
-      visitors.flatMap((v) => v.productsChecked || [])
-    ).size,
-    uniqueCategories: new Set(
-      visitors.flatMap((v) => v.categoriesChecked || [])
-    ).size,
-  };
+ const stats = {
+  totalVisitors: totalVisitors,
+  avgTimeSpent:
+    visitors.length > 0
+      ? (
+          visitors.reduce((acc, v) => acc + (v.timeSpent || 0), 0) /
+          visitors.length /
+          60
+        ).toFixed(1)
+      : 0,
+  uniqueProducts: new Set(
+    visitors.flatMap((v) => v.productsChecked || [])
+  ).size,
+  uniqueCategories: new Set(
+    visitors.flatMap((v) => v.categoriesChecked || [])
+  ).size,
+};
 
   return (
     <>
@@ -117,12 +118,12 @@ export default function TrafficChecker() {
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                   <Clock className="w-6 h-6 text-green-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Avg Time Spent</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {stats.avgTimeSpent}s
-                  </p>
-                </div>
+               <div>
+  <p className="text-sm text-gray-500">Avg Time Spent</p>
+  <p className="text-2xl font-bold text-gray-800">
+    {stats.avgTimeSpent}m
+  </p>
+</div>
               </div>
             </div>
 
@@ -235,12 +236,12 @@ export default function TrafficChecker() {
                             </p>
                           </div>
                         </td>
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                            <Clock size={14} />
-                            {v.timeSpent || 0}s
-                          </span>
-                        </td>
+                       <td className="py-4 px-6">
+  <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+    <Clock size={14} />
+    {((v.timeSpent || 0) / 60).toFixed(1)}m
+  </span>
+</td>
                         <td className="py-4 px-6">
                           <div className="flex flex-wrap gap-1">
                             {v.productsChecked?.length > 0 ? (

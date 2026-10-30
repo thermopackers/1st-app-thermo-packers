@@ -130,6 +130,8 @@ import MoldDieList from "../pages/MoldDieList";
 import AddEditMoldDie from "../pages/AddEditMoldDie";
 import TrafficChecker from "../pages/TrafficChecker";
 import SheetCuttingDispatch from "../pages/SheetCuttingDispatch";
+import ThermocolDensityCalculator from "../pages/ThermocolDensityCalculator";
+import ScopeOfWorkManager from "../pages/ScopeOfWorkManager";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Products = React.lazy(() => import("../pages/Products"));
@@ -254,6 +256,8 @@ export default function AppRoutes() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/thermocol-density-calculator" element={<ThermocolDensityCalculator />} />
 
 <Route path="/mold-die-list" element={<MoldDieList />} />
 <Route path="/add-edit-mold-die" element={<AddEditMoldDie />} />
@@ -383,6 +387,7 @@ export default function AppRoutes() {
 <Route path="/factory-attendance-logs" element={<FactoryAttendanceLogs />} />
 <Route path="/factory-monthly-reports" element={<FactoryMonthlyReports />} />
 <Route path="/maintenance/transformer" element={<TransformerMaintenance />} />
+<Route path="/scope-of-work-manager" element={<ScopeOfWorkManager />} />
 
             <Route
               path="/asset-management"

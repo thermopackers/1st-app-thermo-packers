@@ -105,6 +105,17 @@ const HolidaysList = ({ isOpen, onClose }) => {
     (h) => new Date(h.date) >= today
   );
 
+    // Derived: dynamic year label (e.g. "2026" or "2025 – 2026")
+  const years = [
+    ...new Set(sortedHolidays.map((h) => new Date(h.date).getFullYear())),
+  ].sort();
+  const yearLabel =
+    years.length === 0
+      ? new Date().getFullYear().toString()
+      : years.length === 1
+      ? String(years[0])
+      : years.join(" – ");
+
   // Format date
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -375,7 +386,7 @@ const HolidaysList = ({ isOpen, onClose }) => {
                 <div className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-white" />
                   <h2 className="text-lg font-semibold text-white">
-                    Yearly Holidays Chart 2026
+                    Yearly Holidays Chart {yearLabel}
                   </h2>
                 </div>
                 <div className="flex items-center gap-2">
@@ -531,8 +542,9 @@ const HolidaysList = ({ isOpen, onClose }) => {
                           >
                             <ChevronLeft className="w-5 h-5" />
                           </button>
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            {months[currentMonth]} 2026
+                                                   <h3 className="text-lg font-semibold text-gray-800">
+                            {months[currentMonth]}{" "}
+                            {years[0] || new Date().getFullYear()}
                           </h3>
                           <button
                             onClick={nextMonth}
@@ -663,8 +675,8 @@ const HolidaysList = ({ isOpen, onClose }) => {
               </div>
 
               {/* Footer */}
-              <div className="p-3 bg-gray-50 border-t border-gray-200 text-center text-xs text-gray-500">
-                <span>Total Holidays in 2026: {holidays.length}</span>
+                           <div className="p-3 bg-gray-50 border-t border-gray-200 text-center text-xs text-gray-500">
+                <span>Total Holidays in {yearLabel}: {holidays.length}</span>
               </div>
             </motion.div>
           </>

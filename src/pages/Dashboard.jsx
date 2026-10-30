@@ -20,6 +20,7 @@ import ViewAllUsersModal from "../components/ViewAllUsersModal";
 import ProductRateChecker from "../components/calculateProductPrice";
 import ProductRateTable from "../components/ProductRateTable";
 import MoldDieForm from "../components/MoldDieForm";
+import HolidaysList from "../components/HolidaysList";
 
 export default function Dashboard() {
  // Helper function to parse roles properly
@@ -83,6 +84,10 @@ const [expiringCertificates, setExpiringCertificates] = useState([]);
 const [showProductRates, setShowProductRates] = useState(false);
 const [showMoldDieForm, setShowMoldDieForm] = useState(false);
 const [showScopeOfWork, setShowScopeOfWork] = useState(false); // ✅ ADD THIS LINE
+const [showHolidays, setShowHolidays] = useState(false);
+const [holidayYearLabel, setHolidayYearLabel] = useState(
+  new Date().getFullYear().toString()
+);
 // Add these new state variables
 const [expiringAirReceiverCertificates, setExpiringAirReceiverCertificates] = useState([]);
 const [expiringManualChainPullyCertificates, setExpiringManualChainPullyCertificates] = useState([]);
@@ -169,6 +174,37 @@ useEffect(() => {
   };
   fetchVehicle();
 }, [user,userRoles]);
+
+// Fetch dynamic holiday year label
+useEffect(() => {
+  if (!user) return;
+
+  const fetchHolidayYear = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axiosInstance.get("/holidays", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const list = res.data || [];
+      if (list.length === 0) return;
+
+      const years = [
+        ...new Set(list.map((h) => new Date(h.date).getFullYear())),
+      ].sort();
+
+      const label =
+        years.length === 1
+          ? String(years[0])
+          : years.join(" – ");
+
+      setHolidayYearLabel(label);
+    } catch (err) {
+      console.error("Failed to fetch holiday year:", err);
+    }
+  };
+
+  fetchHolidayYear();
+}, [user]);
 
 // Fetch ALL expiring certificates in one API call
 useEffect(() => {
@@ -2149,12 +2185,18 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
                     <span className="text-5xl">🖩</span>
                    Thermocol Sheet or Packaging Costing Calculator
                   </h3>
-  <div className="w-full">
+   <div className="w-full space-y-3">
     <button
       onClick={() => navigate("/costing-calculator")}
       className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200"
     >
       Costing Calculator
+    </button>
+    <button
+      onClick={() => navigate("/thermocol-density-calculator")}
+      className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200"
+    >
+      Thermocol Sheet Density Calculator
     </button>
   </div>
                   </DashboardCard>
@@ -2622,7 +2664,29 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
           </div>
         </ActionButton>
 
-    
+         {/* ✅ Scope of Work Manager */}
+        <ActionButton to="/scope-of-work-manager" variant="indigo" icon="📋">
+          <div className="text-lg font-semibold mb-2">
+            Scope of Work Manager
+          </div>
+          <div className="text-indigo-100 text-sm opacity-90">
+            🗂️ Create / Edit / Assign responsibilities to employees
+          </div>
+        </ActionButton>
+
+                {/* 📅 Yearly Holidays Chart 2026 */}
+               <ActionButton
+          onClick={() => setShowHolidays(true)}
+          variant="emerald"
+          icon="📅"
+        >
+          <div className="text-lg font-semibold mb-2">
+            Yearly Holidays Chart {holidayYearLabel}
+          </div>
+          <div className="text-emerald-100 text-sm opacity-90">
+            📅 View / Add / Edit holidays for the year
+          </div>
+        </ActionButton>
 
         <motion.div
           whileHover={{ scale: 1.02 }}
@@ -3269,6 +3333,30 @@ Make get Inwards/GRN/Record Vehicle Entry      </h3>
       {showAllUsersModal && (
         <ViewAllUsersModal onClose={() => setShowAllUsersModal(false)} />
       )}
+
+             <HolidaysList
+        isOpen={showHolidays}
+        onClose={() => {
+          setShowHolidays(false);
+          // Refresh year label in case holidays were added/deleted
+          (async () => {
+            try {
+              const token = localStorage.getItem("token");
+              const res = await axiosInstance.get("/holidays", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const list = res.data || [];
+              if (list.length === 0) return;
+              const years = [
+                ...new Set(list.map((h) => new Date(h.date).getFullYear())),
+              ].sort();
+              const label =
+                years.length === 1 ? String(years[0]) : years.join(" – ");
+              setHolidayYearLabel(label);
+            } catch {}
+          })();
+        }}
+      />
     </>
   );
 }

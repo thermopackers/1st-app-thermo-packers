@@ -907,7 +907,7 @@ const MoldDieForm = ({ onClose, editId }) => {
             )}
 
             {/* Documents - MULTIPLE, only when withThermoPackers */}
-            {formData.dieLocation === "withThermoPackers" && (
+            {/* {formData.dieLocation === "withThermoPackers" && (
               <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Upload Inward Challan
@@ -929,7 +929,7 @@ const MoldDieForm = ({ onClose, editId }) => {
                   size="w-24 h-24"
                 />
               </div>
-            )}
+            )} */}
 
             {/* Challan - MULTIPLE, only when sentBackToCustomer */}
             {formData.dieLocation === "sentBackToCustomer" && (

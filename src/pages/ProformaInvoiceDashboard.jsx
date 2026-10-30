@@ -412,7 +412,7 @@ const downloadPdf = async (pdfUrl, invoiceNo, customerName, invoiceId) => {
                                 <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Created By</th> {/* NEW COLUMN */}
                       <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Bill To</th>
                                          <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Products</th>
-                      <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Validity</th>
+                      <th className="py-4 px-6 text-left text-sm font-semibold text-gray-700">Days left for Expiring of Quotation</th>
                       <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Actions</th>
                        <th className="py-4 px-6 text-center text-sm font-semibold text-gray-700">Convert</th>
                     </tr>

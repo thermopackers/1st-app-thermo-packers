@@ -1004,7 +1004,6 @@ const handleDeleteVisitingCard = async () => {
                 <th className="px-4 py-2">Emergency No.</th>
                 <th className="px-4 py-2">Designation</th>
                     <th className="px-4 py-2">Status</th> {/* ✅ MOVED HERE - AFTER DESIGNATION */}
-                <th className="px-4 py-2">Scope of Work</th> {/* ✅ ADD THIS */}
 <th className="px-4 py-2">ESIC No</th>
                 <th className="px-4 py-2">EPFO No</th>
                  <th className="px-4 py-2">UAN No</th> {/* ✅ ADD THIS */}
@@ -1126,55 +1125,6 @@ const handleDeleteVisitingCard = async () => {
        {u.isActive === 'manual' && `✏️ ${u.statusText || 'Custom'}`}
   </span>
 </td>
-                                   <td className="px-4 py-2 align-top">
-                    {Array.isArray(u.scopeOfWork) && u.scopeOfWork.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-1 max-w-[140px]">
-                        {u.scopeOfWork.slice(0, 2).map((s, idx) => (
-                          <span
-                            key={idx}
-                            title={s}
-                            className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded-full truncate max-w-[70px]"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                        {u.scopeOfWork.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              Swal.fire({
-                                title: `Scope of Work — ${u.name}`,
-                                html: `
-                                  <div style="text-align:left; max-height:60vh; overflow-y:auto;">
-                                    <ul style="list-style:none; padding:0; margin:0;">
-                                      ${u.scopeOfWork
-                                        .map(
-                                          (item, i) => `
-                                        <li style="display:flex; align-items:flex-start; gap:8px; padding:6px 8px; border-radius:8px; background:#eef2ff; margin-bottom:6px;">
-                                          <span style="background:#4f46e5; color:#fff; width:20px; height:20px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;">${i + 1}</span>
-                                          <span style="font-size:13px; color:#1e293b;">${item}</span>
-                                        </li>`
-                                        )
-                                        .join("")}
-                                    </ul>
-                                  </div>
-                                `,
-                                confirmButtonText: "Close",
-                                confirmButtonColor: "#4f46e5",
-                                width: "min(90vw, 480px)",
-                              })
-                            }
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition"
-                            title="View all"
-                          >
-                            +{u.scopeOfWork.length - 2}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
                   <td className="px-4 py-2">{u.esicNo || "-"}</td>
                   <td className="px-4 py-2">{u.epfoNo || "-"}</td>
                   <td className="px-4 py-2">{u.unNo || "-"}</td> {/* ✅ ADD THIS */}
@@ -2044,60 +1994,6 @@ const handleDeleteVisitingCard = async () => {
       </div>
     </div>
   )}
-
-    <div className="border-t pt-6">
-      <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
-      
-      {/* Custom input to add a work item */}
-      <div className="flex gap-2 mt-2">
-        <input
-          type="text"
-          id="customScopeInput"
-          placeholder="Add custom work..."
-          className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const val = e.target.value.trim();
-              if (val && !scopeOfWork.includes(val)) {
-                setScopeOfWork([...scopeOfWork, val]);
-                e.target.value = '';
-              }
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const input = document.getElementById('customScopeInput');
-            const val = input.value.trim();
-            if (val && !scopeOfWork.includes(val)) {
-              setScopeOfWork([...scopeOfWork, val]);
-              input.value = '';
-            }
-          }}
-          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-        >
-          + Add
-        </button>
-      </div>
-      {scopeOfWork.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {scopeOfWork.map((s, idx) => (
-            <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              {s}
-              <button
-                type="button"
-                onClick={() => setScopeOfWork(scopeOfWork.filter((_, i) => i !== idx))}
-                className="text-blue-600 hover:text-red-600 font-bold"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
 
   {/* Submit Buttons */}
   <div className="border-t pt-6">
