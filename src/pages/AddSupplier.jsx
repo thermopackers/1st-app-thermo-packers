@@ -42,7 +42,21 @@ const [editingSecurityChequeId, setEditingSecurityChequeId] = useState(null);
   const [udyogAadharFiles, setUdyogAadharFiles] = useState([]);
   const [udyogAadharPreviewUrls, setUdyogAadharPreviewUrls] = useState([]);
   const [existingUdyogAadharCloudFiles, setExistingUdyogAadharCloudFiles] = useState([]);
-
+// ✅ NEW: Gift states for suppliers
+const [giftProducts, setGiftProducts] = useState([]);
+const [showGiftForm, setShowGiftForm] = useState(false);
+const [giftForm, setGiftForm] = useState({
+  giftType: "",
+  quantity: 1,
+  notes: "",
+});
+const [giftHistory, setGiftHistory] = useState([]);
+const [giftPage, setGiftPage] = useState(1);
+const [giftTotalPages, setGiftTotalPages] = useState(1);
+const [giftTotal, setGiftTotal] = useState(0);
+const [loadingGiftHistory, setLoadingGiftHistory] = useState(false);
+const [loadingGifts, setLoadingGifts] = useState(false);
+const giftLimit = 5; // Show 5 gifts per page
   const navigate = useNavigate();
   const { id } = useParams(); // ← Get supplier ID from URL
 // Before: const categories = [ "wood", ... ];
@@ -62,7 +76,25 @@ useEffect(() => {
   fetchCategories();
 }, []);
 
-  // 🔄 Load supplier if in edit mode
+// ✅ NEW: Fetch gift products on mount
+useEffect(() => {
+  const fetchGiftProducts = async () => {
+    setLoadingGifts(true);
+    try {
+      const res = await axiosInstance.get("/purchase-products/purchase-products-all", {
+        params: { isGiftItem: true }
+      });
+      setGiftProducts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load gift products", err);
+      toast.error("Failed to load gift products");
+    } finally {
+      setLoadingGifts(false);
+    }
+  };
+  fetchGiftProducts();
+}, []);
+
   // 🔄 Load supplier if in edit mode
   useEffect(() => {
     if (id) {
@@ -70,6 +102,7 @@ useEffect(() => {
       fetchPaginatedProducts(1); // ensure initial paginated data
       fetchDieMolds();
       fetchSecurityCheques();
+      fetchGiftHistory(); // ✅ NEW: fetch gift history
     }
   }, [id]);
 
@@ -102,6 +135,10 @@ const fetchSupplier = async () => {
     setExistingUdyogAadharCloudFiles(supplier.udyogAadharFiles || []);
     setUdyogAadharPreviewUrls(supplier.udyogAadharFiles?.map(f => f.url || f) || []);
 
+    // ✅ Load gift history into state (it will also be fetched separately with pagination)
+    if (supplier.giftHistory && supplier.giftHistory.length > 0) {
+      setGiftHistory(supplier.giftHistory);
+    }
     // ✅ Fetch frequently purchased items
     try {
       const freqRes = await axiosInstance.get(
@@ -137,6 +174,37 @@ const fetchSecurityCheques = async () => {
     }
   } catch (err) {
     console.error("Failed to fetch security cheques", err);
+  }
+};
+
+// ✅ NEW: Fetch supplier gift history with pagination
+const fetchGiftHistory = async (page = 1) => {
+  setLoadingGiftHistory(true);
+  try {
+    const res = await axiosInstance.get(`/suppliers/${id}/gifts`, {
+      params: {
+        page: page,
+        limit: giftLimit
+      }
+    });
+    
+    if (res.data.success) {
+      setGiftHistory(res.data.gifts || []);
+      setGiftTotal(res.data.total);
+      setGiftTotalPages(res.data.pages);
+      setGiftPage(res.data.page);
+      
+      // ✅ ALSO update the supplier state with the gift history
+      setSupplierData(prev => ({
+        ...prev,
+        giftHistory: res.data.gifts || []
+      }));
+    }
+  } catch (err) {
+    console.error("Failed to fetch gift history", err);
+    toast.error("Failed to load gift history");
+  } finally {
+    setLoadingGiftHistory(false);
   }
 };
 
@@ -785,7 +853,7 @@ const handleDeleteSecurityCheque = async (chequeId) => {
 {/* ==================== DIE/MOLD & SECURITY CHEQUE SECTION ==================== */}
 {id && (
   <div id="die-mold-section" className="mt-8 border-t pt-8">
-    <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4">
       <h3 className="text-xl font-bold">🔧 Die/Mold for Job Work & Security Cheque</h3>
       <div className="flex gap-2 flex-wrap">
         <button
@@ -810,7 +878,205 @@ const handleDeleteSecurityCheque = async (chequeId) => {
         >
           {showSecurityChequeForm ? "Cancel" : "🏦 Security Cheque"}
         </button>
+        {/* ✅ NEW: Add Diwali Gift button */}
+        <button
+          type="button"
+          onClick={() => setShowGiftForm(!showGiftForm)}
+          className="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700"
+        >
+          {showGiftForm ? "Cancel" : "🪔 Add Diwali Gift"}
+        </button>
       </div>
+    </div>
+
+      {/* ✅ NEW: Diwali Gift Form */}
+    {showGiftForm && (
+      <div className="bg-pink-50 p-4 rounded-lg mb-6">
+        <h4 className="font-semibold mb-3">Distribute Diwali Gift to Supplier</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 font-semibold">Gift Type *</label>
+            <select
+              name="giftType"
+              value={giftForm.giftType}
+              onChange={(e) => setGiftForm(prev => ({ ...prev, giftType: e.target.value }))}
+              className="w-full border p-2 rounded"
+              required
+              disabled={loadingGifts}
+            >
+              <option value="">{loadingGifts ? "Loading gifts..." : "Select Gift Item"}</option>
+              {giftProducts.map(product => (
+                <option key={product._id} value={product._id}>
+                  {product.name} (Stock: {product.stock || 0})
+                </option>
+              ))}
+            </select>
+            {loadingGifts && (
+              <p className="text-sm text-gray-500 mt-1">Loading gift items...</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block mb-1 font-semibold">Quantity *</label>
+            <input
+              type="number"
+              min="1"
+              value={giftForm.quantity}
+              onChange={(e) => setGiftForm(prev => ({ ...prev, quantity: e.target.value }))}
+              className="w-full border p-2 rounded"
+              required
+            />
+          </div>
+          
+          <div className="md:col-span-2">
+            <label className="block mb-1 font-semibold">Notes</label>
+            <input
+              type="text"
+              value={giftForm.notes}
+              onChange={(e) => setGiftForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="w-full border p-2 rounded"
+              placeholder="Optional notes about this gift distribution"
+            />
+          </div>
+        </div>
+        
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              if (!giftForm.giftType) {
+                toast.error("Please select a gift type");
+                return;
+              }
+              
+              if (!giftForm.quantity || giftForm.quantity < 1) {
+                toast.error("Please enter a valid quantity");
+                return;
+              }
+              
+              const giftData = {
+                giftType: giftForm.giftType,
+                quantity: giftForm.quantity,
+                notes: giftForm.notes
+              };
+              
+              const res = await axiosInstance.post(`/suppliers/${id}/gift`, giftData);
+              toast.success("Diwali gift added successfully!");
+              setGiftForm({ giftType: "", quantity: 1, notes: "" });
+              setShowGiftForm(false);
+              
+              // ✅ Refresh gift history
+              fetchGiftHistory();
+              
+              // Also refresh gift products stock
+              const updatedGiftProducts = await axiosInstance.get("/purchase-products/purchase-products-all", {
+                params: { isGiftItem: true }
+              });
+              setGiftProducts(updatedGiftProducts.data || []);
+              
+            } catch (err) {
+              console.error("Add gift error:", err);
+              toast.error(err.response?.data?.error || "Failed to add gift");
+            }
+          }}
+          className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          ✅ Distribute Diwali Gift
+        </button>
+      </div>
+    )}
+
+    {/* ✅ NEW: Gift History Table with Pagination */}
+    <div className="mt-6">
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-semibold">🪔 Gift History</h4>
+        {giftTotal > 0 && (
+          <div className="text-sm text-gray-600">
+            Total: {giftTotal} gifts
+          </div>
+        )}
+      </div>
+
+      {loadingGiftHistory ? (
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">Loading gift history...</p>
+        </div>
+      ) : giftHistory.length > 0 ? (
+        <>
+          <div className="overflow-x-auto mb-4">
+            <table className="min-w-full border">
+              <thead className="bg-pink-50">
+                <tr>
+                  <th className="p-2 border">Date</th>
+                  <th className="p-2 border">Gift Type</th>
+                  <th className="p-2 border">Quantity</th>
+                  <th className="p-2 border">Distributed By</th>
+                  <th className="p-2 border">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {giftHistory.map((gift, index) => (
+                  <tr key={index}>
+                    <td className="p-2 border">
+                      {new Date(gift.date).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 border">
+                      {gift.isDiwaliGift && "🪔 "}
+                      {gift.giftType?.name || "Unknown"}
+                      {gift.isDiwaliGift && (
+                        <span className="ml-1 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Diwali</span>
+                      )}
+                    </td>
+                    <td className="p-2 border">{gift.quantity}</td>
+                    <td className="p-2 border">
+                      {gift.distributedBy?.name || "Unknown"}
+                    </td>
+                    <td className="p-2 border">{gift.notes || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {giftTotalPages > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              <div className="text-sm text-gray-600">
+                Page {giftPage} of {giftTotalPages}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newPage = Math.max(1, giftPage - 1);
+                    setGiftPage(newPage);
+                    fetchGiftHistory(newPage);
+                  }}
+                  disabled={giftPage === 1}
+                  className="px-3 py-1 bg-gray-200 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Previous
+                </button>
+                <button
+                  onClick={() => {
+                    const newPage = Math.min(giftTotalPages, giftPage + 1);
+                    setGiftPage(newPage);
+                    fetchGiftHistory(newPage);
+                  }}
+                  disabled={giftPage === giftTotalPages}
+                  className="px-3 py-1 bg-gray-200 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center py-6 border rounded-lg bg-gray-50">
+          <p className="text-gray-500">No gift history found</p>
+        </div>
+      )}
     </div>
 
     {/* Die/Mold Form */}

@@ -212,6 +212,7 @@ const dashboardPages = [
         action: 'quick-edit'
       })),
       // ADD CUSTOMERS - show details
+      // ADD CUSTOMERS - show details
       ...customers.map(c => ({
         _id: c._id || `customer-${Date.now()}`,
         type: 'customer',
@@ -224,6 +225,8 @@ const dashboardPages = [
         address: safeString(c.address),
         locationLink: safeString(c.locationLink),
         instructions: safeString(c.instructions),
+        createdByName: c.createdBy?.name || 'N/A',
+        createdByEmail: c.createdBy?.email || '',
         rawData: c,
         action: 'show-details'
       })),
@@ -446,9 +449,14 @@ const renderSearchResultItem = (item) => {
             Category: {matchedCategory || category}
           </p>
         )}
-        {item.type === 'customer' && item.phone && (
+               {item.type === 'customer' && item.phone && (
           <p className="text-xs text-gray-500 mt-1">
             Phone: {safeString(item.phone)}
+          </p>
+        )}
+        {item.type === 'customer' && item.createdByName && (
+          <p className="text-xs text-gray-500 mt-1">
+            Managed By: {safeString(item.createdByName)}
           </p>
         )}
         <p className="text-xs text-gray-400 mt-1">
@@ -522,7 +530,7 @@ const renderSearchResultItem = (item) => {
           <h5 className="font-semibold text-gray-900 text-lg mb-2">
             {safeString(item.customerName, 'Unknown Customer')}
           </h5>
-          <div className="space-y-1 text-sm text-gray-600">
+                   <div className="space-y-1 text-sm text-gray-600">
             <p><span className="font-medium">GST:</span> {safeString(item.company, "URP")}</p>
             <p><span className="font-medium">Phone:</span> {safeString(item.phone, "-")}</p>
             <p><span className="font-medium">Email:</span> {safeString(item.email, "-")}</p>
@@ -559,6 +567,8 @@ const renderSearchResultItem = (item) => {
               </a>
             </p>
           )}
+                      <p><span className="font-medium">Customer Managed/Handled By:</span> {safeString(item.createdByName, "N/A")}</p>
+
           {item.instructions && (
             <p>
               <span className="font-medium">Instructions:</span> {safeString(item.instructions)}
