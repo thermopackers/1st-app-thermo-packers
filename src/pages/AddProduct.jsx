@@ -38,6 +38,8 @@ export default function AddProduct() {
   const [additionalImages1, setAdditionalImages1] = useState([]);
   const [additionalImages2, setAdditionalImages2] = useState([]);
   const [drawings, setDrawings] = useState([]);
+  // ✅ NEW: Dry Weight Image
+  const [dryWeightImages, setDryWeightImages] = useState([]);
   const navigate = useNavigate();
 
   // Fetch polybag products on component mount
@@ -215,12 +217,13 @@ export default function AddProduct() {
   }
 });
 
-    images.forEach((file) => data.append("images", file));
+      images.forEach((file) => data.append("images", file));
     internalImages.forEach((file) => data.append("internalImages", file));
     additionalImages1.forEach((file) => data.append("additionalImages1", file));
     additionalImages2.forEach((file) => data.append("additionalImages2", file));
     drawings.forEach((file) => data.append("drawings", file));
-
+    // ✅ NEW: Dry Weight Images
+    dryWeightImages.forEach((file) => data.append("dryWeightImages", file));
     try {
       await axiosInstance.post("/products-multer", data, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -266,6 +269,28 @@ export default function AddProduct() {
     setDrawings((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // ✅ NEW: Dry Weight Image handler
+  const handleDryWeightImagesChange = async (e) => {
+    const files = Array.from(e.target.files);
+    const compressed = [];
+
+    for (const file of files) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        compressed.push(renamedFile);
+      } else {
+        compressed.push(file);
+      }
+    }
+
+    setDryWeightImages((prev) => [...prev, ...compressed].slice(0, 5));
+  };
+
+  const handleRemoveDryWeightImage = (idx) => {
+    setDryWeightImages((prev) => prev.filter((_, i) => i !== idx));
+  };
   return (
     <>
       <InternalNavbar />
@@ -397,9 +422,34 @@ export default function AddProduct() {
   <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
 </div>
 
+{/* ✅ NEW: Dry Weight Image Upload */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Upload Image of Dry Weight of Product</label>
+  <span className="text-sm text-gray-500 block mb-2">(Put Photo of Product on Small Kanda/Weighing Scale showing weight in gms)</span>
+  <input 
+    type="file" 
+    accept="image/*,application/pdf" 
+    multiple 
+    onChange={handleDryWeightImagesChange} 
+    className="w-full border rounded p-2" 
+  />
+  <div className="flex flex-wrap gap-4 mt-4">
+    {dryWeightImages.map((file, idx) => (
+      <div key={idx} className="relative w-24 h-24 border rounded-lg flex items-center justify-center text-xs shadow overflow-hidden">
+        {file.type === "application/pdf" ? (
+          <span className="text-red-600 font-semibold">📄 PDF</span>
+        ) : (
+          <img src={URL.createObjectURL(file)} alt={`Dry Weight ${idx + 1}`} className="w-full h-full object-cover" />
+        )}
+        <button type="button" onClick={() => handleRemoveDryWeightImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center">&times;</button>
+      </div>
+    ))}
+  </div>
+</div>
+
           <div>
             <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
-            <input 
+             <input 
               name="pcsPerPacket" 
               type="number"
               step="1"

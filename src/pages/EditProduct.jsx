@@ -56,6 +56,11 @@ export default function EditProduct() {
   const [additionalPreviewUrls2, setAdditionalPreviewUrls2] = useState([]);
   const [removedAdditionalImages2, setRemovedAdditionalImages2] = useState([]);
 
+  // ✅ NEW: Dry Weight Image
+  const [dryWeightImages, setDryWeightImages] = useState([]);
+  const [dryWeightPreviewUrls, setDryWeightPreviewUrls] = useState([]);
+  const [removedDryWeightImages, setRemovedDryWeightImages] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [drawings, setDrawings] = useState([]);
@@ -76,12 +81,14 @@ export default function EditProduct() {
       additionalPreviewUrls2.forEach(url => {
         if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
       });
-      drawingPreviewUrls.forEach(url => {
+        drawingPreviewUrls.forEach(url => {
+        if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+      dryWeightPreviewUrls.forEach(url => {
         if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
       });
     };
-  }, [previewUrls, internalPreviewUrls, additionalPreviewUrls1, additionalPreviewUrls2, drawingPreviewUrls]);
-
+  }, [previewUrls, internalPreviewUrls, additionalPreviewUrls1, additionalPreviewUrls2, drawingPreviewUrls, dryWeightPreviewUrls]);
   useEffect(() => {
     const fetchPolybagProducts = async () => {
       try {
@@ -168,9 +175,16 @@ export default function EditProduct() {
           );
         }
 
-        if (res.data.drawings?.length > 0) {
+          if (res.data.drawings?.length > 0) {
           setDrawingPreviewUrls(
             res.data.drawings.map((file) => (file.startsWith("http") ? file : `${BASE_URL}${file}`))
+          );
+        }
+
+        // ✅ NEW: Load dry weight images
+        if (res.data.dryWeightImages?.length > 0) {
+          setDryWeightPreviewUrls(
+            res.data.dryWeightImages.map((file) => (file.startsWith("http") ? file : `${BASE_URL}${file}`))
           );
         }
 
@@ -265,6 +279,48 @@ export default function EditProduct() {
     }
     setAdditionalImages2((prev) => [...prev, ...processed]);
     setAdditionalPreviewUrls2((prev) => [...prev, ...processed.map((f) => URL.createObjectURL(f))]);
+  };
+
+   const handleDryWeightImagesChange = async (e) => {
+    const files = Array.from(e.target.files);
+    const processed = [];
+
+    for (const file of files) {
+      if (file.type.startsWith("image/")) {
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(file, options);
+        const renamedFile = new File([compressedFile], file.name, { type: compressedFile.type });
+        processed.push(renamedFile);
+      } else {
+        processed.push(file);
+      }
+    }
+    setDryWeightImages((prev) => [...prev, ...processed]);
+    setDryWeightPreviewUrls((prev) => [...prev, ...processed.map((f) => URL.createObjectURL(f))]);
+  };
+
+  const handleRemoveDryWeightImage = (indexToRemove) => {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: "You want to delete this image?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const removedUrl = dryWeightPreviewUrls[indexToRemove];
+        if (!removedUrl.startsWith("blob:")) {
+          const relativePath = removedUrl.replace(BASE_URL, "");
+          setRemovedDryWeightImages((prev) => [...prev, relativePath]);
+        } else {
+          setDryWeightImages((prev) => prev.filter((_, i) => i !== indexToRemove));
+        }
+        setDryWeightPreviewUrls((prev) => prev.filter((_, i) => i !== indexToRemove));
+      }
+    });
   };
 
   const handleRemoveImage = (indexToRemove) => {
@@ -409,8 +465,12 @@ export default function EditProduct() {
       additionalImages2.forEach((file) => data.append("additionalImages2", file));
       removedAdditionalImages2.forEach((filePath) => data.append("removedAdditionalImages2[]", filePath));
 
-      drawings.forEach((file) => data.append("drawings", file));
+          drawings.forEach((file) => data.append("drawings", file));
       removedDrawings.forEach((filePath) => data.append("removedDrawings[]", filePath));
+
+      // ✅ NEW: Dry Weight Images
+      dryWeightImages.forEach((file) => data.append("dryWeightImages", file));
+      removedDryWeightImages.forEach((filePath) => data.append("removedDryWeightImages[]", filePath));
 
       await axiosInstance.put(`/products-multer/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -613,6 +673,48 @@ export default function EditProduct() {
   />
   <p className="text-sm text-gray-500 mt-1">Enter weight in grams (e.g., 500 for 500g)</p>
 </div>
+
+{/* ✅ NEW: Dry Weight Image Upload */}
+<div>
+  <label className="block text-gray-700 font-semibold mb-2">Upload Image of Dry Weight of Product</label>
+  <span className="text-sm text-gray-500 block mb-2">(Put Photo of Product on Small Kanda/Weighing Scale showing weight in gms)</span>
+  <div className="flex flex-wrap gap-2 mb-2">
+    {dryWeightPreviewUrls.map((url, i) => (
+      <div key={i} className="relative w-32 h-32 border rounded flex items-center justify-center overflow-hidden">
+        {url.endsWith(".pdf") ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-red-600 font-semibold">📄 PDF</a>
+        ) : (
+          <img 
+            src={url} 
+            alt={`Dry Weight ${i}`} 
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => {
+              Swal.fire({
+                html: `<div style="text-align: center;">
+                         <img src="${url}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;" />
+                         <div style="margin-top: 10px;">
+                           <button id="closeImageBtn" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                         </div>
+                       </div>`,
+                showConfirmButton: false,
+                width: 'auto',
+                padding: 0,
+                didOpen: () => {
+                  document.getElementById('closeImageBtn').addEventListener('click', () => {
+                    Swal.close();
+                  });
+                }
+              });
+            }}
+          />
+        )}
+        <button type="button" onClick={() => handleRemoveDryWeightImage(i)} className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button>
+      </div>
+    ))}
+  </div>
+  <input type="file" accept="image/*,application/pdf" multiple onChange={handleDryWeightImagesChange} className="w-full border p-2 rounded" />
+</div>
+
           <div>
             <label className="block text-gray-700 font-semibold mb-2">No. of Pieces in 1 Packet</label>
             <input 
