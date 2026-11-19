@@ -426,10 +426,15 @@ const MoldDieForm = ({ onClose, editId }) => {
       return;
     }
 
-    try {
+     try {
       setLoading(true);
+      const payload = {
+        ...formData,
+        customerId: formData.customerId || null,
+        salesProductId: formData.salesProductId || null,
+      };
       if (editingId) {
-        await axiosInstance.put(`/mold-die/${editingId}`, formData);
+        await axiosInstance.put(`/mold-die/${editingId}`, payload);
         Swal.fire({
           title: "Updated!",
           text: "Die/Mold record updated successfully",
@@ -437,7 +442,7 @@ const MoldDieForm = ({ onClose, editId }) => {
           confirmButtonColor: "#2563eb",
         });
       } else {
-        await axiosInstance.post("/mold-die", formData);
+        await axiosInstance.post("/mold-die", payload);
         Swal.fire({
           title: "Added!",
           text: "Die/Mold record added successfully",
